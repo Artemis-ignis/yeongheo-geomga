@@ -29,3 +29,6 @@ body { font-family: var(--font-kr); color: #fff; user-select: none; }
   background: var(--ink);
 }
 #fallback[hidden] { display: none; }
+#fallback h1 { font-size: 1.6rem; color: var(--gold); margin-bottom: 1rem; letter-spacing: 0.05em; }
+#fallback p { color: #b9c3d0; max-width: 32rem; }
+#fallback .reason { margin-top: 1rem; font-size: 0.85rem; color: #6d7887; }

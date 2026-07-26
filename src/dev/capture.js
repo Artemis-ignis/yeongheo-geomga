@@ -16,8 +16,9 @@ export function installCapture(renderer, drawFrame) {
   if (typeof window === 'undefined') return
 
   window.__capture = async (name = 'shot', width = 1280, height = 720) => {
-    const prevW = renderer.domElement.width
-    const prevH = renderer.domElement.height
+    // getSize reports CSS pixels, which is what setSize expects back. It writes
+    // through Vector2#set, so the target needs that method.
+    const prev = renderer.getSize({ x: 0, y: 0, set(x, y) { this.x = x; this.y = y; return this } })
     const prevRatio = renderer.getPixelRatio()
 
     renderer.setPixelRatio(1)
@@ -26,7 +27,7 @@ export function installCapture(renderer, drawFrame) {
     const dataUrl = renderer.domElement.toDataURL('image/png')
 
     renderer.setPixelRatio(prevRatio)
-    renderer.setSize(prevW, prevH, false)
+    renderer.setSize(prev.x, prev.y, false)
 
     const response = await fetch('/__shot', {
       method: 'POST',
