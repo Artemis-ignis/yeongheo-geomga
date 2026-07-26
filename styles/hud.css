@@ -1,0 +1,31 @@
+:root {
+  --jade: #7fd6b5;
+  --gold: #e8c56a;
+  --ink: #0d1117;
+  --blood: #d9534f;
+  --font-kr: 'Noto Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #app { width: 100%; height: 100%; overflow: hidden; background: var(--ink); }
+
+body { font-family: var(--font-kr); color: #fff; user-select: none; }
+
+#scene, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#overlay { pointer-events: none; }
+
+#hud { position: absolute; inset: 0; pointer-events: none; }
+#hud .clickable { pointer-events: auto; }
+
+#fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  text-align: center;
+  line-height: 1.7;
+  background: var(--ink);
+}
+#fallback[hidden] { display: none; }
