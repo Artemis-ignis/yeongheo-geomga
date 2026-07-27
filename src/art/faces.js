@@ -163,7 +163,7 @@ function buildFace(palette, expression) {
   } else if (expression === 'breakthrough') {
     drawBrows(ctx, -8, '#2b1f27')
     drawOpenEye(ctx, palette, { wide: 1.12, highlight: 1 })
-    // Extra glint ring — reads as 기(氣) surging at 돌파.
+    // Extra glint ring — reads as qi surging at 돌파.
     bothEyes(ctx, (c) => {
       c.strokeStyle = 'rgba(255,255,255,0.85)'
       c.lineWidth = 4

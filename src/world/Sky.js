@@ -95,7 +95,7 @@ export class Sky {
           float twinkle = 0.75 + 0.25 * sin( uTime * 2.0 + n * 40.0 );
           col += vec3( smoothstep( 0.9972, 1.0, n ) * smoothstep( 0.18, 0.7, y ) * twinkle );
 
-          // 서기(瑞氣) — faint auspicious light banding high in the sky.
+          // 서기 — faint auspicious light banding high in the sky.
           float band = sin( y * 9.0 - uTime * 0.06 ) * 0.5 + 0.5;
           col += uHaze * band * smoothstep( 0.45, 0.95, y ) * 0.05;
 

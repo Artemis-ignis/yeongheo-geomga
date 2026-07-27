@@ -18,7 +18,7 @@ export class LevelUpModal {
     this.node.style.display = 'none'
     this.node.innerHTML = `
       <div class="modal-panel">
-        <div class="modal-title">경지 돌파 <span>境界突破</span></div>
+        <div class="modal-title">경지 돌파</div>
         <div class="modal-cards"></div>
         <div class="modal-hint">1 · 2 · 3 또는 ← → 로 선택, Enter 로 확정</div>
       </div>`
@@ -41,14 +41,14 @@ export class LevelUpModal {
       const card = document.createElement('button')
       card.className = `modal-card clickable kind-${choice.kind}`
       const step = choice.kind === 'evolution'
-        ? '進化 · 진화'
+        ? '진화'
         : choice.fromLevel === 0
           ? '신규 습득'
           : `Lv${choice.fromLevel} → Lv${choice.toLevel}`
       card.innerHTML = `
-        ${choice.kind === 'evolution' ? '<div class="modal-evo">進化</div>' : ''}
+        ${choice.kind === 'evolution' ? '<div class="modal-evo">진화</div>' : ''}
         <img class="modal-icon" alt="" src="${iconFor(choice.id)}" />
-        <div class="modal-name">${choice.name}<span>${choice.hanja ?? ''}</span></div>
+        <div class="modal-name">${choice.name}</div>
         <div class="modal-step">${step}</div>
         <div class="modal-desc">${choice.desc ?? ''}</div>`
       card.addEventListener('click', () => this.pick(i))

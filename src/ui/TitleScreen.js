@@ -23,14 +23,13 @@ export class TitleScreen {
     this.node.style.display = 'none'
     this.node.innerHTML = `
       <div class="screen-inner">
-        <div class="title-mark">靈墟劍歌</div>
-        <div class="title-sub">영허검가</div>
+        <div class="title-mark">영허검가</div>
         <div class="title-tag">— 마기가 삼킨 비경에서, 검을 든 소녀들의 이야기 —</div>
 
         <div class="title-menu">
           <button class="btn clickable" data-act="start">비경 진입</button>
-          <button class="btn btn-alt clickable" data-act="shop">단전 丹殿</button>
-          <button class="btn btn-alt clickable" data-act="codex">도감 圖鑑</button>
+          <button class="btn btn-alt clickable" data-act="shop">단전</button>
+          <button class="btn btn-alt clickable" data-act="codex">도감</button>
         </div>
         <div class="title-stones"></div>
 
@@ -61,7 +60,7 @@ export class TitleScreen {
       const weapon = getWeapon(c.startWeapon)
       card.innerHTML = `
         <div class="char-lock"></div>
-        <div class="char-name">${c.name}<span>${c.hanja}</span></div>
+        <div class="char-name">${c.name}</div>
         <div class="char-path">${c.path}</div>
         <div class="char-start">
           <img alt="" src="${iconFor(c.startWeapon)}" />

@@ -5,7 +5,7 @@ import { getCharacter } from '../data/characters.js'
 import { getWeapon } from '../data/weapons.js'
 
 /**
- * 단전(丹殿) — spend 영석 on permanent upgrades and unlocks.
+ * 단전 — spend 영석 on permanent upgrades and unlocks.
  *
  * Every purchase writes through immediately via the `onChange` callback, so
  * closing the tab mid-shopping never loses a purchase.
@@ -22,7 +22,7 @@ export class ShopScreen {
     this.node.innerHTML = `
       <div class="screen-inner shop-inner">
         <div class="shop-head">
-          <div class="shop-title">단전 <span>丹殿</span></div>
+          <div class="shop-title">단전</div>
           <div class="shop-stones"></div>
         </div>
         <div class="shop-scroll">
@@ -46,7 +46,7 @@ export class ShopScreen {
       row.innerHTML = `
         <img class="shop-icon" alt="" src="${iconFor(up.id)}" />
         <div class="shop-body">
-          <div class="shop-name">${up.name}<span>${up.hanja}</span></div>
+          <div class="shop-name">${up.name}</div>
           <div class="shop-desc">${up.desc}</div>
           <div class="shop-pips"></div>
         </div>
@@ -69,7 +69,7 @@ export class ShopScreen {
       row.innerHTML = `
         <img class="shop-icon" alt="" src="${iconFor(u.kind === 'characters' ? 'insight' : u.id)}" />
         <div class="shop-body">
-          <div class="shop-name">${def?.name ?? u.id}<span>${def?.hanja ?? ''}</span></div>
+          <div class="shop-name">${def?.name ?? u.id}</div>
           <div class="shop-desc">${u.kind === 'characters' ? '플레이 가능한 수사' : '돌파 보상에 등장하는 법보'}</div>
         </div>
         <div class="shop-cost"></div>`

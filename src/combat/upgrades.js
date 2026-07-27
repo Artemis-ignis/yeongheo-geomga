@@ -11,9 +11,9 @@ const WEIGHT_NEW_PASSIVE = 50
 const WEIGHT_EVOLUTION = 400
 
 export const CONSUMABLES = [
-  { kind: 'consumable', id: 'heal', name: '회춘단', hanja: '回春丹', desc: '기혈을 30% 회복한다.' },
-  { kind: 'consumable', id: 'stones', name: '영석 주머니', hanja: '靈石囊', desc: '영석 200개를 얻는다.' },
-  { kind: 'consumable', id: 'purge', name: '정화부', hanja: '淨化符', desc: '화면 안의 모든 적을 소멸시킨다.' },
+  { kind: 'consumable', id: 'heal', name: '회춘단', desc: '기혈을 30% 회복한다.' },
+  { kind: 'consumable', id: 'stones', name: '영석 주머니', desc: '영석 200개를 얻는다.' },
+  { kind: 'consumable', id: 'purge', name: '정화부', desc: '화면 안의 모든 적을 소멸시킨다.' },
 ]
 
 /** A weapon can evolve once it and its paired 공법 are both maxed. */
@@ -41,7 +41,7 @@ function buildCandidates(loadout, stats, unlockedWeapons) {
       out.push({
         weight: WEIGHT_EVOLUTION * luck,
         choice: {
-          kind: 'evolution', id: evo.id, name: evo.name, hanja: evo.hanja,
+          kind: 'evolution', id: evo.id, name: evo.name,
           desc: evo.desc, replaces: w.id, fromLevel: level, toLevel: 1,
         },
       })
@@ -52,12 +52,12 @@ function buildCandidates(loadout, stats, unlockedWeapons) {
       if (weaponCount >= MAX_WEAPON_SLOTS) continue
       out.push({
         weight: WEIGHT_NEW_WEAPON * luck,
-        choice: { kind: 'weapon', id: w.id, name: w.name, hanja: w.hanja, desc: w.desc, fromLevel: 0, toLevel: 1 },
+        choice: { kind: 'weapon', id: w.id, name: w.name, desc: w.desc, fromLevel: 0, toLevel: 1 },
       })
     } else if (level < w.levels.length) {
       out.push({
         weight: WEIGHT_OWNED_WEAPON * luck,
-        choice: { kind: 'weapon', id: w.id, name: w.name, hanja: w.hanja, desc: w.desc, fromLevel: level, toLevel: level + 1 },
+        choice: { kind: 'weapon', id: w.id, name: w.name, desc: w.desc, fromLevel: level, toLevel: level + 1 },
       })
     }
   }
@@ -68,7 +68,7 @@ function buildCandidates(loadout, stats, unlockedWeapons) {
     if (level === 0 && passiveCount >= MAX_PASSIVE_SLOTS) continue
     out.push({
       weight: (level === 0 ? WEIGHT_NEW_PASSIVE : WEIGHT_OWNED_PASSIVE) * luck,
-      choice: { kind: 'passive', id: p.id, name: p.name, hanja: p.hanja, desc: p.desc, fromLevel: level, toLevel: level + 1 },
+      choice: { kind: 'passive', id: p.id, name: p.name, desc: p.desc, fromLevel: level, toLevel: level + 1 },
     })
   }
 

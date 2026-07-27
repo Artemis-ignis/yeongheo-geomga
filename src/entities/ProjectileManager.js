@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { Pool } from '../core/Pool.js'
 import { buildMerged } from '../art/geometry.js'
 import { makeToonMaterial } from '../art/materials.js'
+import { uploadInstances } from '../art/instancing.js'
 import { ARENA_RADIUS } from '../world/Terrain.js'
 
 export const MAX_PROJECTILES = 1200
@@ -320,7 +321,7 @@ export class ProjectileManager {
         mesh.setMatrixAt(n, _dummy.matrix)
       }
       mesh.count = count
-      mesh.instanceMatrix.needsUpdate = true
+      uploadInstances(mesh, count)
     }
   }
 

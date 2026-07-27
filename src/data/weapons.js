@@ -1,5 +1,5 @@
 /**
- * 법보(法寶) — the auto-firing weapons.
+ * 법보 — the auto-firing weapons.
  *
  * Level fields combine with the player's stats as:
  *   cooldown -> level.cooldown * stats.cooldown
@@ -11,7 +11,7 @@
  */
 export const WEAPONS = [
   {
-    id: 'flyingSword', name: '비검', hanja: '飛劍', tag: 'sword',
+    id: 'flyingSword', name: '비검', tag: 'sword',
     desc: '가장 가까운 적을 추적하는 검을 날린다.',
     pairPassive: 'swordArt', evolvesTo: 'myriadSwords',
     levels: [
@@ -23,7 +23,7 @@ export const WEAPONS = [
     ],
   },
   {
-    id: 'fireTalisman', name: '화염부', hanja: '火焰符', tag: 'fire',
+    id: 'fireTalisman', name: '화염부', tag: 'fire',
     desc: '적에게 부적을 던져 터뜨리고 화상을 남긴다.',
     pairPassive: 'goldenCore', evolvesTo: 'infernoSea',
     levels: [
@@ -35,7 +35,7 @@ export const WEAPONS = [
     ],
   },
   {
-    id: 'thunderOrb', name: '뇌령주', hanja: '雷靈珠', tag: 'thunder',
+    id: 'thunderOrb', name: '뇌령주', tag: 'thunder',
     desc: '몸 주위를 도는 뇌기 구슬이 닿는 적을 지진다.',
     pairPassive: 'spiritRoot', evolvesTo: 'violetThunder',
     levels: [
@@ -47,7 +47,7 @@ export const WEAPONS = [
     ],
   },
   {
-    id: 'frostPalm', name: '빙백장', hanja: '氷魄掌', tag: 'ice',
+    id: 'frostPalm', name: '빙백장', tag: 'ice',
     desc: '진행 방향으로 냉기를 뿜어 적을 얼려 붙인다.',
     pairPassive: 'guardianAura', evolvesTo: 'frozenSky',
     levels: [
@@ -59,7 +59,7 @@ export const WEAPONS = [
     ],
   },
   {
-    id: 'baguaArray', name: '팔괘진', hanja: '八卦陣', tag: 'array',
+    id: 'baguaArray', name: '팔괘진', tag: 'array',
     desc: '발밑에 진법을 펼쳐 범위 안의 적을 지속적으로 태운다.',
     levels: [
       { damage: 5, cooldown: 0.50, area: 1.0 },
@@ -70,7 +70,7 @@ export const WEAPONS = [
     ],
   },
   {
-    id: 'vajra', name: '금강저', hanja: '金剛杵', tag: 'array',
+    id: 'vajra', name: '금강저', tag: 'array',
     desc: '정면으로 금강저를 쏘아 모든 것을 꿰뚫고 밀어낸다.',
     levels: [
       { damage: 30, cooldown: 2.40, amount: 1, speed: 14, pierce: 999, area: 1.0, knockback: 10 },
@@ -81,7 +81,7 @@ export const WEAPONS = [
     ],
   },
   {
-    id: 'spiritButterfly', name: '영접부', hanja: '靈蝶符', tag: 'array',
+    id: 'spiritButterfly', name: '영접부', tag: 'array',
     desc: '느리게 떠도는 영접이 적을 찾아 달라붙는다.',
     levels: [
       { damage: 7, cooldown: 1.80, amount: 3, speed: 5.0, pierce: 1, area: 1.0, duration: 6 },
@@ -92,7 +92,7 @@ export const WEAPONS = [
     ],
   },
   {
-    id: 'skyThunder', name: '천뢰인', hanja: '天雷引', tag: 'thunder',
+    id: 'skyThunder', name: '천뢰인', tag: 'thunder',
     desc: '하늘에서 벼락을 끌어내려 적을 내리친다.',
     levels: [
       { damage: 34, cooldown: 3.00, amount: 1, area: 1.0, knockback: 4 },
@@ -106,25 +106,25 @@ export const WEAPONS = [
 
 export const EVOLUTIONS = [
   {
-    id: 'myriadSwords', name: '만검귀종', hanja: '萬劍歸宗', tag: 'sword',
+    id: 'myriadSwords', name: '만검귀종', tag: 'sword',
     desc: '하늘의 모든 검이 그대에게 돌아온다. 끊임없이 검비가 쏟아진다.',
     evolutionOf: 'flyingSword',
     levels: [{ damage: 34, cooldown: 0.22, amount: 2, speed: 26, pierce: 3, area: 1.6, knockback: 3 }],
   },
   {
-    id: 'infernoSea', name: '분천화해', hanja: '焚天火海', tag: 'fire',
+    id: 'infernoSea', name: '분천화해', tag: 'fire',
     desc: '터진 자리에 불바다가 남아 계속 타오른다.',
     evolutionOf: 'fireTalisman',
     levels: [{ damage: 44, cooldown: 0.95, amount: 3, speed: 14, area: 1.9, burn: 14, duration: 5 }],
   },
   {
-    id: 'violetThunder', name: '자소신뢰', hanja: '紫霄神雷', tag: 'thunder',
+    id: 'violetThunder', name: '자소신뢰', tag: 'thunder',
     desc: '구슬에서 뻗은 뇌전이 주변의 적으로 연쇄한다.',
     evolutionOf: 'thunderOrb',
     levels: [{ damage: 32, cooldown: 0.30, count: 7, area: 1.5, speed: 3.4, knockback: 4, chain: 2, chainRange: 6 }],
   },
   {
-    id: 'frozenSky', name: '한천빙봉', hanja: '寒天氷封', tag: 'ice',
+    id: 'frozenSky', name: '한천빙봉', tag: 'ice',
     desc: '적을 완전히 얼려붙이고, 부서질 때 냉기가 터진다.',
     evolutionOf: 'frostPalm',
     levels: [{ damage: 52, cooldown: 1.40, area: 2.0, slow: 0.95, duration: 3, knockback: 7, shatter: 40 }],

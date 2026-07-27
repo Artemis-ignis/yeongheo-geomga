@@ -29,7 +29,7 @@ export class ResultScreen {
     this.node.innerHTML = `
       <div class="screen-inner">
         <div class="result-banner ${result.victory ? 'win' : 'lose'}">
-          ${result.victory ? '昇天' : '坐化'}
+          ${result.victory ? '승천' : '좌화'}
         </div>
         <div class="result-flavor">
           ${result.victory

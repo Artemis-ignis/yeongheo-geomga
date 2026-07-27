@@ -4,7 +4,7 @@ import { WEAPONS, EVOLUTIONS } from '../data/weapons.js'
 import { BOSSES } from '../entities/BossManager.js'
 
 /**
- * 도감(圖鑑) — what the player has actually encountered.
+ * 도감 — what the player has actually encountered.
  *
  * Unseen entries stay as silhouettes with their name hidden, so the codex shows
  * how much is left to find without spoiling it.
@@ -20,17 +20,17 @@ export class CodexScreen {
     this.node.innerHTML = `
       <div class="screen-inner shop-inner">
         <div class="shop-head">
-          <div class="shop-title">도감 <span>圖鑑</span></div>
+          <div class="shop-title">도감</div>
           <div class="shop-stones codex-progress"></div>
         </div>
         <div class="shop-scroll">
-          <div class="shop-section">법보 法寶</div>
+          <div class="shop-section">법보</div>
           <div class="codex-grid" data-kind="weapons"></div>
-          <div class="shop-section">요괴 妖怪</div>
+          <div class="shop-section">요괴</div>
           <div class="codex-grid" data-kind="enemies"></div>
-          <div class="shop-section">마존 魔尊</div>
+          <div class="shop-section">마존</div>
           <div class="codex-grid" data-kind="bosses"></div>
-          <div class="shop-section">기록 記錄</div>
+          <div class="shop-section">기록</div>
           <div class="codex-records"></div>
         </div>
         <button class="btn btn-alt clickable" data-act="back">← 돌아가기</button>
@@ -42,9 +42,9 @@ export class CodexScreen {
     this.recordsHost = this.node.querySelector('.codex-records')
 
     this.entries = [
-      ...[...WEAPONS, ...EVOLUTIONS].map((w) => ({ kind: 'weapons', id: w.id, name: w.name, hanja: w.hanja })),
-      ...ENEMIES.map((e) => ({ kind: 'enemies', id: e.id, name: e.name, hanja: e.hanja })),
-      ...Object.values(BOSSES).map((b) => ({ kind: 'bosses', id: b.id, name: b.name, hanja: b.hanja })),
+      ...[...WEAPONS, ...EVOLUTIONS].map((w) => ({ kind: 'weapons', id: w.id, name: w.name })),
+      ...ENEMIES.map((e) => ({ kind: 'enemies', id: e.id, name: e.name })),
+      ...Object.values(BOSSES).map((b) => ({ kind: 'bosses', id: b.id, name: b.name })),
     ].map((entry) => {
       const host = this.node.querySelector(`.codex-grid[data-kind="${entry.kind}"]`)
       const cell = document.createElement('div')
@@ -74,7 +74,7 @@ export class CodexScreen {
       if (known) seen++
       e.cell.classList.toggle('unknown', !known)
       e.nameNode.textContent = known ? e.name : '???'
-      e.cell.title = known ? `${e.name} ${e.hanja}` : '아직 만나지 못했다'
+      e.cell.title = known ? e.name : '아직 만나지 못했다'
     }
     this.progressLabel.textContent = `${seen} / ${this.entries.length}`
 

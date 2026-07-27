@@ -6,6 +6,7 @@ import { ENEMIES, ENEMY_INDEX, scaledDamage, scaledHp, scaledXp } from '../data/
 import { waveAt } from '../data/waves.js'
 import { buildEnemyGeometry } from '../art/enemyGeometry.js'
 import { makeToonMaterial } from '../art/materials.js'
+import { uploadInstances } from '../art/instancing.js'
 import { ARENA_RADIUS } from '../world/Terrain.js'
 
 export const MAX_ENEMIES = 900
@@ -98,6 +99,8 @@ export class EnemyManager {
     // Per-type index lists, rebuilt each frame into preallocated buffers.
     this.typeLists = ENEMIES.map(() => new Int32Array(MAX_ENEMIES))
     this.typeCounts = new Int32Array(ENEMIES.length)
+    // Whether a type had any tinted instance last frame; drives colour uploads.
+    this._colorDirty = ENEMIES.map(() => true)
   }
 
   get liveCount() {
@@ -418,6 +421,12 @@ export class EnemyManager {
       const count = this.typeCounts[t]
       const base = ENEMIES[t].color
 
+      // Most enemies are their plain base colour most of the time. Re-uploading
+      // the whole colour buffer every frame for a handful of tinted instances is
+      // wasted bandwidth, so only touch it when a tint is actually in play.
+      let colorDirty = this._colorDirty[t]
+      let anyTint = false
+
       for (let k = 0; k < count; k++) {
         const i = list[k]
         const x = this.prevX[i] + (this.px[i] - this.prevX[i]) * alpha
@@ -428,16 +437,24 @@ export class EnemyManager {
         _dummy.updateMatrix()
         mesh.setMatrixAt(k, _dummy.matrix)
 
+        const tinted = this.freezeT[i] > 0 || this.slowAmt[i] > 0 || this.flash[i] > 0
+        if (tinted) anyTint = true
+        if (!tinted && !colorDirty && mesh.instanceColor) continue
+
         _color.setHex(base)
         if (this.freezeT[i] > 0) _color.lerp(FREEZE_TINT, 0.7)
         else if (this.slowAmt[i] > 0) _color.lerp(SLOW_TINT, this.slowAmt[i] * 0.6)
         if (this.flash[i] > 0) _color.lerp(FLASH_TINT, this.flash[i])
         mesh.setColorAt(k, _color)
+        colorDirty = true
       }
 
+      // Keep writing for one more frame after the last tint clears, so the
+      // instances that were tinted get reset to base.
+      this._colorDirty[t] = anyTint
+
       mesh.count = count
-      mesh.instanceMatrix.needsUpdate = true
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+      uploadInstances(mesh, count, colorDirty)
     }
   }
 

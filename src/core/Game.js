@@ -15,6 +15,7 @@ import { rollUpgrades, applyChoice } from '../combat/upgrades.js'
 import { Vfx } from '../art/vfx.js'
 import { buildChibi } from '../art/ChibiBuilder.js'
 import { Clock, FIXED_DT } from './Time.js'
+import { Quality } from './Quality.js'
 import { Input } from './Input.js'
 import { RNG, makeSeed } from './RNG.js'
 import { Emitter } from './Events.js'
@@ -50,6 +51,7 @@ export class Game {
     this.emitter = new Emitter()
     this.renderer = createRenderer(canvas)
     this.clock = new Clock()
+    this.quality = new Quality(this.renderer)
     this.input = new Input(window)
 
     this.pendingLevels = 0
@@ -224,7 +226,7 @@ export class Game {
     }
 
     this.boss.onWarning = (def) => {
-      this.overlay.pushBanner(`${def.name}  ${def.hanja}`)
+      this.overlay.pushBanner(def.name)
       this.camera.addTrauma(0.4)
       this.progress.markSeen('bosses', def.id)
     }
@@ -423,10 +425,15 @@ export class Game {
 
   _frame(now) {
     try {
-      const dt = (this._last === undefined ? 16 : now - this._last) / 1000
+      const elapsedMs = this._last === undefined ? 16 : now - this._last
+      const dt = elapsedMs / 1000
       this._last = now
+      if (this.state === 'playing') this.quality.sample(elapsedMs)
 
       if (this.input.consumeDebug()) this.debug.toggle()
+      if (this.input.consumeQuality()) {
+        this.overlay.pushBanner(`화질 ${this.quality.cycle()}`, 1.4)
+      }
       if (this.input.consumePause() && (this.state === 'playing' || this.state === 'paused')) {
         this._setPaused(this.state === 'playing')
       }
@@ -465,7 +472,7 @@ export class Game {
       dashCooldown: p.dashCooldown,
       weapons: this.weapons.equipped,
       passives: Object.entries(p.loadout.passives).map(([id, level]) => ({ id, level })),
-      boss: b ? { name: b.def.name, hanja: b.def.hanja, hp: b.hp, maxHp: b.maxHp } : null,
+      boss: b ? { name: b.def.name, hp: b.hp, maxHp: b.maxHp } : null,
     }
   }
 
@@ -482,6 +489,7 @@ export class Game {
       dropped: (this.enemies?.pool.dropped ?? 0)
         + (this.projectiles?.pool.dropped ?? 0)
         + (this.pickups?.pool.dropped ?? 0),
+      scale: this.quality.scale,
       seed: this.seed ?? 0,
     }
   }

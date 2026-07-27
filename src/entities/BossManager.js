@@ -8,13 +8,13 @@ import { buildEnemyGeometry } from '../art/enemyGeometry.js'
 export const BOSSES = {
   blueWolfKing: {
     id: 'blueWolfKing',
-    name: '요왕 창랑', hanja: '妖王 蒼狼',
+    name: '요왕 창랑',
     hp: 6000, radius: 2.6, damage: 30, speed: 3.0, scale: 3.4,
     color: 0x5f7fa8,
   },
   darkHeavenLord: {
     id: 'darkHeavenLord',
-    name: '마존 흑천', hanja: '魔尊 黑天',
+    name: '마존 흑천',
     hp: 24000, radius: 2.0, damage: 40, speed: 2.6, scale: 2.2,
     color: 0x4a2a70,
   },

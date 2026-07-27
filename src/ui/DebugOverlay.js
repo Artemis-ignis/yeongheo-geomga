@@ -38,6 +38,7 @@ export class DebugOverlay {
       `projs    ${s.projectiles}`,
       `pickups  ${s.pickups}`,
       `dropped  ${s.dropped}`,
+      `res      ${(s.scale ?? 1).toFixed(2)}x`,
       `seed     ${s.seed}`,
     ].join('\n')
   }

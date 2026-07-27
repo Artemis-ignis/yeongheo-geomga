@@ -1,10 +1,16 @@
 import * as THREE from 'three'
 import { Pool } from '../core/Pool.js'
 import { makeToonMaterial, makeAdditiveMaterial } from '../art/materials.js'
+import { uploadInstances } from '../art/instancing.js'
 import { glowTexture } from '../art/textures.js'
 
 export const MAX_PICKUPS = 1500
 export const PICKUP_KINDS = ['qi', 'stone', 'heal', 'chest']
+
+// Compared as numbers in the per-frame loop; string compares over ~1500 pickups
+// every frame are pure waste.
+const KIND_QI = 0
+const KIND_CHEST = 3
 
 const MAGNET_ACCEL = 34
 const COLLECT_RADIUS = 0.9
@@ -59,6 +65,7 @@ export class PickupManager {
     this.value = new Float32Array(MAX_PICKUPS)
     this.kind = new Uint8Array(MAX_PICKUPS)
     this.age = new Float32Array(MAX_PICKUPS)
+    this._mergeBuf = new Int32Array(QI_MERGE_BATCH)
 
     this.meshes = PICKUP_KINDS.map((kind) => {
       const { geo, mat } = kindMesh(kind)
@@ -118,51 +125,54 @@ export class PickupManager {
   /**
    * Fold the oldest orbs into one. Without this a player who outruns the horde
    * leaves hundreds of orbs behind and eventually starves the pool.
+   *
+   * Single pass: gather the victims, then release them high-index-first so the
+   * pool's swap-with-last never invalidates an index still to be freed. The
+   * previous version rescanned the whole pool once per merged orb, which cost
+   * ~150k operations in a single frame.
    */
   _mergeOldest() {
+    const victims = this._mergeBuf
+    let count = 0
     let cx = 0
     let cz = 0
     let total = 0
-    let merged = 0
-    for (let i = 0; i < this.pool.count && merged < QI_MERGE_BATCH; i++) {
-      if (PICKUP_KINDS[this.kind[i]] !== 'qi') continue
+    for (let i = 0; i < this.pool.count && count < QI_MERGE_BATCH; i++) {
+      if (this.kind[i] !== KIND_QI) continue
+      victims[count++] = i
       cx += this.px[i]
       cz += this.pz[i]
       total += this.value[i]
-      merged++
     }
-    if (merged < 2) return
-    for (let n = 0; n < merged; n++) {
-      for (let i = 0; i < this.pool.count; i++) {
-        if (PICKUP_KINDS[this.kind[i]] === 'qi') { this._release(i); break }
-      }
-    }
-    this.drop('qi', cx / merged, cz / merged, total)
+    if (count < 2) return
+    for (let n = count - 1; n >= 0; n--) this._release(victims[n])
+    this.drop('qi', cx / count, cz / count, total)
   }
 
   update(dt, player, vfx) {
     this.time += dt
 
-    let qiCount = 0
-    for (let i = 0; i < this.pool.count; i++) if (PICKUP_KINDS[this.kind[i]] === 'qi') qiCount++
-    if (qiCount > QI_MERGE_THRESHOLD) this._mergeOldest()
-
     const magnet = player.stats.magnet
     const magnet2 = magnet * magnet
+    const collect2 = COLLECT_RADIUS * COLLECT_RADIUS
     this.chestGlow.visible = false
 
+    let qiCount = 0
     for (let i = this.pool.count - 1; i >= 0; i--) {
+      const kind = this.kind[i]
+      if (kind === KIND_QI) qiCount++
       this.age[i] += dt
       const dx = player.x - this.px[i]
       const dz = player.z - this.pz[i]
       const d2 = dx * dx + dz * dz
 
-      if (PICKUP_KINDS[this.kind[i]] === 'chest') {
+      if (kind === KIND_CHEST) {
         this.chestGlow.visible = true
         this.chestGlow.position.set(this.px[i], 0.05, this.pz[i])
       }
 
-      if (d2 < magnet2 || PICKUP_KINDS[this.kind[i]] !== 'qi') {
+      // Non-qi drops always home in; 영기 only once inside the magnet radius.
+      if (d2 < magnet2 || kind !== KIND_QI) {
         const d = Math.sqrt(d2) || 1
         this.vx[i] += (dx / d) * MAGNET_ACCEL * dt
         this.vz[i] += (dz / d) * MAGNET_ACCEL * dt
@@ -170,14 +180,15 @@ export class PickupManager {
       this.px[i] += this.vx[i] * dt
       this.pz[i] += this.vz[i] * dt
 
-      if (d2 < COLLECT_RADIUS * COLLECT_RADIUS) {
-        const kind = PICKUP_KINDS[this.kind[i]]
+      if (d2 < collect2) {
         const value = this.value[i]
         this._release(i)
         if (vfx) vfx.spark(player.x, player.z, 1.1, 0.7)
-        if (this.onCollect) this.onCollect(kind, value)
+        if (this.onCollect) this.onCollect(PICKUP_KINDS[kind], value)
       }
     }
+
+    if (qiCount > QI_MERGE_THRESHOLD) this._mergeOldest()
   }
 
   render() {
@@ -201,7 +212,7 @@ export class PickupManager {
         mesh.setMatrixAt(n, _dummy.matrix)
       }
       mesh.count = count
-      mesh.instanceMatrix.needsUpdate = true
+      uploadInstances(mesh, count)
     }
   }
 

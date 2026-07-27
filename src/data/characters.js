@@ -25,7 +25,6 @@ export const CHARACTERS = [
   {
     id: 'seolryeong',
     name: '설령',
-    hanja: '雪靈',
     path: '한빙검파 검수',
     desc: '검을 몸의 연장처럼 다루는 한빙검파의 막내 제자.',
     traits: ['이동속도 +10%', '검류 법보 피해 +15%'],
@@ -39,7 +38,6 @@ export const CHARACTERS = [
   {
     id: 'hongryeon',
     name: '홍련',
-    hanja: '紅蓮',
     path: '염화종 부법사',
     desc: '부적 한 장으로 산을 태운다는 염화종의 기재.',
     traits: ['범위 +15%', '화염 법보 피해 +25%'],
@@ -53,7 +51,6 @@ export const CHARACTERS = [
   {
     id: 'cheongmyo',
     name: '청묘',
-    hanja: '靑猫',
     path: '요족 혈맥 체수',
     desc: '요족의 피를 이어받아 맨몸으로 뇌기를 두르는 소녀.',
     traits: ['최대 기혈 +30%', '초당 기혈 회복 0.4'],

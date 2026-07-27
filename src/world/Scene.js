@@ -38,7 +38,9 @@ export function createRenderer(canvas) {
     antialias: true,
     powerPreference: 'high-performance',
   })
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+  // Starting point only — Quality takes over and scales this from measured
+  // frame time. A fixed 2 on a high-DPI panel renders 4x the pixels of 1x.
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.35))
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -88,7 +90,9 @@ export function resizeToWindow(renderer, followCamera, overlayCanvas) {
   renderer.setSize(w, h, false)
   followCamera.setAspect(w / h)
   if (overlayCanvas) {
-    const ratio = Math.min(devicePixelRatio, 2)
+    // Combat text is thin and needs to stay legible, but it is 2D fill on a
+    // mostly empty canvas, so it can afford a higher ratio than the 3D buffer.
+    const ratio = Math.min(devicePixelRatio, 1.5)
     overlayCanvas.width = Math.floor(w * ratio)
     overlayCanvas.height = Math.floor(h * ratio)
     overlayCanvas.style.width = `${w}px`
