@@ -12,6 +12,23 @@
  *
  * Never imported by the production build.
  */
+/**
+ * Dev-only manual stepper.
+ *
+ * A tab that is not being composited never fires requestAnimationFrame, so the
+ * simulation would sit frozen at its initial state. This exposes
+ * `window.__step(seconds)` to advance the simulation deterministically in fixed
+ * slices — which is also more precise for verification than waiting on wall time.
+ */
+export function installStepper(update, fixedDt) {
+  if (typeof window === 'undefined') return
+  window.__step = (seconds = 1) => {
+    const ticks = Math.max(1, Math.round(seconds / fixedDt))
+    for (let i = 0; i < ticks; i++) update(fixedDt)
+    return ticks
+  }
+}
+
 export function installCapture(renderer, drawFrame) {
   if (typeof window === 'undefined') return
 

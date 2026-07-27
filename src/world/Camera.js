@@ -1,6 +1,11 @@
 import * as THREE from 'three'
 
-const OFFSET = new THREE.Vector3(0, 26, 20)
+/**
+ * Camera rig offset from the player, tuned against captured frames: close enough
+ * that the character reads at a glance, steep enough that a horde closing from
+ * every side stays legible.
+ */
+export const OFFSET = new THREE.Vector3(0, 22, 17)
 const FOLLOW_LAMBDA = 8
 const TRAUMA_DECAY = 1.6
 const MAX_SHAKE = 0.9
@@ -31,6 +36,15 @@ export class FollowCamera {
     this.camera.aspect = aspect
     this.camera.updateProjectionMatrix()
     this._recomputeViewRadius()
+  }
+
+  /** Dev-time rig tuning; also recomputes the spawn ring. */
+  setOffset(y, z, fov = this.camera.fov) {
+    OFFSET.set(0, y, z)
+    this.camera.fov = fov
+    this.camera.updateProjectionMatrix()
+    this._recomputeViewRadius()
+    this._place()
   }
 
   snapTo(x, z) {
@@ -85,8 +99,10 @@ export class FollowCamera {
       const gz = probe.position.z + dir.z * k
       maxDist = Math.max(maxDist, Math.hypot(gx, gz))
     }
-    // A corner ray above the horizon means the view is effectively unbounded;
-    // fall back to a generous ring rather than spawning enemies in view.
-    this.viewRadius = (missed ? Math.max(maxDist, 70) : maxDist) + 6
+    // A corner ray above the horizon means the ground view is unbounded. Clamp so
+    // the spawn ring stays a usable distance instead of running off to infinity —
+    // enemies spawning 200 units away would never reach the player.
+    const raw = missed ? Math.max(maxDist, 60) : maxDist
+    this.viewRadius = Math.min(raw, 90) + 6
   }
 }

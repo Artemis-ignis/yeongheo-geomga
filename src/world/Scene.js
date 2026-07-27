@@ -48,7 +48,9 @@ export function createRenderer(canvas) {
 
 export function createScene() {
   const scene = new THREE.Scene()
-  scene.fog = new THREE.FogExp2(PALETTE.fog, 0.012)
+  // Fog colour matches the sky haze so the plateau edge dissolves into the horizon
+  // instead of ending on a hard line.
+  scene.fog = new THREE.FogExp2(PALETTE.fog, 0.0085)
 
   const hemi = new THREE.HemisphereLight(0xbfe3ff, 0x3a4a3a, 1.6)
   scene.add(hemi)
