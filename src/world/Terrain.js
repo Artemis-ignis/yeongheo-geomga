@@ -3,9 +3,9 @@ import { makeToonMaterial, PALETTE } from '../art/materials.js'
 import { barrierTexture, groundTexture, mistTexture } from '../art/textures.js'
 import { buildMerged } from '../art/geometry.js'
 
-export const ARENA_RADIUS = 46
+export const ARENA_RADIUS = 36
 /** The plateau extends past the 결계 so the drop into the void is visible at the rim. */
-export const PLATEAU_RADIUS = 60
+export const PLATEAU_RADIUS = 48
 
 const CLAMP_RADIUS = ARENA_RADIUS - 1.0
 const MAX_PINGS = 4

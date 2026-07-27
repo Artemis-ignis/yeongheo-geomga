@@ -4,7 +4,8 @@ import { FollowCamera } from './world/Camera.js'
 import { Terrain, ARENA_RADIUS } from './world/Terrain.js'
 import { Sky } from './world/Sky.js'
 import { FIXED_DT } from './core/Time.js'
-import { makeToonMaterial, PALETTE } from './art/materials.js'
+import { buildChibi } from './art/ChibiBuilder.js'
+import { CHARACTERS } from './data/characters.js'
 import { installCapture, installStepper } from './dev/capture.js'
 
 const canvas = document.getElementById('scene')
@@ -25,27 +26,25 @@ function boot() {
   const terrain = new Terrain(scene)
   const sky = new Sky(scene)
 
-  // Temporary stand-in until the real player lands in Task 13.
-  const stand = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.5, 1.0, 6, 14),
-    makeToonMaterial({ color: PALETTE.jade, rim: 0.6, rimColor: 0xbff5e2 }),
-  )
-  stand.position.y = 1.0
-  stand.castShadow = true
-  scene.add(stand)
+  // Preview all three cultivators until the real player lands in Task 13.
+  const chibis = CHARACTERS.map((c, i) => {
+    const chibi = buildChibi(c)
+    chibi.root.position.set((i - 1) * 3.2, 0, 0)
+    chibi.setOrbitSwords(i + 1)
+    scene.add(chibi.root)
+    return chibi
+  })
+  const stand = chibis[1].root
 
   resizeToWindow(renderer, follow, overlayCanvas)
   addEventListener('resize', () => resizeToWindow(renderer, follow, overlayCanvas))
 
-  const orbit = { radius: 18, speed: 0.35 }
+  const orbit = { radius: 18, speed: 0.35, walk: 0.8 }
   let elapsed = 0
 
   function update(dt) {
     elapsed += dt
-    const a = elapsed * orbit.speed
-    stand.position.set(Math.cos(a) * orbit.radius, 1.0, Math.sin(a) * orbit.radius)
-    terrain.clampToArena(stand.position)
-    stand.position.y = 1.0
+    for (const c of chibis) c.update(dt, orbit.walk, elapsed * 0.4)
     terrain.update(dt, stand.position.x, stand.position.z)
     sky.update(dt, stand.position.x, stand.position.z)
     follow.update(stand.position.x, stand.position.z, dt)
@@ -56,7 +55,7 @@ function boot() {
     renderer.render(scene, follow.camera)
   }
 
-  follow.snapTo(orbit.radius, 0)
+  follow.snapTo(0, 0)
 
   let last = performance.now()
   renderer.setAnimationLoop((now) => {
@@ -68,7 +67,7 @@ function boot() {
 
   if (import.meta.env.DEV) {
     window.__scene = scene
-    window.__world = { terrain, sky, follow, stand, renderer, orbit }
+    window.__world = { terrain, sky, follow, stand, renderer, orbit, chibis }
     window.__forceFallback = () => showFallback('테스트')
     window.__stats = () => ({
       calls: renderer.info.render.calls,

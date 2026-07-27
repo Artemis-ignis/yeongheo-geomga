@@ -5,7 +5,7 @@ import * as THREE from 'three'
  * that the character reads at a glance, steep enough that a horde closing from
  * every side stays legible.
  */
-export const OFFSET = new THREE.Vector3(0, 22, 17)
+export const OFFSET = new THREE.Vector3(0, 16.5, 12.8)
 const FOLLOW_LAMBDA = 8
 const TRAUMA_DECAY = 1.6
 const MAX_SHAKE = 0.9

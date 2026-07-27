@@ -131,6 +131,25 @@ export class Sky {
       })
     }
     this.group.add(this.islands)
+    // Place them immediately: an InstancedMesh starts at identity, which would
+    // stack every island on top of the player for the first rendered frame.
+    this._placeIslands(0, 0)
+  }
+
+  _placeIslands(playerX, playerZ) {
+    for (let i = 0; i < ISLAND_COUNT; i++) {
+      const b = this.islandBase[i]
+      _dummy.position.set(
+        playerX + b.x,
+        b.y + Math.sin(this.time * 0.18 + b.phase) * 2.2,
+        playerZ + b.z,
+      )
+      _dummy.rotation.set(0, this.time * 0.02 + b.phase, 0)
+      _dummy.scale.setScalar(b.s)
+      _dummy.updateMatrix()
+      this.islands.setMatrixAt(i, _dummy.matrix)
+    }
+    this.islands.instanceMatrix.needsUpdate = true
   }
 
   _buildPetals() {
@@ -213,19 +232,7 @@ export class Sky {
     this.petalMat.uniforms.uTime.value = this.time
     this.petalMat.uniforms.uCenter.value.set(playerX, 0, playerZ)
 
-    for (let i = 0; i < ISLAND_COUNT; i++) {
-      const b = this.islandBase[i]
-      _dummy.position.set(
-        playerX + b.x,
-        b.y + Math.sin(this.time * 0.18 + b.phase) * 2.2,
-        playerZ + b.z,
-      )
-      _dummy.rotation.set(0, this.time * 0.02 + b.phase, 0)
-      _dummy.scale.setScalar(b.s)
-      _dummy.updateMatrix()
-      this.islands.setMatrixAt(i, _dummy.matrix)
-    }
-    this.islands.instanceMatrix.needsUpdate = true
+    this._placeIslands(playerX, playerZ)
   }
 
   dispose() {
