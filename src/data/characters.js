@@ -29,7 +29,9 @@ export const CHARACTERS = [
     desc: '검을 몸의 연장처럼 다루는 한빙검파의 막내 제자.',
     traits: ['이동속도 +10%', '검류 법보 피해 +15%'],
     startWeapon: 'flyingSword',
-    palette: { hair: 0xdfe9f5, accent: 0x8fd0ff, cloth: 0xf2f7ff, trim: 0x6aa9d8, eye: 0x66c2ff, skin: 0xfbe3d6 },
+    // Silver hair needs a saturated robe under it, or she reads as one white
+    // blob at gameplay distance.
+    palette: { hair: 0xe4edf8, accent: 0x7ec8ff, cloth: 0x3f74b8, trim: 0xd9e8f7, eye: 0x2f9bdd, skin: 0xfbe3d6 },
     mods: [
       { stat: 'moveSpeed', op: 'mul', value: 0.1 },
       { stat: 'tagMight', op: 'add', value: 0.15, tag: 'sword' },

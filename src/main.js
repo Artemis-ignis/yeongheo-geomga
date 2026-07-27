@@ -18,6 +18,7 @@ if (!isWebGL2Available()) {
     installStepper((dt) => { if (game.state === 'playing') game.update(dt) }, 1 / 60)
     installCapture(game.renderer, (w, h) => {
       game.camera.setAspect(w / h)
+      game.post.setSize(w, h)
       game.draw(1, 1 / 60)
     })
   }

@@ -5,7 +5,7 @@ import { rollDamage, knockbackImpulse } from '../combat/damage.js'
 import { ENEMIES, ENEMY_INDEX, scaledDamage, scaledHp, scaledXp } from '../data/enemies.js'
 import { waveAt } from '../data/waves.js'
 import { buildEnemyGeometry } from '../art/enemyGeometry.js'
-import { makeToonMaterial } from '../art/materials.js'
+import { makeToonMaterial, makeOutlineMaterial } from '../art/materials.js'
 import { uploadInstances } from '../art/instancing.js'
 import { ARENA_RADIUS } from '../world/Terrain.js'
 
@@ -82,9 +82,12 @@ export class EnemyManager {
     this._queryOut = new Int32Array(256)
     this._neighbours = new Int32Array(64)
 
-    this.meshes = ENEMIES.map((def) => {
+    this.meshes = []
+    this.outlines = []
+    ENEMIES.forEach((def) => {
+      const geo = buildEnemyGeometry(def.id)
       const mesh = new THREE.InstancedMesh(
-        buildEnemyGeometry(def.id),
+        geo,
         makeToonMaterial({ color: 0xffffff, rim: 0.45, rimColor: 0xffd9f0 }),
         MAX_ENEMIES,
       )
@@ -94,7 +97,17 @@ export class EnemyManager {
       mesh.receiveShadow = false
       mesh.count = 0
       scene.add(mesh)
-      return mesh
+      this.meshes.push(mesh)
+
+      // Cel outline: the same instances drawn as a slightly inflated back-face
+      // hull. Six extra draw calls buys every enemy a readable silhouette.
+      const outline = new THREE.InstancedMesh(geo, makeOutlineMaterial(0.035), MAX_ENEMIES)
+      outline.instanceMatrix = mesh.instanceMatrix
+      outline.frustumCulled = false
+      outline.renderOrder = -1
+      outline.count = 0
+      scene.add(outline)
+      this.outlines.push(outline)
     })
     // Per-type index lists, rebuilt each frame into preallocated buffers.
     this.typeLists = ENEMIES.map(() => new Int32Array(MAX_ENEMIES))
@@ -454,6 +467,8 @@ export class EnemyManager {
       this._colorDirty[t] = anyTint
 
       mesh.count = count
+      // The outline shares the instance matrix buffer, so it needs no upload.
+      this.outlines[t].count = count
       uploadInstances(mesh, count, colorDirty)
     }
   }
@@ -464,15 +479,22 @@ export class EnemyManager {
     this.killCount = 0
     this.spawnTimer = 0
     for (const m of this.meshes) m.count = 0
+    for (const o of this.outlines) o.count = 0
   }
 
   dispose() {
+    for (const o of this.outlines) {
+      o.material.dispose()
+      o.removeFromParent()
+    }
     for (const m of this.meshes) {
+      // Geometry is shared with the outline, so dispose it once here.
       m.geometry.dispose()
       m.material.dispose()
       m.removeFromParent()
     }
     this.meshes.length = 0
+    this.outlines.length = 0
   }
 }
 

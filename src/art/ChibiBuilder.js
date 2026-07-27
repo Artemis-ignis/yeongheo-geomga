@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { makeToonMaterial, makeAdditiveMaterial, makeFlatMaterial } from './materials.js'
+import { makeToonMaterial, makeAdditiveMaterial, makeFlatMaterial, makeOutlineMaterial } from './materials.js'
 import { baguaTexture } from './textures.js'
 import { buildMerged } from './geometry.js'
 import { faceSet } from './faces.js'
@@ -140,10 +140,21 @@ export function buildChibi(character) {
   headPivot.add(hairBack)
 
   // Fringe: a shallow cap that sits over the brow.
-  const fringe = new THREE.Mesh(new THREE.SphereGeometry(0.44, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.42), hairMat)
+  const fringe = new THREE.Mesh(new THREE.SphereGeometry(0.44, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.42), hairMat)
   fringe.position.y = 0.04
   fringe.scale.set(1.02, 1.05, 1.02)
   headPivot.add(fringe)
+
+  // Anime hair highlight — a bright band wrapping the crown. Without it the hair
+  // is one flat mass however many strands are attached to it.
+  const highlight = new THREE.Mesh(
+    new THREE.SphereGeometry(0.455, 24, 10, 0, Math.PI * 2, Math.PI * 0.22, Math.PI * 0.1),
+    makeFlatMaterial({ color: 0xffffff, opacity: 0.34 }),
+  )
+  highlight.position.y = 0.04
+  highlight.scale.set(1.02, 1.05, 1.02)
+  highlight.renderOrder = 1
+  headPivot.add(highlight)
 
   const strands = []
   const addStrand = (x, y, z, len, rz, radius = 0.09) => {
@@ -291,6 +302,19 @@ export function buildChibi(character) {
   // Only the character casts shadows; receiving them on a low-poly figure this
   // small just produces acne.
   root.traverse((o) => { if (o.isMesh) o.receiveShadow = false })
+
+  // Cel outlines on the silhouette masses only. Shelling all ~30 child meshes
+  // would double the player's draw calls for detail invisible at gameplay
+  // distance; the head, hair, torso and skirt carry the read.
+  const outlineMat = makeOutlineMaterial(0.024)
+  for (const source of [head, hairBack, fringe, torso, skirt]) {
+    const shell = new THREE.Mesh(source.geometry, outlineMat)
+    shell.position.copy(source.position)
+    shell.rotation.copy(source.rotation)
+    shell.scale.copy(source.scale)
+    shell.renderOrder = -1
+    source.parent.add(shell)
+  }
 
   let time = 0
   let facing = 0

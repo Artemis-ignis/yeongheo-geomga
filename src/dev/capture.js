@@ -41,6 +41,9 @@ export function installCapture(renderer, drawFrame) {
     renderer.setPixelRatio(1)
     renderer.setSize(width, height, false)
     drawFrame(width, height)
+    // Post-processing renders into its own target; draw twice so the composer's
+    // final blit lands in the visible buffer before it is read back.
+    drawFrame(width, height)
     const dataUrl = renderer.domElement.toDataURL('image/png')
 
     renderer.setPixelRatio(prevRatio)

@@ -108,6 +108,32 @@ export function makeAdditiveMaterial({ color = 0xffffff, opacity = 1, map = null
   })
 }
 
+/**
+ * Inverted-hull outline material.
+ *
+ * Renders back faces only, pushed outward along the normal, in near-black. It is
+ * the cheapest way to get a real cel outline, and outlines are most of what
+ * separates "anime character" from "assortment of shaded primitives".
+ */
+export function makeOutlineMaterial(thickness = 0.02, color = 0x121820) {
+  const material = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide, fog: true })
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uThickness = { value: thickness }
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform float uThickness;')
+      .replace(
+        '#include <begin_vertex>',
+        // `normal` rather than `objectNormal`: MeshBasicMaterial only declares
+        // objectNormal under USE_ENVMAP/USE_SKINNING, so referencing it here
+        // fails to compile and the outline silently never draws.
+        `#include <begin_vertex>
+         transformed += normalize( normal ) * uThickness;`,
+      )
+  }
+  material.customProgramCacheKey = () => `outline${thickness}`
+  return material
+}
+
 /** Flat unlit material for things that should ignore scene lighting (faces, decals). */
 export function makeFlatMaterial({ color = 0xffffff, map = null, opacity = 1 } = {}) {
   return new THREE.MeshBasicMaterial({

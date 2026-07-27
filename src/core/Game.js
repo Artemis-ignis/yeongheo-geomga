@@ -3,8 +3,10 @@ import {
   createRenderer, createScene, resizeToWindow, shadowFollow,
 } from '../world/Scene.js'
 import { FollowCamera } from '../world/Camera.js'
-import { Terrain } from '../world/Terrain.js'
+import { Terrain, PLATEAU_RADIUS } from '../world/Terrain.js'
 import { Sky } from '../world/Sky.js'
+import { Grass } from '../world/Grass.js'
+import { Post } from '../world/Post.js'
 import { Player } from '../entities/Player.js'
 import { EnemyManager } from '../entities/EnemyManager.js'
 import { ProjectileManager } from '../entities/ProjectileManager.js'
@@ -98,8 +100,10 @@ export class Game {
     this.camera = new FollowCamera(Math.max(1, innerWidth) / Math.max(1, innerHeight))
     this.sun = this.scene.userData.sun
     this.terrain = new Terrain(this.scene)
+    this.grass = new Grass(this.scene, 0, PLATEAU_RADIUS - 2)
     this.sky = new Sky(this.scene)
     this.overlay = new OverlayCanvas(this.overlayCanvas, this.camera.camera)
+    this.post = new Post(this.renderer, this.scene, this.camera.camera)
     this._resize()
   }
 
@@ -400,6 +404,7 @@ export class Game {
     this.pickups.update(dt, p, this.vfx)
     this.vfx.update(dt)
     this.terrain.update(dt, p.x, p.z)
+    this.grass.update(dt, p.x, p.z)
     this.sky.update(dt, p.x, p.z)
     this.camera.update(p.x, p.z, dt)
 
@@ -418,8 +423,9 @@ export class Game {
       for (const c of this.previewChibis) c.update(dt, 0.35, Math.sin(performance.now() * 0.0004) * 0.7)
       this.sky.update(dt, 0, 0)
       this.terrain.update(dt, 0, 0)
+      this.grass.update(dt, 0, 0)
     }
-    this.renderer.render(this.scene, this.camera.camera)
+    this.post.render(this.scene, this.camera.camera)
     this.overlay.render(dt)
   }
 
@@ -510,7 +516,8 @@ export class Game {
 
   _resize() {
     resizeToWindow(this.renderer, this.camera, this.overlayCanvas)
-    this.overlay?.resize(innerWidth, innerHeight, Math.min(devicePixelRatio, 2))
+    this.overlay?.resize(innerWidth, innerHeight, Math.min(devicePixelRatio, 1.5))
+    this.post?.setSize(Math.max(1, innerWidth), Math.max(1, innerHeight))
   }
 
   dispose() {

@@ -21,20 +21,22 @@ const _dummy = new THREE.Object3D()
 
 function kindMesh(kind) {
   switch (kind) {
+    // Rim strengths are kept moderate: the bloom threshold sits at 0.95 and a
+    // hot rim on hundreds of orbs turns the whole field into white smear.
     case 'qi':
       return {
-        geo: new THREE.OctahedronGeometry(0.24, 0),
-        mat: makeToonMaterial({ color: 0x7fe8c8, rim: 1.0, rimColor: 0xd8fff0 }),
+        geo: new THREE.OctahedronGeometry(0.26, 0),
+        mat: makeToonMaterial({ color: 0x54c9a4, rim: 0.45, rimColor: 0x9fe8d0 }),
       }
     case 'stone':
       return {
         geo: new THREE.BoxGeometry(0.26, 0.26, 0.26),
-        mat: makeToonMaterial({ color: 0xe8c56a, rim: 0.9, rimColor: 0xfff0c0 }),
+        mat: makeToonMaterial({ color: 0xd4ad4e, rim: 0.4, rimColor: 0xffe9b0 }),
       }
     case 'heal':
       return {
         geo: new THREE.SphereGeometry(0.26, 10, 8),
-        mat: makeToonMaterial({ color: 0xff7a8a, rim: 1.0, rimColor: 0xffd0d8 }),
+        mat: makeToonMaterial({ color: 0xe8546a, rim: 0.45, rimColor: 0xffc0cc }),
       }
     default:
       return {

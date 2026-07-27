@@ -19,7 +19,7 @@ function hex(n) {
 function bothEyes(ctx, draw) {
   for (const side of [-1, 1]) {
     ctx.save()
-    ctx.translate(SIZE / 2 + side * 104, SIZE / 2 + 26)
+    ctx.translate(SIZE / 2 + side * 92, SIZE / 2 + 34)
     ctx.scale(side, 1)
     draw(ctx)
     ctx.restore()
@@ -42,8 +42,8 @@ function drawOpenEye(ctx, palette, { wide = 1, highlight = 1 } = {}) {
   bothEyes(ctx, (c) => {
     // Deliberately oversized: at the gameplay camera the head is only ~40px tall,
     // and anything smaller stops reading as a face.
-    const w = 68
-    const h = 80 * wide
+    const w = 80
+    const h = 96 * wide
 
     // Eye white.
     c.fillStyle = '#ffffff'

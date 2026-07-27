@@ -35,52 +35,177 @@ function cached(key, build) {
   return tex
 }
 
-/** Jade ground: mottled base with a faint gold 문양 lattice. Tiles seamlessly. */
+/** Draw the same shape at all nine wrapped offsets so a tile stays seamless. */
+function wrapped(ctx, S, draw) {
+  for (const dx of [-S, 0, S]) {
+    for (const dy of [-S, 0, S]) {
+      ctx.save()
+      ctx.translate(dx, dy)
+      draw(ctx)
+      ctx.restore()
+    }
+  }
+}
+
+/**
+ * Jade ground.
+ *
+ * A single flat colour with a couple of blobs reads as untextured geometry, and
+ * the ground is most of every frame. This layers large-scale patches, fine
+ * grain, moss clumps, cracks and a 문양 lattice so the surface holds up when the
+ * camera is right on top of it.
+ */
 export function groundTexture() {
   return cached('ground', () => {
-    const S = 512
+    const S = 1024
     const c = canvas(S)
     const ctx = c.getContext('2d')
 
-    ctx.fillStyle = '#2c5044'
+    ctx.fillStyle = '#2b4d42'
     ctx.fillRect(0, 0, S, S)
 
-    // Soft mottling. Wrapped draws keep the tile seamless.
-    for (let i = 0; i < 420; i++) {
+    // Large tonal patches — the low-frequency variation that stops it looking flat.
+    for (let i = 0; i < 90; i++) {
       const x = Math.random() * S
       const y = Math.random() * S
-      const r = 8 + Math.random() * 46
-      const light = Math.random() > 0.5
+      const r = 90 + Math.random() * 190
+      const light = Math.random() > 0.45
       const g = ctx.createRadialGradient(x, y, 0, x, y, r)
-      g.addColorStop(0, light ? 'rgba(120,190,160,0.14)' : 'rgba(18,44,38,0.16)')
+      g.addColorStop(0, light ? 'rgba(126,196,164,0.13)' : 'rgba(14,38,34,0.16)')
       g.addColorStop(1, 'rgba(0,0,0,0)')
       ctx.fillStyle = g
-      for (const dx of [-S, 0, S]) {
-        for (const dy of [-S, 0, S]) {
-          ctx.save()
-          ctx.translate(dx, dy)
-          ctx.beginPath()
-          ctx.arc(x, y, r, 0, Math.PI * 2)
-          ctx.fill()
-          ctx.restore()
-        }
-      }
+      wrapped(ctx, S, (k) => { k.beginPath(); k.arc(x, y, r, 0, Math.PI * 2); k.fill() })
     }
 
-    // 문양 lattice — a diamond grid in faint gold.
-    ctx.strokeStyle = 'rgba(232,197,106,0.10)'
-    ctx.lineWidth = 1.5
+    // Moss clumps.
+    for (let i = 0; i < 260; i++) {
+      const x = Math.random() * S
+      const y = Math.random() * S
+      const r = 10 + Math.random() * 34
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r)
+      g.addColorStop(0, 'rgba(150,214,150,0.16)')
+      g.addColorStop(1, 'rgba(150,214,150,0)')
+      ctx.fillStyle = g
+      wrapped(ctx, S, (k) => { k.beginPath(); k.arc(x, y, r, 0, Math.PI * 2); k.fill() })
+    }
+
+    // Fine speckle — the detail that survives close-up.
+    const img = ctx.getImageData(0, 0, S, S)
+    const d = img.data
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (Math.random() - 0.5) * 26
+      d[i] = Math.max(0, Math.min(255, d[i] + n))
+      d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n))
+      d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n))
+    }
+    ctx.putImageData(img, 0, 0)
+
+    // Hairline cracks in the jade.
+    ctx.strokeStyle = 'rgba(14,32,30,0.30)'
+    ctx.lineWidth = 1.4
+    for (let i = 0; i < 26; i++) {
+      const x = Math.random() * S
+      const y = Math.random() * S
+      let a = Math.random() * Math.PI * 2
+      wrapped(ctx, S, (k) => {
+        k.beginPath()
+        k.moveTo(x, y)
+        let cx = x
+        let cy = y
+        let ang = a
+        for (let s = 0; s < 14; s++) {
+          ang += (Math.random() - 0.5) * 0.9
+          cx += Math.cos(ang) * 18
+          cy += Math.sin(ang) * 18
+          k.lineTo(cx, cy)
+        }
+        k.stroke()
+      })
+      a += 1
+    }
+
+    // 문양 lattice, kept faint so it reads as inlay rather than a grid overlay.
+    ctx.strokeStyle = 'rgba(232,197,106,0.075)'
+    ctx.lineWidth = 2
     const step = S / 8
     ctx.beginPath()
     for (let i = -8; i <= 16; i++) {
-      ctx.moveTo(i * step, 0)
-      ctx.lineTo(i * step + S, S)
-      ctx.moveTo(i * step, S)
-      ctx.lineTo(i * step + S, 0)
+      ctx.moveTo(i * step, 0); ctx.lineTo(i * step + S, S)
+      ctx.moveTo(i * step, S); ctx.lineTo(i * step + S, 0)
     }
     ctx.stroke()
 
-    return finish(c, { repeat: 12 })
+    return finish(c, { repeat: 14 })
+  })
+}
+
+/**
+ * Normal map matching the ground, derived from a height field.
+ *
+ * This is what actually makes the surface catch the light — without it the
+ * ground is a painted plane no matter how detailed the albedo is.
+ */
+export function groundNormalTexture() {
+  return cached('groundNormal', () => {
+    const S = 512
+    const height = new Float32Array(S * S)
+
+    // Sum a few octaves of value noise, sampled on a wrapping lattice.
+    const lattice = (period) => {
+      const grid = new Float32Array(period * period)
+      for (let i = 0; i < grid.length; i++) grid[i] = Math.random()
+      return (x, y) => {
+        const fx = (x / S) * period
+        const fy = (y / S) * period
+        const x0 = Math.floor(fx) % period
+        const y0 = Math.floor(fy) % period
+        const x1 = (x0 + 1) % period
+        const y1 = (y0 + 1) % period
+        const tx = fx - Math.floor(fx)
+        const ty = fy - Math.floor(fy)
+        const sx = tx * tx * (3 - 2 * tx)
+        const sy = ty * ty * (3 - 2 * ty)
+        const a = grid[y0 * period + x0] + (grid[y0 * period + x1] - grid[y0 * period + x0]) * sx
+        const b = grid[y1 * period + x0] + (grid[y1 * period + x1] - grid[y1 * period + x0]) * sx
+        return a + (b - a) * sy
+      }
+    }
+    const octaves = [[8, 0.55], [16, 0.28], [32, 0.14], [64, 0.07]]
+    const samplers = octaves.map(([p]) => lattice(p))
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        let h = 0
+        for (let o = 0; o < octaves.length; o++) h += samplers[o](x, y) * octaves[o][1]
+        height[y * S + x] = h
+      }
+    }
+
+    const c = canvas(S)
+    const ctx = c.getContext('2d')
+    const img = ctx.createImageData(S, S)
+    const at = (x, y) => height[((y + S) % S) * S + ((x + S) % S)]
+    const strength = 2.6
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const dx = (at(x + 1, y) - at(x - 1, y)) * strength
+        const dy = (at(x, y + 1) - at(x, y - 1)) * strength
+        // Normalise (-dx, -dy, 1) into 0..255 tangent-space encoding.
+        const len = Math.hypot(dx, dy, 1)
+        const i = (y * S + x) * 4
+        img.data[i] = ((-dx / len) * 0.5 + 0.5) * 255
+        img.data[i + 1] = ((-dy / len) * 0.5 + 0.5) * 255
+        img.data[i + 2] = ((1 / len) * 0.5 + 0.5) * 255
+        img.data[i + 3] = 255
+      }
+    }
+    ctx.putImageData(img, 0, 0)
+
+    const tex = new THREE.CanvasTexture(c)
+    tex.wrapS = THREE.RepeatWrapping
+    tex.wrapT = THREE.RepeatWrapping
+    tex.repeat.set(14, 14)
+    tex.needsUpdate = true
+    return tex
   })
 }
 

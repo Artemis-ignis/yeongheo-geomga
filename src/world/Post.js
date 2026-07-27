@@ -1,0 +1,134 @@
+import * as THREE from 'three'
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
+
+/**
+ * Colour grade, vignette, and a subtle radial blur toward the edges.
+ *
+ * Flat toon shading with no grade reads as "untextured primitives" no matter how
+ * good the geometry is. Lifting the shadows toward cool blue, pushing highlights
+ * warm, and darkening the frame edges is most of what separates a raw viewport
+ * from something that looks authored.
+ */
+const GradeShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uLift: { value: new THREE.Color(0x121a2a) },
+    uGain: { value: new THREE.Color(0xfff2dd) },
+    uSaturation: { value: 1.18 },
+    uContrast: { value: 1.07 },
+    uVignette: { value: 0.42 },
+    uAberration: { value: 0.0016 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+    }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform vec3 uLift;
+    uniform vec3 uGain;
+    uniform float uSaturation;
+    uniform float uContrast;
+    uniform float uVignette;
+    uniform float uAberration;
+    varying vec2 vUv;
+
+    void main() {
+      vec2 toCentre = vUv - 0.5;
+      float r2 = dot( toCentre, toCentre );
+
+      // Chromatic aberration, strongest at the corners. Tiny, but it keeps the
+      // edges from looking like clean flat vector art.
+      float shift = uAberration * r2;
+      vec3 col;
+      col.r = texture2D( tDiffuse, vUv + toCentre * shift ).r;
+      col.g = texture2D( tDiffuse, vUv ).g;
+      col.b = texture2D( tDiffuse, vUv - toCentre * shift ).b;
+
+      // Lift / gain: cool the shadows, warm the highlights.
+      col = uLift + col * ( uGain - uLift );
+
+      float luma = dot( col, vec3( 0.2126, 0.7152, 0.0722 ) );
+      col = mix( vec3( luma ), col, uSaturation );
+      col = ( col - 0.5 ) * uContrast + 0.5;
+
+      float vig = smoothstep( 0.85, 0.15, r2 * uVignette * 4.0 );
+      col *= mix( 0.55, 1.0, vig );
+
+      gl_FragColor = vec4( clamp( col, 0.0, 1.0 ), 1.0 );
+    }`,
+}
+
+/**
+ * Post-processing stack.
+ *
+ * Bloom is what makes the 법보, 영기 orbs and the 결계 read as *energy* rather
+ * than as coloured plastic — the toon materials deliberately push emissive
+ * values above 1 so the bloom threshold catches them.
+ */
+export class Post {
+  constructor(renderer, scene, camera) {
+    this.renderer = renderer
+    this.enabled = true
+
+    const size = renderer.getSize(new THREE.Vector2())
+    this.composer = new EffectComposer(renderer)
+    this.composer.addPass(new RenderPass(scene, camera))
+
+    this.bloom = new UnrealBloomPass(
+      new THREE.Vector2(size.x, size.y),
+      // Tuned against captured frames. Anything stronger and the toon rim light
+      // pushes the whole character over threshold, turning her into a white blob.
+      0.30, // strength
+      0.55, // radius
+      0.95, // threshold — only genuinely bright things glow
+    )
+    this.composer.addPass(this.bloom)
+
+    this.grade = new ShaderPass(GradeShader)
+    this.composer.addPass(this.grade)
+
+    this.fxaa = new ShaderPass(FXAAShader)
+    this.composer.addPass(this.fxaa)
+
+    this.composer.addPass(new OutputPass())
+    this.setSize(size.x, size.y)
+  }
+
+  setCamera(camera) {
+    this.composer.passes[0].camera = camera
+  }
+
+  setSize(width, height) {
+    const w = Math.max(1, Math.floor(width))
+    const h = Math.max(1, Math.floor(height))
+    this.composer.setSize(w, h)
+    this.bloom.setSize(w, h)
+    const pr = this.renderer.getPixelRatio()
+    this.fxaa.material.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr))
+  }
+
+  /** Dropped entirely at low quality — it is the most expensive thing we draw. */
+  setEnabled(on) {
+    this.enabled = on
+  }
+
+  render(scene, camera) {
+    if (!this.enabled) {
+      this.renderer.render(scene, camera)
+      return
+    }
+    this.composer.render()
+  }
+
+  dispose() {
+    this.composer.dispose?.()
+  }
+}

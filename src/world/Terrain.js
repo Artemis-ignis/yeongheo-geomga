@@ -1,6 +1,6 @@
 ﻿import * as THREE from 'three'
 import { makeToonMaterial, PALETTE } from '../art/materials.js'
-import { barrierTexture, groundTexture, mistTexture } from '../art/textures.js'
+import { barrierTexture, groundTexture, groundNormalTexture, mistTexture } from '../art/textures.js'
 import { buildMerged } from '../art/geometry.js'
 
 export const ARENA_RADIUS = 36
@@ -44,9 +44,15 @@ export class Terrain {
     // seeing its edge drop into the void is what sells that.
     const geo = new THREE.CircleGeometry(PLATEAU_RADIUS, 96)
     const tex = groundTexture()
-    // CircleGeometry UVs span 0..1 across the whole disc, so scale the tiling to
-    // match the plane density the texture was authored for.
-    const mat = makeToonMaterial({ color: 0xffffff, rim: 0, map: tex })
+    // The normal map is what makes the surface catch light; without it the ground
+    // is a painted plane however detailed the albedo gets.
+    const mat = makeToonMaterial({
+      color: 0xffffff,
+      rim: 0,
+      map: tex,
+      normalMap: groundNormalTexture(),
+      normalScale: new THREE.Vector2(0.85, 0.85),
+    })
     this.ground = new THREE.Mesh(geo, mat)
     this.ground.rotation.x = -Math.PI / 2
     this.ground.receiveShadow = true
@@ -77,9 +83,9 @@ export class Terrain {
       map: tex,
       color: 0x8fd8ff,
       transparent: true,
-      // Deliberately faint: standing next to it, the wall fills a lot of screen,
-      // and it must never compete with the enemies for attention.
-      opacity: 0.26,
+      // Deliberately faint: standing next to it the wall fills a lot of screen,
+      // and with bloom on top it must never compete with the enemies.
+      opacity: 0.14,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       // BackSide, not DoubleSide: the near wall would otherwise be drawn between
@@ -174,7 +180,9 @@ export class Terrain {
     const pineMat = makeToonMaterial({ color: PALETTE.pine, rim: 0.25, rimColor: 0x9be8c8 })
     // Pines are pushed to the outer ring so they frame the arena instead of
     // cluttering the middle of a fight.
-    const pines = this._scatter(30, 6, PLATEAU_RADIUS - 4).filter(([x, z]) => Math.hypot(x, z) > ARENA_RADIUS * 0.55)
+    // Kept to the outer ring: with the camera this close, a pine anywhere near
+    // the player fills a third of the screen and hides the fight behind it.
+    const pines = this._scatter(34, 6, PLATEAU_RADIUS - 3).filter(([x, z]) => Math.hypot(x, z) > ARENA_RADIUS * 0.92)
     this.pines = new THREE.InstancedMesh(pineGeo, pineMat, pines.length)
     this.pines.castShadow = false
     pines.forEach(([x, z], i) => {
