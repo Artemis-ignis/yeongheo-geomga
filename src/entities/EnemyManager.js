@@ -44,6 +44,9 @@ export class EnemyManager {
     this.onKill = null
     this.onDamageText = null
     this.onEnemyShot = null
+    // The boss is a single detailed object, not a pooled entity, so area damage
+    // has to consider it separately. Set by Game; null when no boss is alive.
+    this.boss = null
 
     this.px = new Float32Array(MAX_ENEMIES)
     this.pz = new Float32Array(MAX_ENEMIES)
@@ -226,6 +229,16 @@ export class EnemyManager {
       opts.dirZ = this.pz[i] - z
       this.damageOne(i, rawDamage, tag, stats, opts)
       hits++
+    }
+
+    if (this.boss && this.boss.active) {
+      const bdx = this.boss.x - x
+      const bdz = this.boss.z - z
+      const reach = radius + this.boss.radius
+      if (bdx * bdx + bdz * bdz <= reach * reach) {
+        this.boss.damage(rawDamage, tag, stats)
+        hits++
+      }
     }
     return hits
   }

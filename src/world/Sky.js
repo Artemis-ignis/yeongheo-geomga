@@ -190,11 +190,13 @@ export class Sky {
           vUv = uv;
 
           float fall = 1.4 + aSeed.z * 1.6;
-          float half = uBox * 0.5;
+          // Deliberately not named "half" - that is a reserved word in GLSL and
+          // silently kills the whole shader.
+          float halfBox = uBox * 0.5;
 
           // Wrap each petal inside a box that travels with the player.
-          float px = mod( aSeed.x * uBox + sin( uTime * 0.25 + aSeed.y * 20.0 ) * 6.0, uBox ) - half;
-          float pz = mod( aSeed.y * uBox + uTime * 1.1, uBox ) - half;
+          float px = mod( aSeed.x * uBox + sin( uTime * 0.25 + aSeed.y * 20.0 ) * 6.0, uBox ) - halfBox;
+          float pz = mod( aSeed.y * uBox + uTime * 1.1, uBox ) - halfBox;
           float py = mod( aSeed.z * 34.0 - uTime * fall, 34.0 );
 
           vec3 world = uCenter + vec3( px, py + 0.5, pz );

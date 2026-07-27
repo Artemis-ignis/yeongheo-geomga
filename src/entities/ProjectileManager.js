@@ -9,6 +9,8 @@ export const PROJECTILE_KINDS = ['sword', 'talisman', 'vajra', 'butterfly', 'ene
 
 const HIT_MEMORY = 8
 const RETARGET_INTERVAL = 0.15
+/** Sentinel id for the boss in a projectile's already-hit memory. */
+const BOSS_ID = -99
 
 const _dummy = new THREE.Object3D()
 
@@ -268,6 +270,20 @@ export class ProjectileManager {
           if (this.pierce[i] < 0) break
         }
         if (this.pierce[i] < 0) { this._release(i); continue }
+
+        // The boss lives outside the enemy arrays, so it needs its own test.
+        const boss = enemies.boss
+        if (boss && boss.active) {
+          const bdx = boss.x - this.px[i]
+          const bdz = boss.z - this.pz[i]
+          const reach = this.radius[i] + boss.radius
+          if (bdx * bdx + bdz * bdz <= reach * reach && !this._remembersHit(i, BOSS_ID)) {
+            this._rememberHit(i, BOSS_ID)
+            boss.damage(this.damage[i], this.tags[i], this.stats[i])
+            this.pierce[i]--
+            if (this.pierce[i] < 0) { this._release(i); continue }
+          }
+        }
       }
 
       // Butterflies wander freely; everything else dies at the barrier.

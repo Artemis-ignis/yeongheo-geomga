@@ -1,0 +1,71 @@
+import { iconFor } from './icons.js'
+
+/** 승천 / 좌화 — the end-of-run summary. */
+export class ResultScreen {
+  constructor(root) {
+    this.root = root
+    this.onRestart = null
+
+    this.node = document.createElement('div')
+    this.node.className = 'screen'
+    this.node.style.display = 'none'
+    root.appendChild(this.node)
+  }
+
+  get isOpen() {
+    return this.node.style.display !== 'none'
+  }
+
+  show(result, onRestart) {
+    this.onRestart = onRestart
+    const m = Math.floor(result.runTime / 60)
+    const s = Math.floor(result.runTime % 60)
+    const time = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+
+    const icons = [...result.weapons, ...result.passives]
+      .map((it) => `<img alt="" title="${it.id}" src="${iconFor(it.id)}" />`)
+      .join('')
+
+    this.node.innerHTML = `
+      <div class="screen-inner">
+        <div class="result-banner ${result.victory ? 'win' : 'lose'}">
+          ${result.victory ? '昇天' : '坐化'}
+        </div>
+        <div class="result-flavor">
+          ${result.victory
+            ? '마존을 베고 비경의 마기를 걷어냈다. 그대는 승천한다.'
+            : '기혈이 다해 그 자리에 앉은 채 숨을 거두었다.'}
+        </div>
+        <div class="result-stats">
+          <div><span>생존 시간</span><b>${time}</b></div>
+          <div><span>도달 경지</span><b>${result.realm.name} ${result.level}층</b></div>
+          <div><span>처치 수</span><b>${result.kills}</b></div>
+          <div><span>영석</span><b>${result.stones}</b></div>
+        </div>
+        <div class="result-loadout">${icons}</div>
+        <div class="result-seed">seed ${result.seed}</div>
+        <button class="btn clickable">다시 도전</button>
+      </div>`
+
+    this.node.querySelector('.btn').addEventListener('click', () => this.restart())
+    this.node.style.display = ''
+  }
+
+  restart() {
+    const cb = this.onRestart
+    this.hide()
+    if (cb) cb()
+  }
+
+  handleKey(confirm) {
+    if (this.isOpen && confirm) this.restart()
+  }
+
+  hide() {
+    this.node.style.display = 'none'
+  }
+
+  dispose() {
+    this.node.remove()
+  }
+}
