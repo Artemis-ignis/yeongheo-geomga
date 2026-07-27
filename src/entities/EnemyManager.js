@@ -16,7 +16,12 @@ const MAX_NEIGHBOURS = 12
 const KNOCKBACK_DECAY = 6
 const CONTACT_COOLDOWN = 0.5
 const BURN_TICK = 0.5
-const DESPAWN_FACTOR = 2.2
+/**
+ * Enemies further than this many view-radii from the player are recycled. It
+ * doubles as the natural cap on horde size: without it, everything that ever
+ * spawned accumulates on the far side of the arena.
+ */
+const DESPAWN_FACTOR = 1.7
 
 const _dummy = new THREE.Object3D()
 const _color = new THREE.Color()
@@ -343,7 +348,9 @@ export class EnemyManager {
         const interval = def.dashInterval ?? 4
         if (this.dashT[i] > 0) {
           this.dashT[i] -= dt
-          speed *= 3
+          // 2.2x, not 3x: at 3x a 요랑 outruns the player outright and there is
+          // no counterplay except being somewhere else already.
+          speed *= 2.2
         } else if (this.stateT[i] >= interval) {
           this.stateT[i] = 0
           this.dashT[i] = 0.5

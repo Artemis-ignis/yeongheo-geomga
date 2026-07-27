@@ -7,7 +7,12 @@ import { xpFor } from '../data/realms.js'
 export const DASH_DISTANCE = 6
 export const DASH_IFRAMES = 0.35
 export const DASH_COOLDOWN = 3.0
-export const MERCY_IFRAMES = 0.25
+export /**
+ * Brief invulnerability after any hit. This is what caps incoming damage when
+ * the player is surrounded: without it, twenty enemies in contact all land hits
+ * on their own cooldowns and being swarmed is instant death regardless of HP.
+ */
+const MERCY_IFRAMES = 0.4
 const AFTERIMAGES = 5
 const AFTERIMAGE_LIFE = 0.35
 

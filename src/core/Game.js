@@ -158,7 +158,10 @@ export class Game {
     this.enemies.onKill = (x, z, xp, def, wasFrozen) => {
       this.vfx.deathPuff(x, z)
       this.pickups.drop('qi', x, z, xp)
+      // Elites always drop a 회춘단; ordinary enemies rarely do. Some sustain has
+      // to exist before elites appear at 7:00 or the early game is unrecoverable.
       if (def.elite) this.pickups.drop('heal', x, z, this.player.maxHp * 0.15)
+      else if (this.rng.chance(0.02)) this.pickups.drop('heal', x, z, this.player.maxHp * 0.08)
       // 한천빙봉: a frozen enemy shatters, chaining through packed groups.
       if (wasFrozen) {
         this.vfx.burst(x, z, 3)

@@ -7,8 +7,8 @@ export const ENEMIES = [
   },
   {
     id: 'wolf', name: '요랑', hanja: '妖狼',
-    hp: 16, speed: 4.6, damage: 10, radius: 0.55, kbResist: 0.1, xp: 2,
-    behavior: 'dasher', color: 0x5f7fa8, scale: 0.85, dashInterval: 3.2,
+    hp: 16, speed: 4.2, damage: 10, radius: 0.55, kbResist: 0.1, xp: 2,
+    behavior: 'dasher', color: 0x5f7fa8, scale: 0.85, dashInterval: 4.0,
   },
   {
     id: 'stoneGhoul', name: '석귀', hanja: '石鬼',
