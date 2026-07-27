@@ -25,10 +25,13 @@ const _scratch = { x: 0, z: 0 }
  * previous and current simulated position so motion stays smooth above 60Hz.
  */
 export class Player {
-  constructor(character, scene, terrain) {
+  constructor(character, scene, terrain, { metaMods = [], reviveCharges = 0 } = {}) {
     this.character = character
     this.scene = scene
     this.terrain = terrain
+    // Permanent 단전 upgrades, folded in alongside 공법 on every stat rebuild.
+    this.metaMods = metaMods
+    this.reviveCharges = reviveCharges
 
     this.x = 0
     this.z = 0
@@ -50,7 +53,7 @@ export class Player {
     this.loadout = { weapons: {}, passives: {} }
     if (character.startWeapon) this.loadout.weapons[character.startWeapon] = 1
 
-    this.stats = computeStats(character, this.loadout.passives)
+    this.stats = computeStats(character, this.loadout.passives, this.metaMods)
     this.maxHp = this.stats.maxHp
     this.hp = this.maxHp
 
@@ -90,7 +93,7 @@ export class Player {
   /** Rebuild stats from the loadout. Call after every upgrade. */
   recomputeStats() {
     const oldMax = this.maxHp
-    this.stats = computeStats(this.character, this.loadout.passives)
+    this.stats = computeStats(this.character, this.loadout.passives, this.metaMods)
     this.maxHp = this.stats.maxHp
     this.hp = Math.min(this.maxHp, applyMaxHpChange(this.hp, oldMax, this.maxHp))
   }
@@ -118,8 +121,16 @@ export class Player {
     this.hitFlash = 0.4
     this.chibi.setExpression('hurt', 0.4)
     if (this.hp <= 0) {
-      this.hp = 0
-      this.alive = false
+      // 환혼단 — spend a charge to get back up instead of ending the run.
+      if (this.reviveCharges > 0) {
+        this.reviveCharges--
+        this.hp = this.maxHp * 0.5
+        this.invulnTimer = 2.0
+        this.revived = true
+      } else {
+        this.hp = 0
+        this.alive = false
+      }
     }
     return true
   }

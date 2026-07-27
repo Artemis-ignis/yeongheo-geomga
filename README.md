@@ -49,6 +49,25 @@ npm run preview
 | **홍련** 紅蓮 | 염화종 부법사 | 화염부(火焰符) | 범위 +15%, 화염 법보 피해 +25% |
 | **청묘** 靑猫 | 요족 혈맥 체수 | 뇌령주(雷靈珠) | 최대 기혈 +30%, 초당 기혈 회복 |
 
+## 메타 진행 — 단전(丹殿)
+
+런에서 모은 **영석은 죽어도 남습니다.** 타이틀의 `단전`에서 영구 강화를 사고, 캐릭터와
+법보를 해금합니다. 진행 상황은 localStorage에 자동 저장됩니다.
+
+**영구 강화 10종** — 기혈증진(최대 기혈) · 검기연마(위력) · 축지숙련(이속) ·
+기혈운행(쿨다운) · 금강불괴(방어) · 천리감응(획득 범위) · 혜안(행운) · 소생술(재생) ·
+재물운(영석 획득량) · **환혼단**(사망 시 1회 부활).
+
+**해금** — 시작 시점에는 설령과 법보 4종만 열려 있습니다.
+홍련 600 · 청묘 1400 · 빙백장 300 · 금강저 450 · 영접부 600 · 천뢰인 800.
+잠긴 법보는 돌파 보상에 아예 등장하지 않습니다.
+
+**도감(圖鑑)** — 만나본 법보·요괴·마존만 공개되고, 나머지는 실루엣으로 남습니다.
+누적 도전 횟수, 최장 생존, 최고 경지 같은 기록도 여기 있습니다.
+
+3분짜리 런 하나에서 대략 **190 영석**이 나옵니다. 강화 하나를 사고 다시 들어가는 게
+기본 루프입니다.
+
 ## 법보(法寶)와 공법(功法)
 
 **법보 8종** — 비검 · 화염부 · 뇌령주 · 빙백장 · 팔괘진 · 금강저 · 영접부 · 천뢰인.
@@ -85,8 +104,11 @@ src/
   art/      faces  ChibiBuilder  enemyGeometry  materials  textures  geometry  vfx
   entities/ Player  EnemyManager  ProjectileManager  PickupManager  BossManager
   combat/   WeaponSystem  Stats  damage  upgrades  weapons/(법보 12종)
-  data/     characters  weapons  passives  enemies  waves  realms  validate
-  ui/       Hud  LevelUpModal  TitleScreen  ResultScreen  OverlayCanvas  icons  DebugOverlay
+  meta/     Save(localStorage)  Progress(영석 경제·해금·기록)
+  data/     characters  weapons  passives  enemies  waves  realms
+            metaUpgrades  unlocks  validate
+  ui/       Hud  LevelUpModal  TitleScreen  ShopScreen  CodexScreen
+            ResultScreen  OverlayCanvas  icons  DebugOverlay
 ```
 
 설계상 중요한 점 몇 가지:
@@ -114,6 +136,8 @@ src/
 - `enemies.js` — 적 스탯과 시간에 따른 스케일링 공식
 - `waves.js` — 15분 스폰 타임라인(30초 단위)
 - `realms.js` — 경지 구간과 레벨업 요구 영기
+- `metaUpgrades.js` — 단전 영구 강화의 효과와 비용 곡선
+- `unlocks.js` — 시작 해금 목록과 캐릭터·법보 해금 가격
 
 부팅할 때 `validate.js`가 이 테이블들을 검사합니다. 진화가 존재하지 않는 id를
 가리키거나, 웨이브에 구멍이 있거나, 법보 레벨 수가 안 맞으면 **즉시 정확한 메시지와
@@ -125,10 +149,13 @@ src/
 npm test
 ```
 
-순수 로직만 테스트합니다(DOM·WebGL 불필요). 152개:
+순수 로직만 테스트합니다(DOM·WebGL 불필요). 207개:
 스탯 합산 규칙과 쿨다운 하한 · 공간 해시를 브루트포스와 대조 · 풀 불변식 ·
-업그레이드 롤(만렙 미제시, 슬롯 상한, 진화 조건) · RNG 결정성 ·
-웨이브 타임라인 연속성 · 크리티컬/넉백 수식 · 모든 법보에 동작 모듈이 있는지.
+업그레이드 롤(만렙 미제시, 슬롯 상한, 진화 조건, 잠긴 법보 제외) · RNG 결정성 ·
+웨이브 타임라인 연속성 · 크리티컬/넉백 수식 · 모든 법보에 동작 모듈이 있는지 ·
+세이브 왕복과 손상된 세이브 복구 · 영석 경제(비용 곡선, 잔액 부족, 최대 레벨).
+
+세이브 계층은 저장소를 주입받게 만들어서, localStorage 없이 node 환경에서 검증합니다.
 
 ## 문서
 

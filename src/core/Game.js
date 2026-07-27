@@ -27,7 +27,11 @@ import { LevelUpModal } from '../ui/LevelUpModal.js'
 import { OverlayCanvas } from '../ui/OverlayCanvas.js'
 import { TitleScreen } from '../ui/TitleScreen.js'
 import { ResultScreen } from '../ui/ResultScreen.js'
+import { ShopScreen } from '../ui/ShopScreen.js'
+import { CodexScreen } from '../ui/CodexScreen.js'
 import { DebugOverlay } from '../ui/DebugOverlay.js'
+import { Progress } from '../meta/Progress.js'
+import * as Save from '../meta/Save.js'
 
 const BREAKTHROUGH_RADIUS = 8
 const BREAKTHROUGH_IFRAMES = 1.2
@@ -52,10 +56,15 @@ export class Game {
     this.runTime = 0
     this.victory = false
 
+    // Meta progression is loaded once and lives for the whole session.
+    this.progress = new Progress(Save.load())
+
     this.hud = new Hud(hudRoot)
     this.modal = new LevelUpModal(hudRoot)
-    this.title = new TitleScreen(hudRoot, CHARACTERS)
+    this.title = new TitleScreen(hudRoot, CHARACTERS, this.progress)
     this.result = new ResultScreen(hudRoot)
+    this.shop = new ShopScreen(hudRoot, this.progress, () => this._persist())
+    this.codex = new CodexScreen(hudRoot, this.progress)
     this.debug = new DebugOverlay(hudRoot)
     this.pauseNote = document.createElement('div')
     this.pauseNote.className = 'pause-note'
@@ -104,7 +113,15 @@ export class Game {
     })
     this.camera.setAspect(this.camera.camera.aspect)
     this.camera.snapTo(0, 0)
-    this.title.show((id) => this._startRun(id))
+    this.title.show({
+      onStart: (id) => this._startRun(id),
+      onShop: () => { this.state = 'shop'; this.shop.show(() => { this.state = 'title'; this.title.show() }) },
+      onCodex: () => { this.state = 'codex'; this.codex.show(() => { this.state = 'title'; this.title.show() }) },
+    })
+  }
+
+  _persist() {
+    Save.save(this.progress.toSaveState())
   }
 
   _clearPreview() {
@@ -122,7 +139,10 @@ export class Game {
     this.victory = false
     this.pendingLevels = 0
 
-    this.player = new Player(getCharacter(characterId), this.scene, this.terrain)
+    this.player = new Player(getCharacter(characterId), this.scene, this.terrain, {
+      metaMods: this.progress.statMods,
+      reviveCharges: this.progress.reviveCharges,
+    })
     this.enemies = new EnemyManager(this.scene, this.rng)
     this.projectiles = new ProjectileManager(this.scene)
     this.pickups = new PickupManager(this.scene)
@@ -158,6 +178,19 @@ export class Game {
     this.enemies.onKill = (x, z, xp, def, wasFrozen) => {
       this.vfx.deathPuff(x, z)
       this.pickups.drop('qi', x, z, xp)
+      this.progress.markSeen('enemies', def.id)
+
+      // 영석 is what carries out of the run, so it has to actually drop during
+      // one. Value scales with run time so late minutes are worth farming.
+      // Rates measured against a scripted 3-minute run: this yields ~190 영석,
+      // enough to buy one or two 단전 upgrades per attempt.
+      const minute = this.runTime / 60
+      if (def.elite) {
+        this.pickups.drop('stone', x, z, Math.round(8 + minute * 1.6))
+      } else if (this.rng.chance(0.18)) {
+        this.pickups.drop('stone', x, z, Math.round(2 + minute * 0.9))
+      }
+
       // Elites always drop a 회춘단; ordinary enemies rarely do. Some sustain has
       // to exist before elites appear at 7:00 or the early game is unrecoverable.
       if (def.elite) this.pickups.drop('heal', x, z, this.player.maxHp * 0.15)
@@ -193,6 +226,7 @@ export class Game {
     this.boss.onWarning = (def) => {
       this.overlay.pushBanner(`${def.name}  ${def.hanja}`)
       this.camera.addTrauma(0.4)
+      this.progress.markSeen('bosses', def.id)
     }
     this.boss.onDefeated = (id, x, z) => {
       if (id === 'blueWolfKing') {
@@ -222,7 +256,9 @@ export class Game {
   _openNextModal() {
     if (this.modal.isOpen || this.pendingLevels <= 0) return
     this.pendingLevels--
-    const choices = rollUpgrades(this.player.loadout, this.player.stats, this.rng)
+    const choices = rollUpgrades(
+      this.player.loadout, this.player.stats, this.rng, 3, this.progress.unlockedWeapons,
+    )
 
     // Late in a run everything is maxed and the roll can only return consumables.
     // Interrupting the fight every few seconds to pick between three rewards that
@@ -238,6 +274,9 @@ export class Game {
 
   _takeUpgrade(choice) {
     applyChoice(this.player.loadout, choice)
+    if (choice.kind === 'weapon' || choice.kind === 'evolution') {
+      this.progress.markSeen('weapons', choice.id)
+    }
     if (choice.kind === 'consumable') {
       if (choice.id === 'heal') this.player.heal(this.player.maxHp * 0.3)
       else if (choice.id === 'stones') this.player.stones += 200
@@ -255,6 +294,18 @@ export class Game {
   _endRun() {
     this.state = 'result'
     this.hud.hide()
+
+    // Everything earned in the run is banked here — this is the whole point of
+    // the meta layer, so it happens before anything can go wrong on screen.
+    const earned = this.progress.addStones(this.player.stones * this.progress.stoneMultiplier)
+    const bests = this.progress.recordRun({
+      runTime: this.runTime,
+      level: this.player.level,
+      kills: this.enemies.killCount,
+      victory: this.victory,
+    })
+    this._persist()
+
     this.result.show({
       victory: this.victory,
       runTime: this.runTime,
@@ -262,6 +313,9 @@ export class Game {
       realm: realmFor(this.player.level),
       kills: this.enemies.killCount,
       stones: this.player.stones,
+      earnedStones: earned,
+      totalStones: this.progress.stones,
+      bests,
       weapons: this.weapons.equipped,
       passives: Object.entries(this.player.loadout.passives).map(([id, level]) => ({ id, level })),
       seed: this.seed,
@@ -313,6 +367,8 @@ export class Game {
     if (this.state === 'title') this.title.handleKey(slot, confirm, this._edge(dir))
     else if (this.state === 'levelUp') this.modal.handleKey(slot, confirm, this._edge(dir))
     else if (this.state === 'result') this.result.handleKey(confirm)
+    else if (this.state === 'shop') this.shop.handleKey(confirm)
+    else if (this.state === 'codex') this.codex.handleKey(confirm)
   }
 
   /** Convert held direction into a single step, so a held key does not scroll. */
@@ -460,6 +516,8 @@ export class Game {
     this.modal.dispose()
     this.title.dispose()
     this.result.dispose()
+    this.shop.dispose()
+    this.codex.dispose()
     this.debug.dispose()
   }
 }

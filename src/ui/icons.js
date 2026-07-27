@@ -164,6 +164,77 @@ const DRAWERS = {
     ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill()
   },
 
+  // 단전 permanent upgrades.
+  vitality: (ctx) => {
+    ctx.fillStyle = '#ff8a9a'
+    ctx.beginPath()
+    ctx.moveTo(0, 16)
+    ctx.bezierCurveTo(-22, 0, -12, -18, 0, -7)
+    ctx.bezierCurveTo(12, -18, 22, 0, 0, 16)
+    ctx.fill()
+  },
+  edge: (ctx) => {
+    blade(ctx, '#eaf4ff')
+    ctx.strokeStyle = '#ffd76a'; ctx.lineWidth = 2
+    ctx.beginPath(); ctx.moveTo(4, -18); ctx.lineTo(16, -20); ctx.moveTo(8, -12); ctx.lineTo(19, -12); ctx.stroke()
+  },
+  swift: (ctx) => {
+    ctx.strokeStyle = '#9be8c8'; ctx.lineWidth = 4
+    for (const y of [-9, 0, 9]) {
+      ctx.beginPath(); ctx.moveTo(-18, y); ctx.lineTo(10 - Math.abs(y), y); ctx.stroke()
+    }
+    ctx.fillStyle = '#9be8c8'
+    ctx.beginPath(); ctx.moveTo(8, -12); ctx.lineTo(20, 0); ctx.lineTo(8, 12); ctx.closePath(); ctx.fill()
+  },
+  circulation: (ctx) => {
+    ctx.strokeStyle = '#8fd0ff'; ctx.lineWidth = 4
+    ctx.beginPath(); ctx.arc(0, 0, 15, 0.5, Math.PI * 1.7); ctx.stroke()
+    ctx.fillStyle = '#8fd0ff'
+    ctx.beginPath(); ctx.moveTo(14, -8); ctx.lineTo(20, 4); ctx.lineTo(7, 3); ctx.closePath(); ctx.fill()
+  },
+  bulwark: (ctx) => {
+    ctx.fillStyle = '#cfd8e8'
+    ctx.beginPath()
+    ctx.moveTo(0, -19); ctx.lineTo(15, -11); ctx.lineTo(13, 7); ctx.lineTo(0, 19); ctx.lineTo(-13, 7); ctx.lineTo(-15, -11)
+    ctx.closePath(); ctx.fill()
+    ctx.strokeStyle = '#7a8798'; ctx.lineWidth = 2.5; ctx.stroke()
+  },
+  reach: (ctx) => {
+    ctx.strokeStyle = '#9be8c8'; ctx.lineWidth = 3
+    for (const r of [8, 14, 20]) { ctx.beginPath(); ctx.arc(0, 4, r, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke() }
+    ctx.fillStyle = '#9be8c8'
+    ctx.beginPath(); ctx.arc(0, 8, 4, 0, Math.PI * 2); ctx.fill()
+  },
+  insight: (ctx) => {
+    ctx.fillStyle = '#eaf4ff'
+    ctx.beginPath(); ctx.ellipse(0, 0, 20, 12, 0, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = '#c8a33c'
+    ctx.beginPath(); ctx.arc(0, 0, 8.5, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = '#101828'
+    ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill()
+  },
+  mending: (ctx) => {
+    ctx.strokeStyle = '#9be8c8'; ctx.lineWidth = 4; ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(-19, 2); ctx.lineTo(-9, 2); ctx.lineTo(-4, -11); ctx.lineTo(3, 13); ctx.lineTo(8, 2); ctx.lineTo(19, 2)
+    ctx.stroke()
+  },
+  fortune: (ctx) => {
+    ctx.fillStyle = '#e8c56a'
+    ctx.beginPath(); ctx.arc(0, 2, 15, 0, Math.PI * 2); ctx.fill()
+    ctx.strokeStyle = '#8a6a1e'; ctx.lineWidth = 3
+    ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(0, 11); ctx.moveTo(-6, -1); ctx.lineTo(6, -1); ctx.moveTo(-6, 5); ctx.lineTo(6, 5); ctx.stroke()
+  },
+  revive: (ctx) => {
+    const g = ctx.createRadialGradient(-4, -4, 1, 0, 0, 17)
+    g.addColorStop(0, '#fff0f4')
+    g.addColorStop(1, '#c8467a')
+    ctx.fillStyle = g
+    ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill()
+    ctx.strokeStyle = '#ffd9e4'; ctx.lineWidth = 2.5
+    ctx.beginPath(); ctx.arc(0, 0, 20, 0.4, Math.PI * 1.4); ctx.stroke()
+  },
+
   heal: (ctx) => {
     ctx.fillStyle = '#ff9aa8'
     ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.fill()
@@ -189,13 +260,20 @@ const BG = {
   passive: ['#3a3550', '#1e1a2c'],
   evolution: ['#5a4520', '#2c2010'],
   consumable: ['#24463c', '#12241e'],
+  meta: ['#3d3348', '#1d1826'],
 }
+
+const META_IDS = new Set([
+  'vitality', 'edge', 'swift', 'circulation', 'bulwark',
+  'reach', 'insight', 'mending', 'fortune', 'revive',
+])
 
 const EVOLUTION_IDS = new Set(['myriadSwords', 'infernoSea', 'violetThunder', 'frozenSky'])
 const PASSIVE_IDS = new Set(['swordArt', 'lightBody', 'guardianAura', 'spiritRoot', 'farSight', 'goldenCore'])
 const CONSUMABLE_IDS = new Set(['heal', 'stones', 'purge'])
 
 function bgFor(id) {
+  if (META_IDS.has(id)) return BG.meta
   if (EVOLUTION_IDS.has(id)) return BG.evolution
   if (PASSIVE_IDS.has(id)) return BG.passive
   if (CONSUMABLE_IDS.has(id)) return BG.consumable

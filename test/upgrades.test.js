@@ -121,6 +121,49 @@ describe('rollUpgrades', () => {
     expect(a).toEqual(b)
   })
 
+  it('never offers a weapon that is not unlocked', () => {
+    const unlocked = ['flyingSword', 'baguaArray']
+    for (let seed = 0; seed < 100; seed++) {
+      for (const c of rollUpgrades(loadout(), stats, new RNG(seed), 3, unlocked)) {
+        if (c.kind === 'weapon') expect(unlocked).toContain(c.id)
+      }
+    }
+  })
+
+  it('offers a weapon once it is unlocked', () => {
+    const lo = loadout()
+    let sawVajra = false
+    for (let seed = 0; seed < 120 && !sawVajra; seed++) {
+      const offered = rollUpgrades(lo, stats, new RNG(seed), 3, ['flyingSword', 'vajra'])
+      sawVajra = offered.some((c) => c.id === 'vajra')
+    }
+    expect(sawVajra).toBe(true)
+  })
+
+  it('hides the evolution of a locked weapon', () => {
+    const lo = loadout({ frostPalm: 5 }, { guardianAura: 5 })
+    for (let seed = 0; seed < 60; seed++) {
+      for (const c of rollUpgrades(lo, stats, new RNG(seed), 3, ['flyingSword'])) {
+        expect(c.id).not.toBe('frozenSky')
+      }
+    }
+  })
+
+  it('still fills three slots when almost everything is locked', () => {
+    for (let seed = 0; seed < 30; seed++) {
+      expect(rollUpgrades(loadout(), stats, new RNG(seed), 3, ['flyingSword'])).toHaveLength(3)
+    }
+  })
+
+  it('offers everything when no unlock list is given', () => {
+    const ids = new Set()
+    for (let seed = 0; seed < 200; seed++) {
+      for (const c of rollUpgrades(loadout(), stats, new RNG(seed))) ids.add(c.id)
+    }
+    expect(ids.has('vajra')).toBe(true)
+    expect(ids.has('skyThunder')).toBe(true)
+  })
+
   it('does not mutate the loadout it was given', () => {
     const lo = loadout({ flyingSword: 1 }, { swordArt: 1 })
     const before = JSON.stringify(lo)

@@ -13,8 +13,11 @@ export const COOLDOWN_FLOOR = 0.4
  *
  * `tagMight` is a separate map of element tag → additive damage bonus, so a trait
  * like 설령's "검류 법보 피해 +15%" applies to sword weapons only.
+ *
+ * `extraMods` carries permanent 단전 upgrades. They use the same StatMod shape as
+ * 공법 so both go through one code path; the default keeps existing callers valid.
  */
-export function computeStats(character, passiveLevels) {
+export function computeStats(character, passiveLevels, extraMods = []) {
   const adds = {}
   const muls = {}
   const tagMight = {}
@@ -40,6 +43,8 @@ export function computeStats(character, passiveLevels) {
       for (const mod of passive.perLevel) apply(mod)
     }
   }
+
+  for (const mod of extraMods) apply(mod)
 
   const out = { tagMight }
   for (const key in BASE_STATS) {

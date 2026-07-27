@@ -37,11 +37,12 @@ export class ResultScreen {
             : '기혈이 다해 그 자리에 앉은 채 숨을 거두었다.'}
         </div>
         <div class="result-stats">
-          <div><span>생존 시간</span><b>${time}</b></div>
-          <div><span>도달 경지</span><b>${result.realm.name} ${result.level}층</b></div>
+          <div><span>생존 시간</span><b>${time}${result.bests?.time ? ' <em>신기록</em>' : ''}</b></div>
+          <div><span>도달 경지</span><b>${result.realm.name} ${result.level}층${result.bests?.level ? ' <em>신기록</em>' : ''}</b></div>
           <div><span>처치 수</span><b>${result.kills}</b></div>
-          <div><span>영석</span><b>${result.stones}</b></div>
+          <div><span>획득 영석</span><b class="gain">+${result.earnedStones ?? result.stones}</b></div>
         </div>
+        <div class="result-bank">보유 영석 <b>${result.totalStones ?? 0}</b> · 단전에서 영구 강화에 쓸 수 있다</div>
         <div class="result-loadout">${icons}</div>
         <div class="result-seed">seed ${result.seed}</div>
         <button class="btn clickable">다시 도전</button>

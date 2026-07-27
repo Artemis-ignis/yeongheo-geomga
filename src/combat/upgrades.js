@@ -24,13 +24,16 @@ export function canEvolve(loadout, weapon) {
   return loadout.passives[weapon.pairPassive] === passive.max
 }
 
-function buildCandidates(loadout, stats) {
+function buildCandidates(loadout, stats, unlockedWeapons) {
   const out = []
   const luck = stats.luck ?? 1
   const weaponCount = Object.keys(loadout.weapons).length
   const passiveCount = Object.keys(loadout.passives).length
 
   for (const w of WEAPONS) {
+    // A locked 법보 is invisible to the roll. Its evolution follows it, since an
+    // evolution can only ever come from a weapon the player already has.
+    if (unlockedWeapons && !unlockedWeapons.includes(w.id)) continue
     const level = loadout.weapons[w.id] ?? 0
 
     if (canEvolve(loadout, w) && !loadout.weapons[w.evolvesTo]) {
@@ -72,9 +75,14 @@ function buildCandidates(loadout, stats) {
   return out
 }
 
-/** Draw `count` distinct weighted choices without replacement. */
-export function rollUpgrades(loadout, stats, rng, count = 3) {
-  const pool = buildCandidates(loadout, stats)
+/**
+ * Draw `count` distinct weighted choices without replacement.
+ *
+ * `unlockedWeapons` filters the pool to what the player owns permanently; pass
+ * null (the default) to offer everything.
+ */
+export function rollUpgrades(loadout, stats, rng, count = 3, unlockedWeapons = null) {
+  const pool = buildCandidates(loadout, stats, unlockedWeapons)
   const picked = []
 
   while (picked.length < count && pool.length > 0) {

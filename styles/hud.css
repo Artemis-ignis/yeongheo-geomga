@@ -249,6 +249,87 @@ body {
 }
 .btn:hover { filter: brightness(1.08); }
 
+/* ---------- Title menu ---------- */
+.title-menu { margin-top: 30px; display: grid; gap: 10px; justify-content: center; }
+.title-menu .btn { margin-top: 0; min-width: 260px; }
+.btn-alt {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #dfe8f2;
+}
+.btn-alt:hover { background: rgba(255, 255, 255, 0.15); }
+.btn-back { margin-top: 18px; }
+.title-stones { margin-top: 16px; font-size: 13px; color: var(--gold); letter-spacing: 0.1em; }
+
+.char-card { position: relative; }
+.char-card.locked { opacity: 0.45; cursor: not-allowed; }
+.char-card.locked.focused { transform: none; border-color: rgba(255, 255, 255, 0.12); }
+.char-lock {
+  position: absolute; top: 8px; right: 10px;
+  font-size: 11px; color: var(--gold); letter-spacing: 0.04em;
+}
+
+/* ---------- Shop & codex ---------- */
+.shop-inner { display: flex; flex-direction: column; max-height: 88vh; }
+.shop-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+.shop-title { font-size: 30px; letter-spacing: 0.2em; color: var(--gold); }
+.shop-title span { font-size: 15px; opacity: 0.6; margin-left: 8px; }
+.shop-stones { font-size: 16px; color: var(--gold); font-variant-numeric: tabular-nums; }
+.shop-scroll { overflow-y: auto; padding: 4px 6px 4px 0; text-align: left; }
+.shop-section {
+  margin: 18px 0 10px; font-size: 12px; letter-spacing: 0.22em; color: #8b98a6;
+}
+.shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+
+.shop-card {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  padding: 10px 14px 10px 10px; border-radius: 11px; cursor: pointer; font: inherit; color: inherit;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.shop-card.affordable { border-color: rgba(127, 214, 181, 0.55); }
+.shop-card.affordable:hover { background: rgba(127, 214, 181, 0.12); }
+.shop-card:disabled { cursor: default; }
+.shop-card.maxed { opacity: 0.5; }
+.shop-card:disabled:not(.maxed) { opacity: 0.55; }
+.shop-icon { width: 44px; height: 44px; border-radius: 9px; flex: 0 0 auto; }
+.shop-body { flex: 1 1 auto; min-width: 0; }
+.shop-name { font-size: 15px; font-weight: 700; }
+.shop-name span { font-size: 11px; opacity: 0.5; margin-left: 6px; }
+.shop-desc { margin-top: 2px; font-size: 11.5px; line-height: 1.5; color: #98a5b3; }
+.shop-pips { margin-top: 6px; display: flex; gap: 3px; }
+.shop-pips i { width: 12px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.18); }
+.shop-pips i.on { background: var(--gold); box-shadow: 0 0 5px rgba(232, 197, 106, 0.8); }
+.shop-cost {
+  flex: 0 0 auto; font-size: 14px; font-weight: 700; color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+.shop-card.maxed .shop-cost { color: #6d7887; }
+
+.codex-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+.codex-cell { text-align: center; }
+.codex-icon { width: 100%; aspect-ratio: 1/1; border-radius: 9px; display: block; }
+.codex-name { margin-top: 4px; font-size: 10.5px; color: #b6c2d0; }
+.codex-cell.unknown .codex-icon { filter: brightness(0.25) grayscale(1); }
+.codex-cell.unknown .codex-name { color: #5d6874; }
+.codex-records {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 22px; font-size: 14px;
+}
+.codex-records div {
+  display: flex; justify-content: space-between;
+  padding-bottom: 5px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.codex-records b { color: var(--jade); font-variant-numeric: tabular-nums; }
+
+.result-stats em { font-style: normal; font-size: 11px; color: var(--gold); margin-left: 6px; }
+.result-stats b.gain { color: var(--gold); }
+.result-bank { margin-top: 14px; font-size: 12.5px; color: #93a2b0; }
+.result-bank b { color: var(--gold); font-variant-numeric: tabular-nums; }
+
 /* ---------- Pause & error ---------- */
 .pause-note {
   position: absolute; inset: 0; z-index: 11;
@@ -277,8 +358,14 @@ body {
   white-space: pre;
 }
 
+@media (max-width: 900px) {
+  .shop-grid { grid-template-columns: 1fr; }
+  .codex-grid { grid-template-columns: repeat(5, 1fr); }
+}
+
 @media (max-width: 760px) {
   .title-mark { font-size: 38px; }
   .char-cards, .modal-cards { grid-template-columns: 1fr; }
+  .codex-records { grid-template-columns: 1fr; }
   .hud-slot { width: 38px; height: 38px; }
 }
