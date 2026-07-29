@@ -50,7 +50,37 @@ export function toonRamp(steps = 4) {
  * The rim uses its own varyings rather than relying on three's internal ones,
  * so it does not break when the built-in chunks are reorganised between releases.
  */
-export function makeToonMaterial({ color, rim = 0.35, rimColor = 0xffffff, ...opts } = {}) {
+/**
+ * Idle and stride motion for an instanced crowd, done entirely in the vertex
+ * shader.
+ *
+ * A horde of rigid meshes sliding across the ground is the loudest tell that a
+ * game is a prototype, and skinning several hundred creatures is not affordable
+ * here. Each instance carries a phase and a 0..1 movement amount instead, and
+ * the shader bobs, leans and rolls the whole body around its own feet. The
+ * models are all built with y=0 at the ground, so rotating about the origin
+ * pivots at the feet for free.
+ */
+const CREATURE_ANIM = `
+  float aPhase = aAnim.x;
+  float aMove = aAnim.y;
+  float bt = uTime * ( 3.4 + aMove * 5.2 ) + aPhase;
+  // Bob, scaled by height so the feet stay planted.
+  transformed.y += sin( bt ) * ( 0.022 + aMove * 0.038 ) * transformed.y;
+  // Lean forward and back, and roll side to side as it runs.
+  float lean = sin( bt * 0.5 ) * ( 0.032 + aMove * 0.078 );
+  float roll = sin( bt * 0.5 + 1.57 ) * aMove * 0.075;
+  float cl = cos( lean ), sl = sin( lean );
+  transformed.yz = vec2( transformed.y * cl - transformed.z * sl,
+                         transformed.y * sl + transformed.z * cl );
+  float cr = cos( roll ), sr = sin( roll );
+  transformed.xy = vec2( transformed.x * cr - transformed.y * sr,
+                         transformed.x * sr + transformed.y * cr );
+`
+
+export function makeToonMaterial({
+  color, rim = 0.35, rimColor = 0xffffff, creatureAnim = false, ...opts
+} = {}) {
   const material = new THREE.MeshToonMaterial({
     color,
     gradientMap: toonRamp(),
@@ -59,10 +89,21 @@ export function makeToonMaterial({ color, rim = 0.35, rimColor = 0xffffff, ...op
 
   material.userData.rim = { value: rim }
   material.userData.rimColor = { value: new THREE.Color(rimColor) }
+  material.userData.time = { value: 0 }
 
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRimStrength = material.userData.rim
     shader.uniforms.uRimColor = material.userData.rimColor
+
+    if (creatureAnim) {
+      shader.uniforms.uTime = material.userData.time
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          '#include <common>',
+          '#include <common>\nattribute vec2 aAnim;\nuniform float uTime;',
+        )
+        .replace('#include <begin_vertex>', `#include <begin_vertex>\n${CREATURE_ANIM}`)
+    }
 
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vRimN;\nvarying vec3 vRimV;')
@@ -90,8 +131,8 @@ export function makeToonMaterial({ color, rim = 0.35, rimColor = 0xffffff, ...op
       )
   }
 
-  // Every toon material compiles to the same program, so they share one cache entry.
-  material.customProgramCacheKey = () => 'toonRim'
+  // Toon materials compile to one of two programs, so they share cache entries.
+  material.customProgramCacheKey = () => (creatureAnim ? 'toonRimAnim' : 'toonRim')
   return material
 }
 

@@ -487,6 +487,8 @@ export class Game {
    * and stopped the wind mid-gust.
    */
   _ambient(dt, px, pz) {
+    this._animTime = (this._animTime ?? 0) + dt
+    this.enemies?.setAnimTime(this._animTime)
     this.vfx?.update(dt)
     this.terrain?.update(dt, px, pz)
     this.grass?.update(dt, px, pz)

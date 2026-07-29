@@ -86,16 +86,30 @@ export class EnemyManager {
     // Footprint per type, for the contact-shadow layer.
     this.typeRadius = Float32Array.from(ENEMIES, (def) => def.radius)
 
+    // Per-creature animation phase, so a crowd of one type does not breathe in
+    // unison. Written once at spawn and packed into the instanced attribute
+    // during render, because the pool index and the draw index differ.
+    this.animPhase = new Float32Array(MAX_ENEMIES)
+    this.animBuffers = []
+
     this.meshes = []
     ENEMIES.forEach((def) => {
       const geo = buildEnemyGeometry(def.id)
+      // (phase, movement) per instance, consumed by the vertex shader.
+      const anim = new THREE.InstancedBufferAttribute(new Float32Array(MAX_ENEMIES * 2), 2)
+      anim.setUsage(THREE.DynamicDrawUsage)
+      geo.setAttribute('aAnim', anim)
+      this.animBuffers.push(anim)
       // Colour lives in the geometry's vertex colours, so instanceColor is a
       // pure tint (white = untinted) rather than the creature's base colour.
       const mesh = new THREE.InstancedMesh(
         geo,
         // Rim is deliberately weak and neutral: it is added on top of the shaded
         // colour, so a strong tinted rim washes every creature toward that tint.
-        makeToonMaterial({ color: 0xffffff, rim: 0.16, rimColor: 0xdce8ff, vertexColors: true }),
+        makeToonMaterial({
+          color: 0xffffff, rim: 0.16, rimColor: 0xdce8ff,
+          vertexColors: true, creatureAnim: true,
+        }),
         MAX_ENEMIES,
       )
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
@@ -165,6 +179,7 @@ export class EnemyManager {
     this.burnT[i] = 0; this.burnDps[i] = 0; this.burnTick[i] = 0
     this.hitCd[i] = 0
     this.stateT[i] = this.rng.next() * 3
+    this.animPhase[i] = this.rng.next() * Math.PI * 2
     this.dashT[i] = 0
     this.flash[i] = 0
     this.canSplit[i] = def.behavior === 'splitter' && scaleMul >= 1 ? 1 : 0
@@ -443,6 +458,8 @@ export class EnemyManager {
       const mesh = this.meshes[t]
       const list = this.typeLists[t]
       const count = this.typeCounts[t]
+      const animAttr = this.animBuffers[t]
+      const anim = animAttr.array
 
       // Most enemies are their plain base colour most of the time. Re-uploading
       // the whole colour buffer every frame for a handful of tinted instances is
@@ -460,6 +477,13 @@ export class EnemyManager {
         _dummy.updateMatrix()
         mesh.setMatrixAt(k, _dummy.matrix)
         if (shadows !== null) shadows.add(x, z, this.typeRadius[t])
+
+        // Movement amount drives how hard the creature strides. Frozen and
+        // heavily slowed enemies settle into an idle sway instead, which is a
+        // free readability win: a stopped enemy looks stopped.
+        const speed = Math.hypot(this.vx[i], this.vz[i])
+        anim[k * 2] = this.animPhase[i]
+        anim[k * 2 + 1] = Math.min(1, speed / 4)
 
         const tinted = this.freezeT[i] > 0 || this.slowAmt[i] > 0 || this.flash[i] > 0
         if (tinted) anyTint = true
@@ -480,7 +504,18 @@ export class EnemyManager {
 
       mesh.count = count
       uploadInstances(mesh, count, colorDirty)
+
+      // Two floats per creature, so a partial upload is worth the bookkeeping
+      // for the same reason the matrices get one.
+      animAttr.clearUpdateRanges()
+      if (count > 0) animAttr.addUpdateRange(0, count * 2)
+      animAttr.needsUpdate = count > 0
     }
+  }
+
+  /** Advances the crowd's idle and stride motion. Real time, not sim time. */
+  setAnimTime(t) {
+    for (const m of this.meshes) m.material.userData.time.value = t
   }
 
   clear() {
