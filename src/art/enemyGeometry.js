@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { buildColored, gradient, limb, revolve, roughen } from './shapeKit.js'
+import { panelSeams, studRing, trimBand } from './detailKit.js'
 
 /**
  * One merged geometry per enemy type, built once and cached.
@@ -97,6 +98,11 @@ const BUILDERS = {
       limb([[0, 0.5, -0.5], [0, 0.62, -0.72], [0.04, 0.78, -0.88]], [0.07, 0.05, 0.02], 8, 5),
       {}, 0x56708c,
     ])
+
+    // A studded collar — hardware is what says "bound by something", and it
+    // separates 요랑 from an ordinary animal at a glance.
+    parts.push(trimBand(0.26, 0.62, 0.1, 0x3a4c63, { taper: 1.05, segments: 12 }))
+    parts.push(...studRing(6, 0.27, 0.62, 0xffd76a, { size: 0.032, shape: 'gem' }))
     return buildColored(parts)
   },
 
@@ -135,6 +141,8 @@ const BUILDERS = {
       // Stubby leg.
       parts.push([new THREE.CylinderGeometry(0.2, 0.24, 0.3, 6), { x: side * 0.3, y: 0.14 }, 0x7d7466])
     }
+    // Rune studs hammered into the stone, still glowing.
+    parts.push(...studRing(7, 0.7, 0.68, 0xe07a42, { size: 0.05, shape: 'gem' }))
     return buildColored(parts)
   },
 
@@ -168,6 +176,11 @@ const BUILDERS = {
         { sx: 0.3, sy: 0.3, sz: 0.3 }, 0xe6dcb4,
       ])
     }
+    // Seams down the robe and a studded sash.
+    parts.push(...panelSeams(5, [
+      [0.20, 1.24], [0.28, 1.02], [0.34, 0.72], [0.46, 0.36], [0.56, 0.10],
+    ], 0xa8813f, { thickness: 0.011, lift: 1.03 }))
+    parts.push(...studRing(6, 0.38, 0.62, 0xe8c56a, { size: 0.033 }))
     return buildColored(parts)
   },
 
@@ -254,6 +267,11 @@ const BUILDERS = {
         0xd9c2ff,
       ])
     }
+    // Embroidery down the robe and gems on the sash.
+    parts.push(...panelSeams(6, [
+      [0.22, 1.64], [0.30, 1.30], [0.40, 0.92], [0.58, 0.46], [0.72, 0.10],
+    ], 0xd8b45a, { thickness: 0.013, lift: 1.03 }))
+    parts.push(...studRing(8, 0.48, 0.86, 0xffe9a8, { size: 0.036, shape: 'gem' }))
     return buildColored(parts)
   },
 }

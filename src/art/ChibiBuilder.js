@@ -2,7 +2,8 @@ import * as THREE from 'three'
 import { makeToonMaterial, makeAdditiveMaterial, makeFlatMaterial, makeOutlineMaterial } from './materials.js'
 import { baguaTexture } from './textures.js'
 import { buildMerged } from './geometry.js'
-import { gradient, limb, revolve } from './shapeKit.js'
+import { buildColored, gradient, limb, revolve } from './shapeKit.js'
+import { panelSeams, studRing, tassel, trimBand } from './detailKit.js'
 import { faceSet } from './faces.js'
 
 /** Lighten or darken a hex colour by a factor, for cheap tonal variants. */
@@ -299,10 +300,30 @@ export function buildChibi(character) {
     [0.40, -0.20], [0.44, -0.245], [0.41, -0.26],
   ], 24)
   gradient(skirtGeo, shade(pal.cloth, 0.66), pal.cloth, 'y')
-  const skirt = new THREE.Mesh(skirtGeo, skirtMat)
+
+  // Detail merged into the skirt itself rather than parented alongside it, so
+  // the trim and seams sway with the cloth instead of hanging in the air.
+  const skirtProfile = [
+    [0.18, 0.30], [0.23, 0.19], [0.28, 0.04], [0.34, -0.10],
+    [0.40, -0.20], [0.44, -0.245],
+  ]
+  const detailed = buildColored([
+    [skirtGeo, {}, undefined],
+    trimBand(0.445, -0.235, 0.055, pal.trim, { taper: 0.94, segments: 24 }),
+    ...panelSeams(6, skirtProfile, shade(pal.trim, 0.8), { thickness: 0.009, lift: 1.02 }),
+  ])
+  const skirt = new THREE.Mesh(detailed, skirtMat)
   skirt.position.y = 0.52
   skirt.castShadow = true
   root.add(skirt)
+
+  // Waist hardware and hanging tassels — static, so parented to the body.
+  const beltGeo = buildColored([
+    ...studRing(8, 0.255, 0.70, pal.accent, { size: 0.028, shape: 'gem' }),
+    ...tassel(0.16, 0.66, 0.20, 0.22, pal.trim, pal.accent),
+    ...tassel(-0.16, 0.66, 0.20, 0.17, pal.trim, pal.accent),
+  ])
+  root.add(new THREE.Mesh(beltGeo, clothVertexMat))
 
   const sash = new THREE.Mesh(new THREE.CylinderGeometry(0.235, 0.255, 0.10, 14), trimMat)
   sash.position.y = 0.70
