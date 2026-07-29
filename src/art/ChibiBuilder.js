@@ -2,7 +2,17 @@ import * as THREE from 'three'
 import { makeToonMaterial, makeAdditiveMaterial, makeFlatMaterial, makeOutlineMaterial } from './materials.js'
 import { baguaTexture } from './textures.js'
 import { buildMerged } from './geometry.js'
+import { gradient, limb, revolve } from './shapeKit.js'
 import { faceSet } from './faces.js'
+
+/** Lighten or darken a hex colour by a factor, for cheap tonal variants. */
+function shade(hex, factor) {
+  const c = new THREE.Color(hex)
+  c.r = Math.min(1, c.r * factor)
+  c.g = Math.min(1, c.g * factor)
+  c.b = Math.min(1, c.b * factor)
+  return c.getHex()
+}
 
 /**
  * Builds a chibi cultivator from Three.js primitives — no external models.
@@ -101,8 +111,15 @@ export function buildChibi(character) {
   const hairMat = makeToonMaterial({ color: pal.hair, rim: 0.55, rimColor: pal.accent })
   const clothMat = makeToonMaterial({ color: pal.cloth, rim: 0.4, rimColor: pal.accent })
   const trimMat = makeToonMaterial({ color: pal.trim, rim: 0.45, rimColor: pal.accent })
-  const skirtMat = makeToonMaterial({ color: pal.cloth, rim: 0.4, rimColor: pal.accent, side: THREE.DoubleSide })
+  const skirtMat = makeToonMaterial({
+    color: 0xffffff, rim: 0.22, rimColor: pal.accent,
+    side: THREE.DoubleSide, vertexColors: true,
+  })
   swayShader(skirtMat, uniforms)
+  // Vertex-coloured variants so hair and cloth can carry a root-to-tip gradient
+  // instead of being one flat tone.
+  const hairVertexMat = makeToonMaterial({ color: 0xffffff, rim: 0.3, rimColor: pal.accent, vertexColors: true })
+  const clothVertexMat = makeToonMaterial({ color: 0xffffff, rim: 0.22, rimColor: pal.accent, vertexColors: true })
 
   // ---- Head ----------------------------------------------------------------
   // Everything head-related hangs off one pivot so hair, fringe, ears and face
@@ -158,7 +175,18 @@ export function buildChibi(character) {
 
   const strands = []
   const addStrand = (x, y, z, len, rz, radius = 0.09) => {
-    const m = new THREE.Mesh(new THREE.CapsuleGeometry(radius, len, 4, 8), hairMat)
+    // A tapered tube hanging from its attachment point, not a capsule centred on
+    // its middle: the taper reads as hair and the pivot lands where the strand
+    // actually meets the head, so the sway swings from the root.
+    const geo = limb(
+      [[0, 0, 0], [0, -len * 0.45, len * 0.06], [0, -len * 0.82, len * 0.02], [0, -len * 1.05, -len * 0.08]],
+      [1.0, 1.12, 0.78, 0.18], 12, 7,
+    )
+    // limb() builds at a base radius of 1 and its `radii` are multipliers, so the
+    // cross-section has to be scaled to the real thickness here.
+    geo.scale(radius, 1, radius)
+    gradient(geo, pal.hair, shade(pal.hair, 1.28), 'y')
+    const m = new THREE.Mesh(geo, hairVertexMat)
     m.position.set(x, y - 1.36, z)
     m.rotation.z = rz
     m.castShadow = true
@@ -206,7 +234,13 @@ export function buildChibi(character) {
   }
 
   // ---- Body ----------------------------------------------------------------
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.34, 4, 12), clothMat)
+  // Shoulders, a pinched waist and a collar, instead of a plain capsule.
+  const torsoGeo = revolve([
+    [0.00, 0.26], [0.15, 0.25], [0.235, 0.19], [0.245, 0.06],
+    [0.215, -0.06], [0.205, -0.16], [0.23, -0.24], [0.00, -0.26],
+  ], 20)
+  gradient(torsoGeo, shade(pal.cloth, 0.68), shade(pal.cloth, 1.12), 'y')
+  const torso = new THREE.Mesh(torsoGeo, clothVertexMat)
   torso.position.y = 0.86
   torso.castShadow = true
   root.add(torso)
@@ -215,15 +249,23 @@ export function buildChibi(character) {
   collar.position.y = 1.08
   root.add(collar)
 
+  // Sleeves widen toward the wrist, 한푸 style, then a bare hand.
   const arms = []
   for (const side of [-1, 1]) {
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.34, 4, 8), clothMat)
+    const sleeve = limb(
+      [[0, 0.18, 0], [0, 0.02, 0.01], [0, -0.14, 0.0], [0, -0.2, -0.01]],
+      [0.72, 0.9, 1.05, 0.86], 10, 8,
+    )
+    sleeve.scale(0.115, 1, 0.115)
+    gradient(sleeve, shade(pal.cloth, 1.1), shade(pal.cloth, 0.72), 'y')
+    const arm = new THREE.Mesh(sleeve, clothVertexMat)
     arm.position.set(side * 0.29, 0.84, 0)
     arm.castShadow = true
     root.add(arm)
     arms.push(arm)
 
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), skinMat)
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.082, 10, 8), skinMat)
+    hand.scale.set(1, 1.15, 0.9)
     hand.position.set(side * 0.29, 0.62, 0)
     root.add(hand)
     arms.push(hand)
@@ -231,19 +273,33 @@ export function buildChibi(character) {
 
   const legs = []
   for (const side of [-1, 1]) {
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.22, 4, 8), skinMat)
+    const shin = limb(
+      [[0, 0.13, 0], [0, 0.02, 0], [0, -0.1, 0]],
+      [0.92, 0.8, 0.78], 8, 7,
+    )
+    shin.scale(0.09, 1, 0.09)
+    const leg = new THREE.Mesh(shin, skinMat)
     leg.position.set(side * 0.11, 0.24, 0)
     root.add(leg)
     legs.push(leg)
 
-    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.09, 0.24), trimMat)
-    shoe.position.set(side * 0.11, 0.05, 0.03)
+    // Slipper: rounded toe rather than a box.
+    const shoe = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), trimMat)
+    shoe.scale.set(0.82, 0.55, 1.25)
+    shoe.position.set(side * 0.11, 0.055, 0.035)
     root.add(shoe)
     legs.push(shoe)
   }
 
   // ---- Skirt ---------------------------------------------------------------
-  const skirt = new THREE.Mesh(new THREE.ConeGeometry(0.44, 0.52, 18, 4, true), skirtMat)
+  // A flared robe turned on a lathe, not a plain cone: the hem kicks out and the
+  // waist pinches, which is what makes it read as cloth rather than a funnel.
+  const skirtGeo = revolve([
+    [0.18, 0.30], [0.23, 0.19], [0.28, 0.04], [0.34, -0.10],
+    [0.40, -0.20], [0.44, -0.245], [0.41, -0.26],
+  ], 24)
+  gradient(skirtGeo, shade(pal.cloth, 0.66), pal.cloth, 'y')
+  const skirt = new THREE.Mesh(skirtGeo, skirtMat)
   skirt.position.y = 0.52
   skirt.castShadow = true
   root.add(skirt)

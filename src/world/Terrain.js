@@ -159,10 +159,13 @@ export class Terrain {
     this.rocks.castShadow = false
     this.rocks.receiveShadow = true
     rocks.forEach(([x, z], i) => {
-      // Bigger rocks only out on the rim, where they cannot occlude gameplay.
-      const rim = Math.min(1, Math.max(0, (Math.hypot(x, z) - ARENA_RADIUS * 0.6) / (PLATEAU_RADIUS - ARENA_RADIUS * 0.6)))
-      const s = 0.45 + Math.random() * (0.35 + rim * 1.6)
-      _dummy.position.set(x, s * 0.4, z)
+      // Inside the 결계 a rock must stay well under head height — anything taller
+      // can park itself between the camera and the player and hide her entirely.
+      // Past the barrier there is no gameplay to occlude, so they can be boulders.
+      const d = Math.hypot(x, z)
+      const rim = Math.min(1, Math.max(0, (d - ARENA_RADIUS) / (PLATEAU_RADIUS - ARENA_RADIUS)))
+      const s = 0.30 + Math.random() * (0.22 + rim * 2.2)
+      _dummy.position.set(x, s * 0.35, z)
       _dummy.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3)
       _dummy.scale.set(s, s * (0.7 + Math.random() * 0.5), s)
       _dummy.updateMatrix()
@@ -204,7 +207,8 @@ export class Terrain {
       [new THREE.ConeGeometry(0.62, 0.42, 4), { y: 2.42 }],
     ])
     const lanternMat = makeToonMaterial({ color: 0x9a927f, rim: 0.5, rimColor: PALETTE.gold })
-    const lanterns = this._scatter(8, 12, ARENA_RADIUS - 6)
+    // Lanterns are tall, so they belong on the rim with the pines.
+    const lanterns = this._scatter(10, 12, PLATEAU_RADIUS - 3).filter(([x, z]) => Math.hypot(x, z) > ARENA_RADIUS * 0.85)
     this.lanterns = new THREE.InstancedMesh(lanternGeo, lanternMat, lanterns.length)
     lanterns.forEach(([x, z], i) => {
       _dummy.position.set(x, 0, z)
