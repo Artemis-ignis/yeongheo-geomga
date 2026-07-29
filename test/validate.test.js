@@ -12,9 +12,21 @@ describe('data validation', () => {
     expect(() => validateData()).not.toThrow()
   })
 
-  it('ships 8 base weapons and 4 evolutions', () => {
-    expect(WEAPONS).toHaveLength(8)
-    expect(EVOLUTIONS).toHaveLength(4)
+  it('ships a meaningful weapon pool with evolutions for part of it', () => {
+    expect(WEAPONS.length).toBeGreaterThanOrEqual(8)
+    expect(EVOLUTIONS.length).toBeGreaterThanOrEqual(4)
+    // Every evolution comes from a distinct base weapon, so there cannot be more.
+    expect(EVOLUTIONS.length).toBeLessThanOrEqual(WEAPONS.length)
+  })
+
+  it('gives each evolution a distinct parent', () => {
+    const parents = EVOLUTIONS.map((e) => e.evolutionOf)
+    expect(new Set(parents).size).toBe(parents.length)
+  })
+
+  it('pairs each evolving weapon with a distinct 공법', () => {
+    const pairs = WEAPONS.filter((w) => w.evolvesTo).map((w) => w.pairPassive)
+    expect(new Set(pairs).size, 'two weapons share a pair passive').toBe(pairs.length)
   })
 
   it('gives every base weapon exactly 5 levels', () => {
@@ -53,13 +65,13 @@ describe('data validation', () => {
   })
 
   it('gives every character a real starting weapon', () => {
-    expect(CHARACTERS).toHaveLength(3)
+    expect(CHARACTERS.length).toBeGreaterThanOrEqual(3)
     for (const c of CHARACTERS) expect(getWeapon(c.startWeapon)).toBeDefined()
   })
 
-  it('gives the three characters three different starting weapons', () => {
+  it('gives every character a different starting weapon', () => {
     const starts = CHARACTERS.map((c) => c.startWeapon)
-    expect(new Set(starts).size).toBe(3)
+    expect(new Set(starts).size).toBe(CHARACTERS.length)
   })
 
   it('has a behaviour module for every weapon and evolution', () => {

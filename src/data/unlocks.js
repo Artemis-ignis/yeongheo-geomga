@@ -13,13 +13,22 @@ export const STARTING_WEAPONS = ['flyingSword', 'fireTalisman', 'thunderOrb', 'b
 export const CHARACTER_UNLOCKS = [
   { id: 'hongryeon', cost: 600 },
   { id: 'cheongmyo', cost: 1400 },
+  { id: 'byeongna', cost: 2000 },
+  { id: 'mukyeon', cost: 2800 },
+  { id: 'baengno', cost: 3600 },
 ]
 
 export const WEAPON_UNLOCKS = [
   { id: 'frostPalm', cost: 300 },
   { id: 'vajra', cost: 450 },
+  { id: 'hiddenNeedles', cost: 500 },
   { id: 'spiritButterfly', cost: 600 },
+  { id: 'venomMist', cost: 700 },
   { id: 'skyThunder', cost: 800 },
+  { id: 'windBlade', cost: 950 },
+  { id: 'bellToll', cost: 1100 },
+  { id: 'earthSpike', cost: 1300 },
+  { id: 'voidOrb', cost: 1600 },
 ]
 
 export const STAGE_UNLOCKS = [

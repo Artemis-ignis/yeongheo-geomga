@@ -7,6 +7,10 @@ import { vajra } from './vajra.js'
 import { spiritButterfly } from './spiritButterfly.js'
 import { skyThunder } from './skyThunder.js'
 import { myriadSwords, infernoSea, violetThunder, frozenSky } from './evolutions.js'
+import {
+  venomMist, plagueTide, hiddenNeedles, needleStorm,
+  bellToll, windBlade, earthSpike, voidOrb,
+} from './extras.js'
 
 /**
  * id → weapon module. Each module is
@@ -24,10 +28,18 @@ export const WEAPON_MODULES = {
   vajra,
   spiritButterfly,
   skyThunder,
+  venomMist,
+  hiddenNeedles,
+  bellToll,
+  windBlade,
+  earthSpike,
+  voidOrb,
   myriadSwords,
   infernoSea,
   violetThunder,
   frozenSky,
+  plagueTide,
+  needleStorm,
 }
 
 export function getWeaponModule(id) {

@@ -63,6 +63,45 @@ export const CHARACTERS = [
       { stat: 'regen', op: 'add', value: 0.4 },
     ],
   },
+  {
+    id: 'byeongna',
+    name: '벽라',
+    path: '만독곡 약사',
+    desc: '독과 약이 한 뿌리임을 아는 만독곡의 어린 약사.',
+    traits: ['범위 +20%', '지속피해 법보 위력 +20%'],
+    startWeapon: 'venomMist',
+    palette: { hair: 0x3f6b3a, accent: 0x9ee86a, cloth: 0x4f7a3e, trim: 0xe0f0b0, eye: 0x7ad84a, skin: 0xfbe3d6 },
+    mods: [
+      { stat: 'area', op: 'add', value: 0.2 },
+      { stat: 'tagMight', op: 'add', value: 0.2, tag: 'array' },
+    ],
+  },
+  {
+    id: 'mukyeon',
+    name: '묵연',
+    path: '무영문 암기수',
+    desc: '그림자에서 나고 자란 무영문의 암기수. 발소리가 없다.',
+    traits: ['재시전 -12%', '치명타 확률 +12%'],
+    startWeapon: 'hiddenNeedles',
+    palette: { hair: 0x241f33, accent: 0xb08cff, cloth: 0x2e2842, trim: 0x8f74d0, eye: 0xc4a4ff, skin: 0xf6ddd0 },
+    mods: [
+      { stat: 'cooldown', op: 'add', value: -0.12 },
+      { stat: 'critChance', op: 'add', value: 0.12 },
+    ],
+  },
+  {
+    id: 'baengno',
+    name: '백로',
+    path: '천음각 율사',
+    desc: '금(琴) 한 줄로 산을 울린다는 천음각의 율사.',
+    traits: ['획득 범위 +50%', '경험치 +20%'],
+    startWeapon: 'bellToll',
+    palette: { hair: 0xe8e2d4, accent: 0xffd98a, cloth: 0xc9a94e, trim: 0xfff2c8, eye: 0xf0b840, skin: 0xfbe3d6 },
+    mods: [
+      { stat: 'magnet', op: 'mul', value: 0.5 },
+      { stat: 'growth', op: 'mul', value: 0.2 },
+    ],
+  },
 ]
 
 export function getCharacter(id) {

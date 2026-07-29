@@ -97,6 +97,7 @@ export class ProjectileManager {
 
     // Per-projectile callbacks are stored out-of-band so the hot arrays stay typed.
     this.callbacks = []
+    this.expiries = []
     this.stats = []
     this.tags = []
 
@@ -138,12 +139,14 @@ export class ProjectileManager {
       this.hitMem[to * HIT_MEMORY + k] = this.hitMem[from * HIT_MEMORY + k]
     }
     this.callbacks[to] = this.callbacks[from]
+    this.expiries[to] = this.expiries[from]
     this.stats[to] = this.stats[from]
     this.tags[to] = this.tags[from]
   }
 
   _release(i) {
     this.callbacks[i] = null
+    this.expiries[i] = null
     this.stats[i] = null
     this.pool.release(i)
     const moved = this.pool.lastSwappedFrom
@@ -175,6 +178,7 @@ export class ProjectileManager {
     this.hitMemNext[i] = 0
     for (let m = 0; m < HIT_MEMORY; m++) this.hitMem[i * HIT_MEMORY + m] = -1
     this.callbacks[i] = opts.onHit ?? null
+    this.expiries[i] = opts.onExpire ?? null
     this.stats[i] = opts.stats ?? null
     this.tags[i] = opts.tag ?? 'array'
     return i
@@ -201,7 +205,16 @@ export class ProjectileManager {
       this.prevZ[i] = this.pz[i]
 
       this.life[i] -= dt
-      if (this.life[i] <= 0) { this._release(i); continue }
+      if (this.life[i] <= 0) {
+        // Lets a projectile spawn a successor where it died — the return leg of
+        // 청강인, for instance.
+        const onExpire = this.expiries[i]
+        const ex = this.px[i]
+        const ez = this.pz[i]
+        this._release(i)
+        if (onExpire) onExpire(ex, ez)
+        continue
+      }
 
       if (this.homing[i] > 0 && !this.hostile[i]) {
         this.retarget[i] -= dt
@@ -329,6 +342,7 @@ export class ProjectileManager {
     this.pool.clear()
     for (const m of this.meshes) m.count = 0
     this.callbacks.length = 0
+    this.expiries.length = 0
     this.stats.length = 0
   }
 
