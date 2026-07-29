@@ -419,6 +419,11 @@ export function buildChibi(character) {
   )
   ring.rotation.x = -Math.PI / 2
   ring.position.y = 0.03
+  // Drawn through the crowd. This ring is the player's locator, and in a real
+  // horde the creatures standing on it hide it exactly when it is most needed —
+  // "where am I" has to be answerable at a glance with 130 enemies on screen.
+  ring.material.depthTest = false
+  ring.renderOrder = 3
   root.add(ring)
 
   // ---- Orbiting 비검 (cosmetic) --------------------------------------------
