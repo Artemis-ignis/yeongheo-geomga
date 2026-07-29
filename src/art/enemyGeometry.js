@@ -148,6 +148,9 @@ const BUILDERS = {
     ], 12)
     gradient(torso, 0x6e6558, 0xa89c88, 'y')
     roughen(torso, 0.085, 3)
+    // Hunched forward over its own weight. A lathed torso stood upright is a
+    // barrel, and 석귀 and 용암귀 were reading as the same barrel as each other.
+    shear(torso, 0.20)
 
     const parts = [
       [torso, {}, undefined],
@@ -177,6 +180,22 @@ const BUILDERS = {
       parts.push([roughen(new THREE.DodecahedronGeometry(0.26, 0), 0.05, 5 + side), { x: side * 0.84, y: 0.16 }, 0x8d8375])
       // Stubby leg.
       parts.push([new THREE.CylinderGeometry(0.2, 0.24, 0.3, 6), { x: side * 0.3, y: 0.14 }, 0x7d7466])
+    }
+    // Broken slabs jutting off its back — the read that separates 석귀 from an
+    // ordinary boulder, and from 용암귀, which is craggy all over instead.
+    for (let i = 0; i < 5; i++) {
+      const a = -0.75 + i * 0.375
+      const h = 0.34 + Math.cos(a) * 0.24
+      parts.push([
+        roughen(new THREE.BoxGeometry(0.30, h, 0.14), 0.05, 13 + i),
+        {
+          x: Math.sin(a) * 0.56,
+          y: 1.06 + Math.cos(a) * 0.16,
+          z: -0.46 - Math.cos(a) * 0.22,
+          rz: a * 0.7, rx: -0.35,
+        },
+        i % 2 ? 0x8d8375 : 0x6e6558,
+      ])
     }
     // Rune studs hammered into the stone, still glowing.
     parts.push(...studRing(7, 0.7, 0.68, 0xe07a42, { size: 0.05, shape: 'gem' }))
@@ -510,6 +529,7 @@ BUILDERS.magmaBrute = () => {
   ], 12)
   gradient(torso, 0x3d2018, 0x8a4028, 'y')
   roughen(torso, 0.1, 5)
+  shear(torso, 0.16)
 
   const parts = [
     [torso, {}, undefined],
@@ -530,6 +550,21 @@ BUILDERS.magmaBrute = () => {
       {}, 0x6b3423,
     ])
     parts.push([roughen(new THREE.DodecahedronGeometry(0.28, 0), 0.06, 7 + side), { x: side * 0.92, y: 0.14 }, 0x8a4028])
+  }
+  // Cooled crust breaking off its back, with the melt showing through beneath.
+  for (let i = 0; i < 6; i++) {
+    const a = -0.9 + i * 0.36
+    const h = 0.4 + Math.cos(a) * 0.3
+    parts.push([
+      roughen(new THREE.DodecahedronGeometry(0.19 + Math.cos(a) * 0.07, 0), 0.05, 21 + i),
+      { x: Math.sin(a) * 0.62, y: 1.02 + Math.cos(a) * 0.2, z: -0.5 - Math.cos(a) * 0.2 },
+      0x2e1710,
+    ])
+    parts.push([
+      new THREE.BoxGeometry(0.04, h * 0.5, 0.04),
+      { x: Math.sin(a) * 0.56, y: 0.86 + Math.cos(a) * 0.18, z: -0.42 - Math.cos(a) * 0.16, rz: a },
+      0xffb04a,
+    ])
   }
   parts.push(...studRing(7, 0.74, 0.72, 0xff9a3c, { size: 0.055, shape: 'gem' }))
   return buildColored(parts)
@@ -655,13 +690,21 @@ BUILDERS.glacierWarden = () => {
   gradient(body, 0x3f6d90, 0xbfe4f8, 'y')
 
   const parts = [[body, {}, undefined]]
-  // Jagged ice shards erupting from its back and shoulders.
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 2
-    const h = 0.5 + (i % 3) * 0.3
+  // A crest of ice erupting from its back, tallest along the spine and shorter
+  // toward the shoulders. Ringed evenly around the body — as this was — the
+  // shards cancel into a radially symmetric pincushion and 빙벽수 reads as a
+  // spiky ball from every angle instead of as a wall advancing on you.
+  for (let i = 0; i < 11; i++) {
+    const a = -1.35 + (i / 10) * 2.7
+    const h = 0.55 + Math.cos(a) * 0.85
     parts.push([
-      new THREE.ConeGeometry(0.13, h, 4),
-      { x: Math.cos(a) * 0.62, y: 1.5 + h * 0.3, z: Math.sin(a) * 0.62 - 0.15, rz: Math.cos(a) * 0.4, rx: Math.sin(a) * 0.3 },
+      new THREE.ConeGeometry(0.11 + Math.cos(a) * 0.05, h, 4),
+      {
+        x: Math.sin(a) * 0.66,
+        y: 1.42 + h * 0.42,
+        z: -0.42 - Math.cos(a) * 0.34,
+        rz: Math.sin(a) * 0.55, rx: -0.34,
+      },
       i % 2 ? 0xdff2ff : 0x9fd0ea,
     ])
   }
