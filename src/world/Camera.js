@@ -66,11 +66,22 @@ export class FollowCamera {
     this._place()
   }
 
+  /** Pulls the rig in toward the player for a hit punch. 0 = neutral. */
+  setPunch(amount) {
+    this.punch = amount
+  }
+
   _place() {
     const shake = this.trauma * this.trauma * MAX_SHAKE
     const sx = Math.sin(this.time * 37.1) * shake
     const sy = Math.sin(this.time * 29.7 + 1.7) * shake
-    this.camera.position.set(this.x + OFFSET.x + sx, OFFSET.y + sy, this.z + OFFSET.z)
+    // A punch scales the whole offset, so the camera dips toward the action.
+    const k = 1 - (this.punch ?? 0) * 0.06
+    this.camera.position.set(
+      this.x + OFFSET.x + sx,
+      OFFSET.y * k + sy,
+      this.z + OFFSET.z * k,
+    )
     _target.set(this.x + sx * 0.4, 0, this.z)
     this.camera.lookAt(_target)
   }

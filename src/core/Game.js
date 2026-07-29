@@ -18,6 +18,7 @@ import { Vfx } from '../art/vfx.js'
 import { buildChibi } from '../art/ChibiBuilder.js'
 import { Clock, FIXED_DT } from './Time.js'
 import { Quality } from './Quality.js'
+import { Impact } from './Impact.js'
 import { Input } from './Input.js'
 import { RNG, makeSeed } from './RNG.js'
 import { Emitter } from './Events.js'
@@ -54,6 +55,7 @@ export class Game {
     this.renderer = createRenderer(canvas)
     this.clock = new Clock()
     this.quality = new Quality(this.renderer)
+    this.impact = new Impact()
     this.input = new Input(window)
 
     this.pendingLevels = 0
@@ -199,13 +201,27 @@ export class Game {
 
       // Elites always drop a 회춘단; ordinary enemies rarely do. Some sustain has
       // to exist before elites appear at 7:00 or the early game is unrecoverable.
-      if (def.elite) this.pickups.drop('heal', x, z, this.player.maxHp * 0.15)
-      else if (this.rng.chance(0.02)) this.pickups.drop('heal', x, z, this.player.maxHp * 0.08)
+      if (def.elite) {
+        this.pickups.drop('heal', x, z, this.player.maxHp * 0.15)
+        // Elites are rare enough that stopping the frame on one reads as weight
+        // rather than as stutter.
+        this.impact.hitstop(0.05)
+        this.impact.punch(0.5)
+        this.camera.addTrauma(0.25)
+      } else if (this.rng.chance(0.02)) {
+        this.pickups.drop('heal', x, z, this.player.maxHp * 0.08)
+      }
       // 한천빙봉: a frozen enemy shatters, chaining through packed groups.
       if (wasFrozen) {
         this.vfx.burst(x, z, 3)
         this.enemies.damageAt(x, z, 3, 40, 'ice', this.player.stats, {})
       }
+    }
+
+    this.player.onHurt = (fraction) => {
+      this.impact.screenFlash(Math.min(0.55, 0.18 + fraction * 2.2), 1, 0.22, 0.26)
+      this.camera.addTrauma(0.22 + fraction * 1.2)
+      if (fraction > 0.12) this.impact.hitstop(0.04)
     }
 
     this.enemies.onEnemyShot = (x, z, dx, dz, damage, speed) => {
@@ -234,7 +250,15 @@ export class Game {
       this.camera.addTrauma(0.4)
       this.progress.markSeen('bosses', def.id)
     }
+    this.boss.onPhase = () => {
+      this.impact.hitstop(0.11)
+      this.impact.punch(1.0)
+      this.impact.screenFlash(0.42, 0.85, 0.45, 1.0)
+    }
     this.boss.onDefeated = (id, x, z) => {
+      this.impact.hitstop(0.12)
+      this.impact.punch(1.4)
+      this.impact.screenFlash(0.7, 1, 0.92, 0.75)
       if (id === 'blueWolfKing') {
         this.pickups.drop('chest', x, z, 1)
       } else {
@@ -255,6 +279,9 @@ export class Game {
     )
     p.invulnTimer = Math.max(p.invulnTimer, BREAKTHROUGH_IFRAMES)
     p.chibi.setExpression('breakthrough', 1.0)
+    this.impact.hitstop(0.07)
+    this.impact.punch(1.1)
+    this.impact.screenFlash(0.4, 0.7, 1, 0.85)
     this.pendingLevels += levels
     this._openNextModal()
   }
@@ -445,7 +472,13 @@ export class Game {
       }
       this._readMenuInput()
 
-      if (this.state === 'playing') {
+      // Impact runs on real time: hitstop has to keep counting down while the
+      // simulation it is pausing is not running.
+      this.impact.update(dt)
+      this.camera.setPunch(this.impact.zoom)
+      this.post.setFlash(this.impact.flash, this.impact.flashColor)
+
+      if (this.state === 'playing' && !this.impact.frozen) {
         const ticks = this.clock.step(dt)
         for (let i = 0; i < ticks; i++) {
           this.update(FIXED_DT)

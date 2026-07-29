@@ -23,6 +23,8 @@ const GradeShader = {
     uContrast: { value: 1.07 },
     uVignette: { value: 0.42 },
     uAberration: { value: 0.0016 },
+    uFlash: { value: 0 },
+    uFlashColor: { value: new THREE.Color(1, 0.3, 0.3) },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -38,6 +40,8 @@ const GradeShader = {
     uniform float uContrast;
     uniform float uVignette;
     uniform float uAberration;
+    uniform float uFlash;
+    uniform vec3 uFlashColor;
     varying vec2 vUv;
 
     void main() {
@@ -61,6 +65,11 @@ const GradeShader = {
 
       float vig = smoothstep( 0.85, 0.15, r2 * uVignette * 4.0 );
       col *= mix( 0.55, 1.0, vig );
+
+      // Damage / phase flash, pushed hardest at the frame edges so it reads as
+      // impact rather than washing out what the player is trying to look at.
+      float edge = mix( 0.35, 1.0, smoothstep( 0.0, 0.25, r2 ) );
+      col = mix( col, uFlashColor, clamp( uFlash * edge, 0.0, 0.85 ) );
 
       gl_FragColor = vec4( clamp( col, 0.0, 1.0 ), 1.0 );
     }`,
@@ -104,6 +113,12 @@ export class Post {
 
   setCamera(camera) {
     this.composer.passes[0].camera = camera
+  }
+
+  /** Drive the damage / phase flash from Impact. */
+  setFlash(strength, rgb) {
+    this.grade.uniforms.uFlash.value = strength
+    if (rgb) this.grade.uniforms.uFlashColor.value.setRGB(rgb[0], rgb[1], rgb[2])
   }
 
   setSize(width, height) {

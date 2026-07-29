@@ -116,10 +116,14 @@ export class Player {
 
   takeDamage(rawAmount) {
     if (!this.alive || this.isInvulnerable) return false
-    this.hp -= mitigate(rawAmount, this.stats.armor)
+    const dealt = mitigate(rawAmount, this.stats.armor)
+    this.hp -= dealt
     this.invulnTimer = MERCY_IFRAMES
     this.hitFlash = 0.4
     this.chibi.setExpression('hurt', 0.4)
+    // Reported outward so Game can shake, flash and freeze without Player
+    // needing to know those systems exist.
+    if (this.onHurt) this.onHurt(dealt / Math.max(1, this.maxHp))
     if (this.hp <= 0) {
       // 환혼단 — spend a charge to get back up instead of ending the run.
       if (this.reviveCharges > 0) {

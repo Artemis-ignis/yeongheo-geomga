@@ -151,6 +151,7 @@ export class BossManager {
       b.staggerT = 1.2
       this.world.vfx.shockRing(b.x, b.z, 6)
       this.world.camera.addTrauma(0.7)
+      if (this.onPhase) this.onPhase(wantPhase)
       if (this.mask) this.mask.material.color.setHex(wantPhase === 1 ? 0xff6ad0 : 0xff5a5a)
     }
 
