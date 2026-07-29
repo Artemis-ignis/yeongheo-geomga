@@ -55,14 +55,29 @@ function wrapped(ctx, S, draw) {
  * grain, moss clumps, cracks and a 문양 lattice so the surface holds up when the
  * camera is right on top of it.
  */
-export function groundTexture() {
-  return cached('ground', () => {
+export function groundTexture(baseHex = 0x2b4d42, mossHex = 0x96d696) {
+  return cached(`ground${baseHex}${mossHex}`, () => {
     const S = 1024
     const c = canvas(S)
     const ctx = c.getContext('2d')
+    const hex = (n) => `#${n.toString(16).padStart(6, '0')}`
+    const rgb = (n) => [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    const [mr, mg, mb] = rgb(mossHex)
 
-    ctx.fillStyle = '#2b4d42'
+    ctx.fillStyle = hex(baseHex)
     ctx.fillRect(0, 0, S, S)
+
+    // Patch and crack tones are derived from the base, not fixed. Hardcoding
+    // them meant every stage drifted back toward jade no matter what palette it
+    // asked for — the base colour was the only thing that actually changed.
+    const [br, bg, bb] = rgb(baseHex)
+    const lift = (f) => [
+      Math.min(255, Math.round(br * f)),
+      Math.min(255, Math.round(bg * f)),
+      Math.min(255, Math.round(bb * f)),
+    ]
+    const [lr, lg, lb] = lift(1.85)
+    const [dr, dg, db] = lift(0.42)
 
     // Large tonal patches — the low-frequency variation that stops it looking flat.
     for (let i = 0; i < 90; i++) {
@@ -71,7 +86,7 @@ export function groundTexture() {
       const r = 90 + Math.random() * 190
       const light = Math.random() > 0.45
       const g = ctx.createRadialGradient(x, y, 0, x, y, r)
-      g.addColorStop(0, light ? 'rgba(126,196,164,0.13)' : 'rgba(14,38,34,0.16)')
+      g.addColorStop(0, light ? `rgba(${lr},${lg},${lb},0.13)` : `rgba(${dr},${dg},${db},0.16)`)
       g.addColorStop(1, 'rgba(0,0,0,0)')
       ctx.fillStyle = g
       wrapped(ctx, S, (k) => { k.beginPath(); k.arc(x, y, r, 0, Math.PI * 2); k.fill() })
@@ -83,8 +98,8 @@ export function groundTexture() {
       const y = Math.random() * S
       const r = 10 + Math.random() * 34
       const g = ctx.createRadialGradient(x, y, 0, x, y, r)
-      g.addColorStop(0, 'rgba(150,214,150,0.16)')
-      g.addColorStop(1, 'rgba(150,214,150,0)')
+      g.addColorStop(0, `rgba(${mr},${mg},${mb},0.16)`)
+      g.addColorStop(1, `rgba(${mr},${mg},${mb},0)`)
       ctx.fillStyle = g
       wrapped(ctx, S, (k) => { k.beginPath(); k.arc(x, y, r, 0, Math.PI * 2); k.fill() })
     }
@@ -101,7 +116,7 @@ export function groundTexture() {
     ctx.putImageData(img, 0, 0)
 
     // Hairline cracks in the jade.
-    ctx.strokeStyle = 'rgba(14,32,30,0.30)'
+    ctx.strokeStyle = `rgba(${dr},${dg},${db},0.34)`
     ctx.lineWidth = 1.4
     for (let i = 0; i < 26; i++) {
       const x = Math.random() * S

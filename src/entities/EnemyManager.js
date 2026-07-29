@@ -4,6 +4,7 @@ import { SpatialHash } from '../core/SpatialHash.js'
 import { rollDamage, knockbackImpulse } from '../combat/damage.js'
 import { ENEMIES, ENEMY_INDEX, scaledDamage, scaledHp, scaledXp } from '../data/enemies.js'
 import { waveAt } from '../data/waves.js'
+import { rosterFor } from '../data/stages.js'
 import { buildEnemyGeometry } from '../art/enemyGeometry.js'
 import { makeToonMaterial } from '../art/materials.js'
 import { uploadInstances } from '../art/instancing.js'
@@ -152,7 +153,7 @@ export class EnemyManager {
     this.px[i] = x; this.pz[i] = z
     this.prevX[i] = x; this.prevZ[i] = z
     this.vx[i] = 0; this.vz[i] = 0
-    this.maxHp[i] = scaledHp(def, minutes) * hpMul
+    this.maxHp[i] = scaledHp(def, minutes) * hpMul * (this.stage?.hpScale ?? 1)
     this.hp[i] = this.maxHp[i]
     this.type[i] = t
     this.scale[i] = def.scale * scaleMul
@@ -290,7 +291,12 @@ export class EnemyManager {
   }
 
   _spawnWave(dt, runTime, player, camera) {
-    const wave = waveAt(runTime)
+    const band = waveAt(runTime)
+    // The stage narrows which enemies a band may draw, so each 비경 fights
+    // differently without needing its own wave table.
+    const wave = this.stage
+      ? { ...band, types: rosterFor(this.stage, band.types ?? []) }
+      : band
     if (!wave.types || wave.types.length === 0) return
     this.spawnTimer -= dt
     if (this.spawnTimer > 0) return

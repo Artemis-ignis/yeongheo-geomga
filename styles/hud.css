@@ -264,6 +264,16 @@ body {
 .char-card { position: relative; }
 .char-card.locked { opacity: 0.45; cursor: not-allowed; }
 .char-card.locked.focused { transform: none; border-color: rgba(255, 255, 255, 0.12); }
+.select-heading {
+  margin: 22px 0 12px; font-size: 14px; letter-spacing: 0.22em; color: #8b98a6;
+}
+.stage-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stage-swatch {
+  width: 100%; aspect-ratio: 16 / 7; border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.stage-card .char-traits { min-height: 3.2em; }
+
 .char-lock {
   position: absolute; top: 8px; right: 10px;
   font-size: 11px; color: var(--gold); letter-spacing: 0.04em;

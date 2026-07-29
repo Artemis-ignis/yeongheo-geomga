@@ -16,8 +16,12 @@ const _dummy = new THREE.Object3D()
  * 300 petals cost the CPU nothing per frame.
  */
 export class Sky {
-  constructor(scene) {
+  constructor(scene, palette = {}) {
     this.scene = scene
+    this.pal = {
+      skyTop: PALETTE.skyTop, skyMid: PALETTE.skyMid, skyHaze: PALETTE.skyHaze,
+      skyBottom: PALETTE.skyBottom, abyss: PALETTE.abyss, ...palette,
+    }
     this.time = 0
     this.group = new THREE.Group()
     scene.add(this.group)
@@ -33,11 +37,11 @@ export class Sky {
       depthWrite: false,
       fog: false,
       uniforms: {
-        uTop: { value: new THREE.Color(PALETTE.skyTop) },
-        uMid: { value: new THREE.Color(PALETTE.skyMid) },
-        uHaze: { value: new THREE.Color(PALETTE.skyHaze) },
-        uBottom: { value: new THREE.Color(PALETTE.skyBottom) },
-        uAbyss: { value: new THREE.Color(PALETTE.abyss) },
+        uTop: { value: new THREE.Color(this.pal.skyTop) },
+        uMid: { value: new THREE.Color(this.pal.skyMid) },
+        uHaze: { value: new THREE.Color(this.pal.skyHaze) },
+        uBottom: { value: new THREE.Color(this.pal.skyBottom) },
+        uAbyss: { value: new THREE.Color(this.pal.abyss) },
         uTime: { value: 0 },
       },
       vertexShader: `
@@ -112,7 +116,7 @@ export class Sky {
       [new THREE.ConeGeometry(4.5, 9, 6), { y: -5.5, rx: Math.PI }],
       [new THREE.DodecahedronGeometry(2.4, 0), { x: 5.5, y: 0.8, sy: 0.6 }],
     ])
-    const mat = makeToonMaterial({ color: 0x53707f, rim: 0.5, rimColor: PALETTE.mist, fog: false })
+    const mat = makeToonMaterial({ color: 0x53707f, rim: 0.5, rimColor: this.pal.skyHaze, fog: false })
     this.islands = new THREE.InstancedMesh(geo, mat, ISLAND_COUNT)
     this.islandBase = []
     // Kept low and close: in a 3/4 view only a narrow band of sky is ever on

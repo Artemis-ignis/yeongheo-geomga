@@ -1,6 +1,7 @@
 import { iconFor } from './icons.js'
 import { getWeapon } from '../data/weapons.js'
 import { unlockCost } from '../data/unlocks.js'
+import { STAGES } from '../data/stages.js'
 
 /**
  * Title, main menu, and character select.
@@ -33,7 +34,14 @@ export class TitleScreen {
         </div>
         <div class="title-stones"></div>
 
+        <div class="stage-select" style="display:none">
+          <div class="select-heading">비경을 고르시오</div>
+          <div class="stage-cards"></div>
+          <button class="btn btn-alt btn-back clickable" data-act="stageBack">← 돌아가기</button>
+        </div>
+
         <div class="char-select" style="display:none">
+          <div class="select-heading">수사를 고르시오</div>
           <div class="char-cards"></div>
           <button class="btn btn-alt btn-back clickable" data-act="back">← 돌아가기</button>
         </div>
@@ -48,10 +56,31 @@ export class TitleScreen {
     this.stonesLabel = this.node.querySelector('.title-stones')
     this.selectView = this.node.querySelector('.char-select')
 
-    this.node.querySelector('[data-act="start"]').addEventListener('click', () => this._showSelect())
+    this.stageView = this.node.querySelector('.stage-select')
+    this.node.querySelector('[data-act="start"]').addEventListener('click', () => this._showStages())
     this.node.querySelector('[data-act="shop"]').addEventListener('click', () => this.handlers.onShop?.())
     this.node.querySelector('[data-act="codex"]').addEventListener('click', () => this.handlers.onCodex?.())
-    this.node.querySelector('[data-act="back"]').addEventListener('click', () => this._showMenu())
+    this.node.querySelector('[data-act="back"]').addEventListener('click', () => this._showStages())
+    this.node.querySelector('[data-act="stageBack"]').addEventListener('click', () => this._showMenu())
+
+    const stageHost = this.node.querySelector('.stage-cards')
+    this.stageCards = STAGES.map((s, i) => {
+      const card = document.createElement('button')
+      card.className = 'char-card stage-card clickable'
+      card.innerHTML = `
+        <div class="char-lock"></div>
+        <div class="stage-swatch"></div>
+        <div class="char-name">${s.name}</div>
+        <div class="char-traits">${s.desc}</div>`
+      const swatch = card.querySelector('.stage-swatch')
+      const hex = (n) => `#${n.toString(16).padStart(6, '0')}`
+      swatch.style.background =
+        `linear-gradient(160deg, ${hex(s.palette.skyMid)}, ${hex(s.palette.grassTip)} 55%, ${hex(s.palette.ground)})`
+      card.addEventListener('click', () => this.pickStage(i))
+      card.addEventListener('mouseenter', () => this.setStageFocus(i))
+      stageHost.appendChild(card)
+      return { card, lock: card.querySelector('.char-lock'), id: s.id }
+    })
 
     const host = this.node.querySelector('.char-cards')
     this.cards = characters.map((c, i) => {
@@ -94,13 +123,50 @@ export class TitleScreen {
     this.menu.style.display = ''
     this.stonesLabel.style.display = ''
     this.selectView.style.display = 'none'
+    this.stageView.style.display = 'none'
     this.stonesLabel.textContent = `보유 영석 ${this.progress.stones}`
+  }
+
+  _showStages() {
+    this.view = 'stage'
+    this.menu.style.display = 'none'
+    this.stonesLabel.style.display = ''
+    this.selectView.style.display = 'none'
+    this.stageView.style.display = ''
+    this.stonesLabel.textContent = `보유 영석 ${this.progress.stones}`
+    for (const c of this.stageCards) {
+      const unlocked = this.progress.isUnlocked('stages', c.id)
+      c.card.classList.toggle('locked', !unlocked)
+      c.lock.textContent = unlocked ? '' : `🔒 영석 ${unlockCost('stages', c.id) ?? '?'}`
+    }
+    const first = this.stageCards.findIndex((c) => this.progress.isUnlocked('stages', c.id))
+    this.setStageFocus(first === -1 ? 0 : first)
+  }
+
+  setStageFocus(i) {
+    this.stageFocus = Math.max(0, Math.min(this.stageCards.length - 1, i))
+    this.stageCards.forEach((c, k) => c.card.classList.toggle('focused', k === this.stageFocus))
+  }
+
+  /** Locked stages buy themselves on click, so there is no separate shop trip. */
+  pickStage(i) {
+    const card = this.stageCards[i]
+    if (!card) return
+    if (!this.progress.isUnlocked('stages', card.id)) {
+      if (!this.progress.unlock('stages', card.id)) return
+      this.handlers.onUnlock?.()
+      this._showStages()
+      return
+    }
+    this.chosenStage = card.id
+    this._showSelect()
   }
 
   _showSelect() {
     this.view = 'select'
     this.menu.style.display = 'none'
     this.stonesLabel.style.display = 'none'
+    this.stageView.style.display = 'none'
     this.selectView.style.display = ''
     this._refreshLocks()
     // Land on the first playable cultivator, not a locked one.
@@ -127,15 +193,21 @@ export class TitleScreen {
     if (!c || !this.progress.isUnlocked('characters', c.id)) return
     const cb = this.handlers.onStart
     this.hide()
-    if (cb) cb(c.id)
+    if (cb) cb(c.id, this.chosenStage ?? 'jade')
   }
 
   handleKey(slot, confirm, dir) {
     if (!this.isOpen) return
     if (this.view === 'menu') {
-      if (slot === 1 || confirm) this._showSelect()
+      if (slot === 1 || confirm) this._showStages()
       else if (slot === 2) this.handlers.onShop?.()
       else if (slot === 3) this.handlers.onCodex?.()
+      return
+    }
+    if (this.view === 'stage') {
+      if (slot > 0) { this.pickStage(slot - 1); return }
+      if (dir) { this.setStageFocus(this.stageFocus + dir); return }
+      if (confirm) this.pickStage(this.stageFocus)
       return
     }
     if (slot > 0) { this.pick(slot - 1); return }

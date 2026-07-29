@@ -83,7 +83,7 @@ const GradeShader = {
  * values above 1 so the bloom threshold catches them.
  */
 export class Post {
-  constructor(renderer, scene, camera) {
+  constructor(renderer, scene, camera, palette = {}) {
     this.renderer = renderer
     this.enabled = true
 
@@ -102,6 +102,11 @@ export class Post {
     this.composer.addPass(this.bloom)
 
     this.grade = new ShaderPass(GradeShader)
+    // The grade belongs to the stage. Lifting every shadow toward the same navy
+    // dragged a red wasteland and a snowfield back to looking like the same
+    // blue-grey place however different their albedo was.
+    if (palette.abyss !== undefined) this.grade.uniforms.uLift.value.setHex(palette.abyss).multiplyScalar(0.55)
+    if (palette.skyBottom !== undefined) this.grade.uniforms.uGain.value.setHex(palette.skyBottom)
     this.composer.addPass(this.grade)
 
     this.fxaa = new ShaderPass(FXAAShader)

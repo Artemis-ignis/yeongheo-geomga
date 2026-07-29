@@ -22,11 +22,19 @@ export const WEAPON_UNLOCKS = [
   { id: 'skyThunder', cost: 800 },
 ]
 
+export const STAGE_UNLOCKS = [
+  { id: 'ember', cost: 900 },
+  { id: 'frost', cost: 2200 },
+]
+
 const CHARACTER_COSTS = new Map(CHARACTER_UNLOCKS.map((u) => [u.id, u.cost]))
 const WEAPON_COSTS = new Map(WEAPON_UNLOCKS.map((u) => [u.id, u.cost]))
+const STAGE_COSTS = new Map(STAGE_UNLOCKS.map((u) => [u.id, u.cost]))
 
 /** Cost to unlock, or null if the id is not purchasable (already free, or unknown). */
 export function unlockCost(kind, id) {
-  const table = kind === 'characters' ? CHARACTER_COSTS : WEAPON_COSTS
+  const table = kind === 'characters' ? CHARACTER_COSTS
+    : kind === 'stages' ? STAGE_COSTS
+      : WEAPON_COSTS
   return table.has(id) ? table.get(id) : null
 }

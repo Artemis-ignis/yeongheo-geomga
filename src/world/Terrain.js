@@ -21,8 +21,12 @@ const _dummy = new THREE.Object3D()
  * game, so nothing here blocks movement except the barrier itself.
  */
 export class Terrain {
-  constructor(scene) {
+  constructor(scene, palette = {}) {
     this.scene = scene
+    this.pal = {
+      ground: PALETTE.jadeDark, groundMoss: 0x96d696, pine: PALETTE.pine,
+      stone: PALETTE.stone, barrier: 0x8fd8ff, ...palette,
+    }
     this.time = 0
 
     // Ping ring buffer: angle + remaining life, preallocated so contact allocates nothing.
@@ -43,7 +47,7 @@ export class Terrain {
     // A finite disc, not an infinite plane — the arena is a floating plateau, and
     // seeing its edge drop into the void is what sells that.
     const geo = new THREE.CircleGeometry(PLATEAU_RADIUS, 96)
-    const tex = groundTexture()
+    const tex = groundTexture(this.pal.ground, this.pal.groundMoss)
     // The normal map is what makes the surface catch light; without it the ground
     // is a painted plane however detailed the albedo gets.
     const mat = makeToonMaterial({
@@ -81,7 +85,7 @@ export class Terrain {
     const geo = new THREE.CylinderGeometry(ARENA_RADIUS, ARENA_RADIUS, 11, 96, 1, true)
     this.barrierMat = new THREE.MeshBasicMaterial({
       map: tex,
-      color: 0x8fd8ff,
+      color: this.pal.barrier,
       transparent: true,
       // Deliberately faint: standing next to it the wall fills a lot of screen,
       // and with bloom on top it must never compete with the enemies.
@@ -151,7 +155,7 @@ export class Terrain {
 
   _buildProps() {
     const rockGeo = new THREE.DodecahedronGeometry(1, 0)
-    const rockMat = makeToonMaterial({ color: PALETTE.stone, rim: 0.2 })
+    const rockMat = makeToonMaterial({ color: this.pal.stone, rim: 0.2 })
     // Rocks spill past the 결계 onto the outer rim so the plateau has a silhouette.
     // Kept sparse inside the arena: scenery must never hide an incoming enemy.
     const rocks = this._scatter(34, 6, PLATEAU_RADIUS - 3)
@@ -180,7 +184,7 @@ export class Terrain {
       [new THREE.ConeGeometry(1.05, 3.0, 7), { y: 3.0 }],
       [new THREE.ConeGeometry(0.8, 2.2, 7), { y: 4.2 }],
     ])
-    const pineMat = makeToonMaterial({ color: PALETTE.pine, rim: 0.25, rimColor: 0x9be8c8 })
+    const pineMat = makeToonMaterial({ color: this.pal.pine, rim: 0.25, rimColor: 0x9be8c8 })
     // Pines are pushed to the outer ring so they frame the arena instead of
     // cluttering the middle of a fight.
     // Kept to the outer ring: with the camera this close, a pine anywhere near

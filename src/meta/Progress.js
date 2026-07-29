@@ -12,6 +12,17 @@ import { defaultSave } from './Save.js'
 export class Progress {
   constructor(saveState = defaultSave()) {
     this.state = saveState
+    // Backfill anything a save predating a feature is missing. Save.load()
+    // normalises too, but Progress is also constructed directly (tests, and any
+    // future migration path), and a missing list here is a crash on first click.
+    const base = defaultSave()
+    for (const key of ['unlockedCharacters', 'unlockedWeapons', 'unlockedStages']) {
+      if (!Array.isArray(this.state[key])) this.state[key] = [...base[key]]
+    }
+    if (!this.state.upgrades || typeof this.state.upgrades !== 'object') this.state.upgrades = {}
+    if (!this.state.seen) this.state.seen = { ...base.seen }
+    if (!this.state.records) this.state.records = { ...base.records }
+    if (!Number.isFinite(this.state.stones)) this.state.stones = 0
   }
 
   get stones() {
@@ -75,7 +86,9 @@ export class Progress {
   // ---- unlocks -------------------------------------------------------------
 
   _unlockList(kind) {
-    return kind === 'characters' ? this.state.unlockedCharacters : this.state.unlockedWeapons
+    if (kind === 'characters') return this.state.unlockedCharacters
+    if (kind === 'stages') return this.state.unlockedStages
+    return this.state.unlockedWeapons
   }
 
   isUnlocked(kind, id) {

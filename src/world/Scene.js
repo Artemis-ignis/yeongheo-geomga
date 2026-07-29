@@ -48,11 +48,11 @@ export function createRenderer(canvas) {
   return renderer
 }
 
-export function createScene() {
+export function createScene(palette = {}) {
   const scene = new THREE.Scene()
   // Fog colour matches the sky haze so the plateau edge dissolves into the horizon
   // instead of ending on a hard line.
-  scene.fog = new THREE.FogExp2(PALETTE.fog, 0.0085)
+  scene.fog = new THREE.FogExp2(palette.fog ?? PALETTE.fog, 0.0085)
 
   // Kept well under 1.0 combined. At the previous 1.6 + 2.1 every surface was
   // multiplied past white and the whole palette washed out to pastel — which is

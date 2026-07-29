@@ -20,6 +20,7 @@ export function defaultSave() {
     upgrades: {},
     unlockedCharacters: [...STARTING_CHARACTERS],
     unlockedWeapons: [...STARTING_WEAPONS],
+    unlockedStages: ['jade'],
     seen: { enemies: [], weapons: [], bosses: [] },
     records: { runs: 0, victories: 0, bestTime: 0, bestLevel: 0, totalKills: 0 },
   }
@@ -54,6 +55,7 @@ function normalize(raw) {
   // Starting content is always present, even if a save omits it.
   const characters = new Set([...base.unlockedCharacters, ...arr(raw.unlockedCharacters, [])])
   const weapons = new Set([...base.unlockedWeapons, ...arr(raw.unlockedWeapons, [])])
+  const stages = new Set([...base.unlockedStages, ...arr(raw.unlockedStages, [])])
 
   return {
     version: SAVE_VERSION,
@@ -61,6 +63,7 @@ function normalize(raw) {
     upgrades,
     unlockedCharacters: [...characters],
     unlockedWeapons: [...weapons],
+    unlockedStages: [...stages],
     seen: {
       enemies: arr(raw.seen?.enemies, []),
       weapons: arr(raw.seen?.weapons, []),

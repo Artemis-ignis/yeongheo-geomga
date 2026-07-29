@@ -26,6 +26,7 @@ import { CHARACTERS, getCharacter } from '../data/characters.js'
 import { realmFor } from '../data/realms.js'
 import { BOSS_SCHEDULE, RUN_SECONDS } from '../data/waves.js'
 import { validateData } from '../data/validate.js'
+import { STAGES, getStage } from '../data/stages.js'
 import { Hud } from '../ui/Hud.js'
 import { LevelUpModal } from '../ui/LevelUpModal.js'
 import { OverlayCanvas } from '../ui/OverlayCanvas.js'
@@ -97,15 +98,47 @@ export class Game {
 
   // ---- world ---------------------------------------------------------------
 
-  _buildWorld() {
-    this.scene = createScene()
+  _buildWorld(stage = STAGES[0]) {
+    this.stage = stage
+    this.scene = createScene(stage.palette)
     this.camera = new FollowCamera(Math.max(1, innerWidth) / Math.max(1, innerHeight))
     this.sun = this.scene.userData.sun
-    this.terrain = new Terrain(this.scene)
-    this.grass = new Grass(this.scene, 0, PLATEAU_RADIUS - 2)
-    this.sky = new Sky(this.scene)
+    this.terrain = new Terrain(this.scene, stage.palette)
+    this.grass = new Grass(this.scene, 0, PLATEAU_RADIUS - 2, {
+      palette: stage.palette, density: stage.grassDensity,
+    })
+    this.sky = new Sky(this.scene, stage.palette)
     this.overlay = new OverlayCanvas(this.overlayCanvas, this.camera.camera)
-    this.post = new Post(this.renderer, this.scene, this.camera.camera)
+    this.post = new Post(this.renderer, this.scene, this.camera.camera, stage.palette)
+    this._resize()
+  }
+
+  /** Tear the arena down so a different 비경 can be built in its place. */
+  _teardownWorld() {
+    this.terrain?.dispose()
+    this.grass?.dispose()
+    this.sky?.dispose()
+    this._clearPreview()
+    this.terrain = null
+    this.grass = null
+    this.sky = null
+  }
+
+  /** Rebuild the arena for a stage, keeping camera, post and overlay alive. */
+  _setStage(stage) {
+    if (this.stage?.id === stage.id) return
+    this._teardownWorld()
+    this.stage = stage
+    this.scene = createScene(stage.palette)
+    this.sun = this.scene.userData.sun
+    this.terrain = new Terrain(this.scene, stage.palette)
+    this.grass = new Grass(this.scene, 0, PLATEAU_RADIUS - 2, {
+      palette: stage.palette, density: stage.grassDensity,
+    })
+    this.sky = new Sky(this.scene, stage.palette)
+    // The composer holds a reference to the old scene, so it has to be rebuilt.
+    this.post.dispose()
+    this.post = new Post(this.renderer, this.scene, this.camera.camera, stage.palette)
     this._resize()
   }
 
@@ -122,7 +155,8 @@ export class Game {
     this.camera.setAspect(this.camera.camera.aspect)
     this.camera.snapTo(0, 0)
     this.title.show({
-      onStart: (id) => this._startRun(id),
+      onStart: (id, stageId) => this._startRun(id, stageId),
+      onUnlock: () => this._persist(),
       onShop: () => { this.state = 'shop'; this.shop.show(() => { this.state = 'title'; this.title.show() }) },
       onCodex: () => { this.state = 'codex'; this.codex.show(() => { this.state = 'title'; this.title.show() }) },
     })
@@ -138,7 +172,8 @@ export class Game {
     this.previewChibis = null
   }
 
-  _startRun(characterId) {
+  _startRun(characterId, stageId) {
+    if (stageId) this._setStage(getStage(stageId))
     this._clearPreview()
 
     this.seed = makeSeed()
@@ -152,6 +187,7 @@ export class Game {
       reviveCharges: this.progress.reviveCharges,
     })
     this.enemies = new EnemyManager(this.scene, this.rng)
+    this.enemies.stage = this.stage
     this.projectiles = new ProjectileManager(this.scene)
     this.pickups = new PickupManager(this.scene)
     this.vfx = new Vfx(this.scene)

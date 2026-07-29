@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-const BLADE_COUNT = 26000
+const BASE_BLADE_COUNT = 26000
 const CLEARING = 4
 
 /**
@@ -12,7 +12,9 @@ const CLEARING = 4
  * per-instance seed, so the CPU does nothing per frame.
  */
 export class Grass {
-  constructor(scene, innerRadius, outerRadius) {
+  constructor(scene, innerRadius, outerRadius, opts = {}) {
+    const pal = opts.palette ?? {}
+    const density = opts.density ?? 1
     this.scene = scene
 
     // A tapered blade: wide at the base, pinched to a point.
@@ -34,11 +36,12 @@ export class Grass {
     geo.index = blade.index
     geo.attributes = blade.attributes
 
-    const offset = new Float32Array(BLADE_COUNT * 3)
-    const seed = new Float32Array(BLADE_COUNT * 3)
+    const bladeCount = Math.max(500, Math.round(BASE_BLADE_COUNT * density))
+    const offset = new Float32Array(bladeCount * 3)
+    const seed = new Float32Array(bladeCount * 3)
     let placed = 0
     let guard = 0
-    while (placed < BLADE_COUNT && guard < BLADE_COUNT * 6) {
+    while (placed < bladeCount && guard < bladeCount * 6) {
       guard++
       const a = Math.random() * Math.PI * 2
       const r = Math.sqrt(Math.random()) * outerRadius
@@ -61,9 +64,9 @@ export class Grass {
       uniforms: {
         uTime: { value: 0 },
         uPlayer: { value: new THREE.Vector3() },
-        uBase: { value: new THREE.Color(0x2f6b4f) },
-        uTip: { value: new THREE.Color(0x9fd88a) },
-        uFogColor: { value: new THREE.Color(0x9db9c9) },
+        uBase: { value: new THREE.Color(pal.grassBase ?? 0x2f6b4f) },
+        uTip: { value: new THREE.Color(pal.grassTip ?? 0x9fd88a) },
+        uFogColor: { value: new THREE.Color(pal.fog ?? 0x9db9c9) },
         uFogDensity: { value: 0.0085 },
       },
       vertexShader: `
