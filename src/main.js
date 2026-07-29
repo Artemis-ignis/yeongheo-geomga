@@ -18,7 +18,7 @@ if (!isWebGL2Available()) {
   if (import.meta.env.DEV) {
     window.__game = game
     window.__forceFallback = () => showFallback('테스트')
-    installStepper((dt) => { if (game.state === 'playing') game.update(dt) }, 1 / 60)
+    installStepper((dt) => game.stepFrame(dt), 1 / 60)
     const drawAt = (w, h) => {
       game.camera.setAspect(w / h)
       game.post.setSize(w, h)

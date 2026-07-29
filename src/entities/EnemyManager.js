@@ -83,6 +83,9 @@ export class EnemyManager {
     this._queryOut = new Int32Array(256)
     this._neighbours = new Int32Array(64)
 
+    // Footprint per type, for the contact-shadow layer.
+    this.typeRadius = Float32Array.from(ENEMIES, (def) => def.radius)
+
     this.meshes = []
     ENEMIES.forEach((def) => {
       const geo = buildEnemyGeometry(def.id)
@@ -424,7 +427,12 @@ export class EnemyManager {
     }
   }
 
-  render(alpha) {
+  /**
+   * `shadows` is optional and is filled from this same loop — the interpolated
+   * position is already in hand here, so grounding the horde costs one extra
+   * matrix write per creature rather than a second walk over the pool.
+   */
+  render(alpha, shadows = null) {
     this.typeCounts.fill(0)
     for (let i = 0; i < this.pool.count; i++) {
       const t = this.type[i]
@@ -451,6 +459,7 @@ export class EnemyManager {
         _dummy.scale.setScalar(this.scale[i])
         _dummy.updateMatrix()
         mesh.setMatrixAt(k, _dummy.matrix)
+        if (shadows !== null) shadows.add(x, z, this.typeRadius[t])
 
         const tinted = this.freezeT[i] > 0 || this.slowAmt[i] > 0 || this.flash[i] > 0
         if (tinted) anyTint = true

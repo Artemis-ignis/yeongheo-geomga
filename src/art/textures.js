@@ -185,7 +185,12 @@ export function groundNormalTexture() {
         return a + (b - a) * sy
       }
     }
-    const octaves = [[8, 0.55], [16, 0.28], [32, 0.14], [64, 0.07]]
+    // Deliberately no low octaves. This map is repeated many times across the
+    // plateau, and any large-scale structure in it repeats with it — an 8-period
+    // octave tiled 14 times painted a visible grid over the whole arena. Broad
+    // tonal variation is the albedo's job, which is mapped once and never tiles;
+    // the normal map only has to supply the fine grain that catches light.
+    const octaves = [[24, 0.34], [48, 0.26], [96, 0.16], [192, 0.09]]
     const samplers = octaves.map(([p]) => lattice(p))
     for (let y = 0; y < S; y++) {
       for (let x = 0; x < S; x++) {
@@ -218,7 +223,8 @@ export function groundNormalTexture() {
     const tex = new THREE.CanvasTexture(c)
     tex.wrapS = THREE.RepeatWrapping
     tex.wrapT = THREE.RepeatWrapping
-    tex.repeat.set(14, 14)
+    tex.repeat.set(9, 9)
+    tex.anisotropy = 8
     tex.needsUpdate = true
     return tex
   })

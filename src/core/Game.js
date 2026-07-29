@@ -6,6 +6,7 @@ import { FollowCamera } from '../world/Camera.js'
 import { Terrain, PLATEAU_RADIUS } from '../world/Terrain.js'
 import { Sky } from '../world/Sky.js'
 import { Grass } from '../world/Grass.js'
+import { Shadows } from '../world/Shadows.js'
 import { Post } from '../world/Post.js'
 import { Player } from '../entities/Player.js'
 import { EnemyManager } from '../entities/EnemyManager.js'
@@ -108,6 +109,8 @@ export class Game {
       palette: stage.palette, density: stage.grassDensity,
     })
     this.sky = new Sky(this.scene, stage.palette)
+    this.shadows = new Shadows(this.scene)
+    this.shadows.setPalette(stage.palette)
     this.overlay = new OverlayCanvas(this.overlayCanvas, this.camera.camera)
     this.post = new Post(this.renderer, this.scene, this.camera.camera, stage.palette)
     this._resize()
@@ -118,10 +121,12 @@ export class Game {
     this.terrain?.dispose()
     this.grass?.dispose()
     this.sky?.dispose()
+    this.shadows?.dispose()
     this._clearPreview()
     this.terrain = null
     this.grass = null
     this.sky = null
+    this.shadows = null
   }
 
   /** Rebuild the arena for a stage, keeping camera, post and overlay alive. */
@@ -136,6 +141,8 @@ export class Game {
       palette: stage.palette, density: stage.grassDensity,
     })
     this.sky = new Sky(this.scene, stage.palette)
+    this.shadows = new Shadows(this.scene)
+    this.shadows.setPalette(stage.palette)
     // The composer holds a reference to the old scene, so it has to be rebuilt.
     this.post.dispose()
     this.post = new Post(this.renderer, this.scene, this.camera.camera, stage.palette)
@@ -465,22 +472,37 @@ export class Game {
     this.weapons.update(dt, p, p.stats, this.runTime)
     this.projectiles.update(dt, this.enemies, p)
     this.pickups.update(dt, p, this.vfx)
-    this.vfx.update(dt)
-    this.terrain.update(dt, p.x, p.z)
-    this.grass.update(dt, p.x, p.z)
-    this.sky.update(dt, p.x, p.z)
+    this._ambient(dt, p.x, p.z)
     this.camera.update(p.x, p.z, dt)
 
     if (!p.alive) this._endRun()
   }
 
+  /**
+   * Advance the presentational layers — the ones that hold no simulation state.
+   *
+   * These have to keep breathing while the 법보 choice panel is up. Freezing
+   * them with the simulation parked the breakthrough flare at peak brightness
+   * behind the panel, where it read as a blown-out sun over half the screen,
+   * and stopped the wind mid-gust.
+   */
+  _ambient(dt, px, pz) {
+    this.vfx?.update(dt)
+    this.terrain?.update(dt, px, pz)
+    this.grass?.update(dt, px, pz)
+    this.sky?.update(dt, px, pz)
+  }
+
   draw(alpha, dt) {
     if (this.player) {
+      this.shadows.begin()
+      this.shadows.add(this.player.x, this.player.z, 0.5)
       this.player.render(alpha, dt)
-      this.enemies.render(alpha)
+      this.enemies.render(alpha, this.shadows)
       this.projectiles.render(alpha)
       this.pickups.render()
       this.boss.render(alpha)
+      this.shadows.end()
       shadowFollow(this.sun, this.player.x, this.player.z)
     } else if (this.previewChibis) {
       for (const c of this.previewChibis) c.update(dt, 0.35, Math.sin(performance.now() * 0.0004) * 0.7)
@@ -490,6 +512,23 @@ export class Game {
     }
     this.post.render(this.scene, this.camera.camera)
     this.overlay.render(dt)
+  }
+
+  /**
+   * Advance one frame's worth of state without drawing. Dev harness only.
+   *
+   * The stepper used to call update() directly, which skipped the presentation
+   * half of _frame below. Hitstop then never expired and a damage flash stayed
+   * lit at whatever value it held when the step began, so every captured frame
+   * came out with a white wash over it that no real session ever shows.
+   * Anything driven by real time rather than sim time belongs here.
+   */
+  stepFrame(dt) {
+    this.impact.update(dt)
+    this.camera.setPunch(this.impact.zoom)
+    this.post.setFlash(this.impact.flash, this.impact.flashColor)
+    if (this.state === 'playing' && !this.impact.frozen) this.update(dt)
+    else if (this.state === 'levelUp' && this.player) this._ambient(dt, this.player.x, this.player.z)
   }
 
   _frame(now) {
@@ -522,6 +561,11 @@ export class Game {
         }
       } else {
         this.clock.reset()
+        // 승급 is a menu, not a pause — the world keeps moving behind it. A real
+        // pause stays frozen, which is the whole point of pausing.
+        if (this.state === 'levelUp' && this.player) {
+          this._ambient(dt, this.player.x, this.player.z)
+        }
       }
 
       if (this.state === 'playing' || this.state === 'levelUp' || this.state === 'paused') {
