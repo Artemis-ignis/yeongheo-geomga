@@ -170,39 +170,55 @@ export function buildChibi(character) {
   // Crown: the hair volume on top and around the back. It stops above the brow —
   // it used to be a full dome pulled down over the forehead, which read as a
   // bicycle helmet rather than as hair.
+  // Hugs the head. An earlier version sat at a larger radius and a taller squash
+  // than the skull under it, so it floated as a separate pale shell — a cap.
   const crown = new THREE.Mesh(
-    new THREE.SphereGeometry(0.442, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.33),
+    new THREE.SphereGeometry(0.432, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.40),
     hairMat,
   )
-  crown.position.y = 0.055
-  crown.scale.set(1.02, 1.09, 1.03)
+  crown.position.y = 0.012
+  crown.scale.set(1.0, 0.96, 0.965)
   crown.castShadow = true
   headPivot.add(crown)
 
-  // Bangs, as separate tapered locks with gaps between them. Hair reads as hair
-  // because of the gaps and the points — a smooth surface never will, however
-  // well it is shaded.
-  // Rooted on the head's actual surface at the hairline. Planting them on a
-  // fixed radius instead put every root outside the skull, and they read as a
-  // crown of planks rather than as hair falling over a forehead.
-  // Cones, not tubes. A tapered tube along a spline is the nicer shape on paper,
-  // but its extent is hard to predict and the locks kept ending up above the
-  // skull instead of hanging off it; a cone's apex and base are exactly where
-  // the numbers say. Same material as the back hair, so the colours match.
+  // Locks laid over the crown itself, running back to front. Without these the
+  // top of the head is one unbroken curve of a single colour, and no amount of
+  // fringe below it stops that reading as a smooth object rather than as hair.
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2 + 0.3
+    const lift = 0.30 + (i % 2) * 0.05
+    const top = new THREE.Mesh(new THREE.ConeGeometry(0.058, 0.40, 4), hairMat)
+    top.rotation.set(Math.PI * 0.5 + 0.35, a, 0)
+    top.position.set(Math.sin(a) * 0.17, lift, Math.cos(a) * 0.17)
+    top.scale.set(1, 1, 0.42)
+    headPivot.add(top)
+  }
+
+  // Locks, as separate cones with gaps between them. Hair reads as hair because
+  // of the gaps and the points — a smooth surface never will, however well it is
+  // shaded. They ring the whole head rather than only the front: with a smooth
+  // crown edge everywhere except the fringe, the crown still read as a cap set
+  // on top of her head instead of as the top of her hair.
+  //
+  // Cones rather than tapered tubes along a spline. The tube is the nicer shape
+  // on paper, but its extent is hard to predict and the locks kept ending up
+  // above the skull entirely; a cone's apex and base are exactly where the
+  // numbers say. Same material as the back hair, so the colours match.
   const HEAD_R = 0.42
-  const BANGS = 11
+  const LOCKS = 20
   const rootY = 0.235
   const rootR = Math.sqrt(HEAD_R * HEAD_R - rootY * rootY) - 0.015
-  for (let i = 0; i < BANGS; i++) {
-    const t = i / (BANGS - 1)
-    const a = (t - 0.5) * 2.5
-    // Short over the brow, sweeping longer toward the temples, parted a little
-    // off-centre so the face is not perfectly bilateral.
-    const len = 0.34 + Math.abs(t - 0.44) * 0.46
-    const wide = 0.052 + (1 - Math.abs(t - 0.5) * 2) * 0.020
+  for (let i = 0; i < LOCKS; i++) {
+    const a = (i / LOCKS) * Math.PI * 2 - Math.PI
+    // `front` is 1 straight ahead and 0 at the back of the head.
+    const front = (Math.cos(a) + 1) * 0.5
+    if (front < 0.18) continue // the back is covered by the hairBack lathe
+    // Short over the brow, sweeping longer toward the temples and the sides.
+    const len = 0.30 + (1 - front) * 0.46 + Math.abs(Math.sin(a)) * 0.12
+    const wide = 0.048 + front * 0.022
     const lock = new THREE.Mesh(new THREE.ConeGeometry(wide, len, 5), hairMat)
     // Apex down: a lock of hair comes to a point at its tip, not at its root.
-    lock.rotation.set(Math.PI, a, (t - 0.5) * 0.5)
+    lock.rotation.set(Math.PI, a, Math.sin(a) * 0.42)
     lock.position.set(
       Math.sin(a) * rootR,
       rootY - len * 0.5 + 0.04,

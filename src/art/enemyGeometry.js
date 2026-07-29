@@ -17,9 +17,11 @@ const cache = new Map()
 const BUILDERS = {
   // 마기 잔영 — a hooded wraith trailing off into smoke.
   wisp() {
+    // A peaked hood, not a rounded teardrop. The round version measured as a
+    // near-perfect circle from every angle and was the blobbiest thing shipped.
     const shroud = revolve([
-      [0.00, 0.95], [0.26, 0.86], [0.38, 0.68], [0.42, 0.44],
-      [0.36, 0.24], [0.24, 0.10], [0.10, 0.00], [0.00, -0.06],
+      [0.00, 1.12], [0.13, 1.00], [0.28, 0.82], [0.40, 0.58],
+      [0.44, 0.34], [0.38, 0.16], [0.22, 0.04], [0.00, 0.00],
     ], 14)
     gradient(shroud, 0x3d2a72, 0x9070d8, 'y')
     roughen(shroud, 0.035, 7)
@@ -30,32 +32,49 @@ const BUILDERS = {
       [shroud, {}, undefined],
       // Hollow of the hood. It has to stay *inside* the sheared shroud — pushed
       // out to follow the lean it stops being a hollow and becomes an eyeball.
-      [new THREE.SphereGeometry(0.15, 12, 8), { y: 0.66, z: 0.24 }, 0x3a2a5c],
+      [new THREE.SphereGeometry(0.17, 12, 8), { y: 0.60, z: 0.22 }, 0x281a44],
       // Two ember eyes — the only bright thing on it.
-      [new THREE.SphereGeometry(0.05, 6, 5), { x: -0.07, y: 0.68, z: 0.33 }, 0xff9de0],
-      [new THREE.SphereGeometry(0.05, 6, 5), { x: 0.07, y: 0.68, z: 0.33 }, 0xff9de0],
+      [new THREE.SphereGeometry(0.05, 6, 5), { x: -0.075, y: 0.62, z: 0.32 }, 0xff9de0],
+      [new THREE.SphereGeometry(0.05, 6, 5), { x: 0.075, y: 0.62, z: 0.32 }, 0xff9de0],
     ]
-    // A long smoke plume dragging behind — this is what gives the silhouette a
-    // back, and it is most of what the player sees when 잔영 crosses the screen.
-    for (let i = 0; i < 3; i++) {
-      const a = -0.5 + i * 0.5
+
+    // Ragged hem: torn points around the bottom edge, longest at the sides. A
+    // clean lathe hem is the single biggest tell that a shape came off a lathe.
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2
+      const h = 0.16 + Math.abs(Math.sin(a)) * 0.22
       parts.push([
-        limb(
-          [[a * 0.16, 0.52, 0.02], [a * 0.34, 0.42, -0.42],
-            [a * 0.5, 0.26, -0.86], [a * 0.4, 0.06, -1.22]],
-          [0.14, 0.10, 0.055, 0.004], 12, 5,
-        ),
-        {}, i === 1 ? 0x8f74d8 : 0x7b5fc0,
+        new THREE.ConeGeometry(0.075, h, 4),
+        { x: Math.sin(a) * 0.34, y: 0.02 + h * 0.5, z: Math.cos(a) * 0.34, rx: Math.PI },
+        0x4a3580,
       ])
     }
+
+    // A long smoke plume dragging behind — this is what gives the silhouette a
+    // back, and it is most of what the player sees when 잔영 crosses the screen.
+    for (let i = 0; i < 5; i++) {
+      const a = -0.6 + i * 0.3
+      const len = 1.0 + Math.cos(a) * 0.42
+      parts.push([
+        limb(
+          [[Math.sin(a) * 0.22, 0.58, -0.05],
+            [Math.sin(a) * 0.4, 0.5, -len * 0.38],
+            [Math.sin(a) * 0.54, 0.3, -len * 0.74],
+            [Math.sin(a) * 0.44, 0.08, -len]],
+          [0.11, 0.075, 0.04, 0.004], 14, 5,
+        ),
+        {}, i % 2 ? 0x8f74d8 : 0x6a51ac,
+      ])
+    }
+
     // Two ragged sleeves reaching ahead of the hood.
     for (const side of [-1, 1]) {
       parts.push([
         limb(
-          [[side * 0.2, 0.5, 0.16], [side * 0.3, 0.36, 0.46], [side * 0.24, 0.28, 0.7]],
-          [0.09, 0.065, 0.02], 8, 5,
+          [[side * 0.22, 0.48, 0.14], [side * 0.34, 0.32, 0.5], [side * 0.26, 0.22, 0.78]],
+          [0.095, 0.068, 0.018], 10, 5,
         ),
-        {}, 0x6a51ac,
+        {}, 0x7b5fc0,
       ])
     }
     return buildColored(parts)
@@ -450,17 +469,32 @@ BUILDERS.emberSprite = () => {
   const parts = [[core, {}, undefined]]
   // Flame tongues swept back by its own motion. Evenly spaced around the axis
   // they cancelled out into a blob; raked backward they give it a direction.
-  for (let i = 0; i < 5; i++) {
-    const a = -1.15 + (i / 4) * 2.3
-    const rake = 0.55 + Math.cos(a) * 0.55
+  //
+  // Nine thin tongues rather than five fat ones, and the radii are absolute:
+  // scaling the part shrank the tongues' positions as well as their thickness,
+  // which pulled them into the core and left a folded orange shard.
+  for (let i = 0; i < 9; i++) {
+    const a = -1.25 + (i / 8) * 2.5
+    const rake = 0.5 + Math.cos(a) * 0.6
+    const tall = 0.62 + Math.cos(a) * 0.44
     parts.push([
       limb(
-        [[Math.sin(a) * 0.2, 0.12, 0.06],
-          [Math.sin(a) * 0.32, 0.46, -rake * 0.4],
-          [Math.sin(a) * 0.24, 0.72 + Math.cos(a) * 0.3, -rake]],
-        [0.55, 0.4, 0.04], 10, 5,
+        [[Math.sin(a) * 0.19, 0.10, 0.08],
+          [Math.sin(a) * 0.30, 0.14 + tall * 0.42, -rake * 0.34],
+          [Math.sin(a) * 0.34, 0.14 + tall * 0.78, -rake * 0.74],
+          [Math.sin(a) * 0.26, 0.14 + tall, -rake]],
+        [0.09, 0.062, 0.032, 0.004], 14, 5,
       ),
-      { sx: 0.3, sy: 1, sz: 0.42 }, i % 2 ? 0xff9a4a : 0xffcf6a,
+      {}, i % 3 === 0 ? 0xfff0b0 : (i % 3 === 1 ? 0xffcf6a : 0xff8a3c),
+    ])
+  }
+  // Loose sparks shed off the tongues.
+  for (let i = 0; i < 5; i++) {
+    const a = -0.9 + i * 0.45
+    parts.push([
+      new THREE.OctahedronGeometry(0.038, 0),
+      { x: Math.sin(a) * 0.42, y: 0.72 + (i % 2) * 0.28, z: -0.62 - (i % 3) * 0.2 },
+      0xfff0b0,
     ])
   }
   parts.push([new THREE.SphereGeometry(0.07, 6, 5), { x: -0.07, y: 0.56, z: 0.3 }, 0xfff2c0])
