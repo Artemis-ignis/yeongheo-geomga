@@ -21,6 +21,13 @@ function finish(c, { repeat = 1, srgb = true } = {}) {
     tex.wrapS = THREE.RepeatWrapping
     tex.wrapT = THREE.RepeatWrapping
     tex.repeat.set(repeat, repeat)
+    // A tiled map on a surface the camera looks across at 52° is minified along
+    // one axis and not the other. Isotropic filtering has to pick a single mip
+    // for both, and the fine grain in these textures then beats against the
+    // pixel grid into a regular moiré — which reads as graph paper drawn over
+    // the arena, and is not a tiling seam however much it looks like one. The
+    // renderer clamps this to whatever the hardware supports.
+    tex.anisotropy = 16
   }
   tex.needsUpdate = true
   return tex
@@ -33,6 +40,62 @@ function cached(key, build) {
     cache.set(key, tex)
   }
   return tex
+}
+
+/**
+ * Periodic noise: a sum of sinusoids whose wavevectors are whole numbers of
+ * cycles across the tile. Returns a Float32Array roughly in [-1, 1].
+ *
+ * Every lattice-based noise here was eventually visible as a grid over the
+ * arena. Value noise puts its sample points on a regular grid, and a regular
+ * arrangement survives any amount of interpolation — pushing the cells from 3
+ * texels to 20 only made the grid finer, and a normal map is the worst place
+ * for it because it turns the pattern into shading. Sinusoids have no lattice
+ * at all, and integer cycle counts make the field wrap exactly, so it still
+ * tiles seamlessly.
+ *
+ * Evaluated separably: sin(A+B) = sinA·cosB + cosA·sinB, so the per-pixel inner
+ * loop is multiplies and adds over precomputed row and column tables rather
+ * than a million trig calls.
+ */
+function periodicNoise(S, { waves = 12, maxCycles = 11, seed = 1, falloff = 1 } = {}) {
+  let s = seed
+  const rnd = () => { s = (s * 48271) % 2147483647; return s / 2147483647 }
+
+  const field = new Float32Array(S * S)
+  for (let w = 0; w < waves; w++) {
+    // Cycles per tile on each axis, never zero so no wave lies along the edges.
+    const a = (1 + Math.floor(rnd() * maxCycles)) * (rnd() < 0.5 ? -1 : 1)
+    const b = 1 + Math.floor(rnd() * maxCycles)
+    const phase = rnd() * Math.PI * 2
+    const amp = 1 / Math.hypot(a, b) ** falloff
+
+    const sinA = new Float32Array(S)
+    const cosA = new Float32Array(S)
+    const sinB = new Float32Array(S)
+    const cosB = new Float32Array(S)
+    for (let i = 0; i < S; i++) {
+      const u = (Math.PI * 2 * a * i) / S
+      sinA[i] = Math.sin(u)
+      cosA[i] = Math.cos(u)
+      const v = (Math.PI * 2 * b * i) / S + phase
+      sinB[i] = Math.sin(v)
+      cosB[i] = Math.cos(v)
+    }
+    for (let y = 0; y < S; y++) {
+      const sb = sinB[y]
+      const cb = cosB[y]
+      const row = y * S
+      for (let x = 0; x < S; x++) {
+        field[row + x] += (sinA[x] * cb + cosA[x] * sb) * amp
+      }
+    }
+  }
+
+  let peak = 0
+  for (let i = 0; i < field.length; i++) peak = Math.max(peak, Math.abs(field[i]))
+  if (peak > 0) for (let i = 0; i < field.length; i++) field[i] /= peak
+  return field
 }
 
 /** Draw the same shape at all nine wrapped offsets so a tile stays seamless. */
@@ -104,14 +167,28 @@ export function groundTexture(baseHex = 0x2b4d42, mossHex = 0x96d696, veinHex = 
       wrapped(ctx, S, (k) => { k.beginPath(); k.arc(x, y, r, 0, Math.PI * 2); k.fill() })
     }
 
-    // Fine speckle — the detail that survives close-up.
+    // Soft mottling. This layer was the grid over the whole arena, and it took
+    // three attempts to kill because it looks exactly like a tiling seam.
+    //
+    // Per-texel white noise came first: the map is tiled and viewed at a
+    // glancing angle, so it is minified on screen and noise at the texel
+    // frequency folds into a regular interference pattern. Bilinear upscaling of
+    // a small random buffer came second, which creases at every source cell.
+    // Smooth value noise came third and still gridded — its lattice points sit
+    // on a regular grid, and at four texels a cell the eye reads the arrangement
+    // straight through the interpolation.
+    //
+    // The fix is frequency, not smoothness: cells tens of texels across read as
+    // mottling and have no visible arrangement. Fine detail is the moss clumps'
+    // and the normal map's job.
+    const grain = periodicNoise(S, { waves: 18, maxCycles: 46, seed: 7717, falloff: 0.9 })
     const img = ctx.getImageData(0, 0, S, S)
-    const d = img.data
-    for (let i = 0; i < d.length; i += 4) {
-      const n = (Math.random() - 0.5) * 26
-      d[i] = Math.max(0, Math.min(255, d[i] + n))
-      d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n))
-      d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n))
+    const gd = img.data
+    for (let i = 0, p = 0; i < grain.length; i++, p += 4) {
+      const n = grain[i] * 26
+      gd[p] = Math.max(0, Math.min(255, gd[p] + n))
+      gd[p + 1] = Math.max(0, Math.min(255, gd[p + 1] + n))
+      gd[p + 2] = Math.max(0, Math.min(255, gd[p + 2] + n))
     }
     ctx.putImageData(img, 0, 0)
 
@@ -198,40 +275,10 @@ export function groundNormalTexture() {
     const S = 512
     const height = new Float32Array(S * S)
 
-    // Sum a few octaves of value noise, sampled on a wrapping lattice.
-    const lattice = (period) => {
-      const grid = new Float32Array(period * period)
-      for (let i = 0; i < grid.length; i++) grid[i] = Math.random()
-      return (x, y) => {
-        const fx = (x / S) * period
-        const fy = (y / S) * period
-        const x0 = Math.floor(fx) % period
-        const y0 = Math.floor(fy) % period
-        const x1 = (x0 + 1) % period
-        const y1 = (y0 + 1) % period
-        const tx = fx - Math.floor(fx)
-        const ty = fy - Math.floor(fy)
-        const sx = tx * tx * (3 - 2 * tx)
-        const sy = ty * ty * (3 - 2 * ty)
-        const a = grid[y0 * period + x0] + (grid[y0 * period + x1] - grid[y0 * period + x0]) * sx
-        const b = grid[y1 * period + x0] + (grid[y1 * period + x1] - grid[y1 * period + x0]) * sx
-        return a + (b - a) * sy
-      }
-    }
-    // Deliberately no low octaves. This map is repeated many times across the
-    // plateau, and any large-scale structure in it repeats with it — an 8-period
-    // octave tiled 14 times painted a visible grid over the whole arena. Broad
-    // tonal variation is the albedo's job, which is mapped once and never tiles;
-    // the normal map only has to supply the fine grain that catches light.
-    const octaves = [[24, 0.34], [48, 0.26], [96, 0.16], [192, 0.09]]
-    const samplers = octaves.map(([p]) => lattice(p))
-    for (let y = 0; y < S; y++) {
-      for (let x = 0; x < S; x++) {
-        let h = 0
-        for (let o = 0; o < octaves.length; o++) h += samplers[o](x, y) * octaves[o][1]
-        height[y * S + x] = h
-      }
-    }
+    // Periodic noise rather than octaves of value noise. The lattice of a value
+    // noise is visible as a grid in a normal map at any cell size — see the note
+    // on periodicNoise above.
+    height.set(periodicNoise(S, { waves: 16, maxCycles: 26, seed: 4423, falloff: 0.85 }))
 
     const c = canvas(S)
     const ctx = c.getContext('2d')
@@ -257,7 +304,7 @@ export function groundNormalTexture() {
     tex.wrapS = THREE.RepeatWrapping
     tex.wrapT = THREE.RepeatWrapping
     tex.repeat.set(9, 9)
-    tex.anisotropy = 8
+    tex.anisotropy = 16
     tex.needsUpdate = true
     return tex
   })

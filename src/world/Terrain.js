@@ -43,10 +43,51 @@ export class Terrain {
     this._buildProps()
   }
 
+  /**
+   * Low-frequency tonal variation baked into the disc's vertex colours.
+   *
+   * The albedo has to tile to stay sharp at this scale, and anything that tiles
+   * announces itself however carefully the seams are hidden — patches of light
+   * and shade recur on a fixed grid and the eye locks onto it. This is the one
+   * layer that cannot repeat, because it is painted per-vertex across the whole
+   * plateau exactly once. It carries the broad shading; the tiled map carries
+   * the grain.
+   */
+  _paintMacro(geo) {
+    const pos = geo.attributes.position
+    const colors = new Float32Array(pos.count * 3)
+    // Deterministic: the arena must look the same every run of the same stage.
+    let seed = 9176
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+    // A handful of smooth blobs at different scales, summed.
+    const waves = []
+    for (let i = 0; i < 7; i++) {
+      waves.push({
+        fx: (rnd() - 0.5) * 0.24, fy: (rnd() - 0.5) * 0.24,
+        phase: rnd() * Math.PI * 2, amp: 0.16 / (1 + i * 0.55),
+      })
+    }
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i)
+      const y = pos.getY(i)
+      let n = 0
+      for (const w of waves) n += Math.sin(x * w.fx + y * w.fy + w.phase) * w.amp
+      const k = 1 + n
+      colors[i * 3] = k
+      colors[i * 3 + 1] = k
+      colors[i * 3 + 2] = k
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  }
+
   _buildGround() {
     // A finite disc, not an infinite plane — the arena is a floating plateau, and
     // seeing its edge drop into the void is what sells that.
-    const geo = new THREE.CircleGeometry(PLATEAU_RADIUS, 96)
+    //
+    // A ring rather than a circle purely so it has interior vertices: the macro
+    // shading below needs somewhere to live. CircleGeometry is a fan with a
+    // single centre vertex and nothing in between.
+    const geo = new THREE.RingGeometry(0.03, PLATEAU_RADIUS, 96, 22)
     const tex = groundTexture(this.pal.ground, this.pal.groundMoss, this.pal.groundVein ?? 0)
     // The normal map is what makes the surface catch light; without it the ground
     // is a painted plane however detailed the albedo gets.
@@ -56,7 +97,9 @@ export class Terrain {
       map: tex,
       normalMap: groundNormalTexture(),
       normalScale: new THREE.Vector2(0.85, 0.85),
+      vertexColors: true,
     })
+    this._paintMacro(geo)
     this.ground = new THREE.Mesh(geo, mat)
     this.ground.rotation.x = -Math.PI / 2
     this.ground.receiveShadow = true
