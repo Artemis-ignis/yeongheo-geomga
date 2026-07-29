@@ -25,6 +25,9 @@ export const STAGES = [
       skyBottom: 0xf2dcb8,
       abyss: 0x2c3f57,
       barrier: 0x8fd8ff,
+      mote: 'petal',
+      moteTint: 0xffffff,
+      moteRise: false,
     },
     grassDensity: 1.0,
     // The baseline bestiary. Fire and ice creatures belong to their own 비경 and
@@ -62,6 +65,11 @@ export const STAGES = [
       skyBottom: 0xffd0a0,
       abyss: 0x3a1712,
       barrier: 0xff9a5a,
+      // Cherry blossom over a burning waste was the single most out-of-place
+      // thing on this stage. Embers, and they rise.
+      mote: 'spark',
+      moteTint: 0xff8a3c,
+      moteRise: true,
     },
     grassDensity: 0.55,
     // Fire creatures plus the fast half of the baseline roster. 석귀 is dropped:
@@ -93,6 +101,9 @@ export const STAGES = [
       skyBottom: 0xf0f6ff,
       abyss: 0x33465c,
       barrier: 0xbfe8ff,
+      mote: 'spark',
+      moteTint: 0xe8f6ff,
+      moteRise: false,
     },
     grassDensity: 0.35,
     // Ice creatures plus the durable half of the baseline roster. No 혈갈 and no

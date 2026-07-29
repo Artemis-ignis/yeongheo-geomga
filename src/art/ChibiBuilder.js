@@ -58,11 +58,15 @@ function swayShader(material, uniforms) {
  * three's sphere puts +Z at phi = π/2, so the patch is centred there.
  */
 function faceShellGeometry(radius) {
-  // Seated high on the sphere and angled upward, so the face still catches a
-  // camera looking down from 52°.
-  const phiLength = 1.66
-  const thetaStart = 0.50
-  const thetaLength = 1.30
+  // Spans the whole front of the head, brow to chin.
+  //
+  // This used to stop at theta 1.80 — barely past the equator — so the entire
+  // lower 40% of the head was bare skin with no texture on it, and the features
+  // were squashed into the band above. It rendered as a face painted on the top
+  // of an egg. A chibi head is mostly face; the patch has to cover mostly head.
+  const phiLength = 1.92
+  const thetaStart = 0.62
+  const thetaLength = 1.86
   const geo = new THREE.SphereGeometry(
     radius, 20, 16,
     Math.PI / 2 - phiLength / 2, phiLength,
@@ -128,6 +132,12 @@ export function buildChibi(character) {
   // front with the face and buries the expression.
   const headPivot = new THREE.Group()
   headPivot.position.y = 1.36
+  // Tipped back toward the camera. The play camera looks down from 52°, and on
+  // an upright spherical head that means the player spends the whole run staring
+  // at the top of her scalp — the face, which is the entire point of the
+  // character, ends up as a thin band at the bottom of the head. Only .y is
+  // animated, so this base tilt survives.
+  headPivot.rotation.x = -0.34
   root.add(headPivot)
 
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 24, 18), skinMat)
@@ -157,20 +167,60 @@ export function buildChibi(character) {
   hairBack.castShadow = true
   headPivot.add(hairBack)
 
-  // Fringe: a shallow cap that sits over the brow.
-  const fringe = new THREE.Mesh(new THREE.SphereGeometry(0.44, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.42), hairMat)
-  fringe.position.y = 0.04
-  fringe.scale.set(1.02, 1.05, 1.02)
-  headPivot.add(fringe)
-
-  // Anime hair highlight — a bright band wrapping the crown. Without it the hair
-  // is one flat mass however many strands are attached to it.
-  const highlight = new THREE.Mesh(
-    new THREE.SphereGeometry(0.455, 24, 10, 0, Math.PI * 2, Math.PI * 0.22, Math.PI * 0.1),
-    makeFlatMaterial({ color: 0xffffff, opacity: 0.34 }),
+  // Crown: the hair volume on top and around the back. It stops above the brow —
+  // it used to be a full dome pulled down over the forehead, which read as a
+  // bicycle helmet rather than as hair.
+  const crown = new THREE.Mesh(
+    new THREE.SphereGeometry(0.442, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.33),
+    hairMat,
   )
-  highlight.position.y = 0.04
-  highlight.scale.set(1.02, 1.05, 1.02)
+  crown.position.y = 0.055
+  crown.scale.set(1.02, 1.09, 1.03)
+  crown.castShadow = true
+  headPivot.add(crown)
+
+  // Bangs, as separate tapered locks with gaps between them. Hair reads as hair
+  // because of the gaps and the points — a smooth surface never will, however
+  // well it is shaded.
+  // Rooted on the head's actual surface at the hairline. Planting them on a
+  // fixed radius instead put every root outside the skull, and they read as a
+  // crown of planks rather than as hair falling over a forehead.
+  // Cones, not tubes. A tapered tube along a spline is the nicer shape on paper,
+  // but its extent is hard to predict and the locks kept ending up above the
+  // skull instead of hanging off it; a cone's apex and base are exactly where
+  // the numbers say. Same material as the back hair, so the colours match.
+  const HEAD_R = 0.42
+  const BANGS = 11
+  const rootY = 0.235
+  const rootR = Math.sqrt(HEAD_R * HEAD_R - rootY * rootY) - 0.015
+  for (let i = 0; i < BANGS; i++) {
+    const t = i / (BANGS - 1)
+    const a = (t - 0.5) * 2.5
+    // Short over the brow, sweeping longer toward the temples, parted a little
+    // off-centre so the face is not perfectly bilateral.
+    const len = 0.34 + Math.abs(t - 0.44) * 0.46
+    const wide = 0.052 + (1 - Math.abs(t - 0.5) * 2) * 0.020
+    const lock = new THREE.Mesh(new THREE.ConeGeometry(wide, len, 5), hairMat)
+    // Apex down: a lock of hair comes to a point at its tip, not at its root.
+    lock.rotation.set(Math.PI, a, (t - 0.5) * 0.5)
+    lock.position.set(
+      Math.sin(a) * rootR,
+      rootY - len * 0.5 + 0.04,
+      Math.cos(a) * rootR,
+    )
+    // Flattened against the skull so it reads as a ribbon of hair, not a spike.
+    lock.scale.set(1, 1, 0.55)
+    lock.castShadow = true
+    headPivot.add(lock)
+  }
+
+  // A soft sheen across the crown rather than a hard painted band.
+  const highlight = new THREE.Mesh(
+    new THREE.SphereGeometry(0.452, 24, 10, 0, Math.PI * 2, Math.PI * 0.13, Math.PI * 0.09),
+    makeFlatMaterial({ color: 0xffffff, opacity: 0.20 }),
+  )
+  highlight.position.y = 0.055
+  highlight.scale.set(1.02, 1.09, 1.03)
   highlight.renderOrder = 1
   headPivot.add(highlight)
 
@@ -384,7 +434,10 @@ export function buildChibi(character) {
   // would double the player's draw calls for detail invisible at gameplay
   // distance; the head, hair, torso and skirt carry the read.
   const outlineMat = makeOutlineMaterial(0.024)
-  for (const source of [head, hairBack, fringe, torso, skirt]) {
+  // The crown is deliberately not outlined. A hard black rim around it separates
+  // it from the bangs underneath and the whole thing reads as a hat sitting on
+  // her head; the head and back hair already carry the silhouette.
+  for (const source of [head, hairBack, torso, skirt]) {
     const shell = new THREE.Mesh(source.geometry, outlineMat)
     shell.position.copy(source.position)
     shell.rotation.copy(source.rotation)

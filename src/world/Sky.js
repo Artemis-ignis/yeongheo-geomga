@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { makeToonMaterial, PALETTE } from '../art/materials.js'
 import { buildMerged } from '../art/geometry.js'
-import { petalTexture } from '../art/textures.js'
+import { moteTexture, petalTexture } from '../art/textures.js'
 
 const PETAL_COUNT = 300
 const PETAL_BOX = 90
@@ -176,10 +176,15 @@ export class Sky {
       depthWrite: false,
       side: THREE.DoubleSide,
       fog: false,
+      // Embers rise and glow; petals and snow fall and do not. Everything else
+      // about the drift is shared, so the stage only picks a shape and a tint.
+      blending: this.pal.moteRise ? THREE.AdditiveBlending : THREE.NormalBlending,
       uniforms: {
         uTime: { value: 0 },
         uCenter: { value: new THREE.Vector3() },
-        uMap: { value: petalTexture() },
+        uMap: { value: this.pal.mote === 'spark' ? moteTexture() : petalTexture() },
+        uTint: { value: new THREE.Color(this.pal.moteTint ?? 0xffffff) },
+        uRise: { value: this.pal.moteRise ? 1 : 0 },
         uBox: { value: PETAL_BOX },
       },
       vertexShader: `
@@ -187,6 +192,7 @@ export class Sky {
         uniform float uTime;
         uniform vec3 uCenter;
         uniform float uBox;
+        uniform float uRise;
         varying vec2 vUv;
         varying float vFade;
 
@@ -201,7 +207,8 @@ export class Sky {
           // Wrap each petal inside a box that travels with the player.
           float px = mod( aSeed.x * uBox + sin( uTime * 0.25 + aSeed.y * 20.0 ) * 6.0, uBox ) - halfBox;
           float pz = mod( aSeed.y * uBox + uTime * 1.1, uBox ) - halfBox;
-          float py = mod( aSeed.z * 34.0 - uTime * fall, 34.0 );
+          float drift = uRise > 0.5 ? uTime * fall * 0.55 : -uTime * fall;
+          float py = mod( aSeed.z * 34.0 + drift, 34.0 );
 
           vec3 world = uCenter + vec3( px, py + 0.5, pz );
 
@@ -216,11 +223,12 @@ export class Sky {
         }`,
       fragmentShader: `
         uniform sampler2D uMap;
+        uniform vec3 uTint;
         varying vec2 vUv;
         varying float vFade;
         void main() {
           vec4 tex = texture2D( uMap, vUv );
-          gl_FragColor = vec4( tex.rgb, tex.a * vFade * 0.85 );
+          gl_FragColor = vec4( tex.rgb * uTint, tex.a * vFade * 0.85 );
           if ( gl_FragColor.a < 0.01 ) discard;
         }`,
     })

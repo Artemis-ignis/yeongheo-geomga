@@ -126,6 +126,32 @@ function drawBlush(ctx) {
   }
 }
 
+/**
+ * A nose, which the face was missing entirely.
+ *
+ * Anime keeps it to a hint — a short shadow stroke and a highlight. Anything
+ * more turns a chibi into a doll, and anything less leaves the gap between the
+ * eyes and the mouth reading as blank skin.
+ */
+function drawNose(ctx) {
+  const x = SIZE / 2
+  const y = SIZE / 2 + 96
+  ctx.strokeStyle = 'rgba(150,86,80,0.62)'
+  ctx.lineCap = 'round'
+  ctx.lineWidth = 8
+  ctx.beginPath()
+  ctx.moveTo(x - 3, y - 16)
+  ctx.quadraticCurveTo(x + 11, y + 2, x - 2, y + 9)
+  ctx.stroke()
+
+  ctx.strokeStyle = 'rgba(255,236,226,0.75)'
+  ctx.lineWidth = 5
+  ctx.beginPath()
+  ctx.moveTo(x - 9, y - 12)
+  ctx.quadraticCurveTo(x - 15, y - 1, x - 11, y + 6)
+  ctx.stroke()
+}
+
 function drawMouth(ctx, kind) {
   const x = SIZE / 2
   const y = SIZE / 2 + 152
@@ -158,6 +184,7 @@ function buildFace(palette, expression) {
   if (expression === 'hurt') {
     drawBrows(ctx, 14, '#2b1f27')
     drawClosedEye(ctx)
+    drawNose(ctx)
     drawBlush(ctx)
     drawMouth(ctx, 'open')
   } else if (expression === 'breakthrough') {
@@ -171,11 +198,13 @@ function buildFace(palette, expression) {
       c.ellipse(0, 4, 34, 40, 0, 0, Math.PI * 2)
       c.stroke()
     })
+    drawNose(ctx)
     drawBlush(ctx)
     drawMouth(ctx, 'smile')
   } else {
     drawBrows(ctx, 0, '#2b1f27')
     drawOpenEye(ctx, palette)
+    drawNose(ctx)
     drawBlush(ctx)
     drawMouth(ctx, 'neutral')
   }

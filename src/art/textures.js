@@ -361,6 +361,28 @@ export function petalTexture() {
   })
 }
 
+/**
+ * A soft round mote with a hot core — an ember on 적염비경, a snowflake on
+ * 한천비경. White, so the stage tint decides which it is.
+ */
+export function moteTexture() {
+  return cached('mote', () => {
+    const S = 64
+    const c = canvas(S)
+    const ctx = c.getContext('2d')
+    const g = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2)
+    g.addColorStop(0.0, 'rgba(255,255,255,1)')
+    g.addColorStop(0.3, 'rgba(255,255,255,0.72)')
+    g.addColorStop(0.65, 'rgba(255,255,255,0.22)')
+    g.addColorStop(1.0, 'rgba(255,255,255,0)')
+    ctx.fillStyle = g
+    ctx.beginPath()
+    ctx.arc(S / 2, S / 2, S / 2, 0, Math.PI * 2)
+    ctx.fill()
+    return finish(c)
+  })
+}
+
 /** Low-frequency mist, scrolled across a ground-hugging plane. */
 export function mistTexture() {
   return cached('mist', () => {
