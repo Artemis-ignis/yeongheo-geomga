@@ -3,19 +3,22 @@ import { buildMerged } from '../art/geometry.js'
 import { makeToonMaterial, makeAdditiveMaterial } from '../art/materials.js'
 import { glowTexture } from '../art/textures.js'
 import { rollDamage } from '../combat/damage.js'
-import { buildEnemyGeometry } from '../art/enemyGeometry.js'
+import { buildBossGeometry } from '../art/bossGeometry.js'
 
 export const BOSSES = {
   blueWolfKing: {
     id: 'blueWolfKing',
     name: '요왕 창랑',
-    hp: 6000, radius: 2.6, damage: 30, speed: 3.0, scale: 3.4,
+    // The model is built at roughly 2.4 units tall, so this puts him at ~5.3 —
+    // about three times the cultivator, which is where "boss" starts to read.
+    hp: 6000, radius: 2.6, damage: 30, speed: 3.0, scale: 2.2,
     color: 0x5f7fa8,
   },
   darkHeavenLord: {
     id: 'darkHeavenLord',
     name: '마존 흑천',
-    hp: 24000, radius: 2.0, damage: 40, speed: 2.6, scale: 2.2,
+    // Built at ~5.6 units tall already, so barely scaled.
+    hp: 24000, radius: 2.0, damage: 40, speed: 2.6, scale: 1.15,
     color: 0x4a2a70,
   },
 }
@@ -45,30 +48,18 @@ export class BossManager {
   _buildWolfKing(def) {
     const group = new THREE.Group()
     const body = new THREE.Mesh(
-      buildEnemyGeometry('wolf'),
-      makeToonMaterial({ color: def.color, rim: 0.7, rimColor: 0xbfe4ff }),
+      buildBossGeometry('blueWolfKing'),
+      makeToonMaterial({ color: 0xffffff, rim: 0.2, rimColor: 0xbfe4ff, vertexColors: true }),
     )
     body.scale.setScalar(def.scale)
     body.castShadow = true
     group.add(body)
 
-    // Spiked mane and glowing eyes to separate it from an ordinary 요랑.
-    const maneMat = makeToonMaterial({ color: 0x2f4a66, rim: 0.9, rimColor: 0x9fd8ff })
-    const spikes = []
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2
-      spikes.push([new THREE.ConeGeometry(0.22, 0.9, 4), {
-        x: Math.cos(a) * 1.1, y: 1.9 + Math.sin(a) * 0.3, z: 1.1 + Math.sin(a) * 0.4,
-        rx: -0.5, rz: a,
-      }])
-    }
-    const mane = new THREE.Mesh(buildMerged(spikes), maneMat)
-    group.add(mane)
-
-    const eyeMat = makeAdditiveMaterial({ color: 0xff6a6a, opacity: 0.95, map: glowTexture() })
+    // Additive glow over the baked eyes so they read from across the arena.
+    const eyeMat = makeAdditiveMaterial({ color: 0xff8a4a, opacity: 0.9, map: glowTexture() })
     for (const side of [-1, 1]) {
-      const eye = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), eyeMat)
-      eye.position.set(side * 0.42, 2.0, 2.3)
+      const eye = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.85), eyeMat)
+      eye.position.set(side * 0.2 * def.scale, 1.5 * def.scale, 1.85 * def.scale)
       group.add(eye)
     }
     return group
@@ -77,27 +68,19 @@ export class BossManager {
   _buildDarkLord(def) {
     const group = new THREE.Group()
     const robe = new THREE.Mesh(
-      buildMerged([
-        [new THREE.ConeGeometry(1.5, 3.2, 10), { y: 1.6 }],
-        [new THREE.CapsuleGeometry(0.6, 0.9, 6, 10), { y: 3.6 }],
-      ]),
-      makeToonMaterial({ color: def.color, rim: 0.8, rimColor: 0xc8a0ff }),
+      buildBossGeometry('darkHeavenLord'),
+      makeToonMaterial({ color: 0xffffff, rim: 0.24, rimColor: 0xc8a0ff, vertexColors: true }),
     )
+    robe.scale.setScalar(def.scale)
     robe.castShadow = true
     group.add(robe)
 
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.7, 16, 12),
-      makeToonMaterial({ color: 0x1a1226, rim: 0.9, rimColor: 0xb088ff }),
-    )
-    head.position.y = 4.6
-    group.add(head)
-
+    // The mask glow doubles as the phase indicator, so it stays a separate mesh.
     this.mask = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.0, 0.9),
-      makeAdditiveMaterial({ color: 0xd06aff, opacity: 0.9, map: glowTexture() }),
+      new THREE.PlaneGeometry(1.1, 1.0),
+      makeAdditiveMaterial({ color: 0xd06aff, opacity: 0.85, map: glowTexture() }),
     )
-    this.mask.position.set(0, 4.6, 0.65)
+    this.mask.position.set(0, 4.38 * def.scale, 0.5 * def.scale)
     group.add(this.mask)
 
     // Six blades orbiting behind him.
@@ -327,11 +310,16 @@ export class BossManager {
     )
 
     if (this.blades) {
+      const s = b.def.scale
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2 + performance.now() * 0.0012
-        _dummy.position.set(Math.cos(a) * 2.2, 3.4 + Math.sin(a * 2) * 0.4, Math.sin(a) * 2.2 - 1)
+        _dummy.position.set(
+          Math.cos(a) * 2.4 * s,
+          (3.2 + Math.sin(a * 2) * 0.4) * s,
+          Math.sin(a) * 2.4 * s - 0.8 * s,
+        )
         _dummy.rotation.set(0.3, -a, 0)
-        _dummy.scale.setScalar(1)
+        _dummy.scale.setScalar(s)
         _dummy.updateMatrix()
         this.blades.setMatrixAt(i, _dummy.matrix)
       }
