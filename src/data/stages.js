@@ -43,11 +43,17 @@ export const STAGES = [
     desc: '불에 그을린 붉은 대지. 재가 끝없이 흩날린다.',
     unlockCost: 900,
     palette: {
-      ground: 0x4a2620,
-      groundMoss: 0xd87a3c,
-      grassBase: 0x6b2f1e,
-      grassTip: 0xd9873c,
-      pine: 0x5a2a1c,
+      // Scorched ash, not red dirt. Every creature on this stage is some shade
+      // of fire, so a red-orange ground put 용암귀, 혈갈, 부적귀 and 마수사 all
+      // under ΔE 16 against the floor they walk on — and darkening it without
+      // shifting the hue only traded that for a worse collision with the dark
+      // ones. Pulling the chroma out is what separates them: the fire in this
+      // 비경 belongs to the sky and the things trying to kill you.
+      ground: 0x3a2f2a,
+      groundMoss: 0x7a5a48,
+      grassBase: 0x4a3a30,
+      grassTip: 0x9c7a58,
+      pine: 0x4a3a2e,
       stone: 0x6e4a3c,
       fog: 0xc98a6a,
       skyTop: 0x2a1018,

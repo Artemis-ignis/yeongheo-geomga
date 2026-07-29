@@ -179,11 +179,20 @@ function colourStats(geometry) {
   const significant = [...buckets.values()].filter((c) => c.n >= floor)
   const lumas = significant.map((c) => luminance(c.r, c.g, c.b))
 
+  // The colour the creature actually reads as on screen. Vertex colours are the
+  // only real source for this — the `color` field in the enemy table is not
+  // consulted by any renderer.
+  let top = null
+  for (const c of significant) if (top === null || c.n > top.n) top = c
+  const toHex = (c) =>
+    ((Math.round(c.r * 255) << 16) | (Math.round(c.g * 255) << 8) | Math.round(c.b * 255)) >>> 0
+
   return {
     colours: significant.length,
     contrast: lumas.length ? Math.max(...lumas) - Math.min(...lumas) : 0,
     saturation: satSum / col.count,
     meanLuma: lumaSum / col.count,
+    dominant: top ? toHex(top) : 0,
   }
 }
 

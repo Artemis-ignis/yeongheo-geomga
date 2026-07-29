@@ -385,13 +385,16 @@ BUILDERS.jadeSerpent = () => {
       [0.06, 0.68, 0.14], [0.04, 0.74, 0.44]],
     [0.05, 0.13, 0.17, 0.17, 0.15, 0.125, 0.105, 0.088], 30, 8,
   )
-  gradient(body, 0x1f6b4a, 0x8fdcaa, 'y')
+  // Teal rather than leaf green. A green serpent on a green plateau measured
+  // ΔE 16 against the field it lives on — pushing the hue toward cyan keeps it
+  // jade without letting it sink into the grass.
+  gradient(body, 0x0c4a4e, 0x54d8c8, 'y')
 
   const head = limb(
     [[0.04, 0.75, 0.42], [0.03, 0.765, 0.58], [0.02, 0.73, 0.74]],
     [0.10, 0.125, 0.05], 10, 8,
   )
-  gradient(head, 0x2f8f66, 0xa8e8c0, 'y')
+  gradient(head, 0x15706e, 0x7ceadc, 'y')
 
   const parts = [
     [body, {}, undefined],
@@ -505,7 +508,9 @@ BUILDERS.ashRaven = () => {
     [0.55, 0.85, 0.4], 10, 8,
   )
   body.scale(0.3, 0.26, 0.3)
-  gradient(body, 0x6a4438, 0x2e1c16, 'y')
+  // Cold near-black. Warm brown put it inside the ash ground it flies over; a
+  // raven reads best as the darkest, coolest thing in a warm frame anyway.
+  gradient(body, 0x585463, 0x14121c, 'y')
 
   const parts = [
     [body, {}, undefined],
@@ -520,10 +525,10 @@ BUILDERS.ashRaven = () => {
         [[side * 0.14, 0.78, 0], [side * 0.52, 0.9, -0.16], [side * 0.86, 0.74, -0.4]],
         [0.5, 0.34, 0.1], 10, 4,
       ),
-      { sx: 1, sy: 0.35, sz: 1 }, 0x4a2e24,
+      { sx: 1, sy: 0.35, sz: 1 }, 0x2b2836,
     ])
   }
-  parts.push([new THREE.ConeGeometry(0.07, 0.34, 4), { y: 0.7, z: -0.42, rx: -1.3 }, 0x3a241c])
+  parts.push([new THREE.ConeGeometry(0.07, 0.34, 4), { y: 0.7, z: -0.42, rx: -1.3 }, 0x201e2a])
   return buildColored(parts)
 }
 
@@ -561,14 +566,17 @@ BUILDERS.snowWraith = () => {
     [0.00, 1.10], [0.24, 1.00], [0.34, 0.76], [0.40, 0.46],
     [0.34, 0.22], [0.20, 0.06], [0.00, -0.02],
   ], 14)
-  gradient(shroud, 0x7fa8c4, 0xeaf6ff, 'y')
+  // A wraith on a snowfield has to be the dark shape, not the pale one. The
+  // original pale-on-pale version measured ΔE 1.0 against the 한천 ground: a
+  // ranged attacker the player could not see at all.
+  gradient(shroud, 0x1d3352, 0x8fb6d8, 'y')
   shear(shroud, -0.12)
   // Thin front-to-back so the veil hangs like cloth rather than a bell.
   flare(shroud, 0.4, -0.22)
 
   const parts = [
     [shroud, {}, undefined],
-    [new THREE.SphereGeometry(0.2, 12, 8), { y: 0.82, z: 0.1 }, 0x4a6d88],
+    [new THREE.SphereGeometry(0.2, 12, 8), { y: 0.82, z: 0.1 }, 0x16243d],
     [new THREE.SphereGeometry(0.05, 6, 5), { x: -0.08, y: 0.84, z: 0.24 }, 0x9ff0ff],
     [new THREE.SphereGeometry(0.05, 6, 5), { x: 0.08, y: 0.84, z: 0.24 }, 0x9ff0ff],
   ]

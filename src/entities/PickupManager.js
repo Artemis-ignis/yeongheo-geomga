@@ -19,6 +19,21 @@ const QI_MERGE_BATCH = 100
 
 const _dummy = new THREE.Object3D()
 
+/**
+ * Drop colours, kept in one table so `test/readability.test.js` can check them
+ * against every stage's ground palette.
+ *
+ * 영기 is deliberately cyan rather than the jade green it used to be. Jade green
+ * gems on a jade green plateau were nearly invisible, and 영기 is the one drop
+ * the player must track continuously.
+ */
+export const PICKUP_COLORS = {
+  qi: 0x3fd8ff,
+  stone: 0xd4ad4e,
+  heal: 0xe8546a,
+  chest: 0xe8c56a,
+}
+
 function kindMesh(kind) {
   switch (kind) {
     // Rim strengths are kept moderate: the bloom threshold sits at 0.95 and a
@@ -26,22 +41,22 @@ function kindMesh(kind) {
     case 'qi':
       return {
         geo: new THREE.OctahedronGeometry(0.26, 0),
-        mat: makeToonMaterial({ color: 0x54c9a4, rim: 0.45, rimColor: 0x9fe8d0 }),
+        mat: makeToonMaterial({ color: PICKUP_COLORS.qi, rim: 0.45, rimColor: 0xbff2ff }),
       }
     case 'stone':
       return {
         geo: new THREE.BoxGeometry(0.26, 0.26, 0.26),
-        mat: makeToonMaterial({ color: 0xd4ad4e, rim: 0.4, rimColor: 0xffe9b0 }),
+        mat: makeToonMaterial({ color: PICKUP_COLORS.stone, rim: 0.4, rimColor: 0xffe9b0 }),
       }
     case 'heal':
       return {
         geo: new THREE.SphereGeometry(0.26, 10, 8),
-        mat: makeToonMaterial({ color: 0xe8546a, rim: 0.45, rimColor: 0xffc0cc }),
+        mat: makeToonMaterial({ color: PICKUP_COLORS.heal, rim: 0.45, rimColor: 0xffc0cc }),
       }
     default:
       return {
         geo: new THREE.BoxGeometry(0.8, 0.6, 0.6),
-        mat: makeToonMaterial({ color: 0xe8c56a, rim: 1.0, rimColor: 0xfff4d0 }),
+        mat: makeToonMaterial({ color: PICKUP_COLORS.chest, rim: 1.0, rimColor: 0xfff4d0 }),
       }
   }
 }
