@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>영허검가 — 모델 시트</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #141a24; }
+      canvas { display: block; position: fixed; inset: 0; }
+      #labels { position: fixed; inset: 0; pointer-events: none; }
+      .tag {
+        position: absolute;
+        transform: translate(-50%, 6px);
+        font: 12px/1.35 "Malgun Gothic", system-ui, sans-serif;
+        color: #dbe6f2;
+        text-align: center;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+        white-space: nowrap;
+      }
+      .tag b { display: block; font-size: 14px; color: #fff; }
+      .tag .sub { display: block; font-size: 10px; color: #8fa6bd; }
+      .tag .met { display: block; font-size: 10px; color: #6f8399; margin-top: 2px; }
+      .tag.bad b { color: #ff8a8a; }
+      .tag .fail { display: block; font-size: 10px; color: #ff8a8a; white-space: normal; max-width: 190px; }
+      body.silhouette .tag { color: #1a222c; text-shadow: none; }
+      body.silhouette .tag b { color: #000; }
+      body.silhouette .tag .sub, body.silhouette .tag .met { color: #5a6a7a; }
+      #help {
+        position: fixed; left: 12px; top: 10px;
+        font: 12px/1.5 "Malgun Gothic", system-ui, sans-serif;
+        color: #7f94aa; pointer-events: none;
+      }
+      body.silhouette #help { color: #5a6a7a; }
+    </style>
+  </head>
+  <body>
+    <canvas id="sheet"></canvas>
+    <div id="labels"></div>
+    <div id="help">S: 실루엣 보기 &nbsp;·&nbsp; Space: 회전 정지</div>
+    <script type="module" src="/src/dev/modelSheet.js"></script>
+  </body>
+</html>

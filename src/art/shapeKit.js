@@ -73,6 +73,39 @@ export function roughen(geometry, amount = 0.05, seed = 1) {
   return geometry
 }
 
+/**
+ * Lean a shape along Z as a function of height.
+ *
+ * A lathed body is axially symmetric, so it reads as the same blob from every
+ * angle no matter how much detail is bolted to the front. Shearing it gives the
+ * silhouette a front and a back, which is the cheapest way to make a lathe
+ * survive being seen from the side.
+ */
+export function shear(geometry, amount, { from = 0 } = {}) {
+  const pos = geometry.attributes.position
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.array[i * 3 + 1]
+    if (y <= from) continue
+    pos.array[i * 3 + 2] += (y - from) * amount
+  }
+  pos.needsUpdate = true
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+/** Squash or stretch a shape along Z as a function of height — taper a hem, flare a hood. */
+export function flare(geometry, atY, amount) {
+  const pos = geometry.attributes.position
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.array[i * 3 + 1]
+    const k = 1 + amount * Math.max(0, 1 - Math.abs(y - atY) * 2)
+    pos.array[i * 3 + 2] *= k
+  }
+  pos.needsUpdate = true
+  geometry.computeVertexNormals()
+  return geometry
+}
+
 /** A tapered tube following a list of points — limbs, tails, horns, hair. */
 export function limb(points, radii, segments = 14, radial = 7) {
   const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)))

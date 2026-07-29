@@ -68,8 +68,15 @@ describe('rosterFor', () => {
   const ember = getStage('ember')
 
   it('passes everything through when a stage has no roster', () => {
+    // Every shipped stage now names its own roster, so this covers the fallback
+    // a new stage gets before its bestiary is decided.
     const types = ['wisp', 'stoneGhoul']
-    expect(rosterFor(jade, types)).toBe(types)
+    expect(rosterFor({ id: 'draft', roster: null }, types)).toBe(types)
+  })
+
+  it('keeps fire and ice creatures out of the plateau', () => {
+    const out = rosterFor(jade, ['wisp', 'emberSprite', 'frostWolf'])
+    expect(out).toEqual(['wisp'])
   })
 
   it('filters a band down to the stage roster', () => {

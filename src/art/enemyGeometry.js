@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { buildColored, gradient, limb, revolve, roughen } from './shapeKit.js'
+import { buildColored, flare, gradient, limb, revolve, roughen, shear } from './shapeKit.js'
 import { panelSeams, studRing, trimBand } from './detailKit.js'
 
 /**
@@ -23,24 +23,39 @@ const BUILDERS = {
     ], 14)
     gradient(shroud, 0x3d2a72, 0x9070d8, 'y')
     roughen(shroud, 0.035, 7)
+    // Pitched forward, as though it is always mid-lunge.
+    shear(shroud, 0.30)
 
     const parts = [
       [shroud, {}, undefined],
-      // Hollow of the hood.
-      [new THREE.SphereGeometry(0.2, 12, 8), { y: 0.66, z: 0.1 }, 0x3a2a5c],
+      // Hollow of the hood. It has to stay *inside* the sheared shroud — pushed
+      // out to follow the lean it stops being a hollow and becomes an eyeball.
+      [new THREE.SphereGeometry(0.15, 12, 8), { y: 0.66, z: 0.24 }, 0x3a2a5c],
       // Two ember eyes — the only bright thing on it.
-      [new THREE.SphereGeometry(0.052, 6, 5), { x: -0.085, y: 0.68, z: 0.24 }, 0xff9de0],
-      [new THREE.SphereGeometry(0.052, 6, 5), { x: 0.085, y: 0.68, z: 0.24 }, 0xff9de0],
+      [new THREE.SphereGeometry(0.05, 6, 5), { x: -0.07, y: 0.68, z: 0.33 }, 0xff9de0],
+      [new THREE.SphereGeometry(0.05, 6, 5), { x: 0.07, y: 0.68, z: 0.33 }, 0xff9de0],
     ]
-    // Ragged streamers trailing behind.
+    // A long smoke plume dragging behind — this is what gives the silhouette a
+    // back, and it is most of what the player sees when 잔영 crosses the screen.
     for (let i = 0; i < 3; i++) {
       const a = -0.5 + i * 0.5
       parts.push([
         limb(
-          [[a * 0.22, 0.34, -0.16], [a * 0.34, 0.16, -0.42], [a * 0.3, 0.02, -0.72]],
-          [0.11, 0.06, 0.005], 8, 5,
+          [[a * 0.16, 0.52, 0.02], [a * 0.34, 0.42, -0.42],
+            [a * 0.5, 0.26, -0.86], [a * 0.4, 0.06, -1.22]],
+          [0.14, 0.10, 0.055, 0.004], 12, 5,
         ),
-        {}, 0x7b5fc0,
+        {}, i === 1 ? 0x8f74d8 : 0x7b5fc0,
+      ])
+    }
+    // Two ragged sleeves reaching ahead of the hood.
+    for (const side of [-1, 1]) {
+      parts.push([
+        limb(
+          [[side * 0.2, 0.5, 0.16], [side * 0.3, 0.36, 0.46], [side * 0.24, 0.28, 0.7]],
+          [0.09, 0.065, 0.02], 8, 5,
+        ),
+        {}, 0x6a51ac,
       ])
     }
     return buildColored(parts)
@@ -127,17 +142,20 @@ const BUILDERS = {
     ]
 
     // Heavy arms hanging past the knees.
+    //
+    // The radii below are absolute. Scaling the part instead — as this used to —
+    // shrinks the *positions* too, which folded both arms inside the torso and
+    // left 석귀 reading as a featureless boulder.
     for (const side of [-1, 1]) {
       parts.push([
         limb(
-          [[side * 0.72, 1.02, 0], [side * 0.88, 0.62, 0.06], [side * 0.8, 0.22, 0.02]],
-          [0.9, 1.05, 1.25], 8, 6,
+          [[side * 0.72, 1.02, 0], [side * 0.92, 0.62, 0.06], [side * 0.84, 0.22, 0.02]],
+          [0.216, 0.252, 0.30], 8, 6,
         ),
-        { sx: 0.24, sy: 0.24, sz: 0.24 }, undefined,
+        {}, 0xa4998a,
       ])
-      parts[parts.length - 1][2] = 0xa4998a
       // Fist.
-      parts.push([roughen(new THREE.DodecahedronGeometry(0.26, 0), 0.05, 5 + side), { x: side * 0.8, y: 0.16 }, 0x8d8375])
+      parts.push([roughen(new THREE.DodecahedronGeometry(0.26, 0), 0.05, 5 + side), { x: side * 0.84, y: 0.16 }, 0x8d8375])
       // Stubby leg.
       parts.push([new THREE.CylinderGeometry(0.2, 0.24, 0.3, 6), { x: side * 0.3, y: 0.14 }, 0x7d7466])
     }
@@ -153,6 +171,8 @@ const BUILDERS = {
       [0.46, 0.36], [0.56, 0.10], [0.50, 0.02], [0.00, 0.00],
     ], 14)
     gradient(robe, 0xc4b073, 0xefe2bc, 'y')
+    // An empty robe hangs — it does not stand upright like a person.
+    shear(robe, -0.16)
 
     const parts = [
       [robe, {}, undefined],
@@ -166,15 +186,30 @@ const BUILDERS = {
       [new THREE.CylinderGeometry(0.36, 0.36, 0.07, 14), { y: 0.62 }, 0x9a3f34],
     ]
 
-    // Wide hanging sleeves.
+    // Wide sleeves, held out in front the way a caster holds a seal.
     for (const side of [-1, 1]) {
       parts.push([
         limb(
-          [[side * 0.3, 1.02, 0], [side * 0.46, 0.78, 0.04], [side * 0.42, 0.5, 0]],
-          [0.75, 1.0, 0.7], 8, 6,
+          [[side * 0.3, 1.02, 0.02], [side * 0.5, 0.84, 0.34], [side * 0.4, 0.66, 0.66]],
+          [0.225, 0.30, 0.186], 10, 6,
         ),
-        { sx: 0.3, sy: 0.3, sz: 0.3 }, 0xe6dcb4,
+        {}, 0xe6dcb4,
       ])
+    }
+    // A long train of cloth dragging behind — the counterweight to the sleeves,
+    // and the reason 부적귀 reads differently from the side than head-on.
+    for (const [dx, len] of [[-0.14, 0.86], [0.0, 1.14], [0.14, 0.9]]) {
+      parts.push([
+        limb(
+          [[dx, 0.5, -0.18], [dx * 1.5, 0.34, -len * 0.55], [dx * 1.7, 0.12, -len]],
+          [0.20, 0.14, 0.03], 10, 5,
+        ),
+        { sx: 0.9, sy: 0.9, sz: 0.9 }, 0xcbb87e,
+      ])
+    }
+    // Paper charms strung across the chest.
+    for (const [cx, cy] of [[-0.22, 0.92], [0.22, 0.9], [0, 0.78]]) {
+      parts.push([new THREE.BoxGeometry(0.1, 0.2, 0.015), { x: cx, y: cy, z: 0.3, rz: cx * 1.2 }, 0xf6e9b0])
     }
     // Seams down the robe and a studded sash.
     parts.push(...panelSeams(5, [
@@ -184,47 +219,90 @@ const BUILDERS = {
     return buildColored(parts)
   },
 
-  // 혈갈 — flattened carapace, splayed legs, tail arched over the back.
+  // 혈갈 — carried high on splayed legs, tail arched over the back.
+  //
+  // The first version laid a lathed carapace flat on the ground and shrank the
+  // tail to a fifth scale, which read as a red pancake from every angle. The
+  // tail is the whole point of a scorpion, so here it owns the top half of the
+  // silhouette and the body is lifted clear of the ground to make room for legs.
   bloodScorpion() {
-    const shell = revolve([
-      [0.00, 0.30], [0.26, 0.28], [0.42, 0.20], [0.46, 0.10], [0.36, 0.02], [0.00, 0.00],
-    ], 14)
-    shell.scale(1, 1, 1.3)
-    gradient(shell, 0x8a2340, 0xc44a63, 'y')
-
-    const parts = [[shell, {}, undefined]]
-
-    // Segmented tail curling up and forward over the body.
-    const tail = limb(
-      [[0, 0.24, -0.4], [0, 0.52, -0.62], [0, 0.86, -0.5], [0, 0.96, -0.14], [0, 0.86, 0.06]],
-      [0.9, 0.78, 0.62, 0.46, 0.3], 20, 7,
+    const abdomen = limb(
+      [[0, 0.30, -0.46], [0, 0.33, -0.16], [0, 0.31, 0.12]],
+      [0.14, 0.23, 0.19], 12, 8,
     )
-    tail.scale(0.19, 0.19, 0.19)
-    gradient(tail, 0x932c44, 0xc0455e, 'y')
-    parts.push([tail, {}, undefined])
-    parts.push([new THREE.ConeGeometry(0.07, 0.24, 6), { y: 0.8, z: 0.16, rx: 1.9 }, 0x6d2333])
+    gradient(abdomen, 0x7a1c36, 0xc44a63, 'y')
 
-    // Legs.
-    for (let i = 0; i < 3; i++) {
-      const z = -0.12 + i * 0.19
+    const thorax = limb(
+      [[0, 0.31, 0.10], [0, 0.30, 0.30], [0, 0.27, 0.46]],
+      [0.20, 0.17, 0.10], 10, 8,
+    )
+    gradient(thorax, 0x8a2340, 0xd05a72, 'y')
+
+    // Segmented tail, arching up over the back and striking forward.
+    const tail = limb(
+      [[0, 0.40, -0.50], [0, 0.72, -0.66], [0, 1.05, -0.52],
+        [0, 1.20, -0.14], [0, 1.10, 0.20]],
+      [0.115, 0.098, 0.082, 0.066, 0.046], 24, 7,
+    )
+    gradient(tail, 0x932c44, 0xd05a72, 'y')
+
+    const parts = [
+      [abdomen, {}, undefined],
+      [thorax, {}, undefined],
+      [tail, {}, undefined],
+      // Stinger.
+      [new THREE.ConeGeometry(0.055, 0.24, 6), { y: 1.04, z: 0.32, rx: 2.2 }, 0x5e1c2c],
+      // Eye cluster.
+      [new THREE.SphereGeometry(0.032, 6, 5), { x: -0.07, y: 0.37, z: 0.34 }, 0xffd05a],
+      [new THREE.SphereGeometry(0.032, 6, 5), { x: 0.07, y: 0.37, z: 0.34 }, 0xffd05a],
+    ]
+
+    // Tail segment rings, so the arch reads as jointed rather than as a hose.
+    for (let i = 0; i < 5; i++) {
+      const t = 0.12 + i * 0.19
+      const a = Math.PI * t
+      parts.push([
+        new THREE.BoxGeometry(0.13, 0.035, 0.09),
+        { y: 0.42 + Math.sin(a) * 0.82, z: -0.52 + (1 - Math.cos(a)) * 0.42, rx: -a * 0.5 },
+        0x6d2333,
+      ])
+    }
+
+    // Four pairs of legs, splayed wide and reaching the ground.
+    for (let i = 0; i < 4; i++) {
+      const z = -0.26 + i * 0.20
+      const spread = 0.34 + Math.abs(i - 1.5) * 0.06
       for (const side of [-1, 1]) {
         parts.push([
           limb(
-            [[side * 0.3, 0.16, z], [side * 0.52, 0.14, z + side * 0.04], [side * 0.6, 0.0, z + side * 0.06]],
-            [0.5, 0.4, 0.28], 6, 5,
+            [[side * 0.16, 0.30, z],
+              [side * spread, 0.34, z + side * 0.05],
+              [side * (spread + 0.14), 0.10, z + side * 0.07],
+              [side * (spread + 0.10), 0.0, z + side * 0.06]],
+            [0.055, 0.045, 0.032, 0.02], 10, 5,
           ),
-          { sx: 0.18, sy: 0.18, sz: 0.18 }, 0xb0435a,
+          {}, 0x9c3450,
         ])
       }
     }
 
-    // Pincers.
+    // Pincer arms held out in front.
     for (const side of [-1, 1]) {
       parts.push([
-        limb([[side * 0.26, 0.2, 0.38], [side * 0.4, 0.18, 0.6], [side * 0.34, 0.16, 0.74]], [0.6, 0.75, 0.5], 8, 6),
-        { sx: 0.2, sy: 0.2, sz: 0.2 }, 0xc8536b,
+        limb(
+          [[side * 0.16, 0.30, 0.36], [side * 0.34, 0.26, 0.60], [side * 0.31, 0.24, 0.80]],
+          [0.075, 0.095, 0.065], 10, 6,
+        ),
+        {}, 0xc8536b,
       ])
-      parts.push([new THREE.ConeGeometry(0.06, 0.2, 5), { x: side * 0.34, y: 0.17, z: 0.86, rx: Math.PI / 2 }, 0x7e2a3c])
+      // Two-part claw, opened.
+      for (const jaw of [-1, 1]) {
+        parts.push([
+          new THREE.ConeGeometry(0.042, 0.26, 5),
+          { x: side * 0.31, y: 0.24 + jaw * 0.05, z: 0.95, rx: Math.PI / 2 - jaw * 0.26 },
+          0x7e2a3c,
+        ])
+      }
     }
     return buildColored(parts)
   },
@@ -251,20 +329,37 @@ const BUILDERS = {
     for (const side of [-1, 1]) {
       parts.push([
         limb(
-          [[side * 0.32, 1.4, 0], [side * 0.5, 1.06, 0.06], [side * 0.44, 0.74, 0.02]],
-          [0.7, 0.95, 0.62], 8, 6,
+          [[side * 0.36, 1.4, 0.04], [side * 0.56, 1.06, 0.24], [side * 0.48, 0.74, 0.30]],
+          [0.21, 0.285, 0.186], 10, 6,
         ),
-        { sx: 0.3, sy: 0.3, sz: 0.3 }, 0xa075de,
+        {}, 0xa075de,
       ])
     }
 
-    // Blades orbiting at his back.
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2
+    // A fan of blades hanging at his back. They used to orbit in a full ring,
+    // which made the whole figure axially symmetric — a fan behind the shoulders
+    // reads as a threat from the side and as a crown from the front.
+    for (let i = 0; i < 7; i++) {
+      const a = -1.05 + (i / 6) * 2.1
       parts.push([
-        new THREE.BoxGeometry(0.035, 0.44, 0.02),
-        { x: Math.cos(a) * 0.6, y: 2.08 + Math.sin(a * 2) * 0.07, z: Math.sin(a) * 0.6 - 0.2, rz: a * 0.5 },
-        0xd9c2ff,
+        new THREE.BoxGeometry(0.04, 0.52 + Math.cos(a) * 0.22, 0.02),
+        {
+          x: Math.sin(a) * 0.66,
+          y: 1.9 + Math.cos(a) * 0.26,
+          z: -0.34 - Math.cos(a) * 0.18,
+          rz: a * 0.8,
+        },
+        i % 2 ? 0xd9c2ff : 0xb79ae8,
+      ])
+    }
+    // Robe train, so the lathe is not the whole lower silhouette.
+    for (const [dx, len] of [[-0.2, 0.8], [0.06, 1.05], [0.22, 0.75]]) {
+      parts.push([
+        limb(
+          [[dx, 0.44, -0.3], [dx * 1.4, 0.3, -len * 0.6], [dx * 1.6, 0.06, -len]],
+          [0.26, 0.18, 0.04], 10, 5,
+        ),
+        { sx: 0.95, sy: 0.95, sz: 0.95 }, 0x5f3a94,
       ])
     }
     // Embroidery down the robe and gems on the sash.
@@ -274,6 +369,272 @@ const BUILDERS = {
     parts.push(...studRing(8, 0.48, 0.86, 0xffe9a8, { size: 0.036, shape: 'gem' }))
     return buildColored(parts)
   },
+}
+
+/**
+ * 청사 — a coiled serpent reared up to strike.
+ *
+ * The plateau needed a creature of its own, and nothing else in the bestiary is
+ * legless: a coil on the ground under a raised head gives 청람비경 a silhouette
+ * that cannot be mistaken for a wolf or a robe at any distance.
+ */
+BUILDERS.jadeSerpent = () => {
+  const body = limb(
+    [[-0.30, 0.09, -0.42], [0.34, 0.11, -0.34], [0.44, 0.12, 0.16],
+      [-0.02, 0.13, 0.36], [-0.34, 0.22, 0.06], [-0.16, 0.48, -0.06],
+      [0.06, 0.68, 0.14], [0.04, 0.74, 0.44]],
+    [0.05, 0.13, 0.17, 0.17, 0.15, 0.125, 0.105, 0.088], 30, 8,
+  )
+  gradient(body, 0x1f6b4a, 0x8fdcaa, 'y')
+
+  const head = limb(
+    [[0.04, 0.75, 0.42], [0.03, 0.765, 0.58], [0.02, 0.73, 0.74]],
+    [0.10, 0.125, 0.05], 10, 8,
+  )
+  gradient(head, 0x2f8f66, 0xa8e8c0, 'y')
+
+  const parts = [
+    [body, {}, undefined],
+    [head, {}, undefined],
+    // Slit eyes, and the forked tongue tasting the air.
+    [new THREE.SphereGeometry(0.036, 6, 5), { x: -0.075, y: 0.79, z: 0.6 }, 0xffd24a],
+    [new THREE.SphereGeometry(0.036, 6, 5), { x: 0.075, y: 0.79, z: 0.6 }, 0xffd24a],
+    [new THREE.ConeGeometry(0.012, 0.16, 3), { x: -0.02, y: 0.715, z: 0.84, rx: Math.PI / 2, rz: 0.3 }, 0xd8465e],
+    [new THREE.ConeGeometry(0.012, 0.16, 3), { x: 0.02, y: 0.715, z: 0.84, rx: Math.PI / 2, rz: -0.3 }, 0xd8465e],
+  ]
+
+  // Flared hood — the read that says "about to strike" before the dash starts.
+  for (const side of [-1, 1]) {
+    const hood = new THREE.SphereGeometry(0.26, 10, 8, 0, Math.PI, 0, Math.PI * 0.7)
+    parts.push([hood, {
+      x: side * 0.05, y: 0.63, z: 0.06,
+      rx: -0.5, rz: side * 1.25, sx: 1, sy: 0.7, sz: 0.28,
+    }, side < 0 ? 0x2a7d58 : 0x246f4e])
+  }
+
+  // Dorsal scutes running the length of the spine.
+  const spine = [
+    [0.30, 0.20, -0.34], [0.42, 0.22, 0.12], [-0.02, 0.24, 0.34],
+    [-0.32, 0.33, 0.04], [-0.16, 0.58, -0.06], [0.05, 0.77, 0.12],
+  ]
+  for (const [sx, sy, sz] of spine) {
+    parts.push([new THREE.ConeGeometry(0.038, 0.1, 4), { x: sx, y: sy, z: sz }, 0xd8f0a8])
+  }
+
+  // Pale belly scutes banding the outer coil.
+  for (let i = 0; i < 9; i++) {
+    const a = -0.6 + (i / 8) * 3.4
+    parts.push([
+      new THREE.BoxGeometry(0.075, 0.02, 0.05),
+      { x: Math.cos(a) * 0.42, y: 0.03, z: Math.sin(a) * 0.42 - 0.06, ry: -a },
+      0xe4f2c4,
+    ])
+  }
+  return buildColored(parts)
+}
+
+// ---- 적염비경 --------------------------------------------------------------
+
+/** 화정 — a spark elemental: a hot core wrapped in rising flame tongues. */
+BUILDERS.emberSprite = () => {
+  const core = revolve([
+    [0.00, 0.78], [0.18, 0.62], [0.26, 0.40], [0.22, 0.18], [0.00, 0.06],
+  ], 12)
+  gradient(core, 0xffe08a, 0xff6a2a, 'y')
+
+  shear(core, 0.22)
+
+  const parts = [[core, {}, undefined]]
+  // Flame tongues swept back by its own motion. Evenly spaced around the axis
+  // they cancelled out into a blob; raked backward they give it a direction.
+  for (let i = 0; i < 5; i++) {
+    const a = -1.15 + (i / 4) * 2.3
+    const rake = 0.55 + Math.cos(a) * 0.55
+    parts.push([
+      limb(
+        [[Math.sin(a) * 0.2, 0.12, 0.06],
+          [Math.sin(a) * 0.32, 0.46, -rake * 0.4],
+          [Math.sin(a) * 0.24, 0.72 + Math.cos(a) * 0.3, -rake]],
+        [0.55, 0.4, 0.04], 10, 5,
+      ),
+      { sx: 0.3, sy: 1, sz: 0.42 }, i % 2 ? 0xff9a4a : 0xffcf6a,
+    ])
+  }
+  parts.push([new THREE.SphereGeometry(0.07, 6, 5), { x: -0.07, y: 0.56, z: 0.3 }, 0xfff2c0])
+  parts.push([new THREE.SphereGeometry(0.07, 6, 5), { x: 0.07, y: 0.56, z: 0.3 }, 0xfff2c0])
+  return buildColored(parts)
+}
+
+/** 용암귀 — cooled crust over a molten interior, cracked open at every seam. */
+BUILDERS.magmaBrute = () => {
+  const torso = revolve([
+    [0.00, 1.35], [0.44, 1.26], [0.70, 0.98], [0.78, 0.60],
+    [0.68, 0.26], [0.48, 0.06], [0.00, 0.00],
+  ], 12)
+  gradient(torso, 0x3d2018, 0x8a4028, 'y')
+  roughen(torso, 0.1, 5)
+
+  const parts = [
+    [torso, {}, undefined],
+    [roughen(new THREE.DodecahedronGeometry(0.34, 0), 0.07, 9), { y: 1.32, z: 0.08 }, 0x5a2c1c],
+    // Molten seams.
+    [new THREE.BoxGeometry(0.6, 0.07, 0.05), { y: 0.86, z: 0.66, rz: 0.28 }, 0xffb04a],
+    [new THREE.BoxGeometry(0.42, 0.07, 0.05), { y: 0.56, z: 0.62, rz: -0.4 }, 0xff8a2a],
+    [new THREE.BoxGeometry(0.3, 0.06, 0.05), { y: 1.1, z: 0.5, rz: 0.5 }, 0xffc86a],
+    [new THREE.SphereGeometry(0.07, 6, 5), { x: -0.14, y: 1.36, z: 0.3 }, 0xffe07a],
+    [new THREE.SphereGeometry(0.07, 6, 5), { x: 0.14, y: 1.36, z: 0.3 }, 0xffe07a],
+  ]
+  for (const side of [-1, 1]) {
+    parts.push([
+      limb(
+        [[side * 0.80, 1.06, 0], [side * 1.00, 0.62, 0.06], [side * 0.92, 0.2, 0.02]],
+        [0.247, 0.286, 0.338], 8, 6,
+      ),
+      {}, 0x6b3423,
+    ])
+    parts.push([roughen(new THREE.DodecahedronGeometry(0.28, 0), 0.06, 7 + side), { x: side * 0.92, y: 0.14 }, 0x8a4028])
+  }
+  parts.push(...studRing(7, 0.74, 0.72, 0xff9a3c, { size: 0.055, shape: 'gem' }))
+  return buildColored(parts)
+}
+
+/** 재까마귀 — a fast flier, all wing and beak. */
+BUILDERS.ashRaven = () => {
+  const body = limb(
+    [[0, 0.72, -0.3], [0, 0.78, 0], [0, 0.72, 0.32]],
+    [0.55, 0.85, 0.4], 10, 8,
+  )
+  body.scale(0.3, 0.26, 0.3)
+  gradient(body, 0x6a4438, 0x2e1c16, 'y')
+
+  const parts = [
+    [body, {}, undefined],
+    [new THREE.ConeGeometry(0.07, 0.3, 5), { y: 0.72, z: 0.5, rx: Math.PI / 2 }, 0xe8b04a],
+    [new THREE.SphereGeometry(0.045, 6, 5), { x: -0.08, y: 0.8, z: 0.28 }, 0xff8a4a],
+    [new THREE.SphereGeometry(0.045, 6, 5), { x: 0.08, y: 0.8, z: 0.28 }, 0xff8a4a],
+  ]
+  // Swept wings.
+  for (const side of [-1, 1]) {
+    parts.push([
+      limb(
+        [[side * 0.14, 0.78, 0], [side * 0.52, 0.9, -0.16], [side * 0.86, 0.74, -0.4]],
+        [0.5, 0.34, 0.1], 10, 4,
+      ),
+      { sx: 1, sy: 0.35, sz: 1 }, 0x4a2e24,
+    ])
+  }
+  parts.push([new THREE.ConeGeometry(0.07, 0.34, 4), { y: 0.7, z: -0.42, rx: -1.3 }, 0x3a241c])
+  return buildColored(parts)
+}
+
+// ---- 한천비경 --------------------------------------------------------------
+
+/** 설랑 — the wolf silhouette in ice, with a frozen crest. */
+BUILDERS.frostWolf = () => {
+  const base = BUILDERS.wolf()
+  // Rebuilt rather than recoloured: a shared geometry would repaint 요랑 too.
+  const parts = [[base, {}, undefined]]
+  for (let i = 0; i < 5; i++) {
+    const a = -0.3 + i * 0.15
+    parts.push([
+      new THREE.ConeGeometry(0.05, 0.3, 4),
+      { x: Math.sin(a) * 0.16, y: 0.82, z: 0.1 - i * 0.12, rx: -0.25, rz: a },
+      0xdaf2ff,
+    ])
+  }
+  const geo = buildColored(parts)
+  // Wash the whole thing toward ice.
+  const col = geo.attributes.color
+  for (let i = 0; i < col.count; i++) {
+    col.setXYZ(i,
+      col.getX(i) * 0.72 + 0.24,
+      col.getY(i) * 0.86 + 0.14,
+      col.getZ(i) * 0.95 + 0.05)
+  }
+  col.needsUpdate = true
+  return geo
+}
+
+/** 설귀 — a veiled figure of drifting snow. */
+BUILDERS.snowWraith = () => {
+  const shroud = revolve([
+    [0.00, 1.10], [0.24, 1.00], [0.34, 0.76], [0.40, 0.46],
+    [0.34, 0.22], [0.20, 0.06], [0.00, -0.02],
+  ], 14)
+  gradient(shroud, 0x7fa8c4, 0xeaf6ff, 'y')
+  shear(shroud, -0.12)
+  // Thin front-to-back so the veil hangs like cloth rather than a bell.
+  flare(shroud, 0.4, -0.22)
+
+  const parts = [
+    [shroud, {}, undefined],
+    [new THREE.SphereGeometry(0.2, 12, 8), { y: 0.82, z: 0.1 }, 0x4a6d88],
+    [new THREE.SphereGeometry(0.05, 6, 5), { x: -0.08, y: 0.84, z: 0.24 }, 0x9ff0ff],
+    [new THREE.SphereGeometry(0.05, 6, 5), { x: 0.08, y: 0.84, z: 0.24 }, 0x9ff0ff],
+  ]
+  // Icicles along the hem, heaviest at the front where the veil parts.
+  for (let i = 0; i < 7; i++) {
+    const a = -1.3 + (i / 6) * 2.6
+    parts.push([
+      new THREE.ConeGeometry(0.05, 0.2 + Math.cos(a) * 0.16, 4),
+      { x: Math.sin(a) * 0.3, y: 0.02, z: 0.06 + Math.cos(a) * 0.26, rx: Math.PI },
+      0xcfeaff,
+    ])
+  }
+  // Arms of drifting snow, reaching for the player.
+  for (const side of [-1, 1]) {
+    parts.push([
+      limb(
+        [[side * 0.24, 0.78, 0.08], [side * 0.38, 0.62, 0.4], [side * 0.3, 0.52, 0.68]],
+        [0.16, 0.11, 0.03], 10, 5,
+      ),
+      {}, 0xbcdcf0,
+    ])
+  }
+  // A veil trailing off behind into snowfall.
+  for (const [dx, len] of [[-0.1, 0.72], [0.1, 0.72], [0, 0.98]]) {
+    parts.push([
+      limb(
+        [[dx, 0.7, -0.16], [dx * 1.6, 0.5, -len * 0.6], [dx * 1.8, 0.24, -len]],
+        [0.18, 0.12, 0.02], 10, 5,
+      ),
+      {}, 0x8fb8d4,
+    ])
+  }
+  return buildColored(parts)
+}
+
+/** 빙벽수 — a wall of ice that walks. */
+BUILDERS.glacierWarden = () => {
+  const body = revolve([
+    [0.00, 1.75], [0.50, 1.62], [0.78, 1.20], [0.86, 0.70],
+    [0.74, 0.28], [0.52, 0.05], [0.00, 0.00],
+  ], 10)
+  gradient(body, 0x3f6d90, 0xbfe4f8, 'y')
+
+  const parts = [[body, {}, undefined]]
+  // Jagged ice shards erupting from its back and shoulders.
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2
+    const h = 0.5 + (i % 3) * 0.3
+    parts.push([
+      new THREE.ConeGeometry(0.13, h, 4),
+      { x: Math.cos(a) * 0.62, y: 1.5 + h * 0.3, z: Math.sin(a) * 0.62 - 0.15, rz: Math.cos(a) * 0.4, rx: Math.sin(a) * 0.3 },
+      i % 2 ? 0xdff2ff : 0x9fd0ea,
+    ])
+  }
+  parts.push([new THREE.SphereGeometry(0.09, 8, 6), { x: -0.2, y: 1.5, z: 0.62 }, 0x9ff0ff])
+  parts.push([new THREE.SphereGeometry(0.09, 8, 6), { x: 0.2, y: 1.5, z: 0.62 }, 0x9ff0ff])
+  for (const side of [-1, 1]) {
+    parts.push([
+      limb(
+        [[side * 0.88, 1.3, 0], [side * 1.08, 0.8, 0.06], [side * 1.0, 0.3, 0.02]],
+        [0.247, 0.286, 0.351], 8, 6,
+      ),
+      {}, 0x6a9cbc,
+    ])
+  }
+  return buildColored(parts)
 }
 
 export function buildEnemyGeometry(enemyId) {

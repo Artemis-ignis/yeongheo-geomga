@@ -27,7 +27,12 @@ export const STAGES = [
       barrier: 0x8fd8ff,
     },
     grassDensity: 1.0,
-    roster: null, // every enemy the wave table asks for
+    // The baseline bestiary. Fire and ice creatures belong to their own 비경 and
+    // never wander in here, so this list is explicit rather than `null`.
+    roster: [
+      'wisp', 'wolf', 'stoneGhoul', 'talismanGhost', 'bloodScorpion', 'demonCultivator',
+      'jadeSerpent',
+    ],
     bosses: { mid: 'blueWolfKing', final: 'darkHeavenLord' },
     hpScale: 1.0,
     stoneScale: 1.0,
@@ -53,8 +58,12 @@ export const STAGES = [
       barrier: 0xff9a5a,
     },
     grassDensity: 0.55,
-    // Nothing slow and passive here — this stage is about pressure.
-    roster: ['wisp', 'wolf', 'bloodScorpion', 'demonCultivator', 'talismanGhost'],
+    // Fire creatures plus the fast half of the baseline roster. 석귀 is dropped:
+    // this stage is about pressure, and 용암귀 is the heavy it fields instead.
+    roster: [
+      'wisp', 'wolf', 'talismanGhost', 'bloodScorpion', 'demonCultivator',
+      'emberSprite', 'ashRaven', 'magmaBrute',
+    ],
     bosses: { mid: 'blueWolfKing', final: 'darkHeavenLord' },
     hpScale: 1.25,
     stoneScale: 1.35,
@@ -80,7 +89,12 @@ export const STAGES = [
       barrier: 0xbfe8ff,
     },
     grassDensity: 0.35,
-    roster: ['wisp', 'wolf', 'stoneGhoul', 'demonCultivator'],
+    // Ice creatures plus the durable half of the baseline roster. No 혈갈 and no
+    // 부적귀 — 설귀 is the caster here, and the split swarm belongs to the plains.
+    roster: [
+      'wisp', 'wolf', 'stoneGhoul', 'demonCultivator',
+      'frostWolf', 'snowWraith', 'glacierWarden',
+    ],
     bosses: { mid: 'blueWolfKing', final: 'darkHeavenLord' },
     hpScale: 1.55,
     stoneScale: 1.8,
