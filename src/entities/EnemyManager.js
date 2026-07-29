@@ -5,7 +5,7 @@ import { rollDamage, knockbackImpulse } from '../combat/damage.js'
 import { ENEMIES, ENEMY_INDEX, scaledDamage, scaledHp, scaledXp } from '../data/enemies.js'
 import { waveAt } from '../data/waves.js'
 import { buildEnemyGeometry } from '../art/enemyGeometry.js'
-import { makeToonMaterial, makeOutlineMaterial } from '../art/materials.js'
+import { makeToonMaterial } from '../art/materials.js'
 import { uploadInstances } from '../art/instancing.js'
 import { ARENA_RADIUS } from '../world/Terrain.js'
 
@@ -83,12 +83,15 @@ export class EnemyManager {
     this._neighbours = new Int32Array(64)
 
     this.meshes = []
-    this.outlines = []
     ENEMIES.forEach((def) => {
       const geo = buildEnemyGeometry(def.id)
+      // Colour lives in the geometry's vertex colours, so instanceColor is a
+      // pure tint (white = untinted) rather than the creature's base colour.
       const mesh = new THREE.InstancedMesh(
         geo,
-        makeToonMaterial({ color: 0xffffff, rim: 0.45, rimColor: 0xffd9f0 }),
+        // Rim is deliberately weak and neutral: it is added on top of the shaded
+        // colour, so a strong tinted rim washes every creature toward that tint.
+        makeToonMaterial({ color: 0xffffff, rim: 0.16, rimColor: 0xdce8ff, vertexColors: true }),
         MAX_ENEMIES,
       )
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
@@ -98,17 +101,11 @@ export class EnemyManager {
       mesh.count = 0
       scene.add(mesh)
       this.meshes.push(mesh)
-
-      // Cel outline: the same instances drawn as a slightly inflated back-face
-      // hull. Six extra draw calls buys every enemy a readable silhouette.
-      const outline = new THREE.InstancedMesh(geo, makeOutlineMaterial(0.035), MAX_ENEMIES)
-      outline.instanceMatrix = mesh.instanceMatrix
-      outline.frustumCulled = false
-      outline.renderOrder = -1
-      outline.count = 0
-      scene.add(outline)
-      this.outlines.push(outline)
     })
+    // No inverted-hull outline on enemies: the creatures are merged from many
+    // overlapping parts and so are not watertight, which lets an inner part's
+    // inflated back-faces land in front and swallow the whole model. The baked
+    // vertex colours carry the silhouette on their own.
     // Per-type index lists, rebuilt each frame into preallocated buffers.
     this.typeLists = ENEMIES.map(() => new Int32Array(MAX_ENEMIES))
     this.typeCounts = new Int32Array(ENEMIES.length)
@@ -432,7 +429,6 @@ export class EnemyManager {
       const mesh = this.meshes[t]
       const list = this.typeLists[t]
       const count = this.typeCounts[t]
-      const base = ENEMIES[t].color
 
       // Most enemies are their plain base colour most of the time. Re-uploading
       // the whole colour buffer every frame for a handful of tinted instances is
@@ -454,10 +450,11 @@ export class EnemyManager {
         if (tinted) anyTint = true
         if (!tinted && !colorDirty && mesh.instanceColor) continue
 
-        _color.setHex(base)
-        if (this.freezeT[i] > 0) _color.lerp(FREEZE_TINT, 0.7)
+        // White multiplies the baked vertex colour through unchanged.
+        _color.setRGB(1, 1, 1)
+        if (this.freezeT[i] > 0) _color.lerp(FREEZE_TINT, 0.75)
         else if (this.slowAmt[i] > 0) _color.lerp(SLOW_TINT, this.slowAmt[i] * 0.6)
-        if (this.flash[i] > 0) _color.lerp(FLASH_TINT, this.flash[i])
+        if (this.flash[i] > 0) _color.lerp(FLASH_TINT, this.flash[i] * 0.9)
         mesh.setColorAt(k, _color)
         colorDirty = true
       }
@@ -467,8 +464,6 @@ export class EnemyManager {
       this._colorDirty[t] = anyTint
 
       mesh.count = count
-      // The outline shares the instance matrix buffer, so it needs no upload.
-      this.outlines[t].count = count
       uploadInstances(mesh, count, colorDirty)
     }
   }
@@ -479,25 +474,19 @@ export class EnemyManager {
     this.killCount = 0
     this.spawnTimer = 0
     for (const m of this.meshes) m.count = 0
-    for (const o of this.outlines) o.count = 0
   }
 
   dispose() {
-    for (const o of this.outlines) {
-      o.material.dispose()
-      o.removeFromParent()
-    }
     for (const m of this.meshes) {
-      // Geometry is shared with the outline, so dispose it once here.
       m.geometry.dispose()
       m.material.dispose()
       m.removeFromParent()
     }
     this.meshes.length = 0
-    this.outlines.length = 0
   }
 }
 
-const FLASH_TINT = new THREE.Color(0xffffff)
-const SLOW_TINT = new THREE.Color(0x7fb6ff)
-const FREEZE_TINT = new THREE.Color(0xd8f4ff)
+// Multiplied over the baked vertex colours, so these are tints, not colours.
+const FLASH_TINT = new THREE.Color(4.5, 4.5, 4.5)
+const SLOW_TINT = new THREE.Color(0.55, 0.8, 1.4)
+const FREEZE_TINT = new THREE.Color(0.8, 1.25, 1.6)

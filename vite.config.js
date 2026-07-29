@@ -45,7 +45,10 @@ function screenshotSink() {
 
 export default defineConfig({
   base: './',
-  server: { open: true },
+  // Do not auto-launch the system browser: the dev server gets started and
+  // restarted a lot during work, and each restart would pop a new window.
+  // Open http://localhost:5173 yourself, or use `npm run dev -- --open`.
+  server: { open: false },
   build: { target: 'es2022', outDir: 'dist' },
   plugins: [screenshotSink()],
   test: {

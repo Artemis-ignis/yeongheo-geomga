@@ -116,7 +116,18 @@ export function makeAdditiveMaterial({ color = 0xffffff, opacity = 1, map = null
  * separates "anime character" from "assortment of shaded primitives".
  */
 export function makeOutlineMaterial(thickness = 0.02, color = 0x121820) {
-  const material = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide, fog: true })
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    side: THREE.BackSide,
+    fog: true,
+    // Our creatures are merged from many overlapping parts, so they are not
+    // watertight: an inner part's inflated back-faces can land in front of an
+    // outer part and swallow the whole model. Biasing the outline away from the
+    // camera guarantees the shaded surface always wins the depth test.
+    polygonOffset: true,
+    polygonOffsetFactor: 2,
+    polygonOffsetUnits: 4,
+  })
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uThickness = { value: thickness }
     shader.vertexShader = shader.vertexShader

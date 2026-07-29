@@ -54,10 +54,13 @@ export function createScene() {
   // instead of ending on a hard line.
   scene.fog = new THREE.FogExp2(PALETTE.fog, 0.0085)
 
-  const hemi = new THREE.HemisphereLight(0xbfe3ff, 0x3a4a3a, 1.6)
+  // Kept well under 1.0 combined. At the previous 1.6 + 2.1 every surface was
+  // multiplied past white and the whole palette washed out to pastel — which is
+  // most of what made the art read as cheap, regardless of the geometry.
+  const hemi = new THREE.HemisphereLight(0x9fc8e8, 0x40513f, 0.85)
   scene.add(hemi)
 
-  const sun = new THREE.DirectionalLight(0xfff0d6, 2.1)
+  const sun = new THREE.DirectionalLight(0xffe9c4, 1.35)
   sun.position.set(18, 34, 12)
   sun.castShadow = true
   sun.shadow.mapSize.set(1024, 1024)
