@@ -55,8 +55,8 @@ function wrapped(ctx, S, draw) {
  * grain, moss clumps, cracks and a 문양 lattice so the surface holds up when the
  * camera is right on top of it.
  */
-export function groundTexture(baseHex = 0x2b4d42, mossHex = 0x96d696) {
-  return cached(`ground${baseHex}${mossHex}`, () => {
+export function groundTexture(baseHex = 0x2b4d42, mossHex = 0x96d696, veinHex = 0) {
+  return cached(`ground${baseHex}${mossHex}${veinHex}`, () => {
     const S = 1024
     const c = canvas(S)
     const ctx = c.getContext('2d')
@@ -139,18 +139,51 @@ export function groundTexture(baseHex = 0x2b4d42, mossHex = 0x96d696) {
       a += 1
     }
 
-    // 문양 lattice, kept faint so it reads as inlay rather than a grid overlay.
-    ctx.strokeStyle = 'rgba(232,197,106,0.075)'
-    ctx.lineWidth = 2
-    const step = S / 8
-    ctx.beginPath()
-    for (let i = -8; i <= 16; i++) {
-      ctx.moveTo(i * step, 0); ctx.lineTo(i * step + S, S)
-      ctx.moveTo(i * step, S); ctx.lineTo(i * step + S, 0)
-    }
-    ctx.stroke()
+    // A 문양 lattice used to be drawn here on a fixed S/8 diagonal step. It was
+    // meant to read as inlay, but a regular geometric grid tiled across the
+    // whole plateau is a grid however faint it is, and it was a real part of the
+    // graph-paper look over the arena. Broad variation comes from the tonal
+    // patches above instead.
 
-    return finish(c, { repeat: 14 })
+    // Glowing veins, for stages whose ground is cracked open onto something hot.
+    // This is how 적염비경 gets its fire back after the albedo was desaturated
+    // to stop it swallowing the creatures standing on it: light from the floor,
+    // in thin lines that cover very little of it.
+    if (veinHex) {
+      const [vr, vg, vb] = rgb(veinHex)
+      for (let pass = 0; pass < 2; pass++) {
+        // Wide soft halo first, then a hot thin core inside it.
+        ctx.strokeStyle = pass === 0
+          ? `rgba(${vr},${vg},${vb},0.16)`
+          : `rgba(255,${Math.min(255, vg + 90)},${Math.min(255, vb + 70)},0.85)`
+        ctx.lineWidth = pass === 0 ? 11 : 2.4
+        ctx.lineCap = 'round'
+        let seed = 20240719
+        const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+        for (let i = 0; i < 14; i++) {
+          const x = rnd() * S
+          const y = rnd() * S
+          let ang = rnd() * Math.PI * 2
+          wrapped(ctx, S, (k) => {
+            k.beginPath()
+            k.moveTo(x, y)
+            let cx = x
+            let cy = y
+            for (let s = 0; s < 16; s++) {
+              ang += (rnd() - 0.5) * 1.1
+              cx += Math.cos(ang) * 22
+              cy += Math.sin(ang) * 22
+              k.lineTo(cx, cy)
+            }
+            k.stroke()
+          })
+        }
+      }
+    }
+
+    // Matches the normal map's repeat. Two different tiling rates over the same
+    // surface beat against each other and produce a third, coarser pattern.
+    return finish(c, { repeat: 9 })
   })
 }
 

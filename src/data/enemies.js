@@ -27,9 +27,12 @@ export const ENEMIES = [
     behavior: 'splitter', color: 0xa3324a, scale: 0.95, splitInto: 2,
   },
   {
+    // Reads noticeably larger than the rank and file. An elite that is the same
+    // size as the trash around it is an elite the player does not notice until
+    // it has already hit them.
     id: 'demonCultivator', name: '마수사',
-    hp: 160, speed: 3.4, damage: 22, radius: 0.85, kbResist: 0.5, xp: 15,
-    behavior: 'dasher', color: 0x6b3fa0, scale: 1.0, elite: true, dashInterval: 4,
+    hp: 160, speed: 3.4, damage: 22, radius: 0.95, kbResist: 0.5, xp: 15,
+    behavior: 'dasher', color: 0x6b3fa0, scale: 1.22, elite: true, dashInterval: 4,
   },
 
   // ---- 청람비경 ----------------------------------------------------------

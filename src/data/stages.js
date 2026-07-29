@@ -54,6 +54,10 @@ export const STAGES = [
       // 비경 belongs to the sky and the things trying to kill you.
       ground: 0x3a2f2a,
       groundMoss: 0x7a5a48,
+      // The fire lives here rather than in the ground tone: thin hot veins cover
+      // almost none of the surface, so they read as drama without raising the
+      // floor's value back into the creatures walking on it.
+      groundVein: 0xff6a1e,
       grassBase: 0x4a3a30,
       grassTip: 0x9c7a58,
       pine: 0x4a3a2e,

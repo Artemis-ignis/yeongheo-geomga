@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { measureModel, checkModel, CREATURE_GATES } from '../src/art/modelGates.js'
+import { measureModel, checkModel, CREATURE_GATES, silhouetteLikeness } from '../src/art/modelGates.js'
 import { buildEnemyGeometry } from '../src/art/enemyGeometry.js'
 import { buildBossGeometry } from '../src/art/bossGeometry.js'
 import { ENEMIES } from '../src/data/enemies.js'
@@ -48,6 +48,28 @@ describe('creature model quality gates', () => {
       expect(m.triangles, `"${id}" is too heavy for the horde`).toBeLessThan(3000)
     }
   })
+})
+
+describe('no two creatures on a stage share a silhouette', () => {
+  // Absolute complexity says whether a shape is articulated. This says whether
+  // the player can tell two of them apart mid-fight, which is the question that
+  // actually decides whether a crowd is readable. Only creatures that can be on
+  // screen together are compared — 석귀 and 용암귀 look alike but belong to
+  // different 비경 and never meet.
+  for (const stage of STAGES) {
+    it(`every ${stage.name} pairing is distinguishable`, () => {
+      const roster = stage.roster ?? ENEMIES.map((e) => e.id)
+      const geo = new Map(roster.map((id) => [id, buildEnemyGeometry(id)]))
+      const clashes = []
+      for (let i = 0; i < roster.length; i++) {
+        for (let j = i + 1; j < roster.length; j++) {
+          const like = silhouetteLikeness(geo.get(roster[i]), geo.get(roster[j]))
+          if (like > 0.72) clashes.push(`${roster[i]}/${roster[j]} ${like.toFixed(2)}`)
+        }
+      }
+      expect(clashes, `too alike on ${stage.id}: ${clashes.join(', ')}`).toEqual([])
+    })
+  }
 })
 
 describe('stage rosters', () => {

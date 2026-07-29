@@ -290,6 +290,39 @@ export function checkModel(metrics, gates = CREATURE_GATES) {
   return failures
 }
 
+/**
+ * How alike two models look, 0 (nothing in common) to 1 (identical).
+ *
+ * Averaged over the same yaws `measureModel` uses. Absolute complexity says
+ * whether a shape is articulated; this says whether it can be told apart from
+ * the thing standing next to it, which is the question that actually matters
+ * when both are in the same crowd.
+ */
+export function silhouetteLikeness(a, b) {
+  const frame = (geo) => {
+    geo.computeBoundingBox()
+    const box = geo.boundingBox
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    const reach = Math.max(
+      Math.hypot(box.max.x, box.max.z), Math.hypot(box.min.x, box.min.z),
+      Math.hypot(box.max.x, box.min.z), Math.hypot(box.min.x, box.max.z),
+    )
+    const span = Math.max(reach * 2, size.y, 1e-4)
+    return { scale: (RES * 0.92) / span, cy: (box.max.y + box.min.y) / 2 }
+  }
+  const fa = frame(a)
+  const fb = frame(b)
+  let total = 0
+  for (const yaw of YAWS) {
+    total += maskIoU(
+      rasterise(a, yaw, fa.scale, 0, fa.cy),
+      rasterise(b, yaw, fb.scale, 0, fb.cy),
+    )
+  }
+  return total / YAWS.length
+}
+
 /** Silhouette mask at one yaw, exposed so dev tooling can draw what the gate saw. */
 export function silhouetteMask(geometry, yaw = 0) {
   geometry.computeBoundingBox()

@@ -47,7 +47,7 @@ export class Terrain {
     // A finite disc, not an infinite plane — the arena is a floating plateau, and
     // seeing its edge drop into the void is what sells that.
     const geo = new THREE.CircleGeometry(PLATEAU_RADIUS, 96)
-    const tex = groundTexture(this.pal.ground, this.pal.groundMoss)
+    const tex = groundTexture(this.pal.ground, this.pal.groundMoss, this.pal.groundVein ?? 0)
     // The normal map is what makes the surface catch light; without it the ground
     // is a painted plane however detailed the albedo gets.
     const mat = makeToonMaterial({

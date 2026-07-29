@@ -181,6 +181,30 @@ const BUILDERS = {
       // Stubby leg.
       parts.push([new THREE.CylinderGeometry(0.2, 0.24, 0.3, 6), { x: side * 0.3, y: 0.14 }, 0x7d7466])
     }
+    // Shoulder spurs and a jutting brow. The back slabs below fixed how 석귀
+    // reads as it turns, but from any single angle its outline was still a
+    // smooth curve — these break the edge itself, which is the part of the
+    // silhouette the player actually traces.
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        const h = 0.42 - i * 0.09
+        parts.push([
+          roughen(new THREE.ConeGeometry(0.17 - i * 0.03, h, 4), 0.04, 31 + i * 3 + side),
+          {
+            x: side * (0.62 + i * 0.06),
+            y: 1.06 - i * 0.26,
+            z: 0.1 - i * 0.16,
+            rz: side * (0.9 + i * 0.2), rx: -0.2,
+          },
+          i % 2 ? 0xa89c88 : 0x8d8375,
+        ])
+      }
+    }
+    parts.push([
+      roughen(new THREE.BoxGeometry(0.52, 0.16, 0.3), 0.05, 77),
+      { y: 1.36, z: 0.3, rx: 0.35 }, 0xb0a493,
+    ])
+
     // Broken slabs jutting off its back — the read that separates 석귀 from an
     // ordinary boulder, and from 용암귀, which is craggy all over instead.
     for (let i = 0; i < 5; i++) {
@@ -377,17 +401,27 @@ const BUILDERS = {
     // A fan of blades hanging at his back. They used to orbit in a full ring,
     // which made the whole figure axially symmetric — a fan behind the shoulders
     // reads as a threat from the side and as a crown from the front.
-    for (let i = 0; i < 7; i++) {
-      const a = -1.05 + (i / 6) * 2.1
+    for (let i = 0; i < 9; i++) {
+      const a = -1.2 + (i / 8) * 2.4
       parts.push([
-        new THREE.BoxGeometry(0.04, 0.52 + Math.cos(a) * 0.22, 0.02),
+        new THREE.BoxGeometry(0.05, 0.78 + Math.cos(a) * 0.42, 0.024),
         {
-          x: Math.sin(a) * 0.66,
-          y: 1.9 + Math.cos(a) * 0.26,
-          z: -0.34 - Math.cos(a) * 0.18,
+          x: Math.sin(a) * 0.88,
+          y: 2.06 + Math.cos(a) * 0.34,
+          z: -0.42 - Math.cos(a) * 0.22,
           rz: a * 0.8,
         },
         i % 2 ? 0xd9c2ff : 0xb79ae8,
+      ])
+    }
+    // Horns off the mask, so the head has a shape of its own at a distance.
+    for (const side of [-1, 1]) {
+      parts.push([
+        limb(
+          [[side * 0.14, 1.92, 0.04], [side * 0.34, 2.16, -0.16], [side * 0.3, 2.34, -0.46]],
+          [0.062, 0.042, 0.012], 10, 5,
+        ),
+        {}, 0xd8b45a,
       ])
     }
     // Robe train, so the lathe is not the whole lower silhouette.
@@ -551,6 +585,20 @@ BUILDERS.magmaBrute = () => {
     ])
     parts.push([roughen(new THREE.DodecahedronGeometry(0.28, 0), 0.06, 7 + side), { x: side * 0.92, y: 0.14 }, 0x8a4028])
   }
+  // Crust plates breaking the outline all the way round, so 용암귀 reads as
+  // something crusted over rather than as a smooth boulder. 석귀 gets angular
+  // spurs instead — the two heavies have to be tellable apart in a crowd.
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 + 0.4
+    const y = 0.34 + (i % 4) * 0.28
+    const r = 0.52 + Math.sin(i * 2.1) * 0.16
+    parts.push([
+      roughen(new THREE.DodecahedronGeometry(0.2 + (i % 3) * 0.05, 0), 0.06, 41 + i),
+      { x: Math.sin(a) * r, y, z: Math.cos(a) * r },
+      i % 2 ? 0x8a4028 : 0x5a2c1c,
+    ])
+  }
+
   // Cooled crust breaking off its back, with the melt showing through beneath.
   for (let i = 0; i < 6; i++) {
     const a = -0.9 + i * 0.36
@@ -603,16 +651,50 @@ BUILDERS.ashRaven = () => {
 
 // ---- 한천비경 --------------------------------------------------------------
 
-/** 설랑 — the wolf silhouette in ice, with a frozen crest. */
+/**
+ * 설랑 — the wolf frozen over, with a mane of ice it carries like armour.
+ *
+ * This used to be 요랑 with five small spikes glued on, which measured at 0.72
+ * silhouette likeness against it — and unlike 석귀 and 용암귀, these two share a
+ * 비경 and genuinely appear side by side. A recolour is not a second creature.
+ * The ice here is structural: a tall dorsal crest, sheeted shoulders, and a
+ * frozen plume of a tail that changes the outline from every angle.
+ */
 BUILDERS.frostWolf = () => {
   const base = BUILDERS.wolf()
   // Rebuilt rather than recoloured: a shared geometry would repaint 요랑 too.
   const parts = [[base, {}, undefined]]
-  for (let i = 0; i < 5; i++) {
-    const a = -0.3 + i * 0.15
+
+  // Dorsal crest, tallest over the shoulders.
+  for (let i = 0; i < 7; i++) {
+    const t = i / 6
+    const h = 0.52 - t * 0.30
     parts.push([
-      new THREE.ConeGeometry(0.05, 0.3, 4),
-      { x: Math.sin(a) * 0.16, y: 0.82, z: 0.1 - i * 0.12, rx: -0.25, rz: a },
+      new THREE.ConeGeometry(0.075 - t * 0.025, h, 4),
+      { x: 0, y: 0.74 + h * 0.42, z: 0.26 - t * 0.62, rx: -0.42 + t * 0.2 },
+      i % 2 ? 0xdaf2ff : 0x9fd0ea,
+    ])
+  }
+  // Sheets of ice over the shoulders, jutting sideways past the body.
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 3; i++) {
+      const h = 0.42 - i * 0.09
+      parts.push([
+        new THREE.ConeGeometry(0.062, h, 4),
+        { x: side * (0.22 + i * 0.05), y: 0.66 - i * 0.1, z: 0.2 - i * 0.2, rz: side * (1.0 + i * 0.15), rx: -0.2 },
+        0xcfeaff,
+      ])
+    }
+  }
+  // Frozen plume of a tail, held high and heavy with ice.
+  parts.push([
+    limb([[0, 0.52, -0.5], [0.03, 0.8, -0.78], [0.02, 1.04, -0.92]], [0.09, 0.11, 0.03], 12, 6),
+    {}, 0xbfe4f6,
+  ])
+  for (let i = 0; i < 4; i++) {
+    parts.push([
+      new THREE.ConeGeometry(0.055, 0.2, 4),
+      { x: (i % 2 ? 1 : -1) * 0.09, y: 0.7 + i * 0.11, z: -0.72 - i * 0.05, rz: (i % 2 ? 1 : -1) * 1.1 },
       0xdaf2ff,
     ])
   }
