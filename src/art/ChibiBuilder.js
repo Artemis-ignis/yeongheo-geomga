@@ -603,6 +603,27 @@ export function buildChibi(character) {
   }
   let swordCount = 0
 
+  /**
+   * Afterimages behind each orbiting blade.
+   *
+   * Every projectile in the game got a motion trail, and the 어검술 swords —
+   * which are on screen continuously rather than for half a second — were the
+   * one moving thing left with none. Three ghosts per sword, placed at earlier
+   * points on the same orbit and fading back, so the ring reads as three blades
+   * sweeping rather than three blades teleporting around her.
+   */
+  const GHOSTS_PER_SWORD = 3
+  const ghosts = []
+  for (let i = 0; i < 3 * GHOSTS_PER_SWORD; i++) {
+    const fade = 1 - (i % GHOSTS_PER_SWORD) / GHOSTS_PER_SWORD
+    const g = new THREE.Mesh(swordGeo, makeAdditiveMaterial({
+      color: pal.accent, opacity: 0.30 * fade * fade,
+    }))
+    g.visible = false
+    ghosts.push(g)
+    root.add(g)
+  }
+
   // Only the character casts shadows; receiving them on a low-poly figure this
   // small just produces acne.
   root.traverse((o) => { if (o.isMesh) o.receiveShadow = false })
@@ -640,6 +661,9 @@ export function buildChibi(character) {
     setOrbitSwords(count) {
       swordCount = Math.max(0, Math.min(3, count))
       for (let i = 0; i < 3; i++) swords[i].visible = i < swordCount
+      for (let i = 0; i < ghosts.length; i++) {
+        ghosts[i].visible = Math.floor(i / GHOSTS_PER_SWORD) < swordCount
+      }
     },
 
     update(dt, speed01, facingAngle) {
@@ -692,11 +716,21 @@ export function buildChibi(character) {
       ring.material.opacity = 0.42 + Math.sin(time * 2) * 0.10
 
       // Swords hang point-down and circle the cultivator, 어검술 style.
+      const place = (mesh, a, t) => {
+        _v.set(Math.cos(a) * 0.82, 0.95 + Math.sin(a * 2 + t) * 0.10, Math.sin(a) * 0.82)
+        mesh.position.copy(_v)
+        mesh.rotation.set(Math.PI * 0.92, -a + Math.PI / 2, 0)
+      }
       for (let i = 0; i < swordCount; i++) {
         const a = time * 1.4 + (i / swordCount) * Math.PI * 2
-        _v.set(Math.cos(a) * 0.82, 0.95 + Math.sin(a * 2 + time) * 0.10, Math.sin(a) * 0.82)
-        swords[i].position.copy(_v)
-        swords[i].rotation.set(Math.PI * 0.92, -a + Math.PI / 2, 0)
+        place(swords[i], a, time)
+        // Ghosts sit further back along the same orbit, shrinking as they go.
+        for (let gi = 0; gi < GHOSTS_PER_SWORD; gi++) {
+          const lag = (gi + 1) * 0.085
+          const ghost = ghosts[i * GHOSTS_PER_SWORD + gi]
+          place(ghost, a - lag * 1.4, time - lag)
+          ghost.scale.setScalar(1 - (gi + 1) * 0.13)
+        }
       }
     },
 
