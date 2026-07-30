@@ -22,6 +22,7 @@ export class Input {
     this._slot = 0
     this._debug = false
     this._quality = false
+    this._mute = false
     this._x = 0
     this._z = 0
 
@@ -37,6 +38,7 @@ export class Input {
       else if (e.code === 'Digit3') this._slot = 3
       else if (e.code === 'F3') { e.preventDefault(); this._debug = true }
       else if (e.code === 'F4') { e.preventDefault(); this._quality = true }
+      else if (e.code === 'KeyM') this._mute = true
       this._recompute()
     }
     this._onKeyUp = (e) => { this.down.delete(e.code); this._recompute() }
@@ -77,6 +79,7 @@ export class Input {
   consumeSlot() { const v = this._slot; this._slot = 0; return v }
   consumeDebug() { const v = this._debug; this._debug = false; return v }
   consumeQuality() { const v = this._quality; this._quality = false; return v }
+  consumeMute() { const v = this._mute; this._mute = false; return v }
 
   dispose() {
     this.target.removeEventListener('keydown', this._onKeyDown)

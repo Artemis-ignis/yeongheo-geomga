@@ -7,6 +7,7 @@ import { Terrain, PLATEAU_RADIUS } from '../world/Terrain.js'
 import { Sky } from '../world/Sky.js'
 import { Grass } from '../world/Grass.js'
 import { Shadows } from '../world/Shadows.js'
+import { AudioEngine } from '../audio/Audio.js'
 import { Post } from '../world/Post.js'
 import { Player } from '../entities/Player.js'
 import { EnemyManager } from '../entities/EnemyManager.js'
@@ -66,6 +67,13 @@ export class Game {
 
     // Meta progression is loaded once and lives for the whole session.
     this.progress = new Progress(Save.load())
+
+    // Silent until a gesture unlocks it — browsers refuse to start an
+    // AudioContext before one, and every call is a no-op while it is silent.
+    this.audio = new AudioEngine()
+    this._unlockAudio = () => this.audio.unlock()
+    addEventListener('pointerdown', this._unlockAudio)
+    addEventListener('keydown', this._unlockAudio)
 
     this.hud = new Hud(hudRoot)
     this.modal = new LevelUpModal(hudRoot)
@@ -182,6 +190,8 @@ export class Game {
   _startRun(characterId, stageId) {
     if (stageId) this._setStage(getStage(stageId))
     this._clearPreview()
+    this.audio.unlock()
+    this.audio.startMusic(this.stage?.id ?? 'jade')
 
     this.seed = makeSeed()
     this.rng = new RNG(this.seed)
@@ -223,10 +233,19 @@ export class Game {
   }
 
   _wireCallbacks() {
-    this.enemies.onDamageText = (x, y, z, amount, crit) => this.overlay.pushText(x, y, z, amount, crit)
-    this.boss.onDamageText = (x, y, z, amount, crit) => this.overlay.pushText(x, y, z, amount, crit)
+    // One place for both the number and the impact sound: every path that deals
+    // damage already reports here, so nothing can land silently.
+    this.enemies.onDamageText = (x, y, z, amount, crit) => {
+      this.audio.play(crit ? 'crit' : 'hit', { pan: this._panAt(x) })
+      this.overlay.pushText(x, y, z, amount, crit)
+    }
+    this.boss.onDamageText = (x, y, z, amount, crit) => {
+      this.audio.play(crit ? 'crit' : 'hit', { pan: this._panAt(x) })
+      this.overlay.pushText(x, y, z, amount, crit)
+    }
 
     this.enemies.onKill = (x, z, xp, def, wasFrozen) => {
+      this.audio.play('kill', { pan: this._panAt(x) })
       this.vfx.deathPuff(x, z)
       this.pickups.drop('qi', x, z, xp)
       this.progress.markSeen('enemies', def.id)
@@ -262,6 +281,7 @@ export class Game {
     }
 
     this.player.onHurt = (fraction) => {
+      this.audio.play('hurt')
       this.impact.screenFlash(Math.min(0.55, 0.18 + fraction * 2.2), 1, 0.22, 0.26)
       this.camera.addTrauma(0.22 + fraction * 1.2)
       if (fraction > 0.12) this.impact.hitstop(0.04)
@@ -275,11 +295,19 @@ export class Game {
 
     this.pickups.onCollect = (kind, value) => {
       if (kind === 'qi') {
+        // The step climbs while orbs keep arriving and resets after a pause, so
+        // sweeping through a drift of 영기 plays as a rising phrase.
+        const now = this.runTime
+        this._qiStep = now - (this._qiAt ?? -9) < 0.55 ? (this._qiStep ?? 0) + 1 : 0
+        this._qiAt = now
+        this.audio.play('pickup', { step: this._qiStep })
         const gained = this.player.addXp(value * this.player.stats.growth)
         if (gained > 0) this._breakthrough(gained)
       } else if (kind === 'stone') {
+        this.audio.play('stone')
         this.player.stones += value
       } else if (kind === 'heal') {
+        this.audio.play('stone')
         this.player.heal(value)
       } else if (kind === 'chest') {
         this.player.stones += 500
@@ -289,6 +317,7 @@ export class Game {
     }
 
     this.boss.onWarning = (def) => {
+      this.audio.play('boss')
       this.overlay.pushBanner(def.name)
       this.camera.addTrauma(0.4)
       this.progress.markSeen('bosses', def.id)
@@ -311,9 +340,16 @@ export class Game {
     }
   }
 
+  /** Screen-space pan for a world x, so hits sound where they happen. */
+  _panAt(x) {
+    const dx = x - (this.camera?.x ?? 0)
+    return Math.max(-1, Math.min(1, dx / 16)) * 0.7
+  }
+
   /** 경지 돌파: a shockwave that buys breathing room, then the upgrade choice. */
   _breakthrough(levels) {
     const p = this.player
+    this.audio.play('breakthrough')
     this.vfx.pillar(p.x, p.z)
     this.vfx.shockRing(p.x, p.z, BREAKTHROUGH_RADIUS)
     this.camera.addTrauma(0.5)
@@ -360,6 +396,7 @@ export class Game {
         this.enemies.purgeOnScreen(this.camera, this.player.x, this.player.z, this.player.stats)
       }
     }
+    this.audio.play('levelPick')
     this.player.recomputeStats()
     this.weapons.sync(this.player.loadout, this.player, this.player.stats)
     if (this.state === 'levelUp') this.state = 'playing'
@@ -370,6 +407,8 @@ export class Game {
   _endRun() {
     this.state = 'result'
     this.hud.hide()
+    this.audio.stopMusic()
+    this.audio.play(this.victory ? 'victory' : 'defeat')
 
     // Everything earned in the run is banked here — this is the whole point of
     // the meta layer, so it happens before anything can go wrong on screen.
@@ -489,6 +528,12 @@ export class Game {
   _ambient(dt, px, pz) {
     this._animTime = (this._animTime ?? 0) + dt
     this.enemies?.setAnimTime(this._animTime)
+    this.audio.update(dt, {
+      runTime: this.runTime,
+      runSeconds: RUN_SECONDS,
+      hpFraction: this.player ? this.player.hp / this.player.maxHp : 1,
+      bossAlive: Boolean(this.boss?.active),
+    })
     this.vfx?.update(dt)
     this.terrain?.update(dt, px, pz)
     this.grass?.update(dt, px, pz)
@@ -543,6 +588,9 @@ export class Game {
       if (this.input.consumeDebug()) this.debug.toggle()
       if (this.input.consumeQuality()) {
         this.overlay.pushBanner(`화질 ${this.quality.cycle()}`, 1.4)
+      }
+      if (this.input.consumeMute()) {
+        this.overlay.pushBanner(this.audio.toggleMute() ? '음소거' : '소리 켜짐', 1.2)
       }
       if (this.input.consumePause() && (this.state === 'playing' || this.state === 'paused')) {
         this._setPaused(this.state === 'playing')
@@ -638,6 +686,9 @@ export class Game {
   dispose() {
     this.renderer.setAnimationLoop(null)
     removeEventListener('resize', this._onResize)
+    removeEventListener('pointerdown', this._unlockAudio)
+    removeEventListener('keydown', this._unlockAudio)
+    this.audio.dispose()
     document.removeEventListener('visibilitychange', this._onVisibility)
     this.input.dispose()
     this._teardownRun()
@@ -653,4 +704,3 @@ export class Game {
 }
 
 void THREE
-void RUN_SECONDS
