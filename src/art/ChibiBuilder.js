@@ -228,8 +228,11 @@ export function buildChibi(character) {
     // `front` is 1 straight ahead and 0 at the back of the head.
     const front = (Math.cos(a) + 1) * 0.5
     if (front < 0.18) continue // the back is covered by the hairBack lathe
-    // Short over the brow, sweeping longer toward the temples and the sides.
-    const len = 0.30 + (1 - front) * 0.46 + Math.abs(Math.sin(a)) * 0.12
+    // Short over the brow, a little longer at the temples. Capped hard: the
+    // previous falloff produced 0.88 at the sides, which before the body scale
+    // hung a lock from each temple to below the chest — two flat boards down
+    // her flanks, measured at 1.02 units tall. These are bangs, not a curtain.
+    const len = 0.25 + (1 - front) * 0.15
     const wide = 0.048 + front * 0.022
     const lock = new THREE.Mesh(new THREE.ConeGeometry(wide, len, 5), hairMat)
     // Apex down: a lock of hair comes to a point at its tip, not at its root.
@@ -260,9 +263,12 @@ export function buildChibi(character) {
     // A tapered tube hanging from its attachment point, not a capsule centred on
     // its middle: the taper reads as hair and the pivot lands where the strand
     // actually meets the head, so the sway swings from the root.
+    // Ten radial segments, not seven. At this thickness a heptagonal tube shows
+    // each facet as a broad flat plane, and a strand of hair lit as five visible
+    // planes reads as a carved board — which is exactly what these looked like.
     const geo = limb(
       [[0, 0, 0], [0, -len * 0.45, len * 0.06], [0, -len * 0.82, len * 0.02], [0, -len * 1.05, -len * 0.08]],
-      [1.0, 1.12, 0.78, 0.18], 12, 7,
+      [1.0, 1.12, 0.78, 0.18], 12, 10,
     )
     // limb() builds at a base radius of 1 and its `radii` are multipliers, so the
     // cross-section has to be scaled to the real thickness here.
@@ -280,10 +286,13 @@ export function buildChibi(character) {
   if (character.id === 'seolryeong') {
     // Long twintails. Narrow, because at 0.10 they were as wide as her forearm
     // and read as two flat paddles bolted to her head rather than as hair.
-    addStrand(-0.42, 1.04, -0.06, 0.86, 0.20, 0.062)
-    addStrand(0.42, 1.04, -0.06, 0.86, -0.20, 0.062)
-    addStrand(-0.34, 1.0, -0.16, 0.62, 0.34, 0.042)
-    addStrand(0.34, 1.0, -0.16, 0.62, -0.34, 0.042)
+    // Measured at 1.46 units tall before this — hanging from her head to below
+    // her own feet, which is why they read as two slabs flanking her instead of
+    // as hair. A twintail ends around the waist.
+    addStrand(-0.38, 1.00, -0.10, 0.34, 0.14, 0.044)
+    addStrand(0.38, 1.00, -0.10, 0.34, -0.14, 0.044)
+    addStrand(-0.30, 0.96, -0.22, 0.24, 0.26, 0.032)
+    addStrand(0.30, 0.96, -0.22, 0.24, -0.26, 0.032)
   } else if (character.id === 'hongryeon') {
     // Side locks framing the face, plus a long tail down the back.
     addStrand(-0.40, 1.10, 0.10, 0.46, 0.12, 0.08)
