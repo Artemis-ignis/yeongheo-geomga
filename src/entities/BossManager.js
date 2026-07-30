@@ -27,6 +27,31 @@ const WARNING_LEAD = 3
 const _dummy = new THREE.Object3D()
 
 /**
+ * Move order per phase, cycled rather than rolled.
+ *
+ * Attacks used to be picked at random, which means the fight has no rhythm and
+ * nothing to learn — the player can only react, never anticipate, and two runs
+ * against the same boss feel the same amount of arbitrary. A fixed cycle that
+ * grows as the boss loses health gives each phase a shape, and gives a player
+ * who has seen the fight before an actual advantage.
+ */
+export const BOSS_PATTERNS = {
+  blueWolfKing: [
+    ['charge', 'howl'],
+    ['charge', 'stomp', 'howl'],
+    ['stomp', 'charge', 'sweep', 'howl'],
+  ],
+  darkHeavenLord: [
+    ['swordRing', 'gapRing'],
+    ['starfall', 'swordRing', 'gapRing'],
+    ['voidZone', 'starfall', 'swordRing', 'summon'],
+  ],
+}
+
+/** How long a marked patch of ground waits before it detonates. */
+const ZONE_TELL = 1.15
+
+/**
  * The two boss encounters.
  *
  * A boss is a single non-instanced group — there is only ever one alive, so it
@@ -43,6 +68,8 @@ export class BossManager {
     this.onDefeated = null
     this.onWarning = null
     this.warned = new Set()
+    // Ground marked by an attack, waiting to resolve.
+    this.pending = []
   }
 
   _buildWolfKing(def) {
@@ -113,6 +140,7 @@ export class BossManager {
       maxHp: def.hp,
       attackTimer: 3,
       phase: 0,
+      moveIndex: 0,
       staggerT: 0,
       chargeT: 0,
       chargeX: 0, chargeZ: 0,
@@ -180,30 +208,139 @@ export class BossManager {
     this.blades = null
   }
 
-  _wolfAttack(b, player) {
-    if (this.rng.chance(0.5)) {
-      // Telegraphed charge along a marked lane.
-      const dx = player.x - b.x
-      const dz = player.z - b.z
-      const d = Math.hypot(dx, dz) || 1
-      b.chargeX = dx / d
-      b.chargeZ = dz / d
-      b.chargeT = 1.6
-      for (let i = 1; i <= 8; i++) {
-        this.world.vfx.telegraph(b.x + b.chargeX * i * 4, b.z + b.chargeZ * i * 4, 2.6, 1.0)
+  /**
+   * Mark a patch of ground now, resolve it later.
+   *
+   * `safe: true` inverts it: the marked circle is the only place that is *not*
+   * hit, so instead of stepping out of a puddle the player has to run into one.
+   * That single inversion is what stops every boss AoE being the same dodge.
+   */
+  _zone(x, z, radius, damage, { delay = ZONE_TELL, safe = false } = {}) {
+    this.pending.push({ x, z, radius, damage, t: delay, safe })
+    if (safe) {
+      // Drawn as a ring of marks around the rim, so it reads as a boundary to
+      // get inside rather than as a puddle to avoid.
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2
+        this.world.vfx.telegraph(x + Math.cos(a) * radius, z + Math.sin(a) * radius, 1.3, delay)
       }
     } else {
-      // Howl: a ring of 요랑.
-      this.world.vfx.shockRing(b.x, b.z, 5)
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2
-        this.world.enemies.spawn('wolf', b.x + Math.cos(a) * 4, b.z + Math.sin(a) * 4, b.spawnedAt)
-      }
+      this.world.vfx.telegraph(x, z, radius, delay)
     }
   }
 
-  _lordAttack(b, player) {
-    const kind = b.phase === 2 ? this.rng.int(3) : this.rng.int(2)
+  _resolveZones(dt, player) {
+    for (let i = this.pending.length - 1; i >= 0; i--) {
+      const zone = this.pending[i]
+      zone.t -= dt
+      if (zone.t > 0) continue
+      this.pending.splice(i, 1)
+
+      const inside = Math.hypot(player.x - zone.x, player.z - zone.z) <= zone.radius
+      if (inside !== zone.safe) player.takeDamage(zone.damage)
+      this.world.vfx.burst(zone.x, zone.z, zone.radius * (zone.safe ? 1.4 : 1))
+      this.world.camera.addTrauma(zone.safe ? 0.5 : 0.25)
+    }
+  }
+
+  _move(name, b, player) {
+    switch (name) {
+      case 'charge': {
+        // Telegraphed charge along a marked lane.
+        const dx = player.x - b.x
+        const dz = player.z - b.z
+        const d = Math.hypot(dx, dz) || 1
+        b.chargeX = dx / d
+        b.chargeZ = dz / d
+        b.chargeT = 1.6
+        for (let i = 1; i <= 8; i++) {
+          this.world.vfx.telegraph(b.x + b.chargeX * i * 4, b.z + b.chargeZ * i * 4, 2.6, 1.0)
+        }
+        break
+      }
+
+      case 'howl': {
+        this.world.vfx.shockRing(b.x, b.z, 5)
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2
+          this.world.enemies.spawn('wolf', b.x + Math.cos(a) * 4, b.z + Math.sin(a) * 4, b.spawnedAt)
+        }
+        break
+      }
+
+      case 'stomp': {
+        // Three impacts walking outward from the boss toward the player, so
+        // standing still is punished and running through the gaps is not.
+        const dx = player.x - b.x
+        const dz = player.z - b.z
+        const d = Math.hypot(dx, dz) || 1
+        for (let i = 1; i <= 3; i++) {
+          this._zone(
+            b.x + (dx / d) * i * 5, b.z + (dz / d) * i * 5, 3.4, b.def.damage * 0.7,
+            { delay: 0.7 + i * 0.34 },
+          )
+        }
+        break
+      }
+
+      case 'sweep': {
+        // An arc of impacts across the player's side of the arena.
+        const base = Math.atan2(player.z - b.z, player.x - b.x)
+        for (let i = 0; i < 7; i++) {
+          const a = base + (i - 3) * 0.34
+          this._zone(
+            b.x + Math.cos(a) * 8, b.z + Math.sin(a) * 8, 3.0, b.def.damage * 0.6,
+            { delay: 0.8 + i * 0.11 },
+          )
+        }
+        break
+      }
+
+      case 'starfall': {
+        // Rain, biased at where the player is standing but not homing.
+        for (let i = 0; i < 7; i++) {
+          const a = this.rng.angle()
+          const r = this.rng.range(0, 9)
+          this._zone(
+            player.x + Math.cos(a) * r, player.z + Math.sin(a) * r, 2.6, b.def.damage * 0.55,
+            { delay: 0.9 + i * 0.16 },
+          )
+        }
+        break
+      }
+
+      case 'voidZone': {
+        // 흑천멸계: everything outside the circle burns. Run in, not out.
+        const a = this.rng.angle()
+        this._zone(
+          b.x + Math.cos(a) * 6, b.z + Math.sin(a) * 6, 4.6, b.def.damage * 1.5,
+          { delay: 2.1, safe: true },
+        )
+        break
+      }
+
+      case 'summon': {
+        for (let i = 0; i < 3; i++) {
+          const a = this.rng.angle()
+          this.world.enemies.spawn('demonCultivator', b.x + Math.cos(a) * 5, b.z + Math.sin(a) * 5, b.spawnedAt)
+        }
+        break
+      }
+
+      case 'swordRing':
+        this._lordAttack(b, player, 0)
+        break
+
+      case 'gapRing':
+        this._lordAttack(b, player, 1)
+        break
+
+      default:
+        break
+    }
+  }
+
+  _lordAttack(b, player, kind) {
     if (kind === 0) {
       // 검비: a converging ring of dark swords aimed where the player is now.
       const tx = player.x
@@ -230,15 +367,15 @@ export class BossManager {
           speed: 5.5, damage: b.def.damage * 0.6, hostile: true, life: 4.2,
         })
       }
-    } else {
-      for (let i = 0; i < 3; i++) {
-        const a = this.rng.angle()
-        this.world.enemies.spawn('demonCultivator', b.x + Math.cos(a) * 5, b.z + Math.sin(a) * 5, b.spawnedAt)
-      }
     }
   }
 
   update(dt, player, runTime) {
+    // Marked ground resolves even while the boss is staggered or dying: an
+    // attack already committed to has to land, or a phase change becomes a free
+    // cancel of whatever was in the air.
+    if (this.pending.length > 0) this._resolveZones(dt, player)
+
     const b = this.active
     if (!b) return
     b.prevX = b.x
@@ -271,8 +408,10 @@ export class BossManager {
       if (b.attackTimer <= 0) {
         const base = b.def.id === 'blueWolfKing' ? 5 : 4 - b.phase * 0.7
         b.attackTimer = base
-        if (b.def.id === 'blueWolfKing') this._wolfAttack(b, player)
-        else this._lordAttack(b, player)
+        const phases = BOSS_PATTERNS[b.def.id]
+        const cycle = phases[Math.min(b.phase, phases.length - 1)]
+        this._move(cycle[b.moveIndex % cycle.length], b, player)
+        b.moveIndex++
       }
     }
 
@@ -328,7 +467,12 @@ export class BossManager {
     }
   }
 
+  _clearZones() {
+    this.pending.length = 0
+  }
+
   clear() {
+    this._clearZones()
     this._despawn()
     this.warned.clear()
   }
