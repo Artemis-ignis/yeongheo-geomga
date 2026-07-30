@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { EnemyManager } from '../src/entities/EnemyManager.js'
 import { ENEMIES, getEnemy } from '../src/data/enemies.js'
+import { STAGES } from '../src/data/stages.js'
 import { RNG } from '../src/core/rng.js'
 
 /**
@@ -29,13 +30,30 @@ function step(mgr, player, camera, seconds, dt = 1 / 60) {
 describe('behaviour coverage', () => {
   it('uses more than a couple of distinct behaviours across the bestiary', () => {
     const kinds = new Set(ENEMIES.map((e) => e.behavior))
-    expect(kinds.size).toBeGreaterThanOrEqual(5)
+    expect(kinds.size).toBeGreaterThanOrEqual(7)
   })
 
   it('gives every creature a behaviour the manager actually implements', () => {
-    const known = new Set(['chase', 'dasher', 'ranged', 'splitter', 'flanker', 'charger', 'skirmisher'])
+    const known = new Set([
+      'chase', 'dasher', 'ranged', 'splitter', 'flanker', 'charger', 'skirmisher',
+      'drifter', 'flicker', 'lumberer',
+    ])
     for (const e of ENEMIES) {
       expect(known.has(e.behavior), `"${e.id}" has unknown behaviour "${e.behavior}"`).toBe(true)
+    }
+  })
+
+  it('leaves no more than a couple of creatures on the plain chase', () => {
+    // Plain chase is the fallback, and every creature sharing it is every
+    // creature moving identically — which is what the whole bestiary did.
+    const plain = ENEMIES.filter((e) => e.behavior === 'chase')
+    expect(plain.length, `${plain.map((e) => e.id).join(', ')} all just walk at her`).toBeLessThanOrEqual(2)
+  })
+
+  it('gives every stage a mix rather than one behaviour repeated', () => {
+    for (const s of STAGES) {
+      const kinds = new Set((s.roster ?? []).map((id) => getEnemy(id).behavior))
+      expect(kinds.size, `${s.id} fields only ${[...kinds].join(', ')}`).toBeGreaterThanOrEqual(4)
     }
   })
 })
@@ -142,10 +160,69 @@ describe('skirmishers', () => {
   })
 })
 
-describe('the crowd still works', () => {
-  it('keeps chasers walking straight at the player', () => {
+describe('drifters', () => {
+  it('weave in rather than tracking straight', () => {
     const { mgr, player, camera } = harness()
-    const i = mgr.spawn('wisp', 0, -12, 60)
+    const i = mgr.spawn('wisp', 0, -14, 60)
+    let maxOff = 0
+    for (let t = 0; t < 3; t += 1 / 60) {
+      mgr.update(1 / 60, 60, player, camera)
+      maxOff = Math.max(maxOff, Math.abs(mgr.px[i]))
+    }
+    expect(maxOff).toBeGreaterThan(0.6)
+  })
+
+  it('still arrive', () => {
+    const { mgr, player, camera } = harness()
+    const i = mgr.spawn('wisp', 0, -14, 60)
+    step(mgr, player, camera, 4)
+    expect(Math.hypot(mgr.px[i], mgr.pz[i])).toBeLessThan(11)
+  })
+})
+
+describe('flickers', () => {
+  it('travel in bursts instead of at one rate', () => {
+    const { mgr, player, camera } = harness()
+    const i = mgr.spawn('emberSprite', 0, -16, 60)
+    const steps = []
+    for (let t = 0; t < 2; t += 1 / 60) {
+      mgr.update(1 / 60, 60, player, camera)
+      steps.push(Math.hypot(mgr.px[i] - mgr.prevX[i], mgr.pz[i] - mgr.prevZ[i]))
+    }
+    const fast = Math.max(...steps)
+    const slow = Math.min(...steps.filter((s) => s > 0))
+    expect(fast / slow).toBeGreaterThan(3)
+  })
+})
+
+describe('lumberers', () => {
+  it('speed up the longer they have been coming', () => {
+    const { mgr, player, camera } = harness()
+    const i = mgr.spawn('glacierWarden', 0, -30, 60)
+    step(mgr, player, camera, 0.5)
+    const early = Math.hypot(mgr.px[i] - mgr.prevX[i], mgr.pz[i] - mgr.prevZ[i])
+    step(mgr, player, camera, 12)
+    const late = Math.hypot(mgr.px[i] - mgr.prevX[i], mgr.pz[i] - mgr.prevZ[i])
+    expect(late).toBeGreaterThan(early * 1.4)
+  })
+
+  it('lose their momentum when the player breaks away', () => {
+    const def = getEnemy('glacierWarden')
+    const { mgr, player, camera } = harness()
+    const i = mgr.spawn('glacierWarden', 0, -14, 60)
+    step(mgr, player, camera, 10)
+    expect(mgr.stateT[i]).toBeGreaterThan(5)
+    // Player runs well past its sight range.
+    player.z = mgr.pz[i] - def.loseSight - 12
+    mgr.update(1 / 60, 60, player, camera)
+    expect(mgr.stateT[i]).toBeLessThan(1)
+  })
+})
+
+describe('the crowd still works', () => {
+  it('keeps plain chasers walking straight at the player', () => {
+    const { mgr, player, camera } = harness()
+    const i = mgr.spawn('bloodScorpion', 0, -12, 60)
     step(mgr, player, camera, 1)
     expect(Math.abs(mgr.px[i])).toBeLessThan(0.5)
     expect(mgr.pz[i]).toBeGreaterThan(-12)

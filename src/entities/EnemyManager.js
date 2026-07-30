@@ -455,6 +455,31 @@ export class EnemyManager {
             this.chargeZ[i] = dz / dist
           }
         }
+      } else if (def.behavior === 'drifter') {
+        // Wanders in on a slow weave instead of tracking. A remnant of 마기 is
+        // not chasing anybody — and a cloud of them arriving on different
+        // curves is a shape the player can slip between, where a cloud of
+        // straight-line chasers is just a wall.
+        const weave = Math.sin(this.stateT[i] * (def.driftRate ?? 1.5) + this.animPhase[i])
+          * (def.driftArc ?? 0.7)
+        const c = Math.cos(weave)
+        const s = Math.sin(weave)
+        mx = (dx / dist) * c - (dz / dist) * s
+        mz = (dx / dist) * s + (dz / dist) * c
+      } else if (def.behavior === 'flicker') {
+        // Darts and stalls. A spark does not travel at a constant rate, and the
+        // stalls are what make 화정 dodgeable despite being faster than she is.
+        const beat = Math.sin(this.stateT[i] * (def.flickerRate ?? 4.5) + this.animPhase[i])
+        speed *= beat > 0 ? 1.7 : 0.25
+      } else if (def.behavior === 'lumberer') {
+        // Builds momentum the longer it has been walking. A heavy that moves at
+        // one speed forever is furniture the player strolls around; one that is
+        // slow to start and hard to shake once it is moving has to be dealt
+        // with. Losing sight of the player resets it, which is what makes
+        // kiting a real answer rather than a formality.
+        const ramp = Math.min(1, this.stateT[i] / (def.rampTime ?? 9))
+        speed *= 0.55 + ramp * (def.rampTo ?? 1.05)
+        if (dist > (def.loseSight ?? 26)) this.stateT[i] = 0
       } else if (def.behavior === 'skirmisher') {
         // Dive, then peel away before it can be punished. Reads as a bird.
         const backFor = def.skirmishBack ?? 0.55

@@ -1,9 +1,11 @@
 /** 마기에 물든 요괴와 마수사들. `hp`/`damage`/`xp` are the values at run time 0:00. */
 export const ENEMIES = [
   {
+    // Drifts in on a weave. It is a leftover of 마기, not a hunter.
     id: 'wisp', name: '마기 잔영',
     hp: 8, speed: 2.4, damage: 6, radius: 0.45, kbResist: 0.0, xp: 1,
-    behavior: 'chase', color: 0x8b6fd6, scale: 0.7,
+    behavior: 'drifter', color: 0x8b6fd6, scale: 0.7,
+    driftArc: 0.85, driftRate: 1.3,
   },
   {
     id: 'wolf', name: '요랑',
@@ -11,9 +13,11 @@ export const ENEMIES = [
     behavior: 'dasher', color: 0x5f7fa8, scale: 0.85, dashInterval: 4.0,
   },
   {
+    // Slow to start, hard to shake once it is moving.
     id: 'stoneGhoul', name: '석귀',
     hp: 90, speed: 1.5, damage: 18, radius: 0.95, kbResist: 0.7, xp: 5,
-    behavior: 'chase', color: 0x7d7466, scale: 1.05,
+    behavior: 'lumberer', color: 0x7d7466, scale: 1.05,
+    rampTime: 8, rampTo: 1.2, loseSight: 24,
   },
   {
     id: 'talismanGhost', name: '부적귀',
@@ -50,14 +54,16 @@ export const ENEMIES = [
 
   // ---- 적염비경 ----------------------------------------------------------
   {
+    // Darts and stalls. Faster than she is, but only in bursts.
     id: 'emberSprite', name: '화정',
     hp: 14, speed: 3.6, damage: 9, radius: 0.5, kbResist: 0.05, xp: 2,
-    behavior: 'chase', color: 0xff8a3c, scale: 0.75,
+    behavior: 'flicker', color: 0xff8a3c, scale: 0.75, flickerRate: 5.2,
   },
   {
     id: 'magmaBrute', name: '용암귀',
     hp: 210, speed: 1.7, damage: 26, radius: 1.0, kbResist: 0.75, xp: 9,
-    behavior: 'chase', color: 0xd0442a, scale: 1.15,
+    behavior: 'lumberer', color: 0xd0442a, scale: 1.15,
+    rampTime: 7, rampTo: 1.35, loseSight: 26,
   },
   {
     // Dives and peels away rather than pressing, so it is a nuisance that
@@ -84,9 +90,11 @@ export const ENEMIES = [
     shootInterval: 2.2, keepDistance: 11, shotSpeed: 10, shotDamage: 12,
   },
   {
+    // The slowest thing in the game and the hardest to escape once it starts.
     id: 'glacierWarden', name: '빙벽수',
     hp: 320, speed: 1.3, damage: 30, radius: 1.15, kbResist: 0.85, xp: 14,
-    behavior: 'chase', color: 0x7fb4d8, scale: 1.3, elite: true,
+    behavior: 'lumberer', color: 0x7fb4d8, scale: 1.3, elite: true,
+    rampTime: 11, rampTo: 1.6, loseSight: 30,
   },
 ]
 
