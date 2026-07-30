@@ -145,6 +145,21 @@ body {
 .hud-dash-pip.ready { box-shadow: 0 0 8px rgba(127, 214, 181, 0.6); }
 .hud-dash-pip.ready::after { background: var(--jade); }
 
+/* ---------- First-run hints ---------- */
+.hint-line {
+  position: absolute; left: 50%; bottom: 92px; transform: translateX(-50%);
+  max-width: min(560px, 74vw); text-align: center;
+  padding: 9px 20px; border-radius: 8px;
+  font-size: 14px; letter-spacing: 0.03em; line-height: 1.5;
+  color: #e6eef7;
+  background: rgba(8, 12, 18, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(232, 197, 106, 0.28), 0 6px 20px rgba(0, 0, 0, 0.55);
+  /* Slow in, slow out. A hint that snaps on steals attention from the fight it
+   * is supposed to be explaining. */
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
 /* ---------- Boss bar ---------- */
 .hud-boss {
   position: absolute; top: 96px; left: 50%; transform: translateX(-50%);

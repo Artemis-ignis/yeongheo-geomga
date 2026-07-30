@@ -21,6 +21,7 @@ export class Progress {
     }
     if (!this.state.upgrades || typeof this.state.upgrades !== 'object') this.state.upgrades = {}
     if (!this.state.seen) this.state.seen = { ...base.seen }
+    if (!Array.isArray(this.state.hintsSeen)) this.state.hintsSeen = []
     if (!this.state.records) this.state.records = { ...base.records }
     if (!Number.isFinite(this.state.stones)) this.state.stones = 0
   }

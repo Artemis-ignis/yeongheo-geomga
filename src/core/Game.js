@@ -8,6 +8,7 @@ import { Sky } from '../world/Sky.js'
 import { Grass } from '../world/Grass.js'
 import { Shadows } from '../world/Shadows.js'
 import { AudioEngine } from '../audio/Audio.js'
+import { HintOverlay } from '../ui/HintOverlay.js'
 import { Post } from '../world/Post.js'
 import { Player } from '../entities/Player.js'
 import { EnemyManager } from '../entities/EnemyManager.js'
@@ -81,6 +82,7 @@ export class Game {
     this.result = new ResultScreen(hudRoot)
     this.shop = new ShopScreen(hudRoot, this.progress, () => this._persist())
     this.codex = new CodexScreen(hudRoot, this.progress)
+    this.hints = new HintOverlay(hudRoot, this.progress)
     this.debug = new DebugOverlay(hudRoot)
     this.pauseNote = document.createElement('div')
     this.pauseNote.className = 'pause-note'
@@ -178,6 +180,7 @@ export class Game {
   }
 
   _persist() {
+    this.hints.persistInto(this.progress.state)
     Save.save(this.progress.toSaveState())
   }
 
@@ -358,6 +361,23 @@ export class Game {
         this.victory = true
         this._endRun()
       }
+    }
+  }
+
+  /** What the first-run hints look at. Cheap enough to build every frame. */
+  _hintState() {
+    const p = this.player
+    return {
+      runTime: this.runTime,
+      level: p?.level ?? 1,
+      kills: this.enemies?.killCount ?? 0,
+      stones: p?.stones ?? 0,
+      hpFraction: p ? p.hp / p.maxHp : 1,
+      // Every drop, not only 영기. The hint fires when the ground starts
+      // littering, and at the point it fires almost everything down there is 영기.
+      qiOnGround: this.pickups?.liveCount ?? 0,
+      nearbyEnemies: this.enemies?.pool.count ?? 0,
+      bossAlive: Boolean(this.boss?.active),
     }
   }
 
@@ -642,6 +662,8 @@ export class Game {
       if (this.state === 'playing' || this.state === 'levelUp' || this.state === 'paused') {
         this.hud.update(this._hudState(), dt)
       }
+      if (this.state === 'playing') this.hints.update(dt, this._hintState())
+      else this.hints.hide()
       this.draw(this.clock.alpha, dt)
       this.debug.update(this._debugState(dt))
     } catch (err) {

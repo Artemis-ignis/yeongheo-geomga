@@ -22,6 +22,8 @@ export function defaultSave() {
     unlockedWeapons: [...STARTING_WEAPONS],
     unlockedStages: ['jade'],
     seen: { enemies: [], weapons: [], bosses: [] },
+    // First-run hints already delivered. Persisted so they never reappear.
+    hintsSeen: [],
     records: { runs: 0, victories: 0, bestTime: 0, bestLevel: 0, totalKills: 0 },
   }
 }
