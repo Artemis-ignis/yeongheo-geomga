@@ -268,6 +268,11 @@ export class Vfx {
     this.layers.ring.emit(x, 0.12, z, radius, 0.7, this.time, 0, true)
   }
 
+  /** A gold pulse under something that is open to being hit. */
+  openingRing(x, z, radius) {
+    this.layers.ring.emit(x, 0.12, z, radius, 0.45, this.time, 0, true, [1.35, 1.05, 0.45])
+  }
+
   telegraph(x, z, radius, life = 0.4) {
     this.layers.telegraph.emit(x, 0.14, z, radius, life, this.time, 0, true)
   }

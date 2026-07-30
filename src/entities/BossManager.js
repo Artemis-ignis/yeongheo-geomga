@@ -52,6 +52,20 @@ export const BOSS_PATTERNS = {
 const ZONE_TELL = 1.15
 
 /**
+ * Moves heavy enough to leave the boss winded afterwards, and for how long.
+ *
+ * Every one of these commits the boss to something it cannot cancel — a charge
+ * it has to finish, a barrage it has to finish throwing. Being open afterwards
+ * is what makes surviving them worth something.
+ */
+const WINDED_AFTER = {
+  charge: 1.8, stomp: 1.5, sweep: 1.9, voidZone: 2.4, starfall: 1.6,
+}
+
+/** Damage multiplier inside the punish window. */
+const WINDED_MULTIPLIER = 1.7
+
+/**
  * The two boss encounters.
  *
  * A boss is a single non-instanced group — there is only ever one alive, so it
@@ -70,6 +84,7 @@ export class BossManager {
     this.warned = new Set()
     // Ground marked by an attack, waiting to resolve.
     this.pending = []
+    this._windedTell = 0
   }
 
   _buildWolfKing(def) {
@@ -141,6 +156,7 @@ export class BossManager {
       attackTimer: 3,
       phase: 0,
       moveIndex: 0,
+      windedT: 0,
       staggerT: 0,
       chargeT: 0,
       chargeX: 0, chargeZ: 0,
@@ -166,10 +182,15 @@ export class BossManager {
   damage(rawDamage, tag, stats) {
     const b = this.active
     if (!b || b.staggerT > 0) return false
-    const { amount, crit } = rollDamage(rawDamage, stats, tag, this.rng)
+    const { amount: rolled, crit } = rollDamage(rawDamage, stats, tag, this.rng)
+    // Winded after a heavy move: the punish window. Without it the fight has no
+    // rhythm — the player attacks continuously whatever the boss does, and a
+    // boss becomes a wall of hit points rather than something with openings to
+    // read and take.
+    const amount = b.windedT > 0 ? rolled * WINDED_MULTIPLIER : rolled
     b.hp -= amount
     b.flash = 1
-    if (this.onDamageText) this.onDamageText(b.x, 3.0, b.z, amount, crit)
+    if (this.onDamageText) this.onDamageText(b.x, 3.0, b.z, amount, crit || b.windedT > 0)
 
     // Phase transitions: stagger, shove the player back, shift the mask colour.
     const frac = b.hp / b.maxHp
@@ -398,6 +419,16 @@ export class BossManager {
         b.x += b.chargeX * 24 * dt
         b.z += b.chargeZ * 24 * dt
       }
+    } else if (b.windedT > 0) {
+      // Rooted and open. It does not advance, does not attack, and the ring at
+      // its feet says so — a window the player cannot see is not a window, and
+      // the extra damage alone would just feel like inconsistent numbers.
+      b.windedT -= dt
+      this._windedTell -= dt
+      if (this._windedTell <= 0) {
+        this._windedTell = 0.28
+        this.world.vfx.openingRing(b.x, b.z, b.def.radius * 1.5)
+      }
     } else {
       // Phase 3 of 마존 is 30% faster; the wolf king keeps a constant pace.
       const speedMul = 1 + b.phase * 0.15
@@ -410,8 +441,13 @@ export class BossManager {
         b.attackTimer = base
         const phases = BOSS_PATTERNS[b.def.id]
         const cycle = phases[Math.min(b.phase, phases.length - 1)]
-        this._move(cycle[b.moveIndex % cycle.length], b, player)
+        const name = cycle[b.moveIndex % cycle.length]
+        this._move(name, b, player)
         b.moveIndex++
+        // Heavy moves leave it open. Later phases recover faster, which is most
+        // of what makes the last third of the fight feel like a different one.
+        const winded = WINDED_AFTER[name]
+        if (winded) b.windedT = winded * (1 - b.phase * 0.18)
       }
     }
 
