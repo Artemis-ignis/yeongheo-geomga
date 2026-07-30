@@ -54,16 +54,21 @@ export function createScene(palette = {}) {
   // instead of ending on a hard line.
   scene.fog = new THREE.FogExp2(palette.fog ?? PALETTE.fog, 0.0085)
 
-  // Kept well under 1.0 combined. At the previous 1.6 + 2.1 every surface was
-  // multiplied past white and the whole palette washed out to pastel — which is
-  // most of what made the art read as cheap, regardless of the geometry.
-  const hemi = new THREE.HemisphereLight(0x9fc8e8, 0x40513f, 0.85)
+  // Key and fill, with a real gap between them.
+  //
+  // These were 0.85 and 1.35, which is close enough to equal that every surface
+  // landed on the same band of the toon ramp whichever way it faced. That is
+  // what made the art read as flat: not the polygon count, but a rig with no
+  // opinion about where the light comes from. The fill is now well under the
+  // key, and the key sits much lower in the sky — at 34 units up it was almost
+  // directly overhead, so every shadow hid underneath the thing casting it.
+  const hemi = new THREE.HemisphereLight(0x9fc8e8, 0x3a4a3c, 0.52)
   scene.add(hemi)
 
-  const sun = new THREE.DirectionalLight(0xffe9c4, 1.35)
-  sun.position.set(18, 34, 12)
+  const sun = new THREE.DirectionalLight(0xffe9c4, 2.05)
+  sun.position.set(20, 17, 13)
   sun.castShadow = true
-  sun.shadow.mapSize.set(1024, 1024)
+  sun.shadow.mapSize.set(2048, 2048)
   sun.shadow.camera.near = 1
   sun.shadow.camera.far = 120
   sun.shadow.camera.left = -SHADOW_EXTENT

@@ -19,8 +19,8 @@ const GradeShader = {
     tDiffuse: { value: null },
     uLift: { value: new THREE.Color(0x121a2a) },
     uGain: { value: new THREE.Color(0xfff2dd) },
-    uSaturation: { value: 1.18 },
-    uContrast: { value: 1.07 },
+    uSaturation: { value: 1.3 },
+    uContrast: { value: 1.16 },
     uVignette: { value: 0.42 },
     uAberration: { value: 0.0016 },
     uFlash: { value: 0 },
@@ -66,10 +66,16 @@ const GradeShader = {
       float vig = smoothstep( 0.85, 0.15, r2 * uVignette * 4.0 );
       col *= mix( 0.55, 1.0, vig );
 
-      // Damage / phase flash, pushed hardest at the frame edges so it reads as
-      // impact rather than washing out what the player is trying to look at.
-      float edge = mix( 0.35, 1.0, smoothstep( 0.0, 0.25, r2 ) );
-      col = mix( col, uFlashColor, clamp( uFlash * edge, 0.0, 0.85 ) );
+      // Damage flash, as a border only.
+      //
+      // r2 runs 0 at the centre to 0.5 at the corners, so the old ramp reached
+      // full strength barely outside the middle and the previous floor of 0.35
+      // tinted the centre as well. In a game where the player takes chip damage
+      // continuously that is not a flash, it is a permanent red filter over
+      // everything they are trying to read — which is exactly how it looked.
+      // The middle of the frame is now untouched and the corners carry it.
+      float edge = smoothstep( 0.055, 0.30, r2 );
+      col = mix( col, uFlashColor, clamp( uFlash * edge, 0.0, 0.7 ) );
 
       gl_FragColor = vec4( clamp( col, 0.0, 1.0 ), 1.0 );
     }`,

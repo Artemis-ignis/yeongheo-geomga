@@ -203,7 +203,11 @@ export class Terrain {
     // Kept sparse inside the arena: scenery must never hide an incoming enemy.
     const rocks = this._scatter(34, 6, PLATEAU_RADIUS - 3)
     this.rocks = new THREE.InstancedMesh(rockGeo, rockMat, rocks.length)
-    this.rocks.castShadow = false
+    // Props cast now. With the key light low in the sky these throw long
+    // shadows across the plateau, which is most of what gives a flat disc of
+    // ground any sense of depth — and they are a handful of merged draws, not
+    // the horde, so the shadow pass can afford them.
+    this.rocks.castShadow = true
     this.rocks.receiveShadow = true
     rocks.forEach(([x, z], i) => {
       // Inside the 결계 a rock must stay well under head height — anything taller
@@ -234,7 +238,7 @@ export class Terrain {
     // the player fills a third of the screen and hides the fight behind it.
     const pines = this._scatter(34, 6, PLATEAU_RADIUS - 3).filter(([x, z]) => Math.hypot(x, z) > ARENA_RADIUS * 0.92)
     this.pines = new THREE.InstancedMesh(pineGeo, pineMat, pines.length)
-    this.pines.castShadow = false
+    this.pines.castShadow = true
     pines.forEach(([x, z], i) => {
       const s = 0.8 + Math.random() * 0.8
       _dummy.position.set(x, 0, z)

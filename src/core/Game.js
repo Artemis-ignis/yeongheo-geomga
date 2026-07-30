@@ -282,7 +282,7 @@ export class Game {
 
     this.player.onHurt = (fraction) => {
       this.audio.play('hurt')
-      this.impact.screenFlash(Math.min(0.55, 0.18 + fraction * 2.2), 1, 0.22, 0.26)
+      this.impact.screenFlash(Math.min(0.42, 0.10 + fraction * 1.9), 1, 0.22, 0.26)
       this.camera.addTrauma(0.22 + fraction * 1.2)
       if (fraction > 0.12) this.impact.hitstop(0.04)
     }
@@ -291,8 +291,8 @@ export class Game {
     // will take, on the ground, for exactly as long as the wind-up lasts.
     this.enemies.onTelegraph = (x, z, dx, dz, seconds) => {
       this.audio.play('swing', { pan: this._panAt(x) })
-      for (let i = 1; i <= 3; i++) {
-        this.vfx.telegraph(x + dx * i * 1.9, z + dz * i * 1.9, 1.5, seconds)
+      for (let i = 1; i <= 2; i++) {
+        this.vfx.telegraph(x + dx * i * 2.2, z + dz * i * 2.2, 1.3, seconds)
       }
     }
 

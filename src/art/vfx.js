@@ -140,7 +140,13 @@ export class Vfx {
       ring: new EffectLayer(scene, ring, makeEffectMaterial({ color: 0xbff5e2, grow: 3.0 }), 40),
       // Telegraphs converge instead of expanding, so they read as "something is
       // about to land here" rather than "something just went off".
-      telegraph: new EffectLayer(scene, ring, makeEffectMaterial({ color: 0xffd0d0, grow: -0.65 }), 32),
+      //
+      // Deliberately dim. These are additive and several overlap whenever more
+      // than one creature winds up, and at full brightness a handful of them
+      // stacked into solid white discs that were the loudest thing on screen —
+      // louder than the attack they were warning about. A warning should be
+      // legible, not blinding.
+      telegraph: new EffectLayer(scene, ring, makeEffectMaterial({ color: 0x8f4038, grow: -0.65 }), 48),
       pillar: new EffectLayer(scene, cyl, makeEffectMaterial({ color: 0xfff2c8, grow: 0.4 }), 16),
       bolt: new EffectLayer(scene, quad, makeEffectMaterial({ color: 0xd8c8ff, map: glowTexture(), grow: 0.6 }), 60),
       array: new EffectLayer(scene, quad, makeEffectMaterial({ color: 0xffe08a, map: baguaTexture(), grow: 0.3, spin: 2 }), 24),
