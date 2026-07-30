@@ -1,6 +1,7 @@
 import { isWebGL2Available, showFallback } from './world/Scene.js'
 import { Game } from './core/Game.js'
 import { installCapture, installStepper, installUICapture } from './dev/capture.js'
+import { installBalanceProbe } from './dev/balanceProbe.js'
 import {
   installToneCheck, installModelTone, checkTone, MODEL_TONE_LIMITS,
 } from './dev/toneCheck.js'
@@ -26,6 +27,7 @@ if (!isWebGL2Available()) {
     }
     installCapture(game.renderer, drawAt)
     installUICapture(hudRoot)
+    installBalanceProbe(game)
     installToneCheck(game.renderer, drawAt)
     installModelTone(game.renderer, game.scene, game.camera.camera, () => {
       // Subjects: the horde plus whichever character is on screen.
