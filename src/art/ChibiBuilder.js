@@ -183,29 +183,49 @@ export function buildChibi(character) {
   headPivot.add(hairBack)
 
   // Crown: the hair volume on top and around the back. It stops above the brow —
-  // it used to be a full dome pulled down over the forehead, which read as a
-  // bicycle helmet rather than as hair.
-  // Hugs the head. An earlier version sat at a larger radius and a taller squash
-  // than the skull under it, so it floated as a separate pale shell — a cap.
-  const crown = new THREE.Mesh(
-    new THREE.SphereGeometry(0.432, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.40),
-    hairMat,
+  // No smooth dome on the crown any more.
+  //
+  // Three versions of it were tried — larger than the skull, hugging the skull,
+  // with locks laid over the top — and every one still read as a cap set on her
+  // head. A smooth pale surface with a boundary is a hat; that is what the shape
+  // *is*, and no amount of shading argues with it. What is left underneath is a
+  // dark scalp, so any gap between the locks reads as depth in the hair rather
+  // than as bare skin, and the crown itself is built entirely out of the locks.
+  const scalp = new THREE.Mesh(
+    new THREE.SphereGeometry(0.405, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.52),
+    makeToonMaterial({ color: shade(pal.hair, 0.42), rim: 0.1 }),
   )
-  crown.position.y = 0.012
-  crown.scale.set(1.0, 0.96, 0.965)
-  crown.castShadow = true
-  headPivot.add(crown)
+  scalp.position.y = 0.012
+  scalp.scale.set(1.0, 0.96, 0.965)
+  headPivot.add(scalp)
 
-  // Locks laid over the crown itself, running back to front. Without these the
-  // top of the head is one unbroken curve of a single colour, and no amount of
-  // fringe below it stops that reading as a smooth object rather than as hair.
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * Math.PI * 2 + 0.3
-    const lift = 0.30 + (i % 2) * 0.05
-    const top = new THREE.Mesh(new THREE.ConeGeometry(0.058, 0.40, 4), hairMat)
-    top.rotation.set(Math.PI * 0.5 + 0.35, a, 0)
-    top.position.set(Math.sin(a) * 0.17, lift, Math.cos(a) * 0.17)
-    top.scale.set(1, 1, 0.42)
+  // Locks radiating from the crown point, overlapping enough to cover it.
+  const CAP_LOCKS = 16
+  for (let i = 0; i < CAP_LOCKS; i++) {
+    const a = (i / CAP_LOCKS) * Math.PI * 2 + 0.24
+    const ring = i % 2
+    // Two staggered rings, so the gaps in one are covered by the other.
+    // Past horizontal (pi/2), so the outer ring lies down the sides of the
+    // skull instead of standing out from it like the brim of a hat.
+    const tilt = ring ? 1.62 : 2.12
+    const len = ring ? 0.30 : 0.42
+    const top = new THREE.Mesh(new THREE.ConeGeometry(0.075, len, 5), hairMat)
+    // YXZ, not the default XYZ.
+    //
+    // A cone points along its own +Y, and under XYZ the azimuth rotation is
+    // applied to the vector before the tip-over, so it does nothing at all —
+    // every lock ended up tipped the same way regardless of where it sat on the
+    // ring, which turned the crown into a pineapple. YXZ tips first and spins
+    // the result, which is what "radiating from the crown" needs.
+    top.rotation.order = 'YXZ'
+    top.rotation.set(tilt, a, 0)
+    top.position.set(
+      Math.sin(a) * (ring ? 0.11 : 0.21),
+      0.33 - ring * 0.015,
+      Math.cos(a) * (ring ? 0.11 : 0.21),
+    )
+    top.scale.set(1, 1, 0.55)
+    top.castShadow = true
     headPivot.add(top)
   }
 
@@ -248,15 +268,11 @@ export function buildChibi(character) {
     headPivot.add(lock)
   }
 
-  // A soft sheen across the crown rather than a hard painted band.
-  const highlight = new THREE.Mesh(
-    new THREE.SphereGeometry(0.452, 24, 10, 0, Math.PI * 2, Math.PI * 0.13, Math.PI * 0.09),
-    makeFlatMaterial({ color: 0xffffff, opacity: 0.20 }),
-  )
-  highlight.position.y = 0.055
-  highlight.scale.set(1.02, 1.09, 1.03)
-  highlight.renderOrder = 1
-  headPivot.add(highlight)
+  // The anime hair sheen used to be a translucent band wrapped round the crown.
+  // With the dome gone there is no smooth surface for it to sit on, and a ring
+  // floating over a field of separate locks was the last thing still drawing a
+  // hard horizontal line across the top of her head. The locks carry their own
+  // root-to-tip shading instead.
 
   const strands = []
   const addStrand = (x, y, z, len, rz, radius = 0.09) => {
