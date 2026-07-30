@@ -19,14 +19,16 @@ const KNOCKBACK_DECAY = 6
 const CONTACT_COOLDOWN = 0.5
 const BURN_TICK = 0.5
 /**
- * Enemies further than this many view-radii from the player are recycled. It
- * doubles as the natural cap on horde size: without it, everything that ever
- * spawned accumulates on the far side of the arena.
+ * Enemies further than this many view-radii from the player are brought round to
+ * the front — see `_recycle`. Horde size is bounded by the wave table alone, so
+ * this no longer doubles as a population cap.
  */
 const DESPAWN_FACTOR = 1.7
 
 const _dummy = new THREE.Object3D()
 const _color = new THREE.Color()
+/** Scratch for `_entryPoint`, which runs once per spawn and once per recycle. */
+const _entry = { x: 0, z: 0 }
 
 /**
  * The horde.
@@ -327,6 +329,62 @@ export class EnemyManager {
     }
   }
 
+  /**
+   * Where a newcomer should appear: just past the view edge, usually in front of
+   * the player. Shared by spawning and recycling so a recycled enemy is
+   * indistinguishable from a fresh one.
+   */
+  _entryPoint(player, camera, out) {
+    const ring = camera.viewRadius + 2
+    const moveAngle = Math.atan2(player.x - player.prevX, player.z - player.prevZ)
+    let a = this.rng.angle()
+    if (this.rng.chance(0.6) && (player.x !== player.prevX || player.z !== player.prevZ)) {
+      a = moveAngle + this.rng.range(-0.9, 0.9)
+    }
+    let x = player.x + Math.sin(a) * ring
+    let z = player.z + Math.cos(a) * ring
+    const d = Math.hypot(x, z)
+    if (d > ARENA_RADIUS - 2) {
+      const k = (ARENA_RADIUS - 2) / d
+      x *= k
+      z *= k
+    }
+    out.x = x
+    out.z = z
+  }
+
+  /**
+   * Bring an enemy that has fallen far behind round to the front rather than
+   * deleting it. An enemy the player fought her way past is pressure she earned;
+   * throwing it away spends the wave table's budget on nothing.
+   *
+   * Be clear about how little this currently does. The trigger is
+   * `viewRadius * DESPAWN_FACTOR` = 46.4 units, and the whole arena is 36 across
+   * its radius, so almost nothing ever gets far enough away: measured over five
+   * minutes of a real run, this fires twice. The release it replaced was equally
+   * inert, which means the old comment here — that it capped horde size — was
+   * simply not true of the shipped game.
+   *
+   * So this is a correctness fix, not a difficulty one. The reason the game has
+   * no difficulty curve lies elsewhere and is still open: enemies enter at the
+   * view edge, 29 units out, against a player who starts at 5.2 and climbs, and
+   * a maxed 팔괘진 holds a kill ring at three to four units that almost nothing
+   * crosses. Danger exposure sits at zero for eleven of fifteen minutes and her
+   * health never drops below 89 percent. Raising enemy HP eightfold and enemy
+   * speed twofold each moved that by nothing at all.
+   */
+  _recycle(i, player, camera) {
+    this._entryPoint(player, camera, _entry)
+    this.px[i] = _entry.x
+    this.pz[i] = _entry.z
+    this.prevX[i] = _entry.x
+    this.prevZ[i] = _entry.z
+    // Behaviours key off `stateT` for dashes, charges and ramps. Arriving
+    // mid-windup would fire an attack out of nowhere.
+    this.stateT[i] = 0
+    this.hitCd[i] = 0
+  }
+
   _spawnWave(dt, runTime, player, camera) {
     const band = waveAt(runTime)
     // The stage narrows which enemies a band may draw, so each 비경 fights
@@ -339,22 +397,9 @@ export class EnemyManager {
     if (this.spawnTimer > 0) return
     this.spawnTimer += wave.spawnInterval
 
-    const ring = camera.viewRadius + 2
-    // Bias spawns toward where the player is heading so the horde stays engaging.
-    const moveAngle = Math.atan2(player.x - player.prevX, player.z - player.prevZ)
     for (let n = 0; n < wave.perSpawn; n++) {
-      let a = this.rng.angle()
-      if (this.rng.chance(0.6) && (player.x !== player.prevX || player.z !== player.prevZ)) {
-        a = moveAngle + this.rng.range(-0.9, 0.9)
-      }
-      let x = player.x + Math.sin(a) * ring
-      let z = player.z + Math.cos(a) * ring
-      const d = Math.hypot(x, z)
-      if (d > ARENA_RADIUS - 2) {
-        const k = (ARENA_RADIUS - 2) / d
-        x *= k; z *= k
-      }
-      this.spawn(this.rng.pick(wave.types), x, z, runTime)
+      this._entryPoint(player, camera, _entry)
+      this.spawn(this.rng.pick(wave.types), _entry.x, _entry.z, runTime)
     }
   }
 
@@ -395,7 +440,7 @@ export class EnemyManager {
       const dz = player.z - this.pz[i]
       const dist = Math.hypot(dx, dz) || 1
 
-      if (dist * dist > despawnR2) { this._release(i); continue }
+      if (dist * dist > despawnR2) { this._recycle(i, player, camera); continue }
 
       let speed = def.speed * (1 - this.slowAmt[i])
       this.stateT[i] += dt
