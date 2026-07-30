@@ -16,6 +16,8 @@ import { buildBossGeometry } from '../art/bossGeometry.js'
 import { makeToonMaterial } from '../art/materials.js'
 import { measureModel, checkModel, CREATURE_GATES } from '../art/modelGates.js'
 import { ENEMIES } from '../data/enemies.js'
+import { CHARACTERS } from '../data/characters.js'
+import { buildChibi } from '../art/ChibiBuilder.js'
 import { STAGES } from '../data/stages.js'
 import { installCapture } from './capture.js'
 
@@ -29,6 +31,23 @@ function stagesFielding(id) {
 }
 
 const subjects = [
+  // The playable cast comes first, because it is the part I kept judging from a
+  // portrait distance on one character and then being wrong about the other
+  // five. A chibi is a whole Object3D rather than one merged geometry, so these
+  // carry `object` and the layout below handles either.
+  ...CHARACTERS.map((c) => {
+    const root = buildChibi(c).root
+    // Drop the 팔괘 formation ring and the orbiting 비검. Both are gameplay
+    // furniture rather than the character, and the ring is 1.9 units across —
+    // it dominates the bounding box this page normalises against.
+    for (const child of [...root.children]) {
+      const geo = child.geometry
+      if (geo && (geo.type === 'PlaneGeometry' || geo.type === 'RingGeometry')) {
+        root.remove(child)
+      }
+    }
+    return { id: c.id, name: c.name, object: root, note: '수행자' }
+  }),
   ...ENEMIES.map((e) => ({
     id: e.id,
     name: e.name,
@@ -72,18 +91,25 @@ const rows = Math.ceil(subjects.length / cols)
 const pivots = []
 
 subjects.forEach((subject, i) => {
-  const geo = subject.geometry
-  geo.computeBoundingBox()
-  const box = geo.boundingBox
+  const box = new THREE.Box3()
+  let mesh
+  if (subject.object) {
+    box.setFromObject(subject.object)
+    mesh = subject.object
+  } else {
+    const geo = subject.geometry
+    geo.computeBoundingBox()
+    box.copy(geo.boundingBox)
+    mesh = new THREE.Mesh(geo, lit())
+  }
   const size = new THREE.Vector3()
   box.getSize(size)
 
-  // Normalise every creature to the same on-screen height so the sheet compares
+  // Normalise every subject to the same on-screen height so the sheet compares
   // shape rather than scale — a boss is not "better" for being large.
   const k = DISPLAY_HEIGHT / Math.max(size.y, 1e-3)
 
-  const mesh = new THREE.Mesh(geo, lit())
-  mesh.scale.setScalar(k)
+  mesh.scale.multiplyScalar(k)
   mesh.position.y = -box.min.y * k
 
   const pivot = new THREE.Group()
@@ -99,9 +125,12 @@ subjects.forEach((subject, i) => {
   scene.add(pivot)
   pivots.push(pivot)
 
-  const metrics = measureModel(geo)
-  subject.metrics = metrics
-  subject.failures = checkModel(metrics, CREATURE_GATES)
+  // Gates only apply to the merged creature geometries. A chibi is a hierarchy
+  // of dozens of small meshes and the silhouette metrics do not describe it.
+  subject.metrics = subject.geometry
+    ? measureModel(subject.geometry)
+    : { triangles: 0, coverage: 0, complexity: 0, turn: 0, colours: 0 }
+  subject.failures = subject.geometry ? checkModel(subject.metrics, CREATURE_GATES) : []
   subject.mesh = mesh
 })
 
@@ -121,15 +150,23 @@ const tags = subjects.map((s) => {
   const m = s.metrics
   el.innerHTML =
     `<b>${s.name}</b><span class="sub">${s.note}</span>` +
-    `<span class="met">tri ${m.triangles} · cov ${m.coverage.toFixed(2)} · ` +
-    `cx ${m.complexity.toFixed(2)} · turn ${m.turn.toFixed(2)} · col ${m.colours}</span>` +
+    (s.geometry
+      ? `<span class="met">tri ${m.triangles} · cov ${m.coverage.toFixed(2)} · ` +
+        `cx ${m.complexity.toFixed(2)} · turn ${m.turn.toFixed(2)} · col ${m.colours}</span>`
+      : '') +
     (s.failures.length ? `<span class="fail">${s.failures.join('<br>')}</span>` : '')
   labels.appendChild(el)
   return el
 })
 
 let silhouette = false
-const litMats = subjects.map((s) => s.mesh.material)
+// A chibi is a hierarchy of dozens of meshes, not one, so remember the material
+// of every mesh under each subject and swap them all.
+const litMats = subjects.map((s) => {
+  const pairs = []
+  s.mesh.traverse((o) => { if (o.isMesh) pairs.push([o, o.material]) })
+  return pairs
+})
 const flatMats = subjects.map(() => flat())
 let spinning = true
 
@@ -137,7 +174,9 @@ addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase()
   if (key === 's') {
     silhouette = !silhouette
-    subjects.forEach((s, i) => { s.mesh.material = silhouette ? flatMats[i] : litMats[i] })
+    subjects.forEach((s, i) => {
+      for (const [node, mat] of litMats[i]) node.material = silhouette ? flatMats[i] : mat
+    })
     renderer.setClearColor(silhouette ? 0xf2f4f8 : 0x141a24, 1)
     floor.visible = !silhouette
     document.body.classList.toggle('silhouette', silhouette)
