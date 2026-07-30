@@ -46,21 +46,35 @@ body {
   font-size: 15px; letter-spacing: 0.14em; color: var(--jade);
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
 }
+/*
+ * The realm gets rules either side of it rather than floating alone. A label
+ * with nothing around it reads as debug text; two hairlines and it reads as a
+ * title someone chose to put there.
+ */
+.hud-realm::before, .hud-realm::after {
+  content: ''; display: inline-block; vertical-align: middle;
+  width: 34px; height: 1px; margin: 0 10px;
+  background: linear-gradient(90deg, transparent, var(--jade-dim));
+}
+.hud-realm::after { background: linear-gradient(270deg, transparent, var(--jade-dim)); }
+
 .hud-timer {
   font-size: 40px; font-weight: 700; line-height: 1.05;
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.85);
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.85), 0 0 22px rgba(127, 214, 181, 0.18);
 }
 .hud-xp {
-  height: 7px; margin-top: 6px; border-radius: 99px;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  position: relative;
+  height: 8px; margin-top: 7px; border-radius: 99px;
+  background: rgba(4, 9, 12, 0.75);
+  /* Inset rather than outlined: a groove cut into the frame, not a box on it. */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(127, 214, 181, 0.28);
   overflow: hidden;
 }
 .hud-xp-fill {
   height: 100%; width: 0;
-  background: linear-gradient(90deg, #4fbf9a, var(--jade));
-  box-shadow: 0 0 10px rgba(127, 214, 181, 0.7);
+  background: linear-gradient(90deg, #2f8f76, var(--jade) 70%, #d8fff0);
+  box-shadow: 0 0 12px rgba(127, 214, 181, 0.8);
   transition: width 0.12s linear;
 }
 
@@ -72,14 +86,36 @@ body {
 
 .hud-vitals { position: absolute; left: 18px; bottom: 18px; width: min(300px, 34vw); }
 .hud-hp {
-  position: relative; height: 24px; border-radius: 6px; overflow: hidden;
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative; height: 26px; border-radius: 5px; overflow: hidden;
+  background: rgba(4, 7, 10, 0.82);
+  /* Gold hairline outside, black groove inside. Two shadows instead of a border
+   * gives the bar a lip, which is the difference between a gauge set into a
+   * frame and a coloured div. */
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.07),
+    0 0 0 1px rgba(232, 197, 106, 0.4),
+    0 3px 10px rgba(0, 0, 0, 0.55);
 }
-.hud-hp-ghost { position: absolute; inset: 0; width: 100%; background: rgba(255, 255, 255, 0.35); }
+.hud-hp-ghost { position: absolute; inset: 0; width: 100%; background: rgba(255, 240, 240, 0.32); }
 .hud-hp-fill {
   position: absolute; inset: 0; width: 100%;
-  background: linear-gradient(180deg, #e8635f, #a5322f);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 42%),
+    linear-gradient(180deg, #e8635f, #8e2724);
+}
+/*
+ * Tick marks across the bar. A plain filling rectangle gives no sense of how
+ * much a hit actually took; divisions turn it into something the player can
+ * read a quantity off at a glance without looking at the number.
+ */
+.hud-hp::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(10% - 1px),
+    rgba(0, 0, 0, 0.45) calc(10% - 1px) 10%
+  );
 }
 .hud-hp-text {
   position: absolute; inset: 0;
@@ -113,25 +149,51 @@ body {
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9); margin-bottom: 4px;
 }
 .hud-boss-track {
-  height: 13px; border-radius: 4px; overflow: hidden;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 160, 160, 0.45);
+  position: relative;
+  height: 15px; border-radius: 3px; overflow: hidden;
+  background: rgba(6, 3, 4, 0.85);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(232, 197, 106, 0.5),
+    0 0 20px rgba(217, 75, 75, 0.28);
 }
 .hud-boss-fill {
   height: 100%; width: 100%;
-  background: linear-gradient(180deg, #d94b4b, #6d1f28);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.25), transparent 45%),
+    linear-gradient(180deg, #e05656, #5e1a22);
   transition: width 0.1s linear;
+}
+/* Thirds, marking the two phase thresholds the boss actually changes at. */
+.hud-boss-track::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(33.333% - 2px),
+    rgba(232, 197, 106, 0.75) calc(33.333% - 2px) 33.333%
+  );
 }
 
 /* ---------- Item slots ---------- */
 .hud-slots { position: absolute; right: 16px; bottom: 16px; display: grid; gap: 7px; }
 .hud-slot-row { display: flex; gap: 7px; justify-content: flex-end; }
 .hud-slot {
-  width: 46px; height: 46px; border-radius: 9px; position: relative;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  width: 46px; height: 46px; border-radius: 8px; position: relative;
+  background: rgba(10, 16, 22, 0.5);
+  /* Empty slots are a recess in the frame; filled ones get a jade rim and lift
+   * off it. Before, both were the same flat outlined square and a full loadout
+   * looked identical to an empty one at a glance. */
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
 }
-.hud-slot.filled { border-color: rgba(255, 255, 255, 0.35); background: rgba(0, 0, 0, 0.45); }
+.hud-slot.filled {
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(127, 214, 181, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.5);
+}
 .hud-slot-icon { width: 100%; height: 100%; border-radius: 8px; display: block; }
 .hud-slot:not(.filled) .hud-slot-icon { display: none; }
 .hud-pips {
