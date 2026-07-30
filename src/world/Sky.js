@@ -267,7 +267,14 @@ export class Sky {
           vec3 offset = right * position.x + up * position.y;
 
           vFade = smoothstep( 0.0, 4.0, py ) * smoothstep( 34.0, 26.0, py );
-          gl_Position = projectionMatrix * viewMatrix * vec4( world + offset, 1.0 );
+
+          vec4 mv = viewMatrix * vec4( world + offset, 1.0 );
+          // Fade out anything close to the lens. A petal is half a unit across
+          // and the drift box travels with the player, so one passing near the
+          // camera covered more of the screen than the character did — which is
+          // exactly how it looked.
+          vFade *= smoothstep( 4.0, 11.0, -mv.z );
+          gl_Position = projectionMatrix * mv;
         }`,
       fragmentShader: `
         uniform sampler2D uMap;

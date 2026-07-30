@@ -65,7 +65,10 @@ export function createScene(palette = {}) {
   const hemi = new THREE.HemisphereLight(0x9fc8e8, 0x3a4a3c, 0.52)
   scene.add(hemi)
 
-  const sun = new THREE.DirectionalLight(0xffe9c4, 2.05)
+  // Only lightly warm. At 0xffe9c4 and this intensity a silver-haired character
+  // came out cream, and white cloth came out tan — the tint was reading as the
+  // material's own colour rather than as sunlight on it.
+  const sun = new THREE.DirectionalLight(0xfff4e2, 2.05)
   sun.position.set(20, 17, 13)
   sun.castShadow = true
   sun.shadow.mapSize.set(2048, 2048)

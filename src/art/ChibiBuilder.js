@@ -92,13 +92,20 @@ function faceShellGeometry(radius) {
 }
 
 function hairProfile() {
-  // Lathe silhouette for the back hair mass: a rounded bell that flares out.
+  // Back hair, kept inside the head's own width.
+  //
+  // This used to bell out to a radius of 0.56 — wider than the 0.42 head and
+  // hanging past the shoulders — so the widest part of her whole silhouette was
+  // a curtain of hair at chest height. Head and hair and torso then merged into
+  // one continuous oval, which is why she read as an egg at play distance no
+  // matter how good the face was. It now tucks in behind the shoulders and lets
+  // the body define the outline.
   const pts = []
   for (let i = 0; i <= 10; i++) {
     const t = i / 10
-    const y = 0.34 - t * 0.86
-    const r = 0.30 + Math.sin(t * Math.PI * 0.92) * 0.20 + t * 0.06
-    pts.push(new THREE.Vector2(r, y))
+    const y = 0.34 - t * 0.74
+    const r = 0.29 + Math.sin(t * Math.PI * 0.9) * 0.10 - t * 0.07
+    pts.push(new THREE.Vector2(Math.max(0.05, r), y))
   }
   return pts
 }
@@ -106,6 +113,11 @@ function hairProfile() {
 export function buildChibi(character) {
   const pal = character.palette
   const root = new THREE.Group()
+  // Everything below is authored at 1.9 units, which put her at 84 pixels of an
+  // 860-pixel frame — under 10% of screen height, and most of that was scalp.
+  // The camera distance is tuned for how much of the horde has to be visible
+  // and is not the thing to change, so she is scaled here instead.
+  root.scale.setScalar(1.34)
 
   const uniforms = {
     uTime: { value: 0 },
@@ -140,8 +152,11 @@ export function buildChibi(character) {
   headPivot.rotation.x = -0.34
   root.add(headPivot)
 
+  // Slightly narrower and shorter than before. With the hair mass on top the
+  // head was reading as roughly 60% of her whole silhouette, which is past
+  // chibi and into bobblehead — there was no body left to recognise.
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 24, 18), skinMat)
-  head.scale.set(1, 0.94, 0.95)
+  head.scale.set(0.94, 0.88, 0.9)
   head.castShadow = true
   headPivot.add(head)
 
@@ -263,9 +278,12 @@ export function buildChibi(character) {
   }
 
   if (character.id === 'seolryeong') {
-    // Long twintails.
-    addStrand(-0.44, 1.02, -0.05, 0.72, 0.22, 0.10)
-    addStrand(0.44, 1.02, -0.05, 0.72, -0.22, 0.10)
+    // Long twintails. Narrow, because at 0.10 they were as wide as her forearm
+    // and read as two flat paddles bolted to her head rather than as hair.
+    addStrand(-0.42, 1.04, -0.06, 0.86, 0.20, 0.062)
+    addStrand(0.42, 1.04, -0.06, 0.86, -0.20, 0.062)
+    addStrand(-0.34, 1.0, -0.16, 0.62, 0.34, 0.042)
+    addStrand(0.34, 1.0, -0.16, 0.62, -0.34, 0.042)
   } else if (character.id === 'hongryeon') {
     // Side locks framing the face, plus a long tail down the back.
     addStrand(-0.40, 1.10, 0.10, 0.46, 0.12, 0.08)

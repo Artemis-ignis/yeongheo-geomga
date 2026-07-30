@@ -239,6 +239,10 @@ export class Game {
       this.audio.play(crit ? 'crit' : 'hit', { pan: this._panAt(x) })
       this.overlay.pushText(x, y, z, amount, crit)
     }
+    this.enemies.onHit = (x, z, tag, crit, dirX, dirZ, power) => {
+      this.vfx.hit(x, z, tag, crit, dirX, dirZ, power)
+      if (crit) this.impact.hitstop(0.022)
+    }
     this.boss.onDamageText = (x, y, z, amount, crit) => {
       this.audio.play(crit ? 'crit' : 'hit', { pan: this._panAt(x) })
       this.overlay.pushText(x, y, z, amount, crit)

@@ -6,6 +6,21 @@ export const MAX_VFX = 400
 const _dummy = new THREE.Object3D()
 
 /**
+ * Impact colour per damage element. The layer's own colour is a warm spark, so
+ * these are multipliers against it rather than absolute colours.
+ */
+const HIT_TINTS = {
+  physical: [1.0, 0.95, 0.85],
+  sword: [0.85, 0.95, 1.15],
+  fire: [1.15, 0.55, 0.22],
+  ice: [0.55, 0.95, 1.25],
+  thunder: [0.85, 0.8, 1.3],
+  array: [1.1, 0.95, 0.5],
+  poison: [0.6, 1.15, 0.5],
+  wind: [0.8, 1.1, 0.95],
+}
+
+/**
  * Pooled, instanced visual effects.
  *
  * Every effect kind is one InstancedMesh. Fade and growth run in the fragment/
@@ -30,16 +45,21 @@ function makeEffectMaterial({ color, additive = true, map = null, grow = 1.0, sp
     vertexShader: `
       attribute float aBirth;
       attribute float aLife;
+      // Per-instance tint, so one layer can serve every damage element instead
+      // of needing a separate InstancedMesh and draw call for each.
+      attribute vec3 aTint;
       uniform float uTime;
       uniform float uGrow;
       uniform float uSpin;
       varying vec2 vUv;
       varying float vFade;
+      varying vec3 vTint;
 
       void main() {
         float age = ( uTime - aBirth ) / max( aLife, 0.0001 );
         vFade = 1.0 - clamp( age, 0.0, 1.0 );
         vUv = uv;
+        vTint = aTint;
 
         vec3 p = position * ( 1.0 + age * uGrow );
         if ( uSpin != 0.0 ) {
@@ -59,12 +79,13 @@ function makeEffectMaterial({ color, additive = true, map = null, grow = 1.0, sp
       uniform float uHasMap;
       varying vec2 vUv;
       varying float vFade;
+      varying vec3 vTint;
 
       void main() {
         vec4 tex = uHasMap > 0.5 ? texture2D( uMap, vUv ) : vec4( 1.0 );
         float a = tex.a * vFade;
         if ( a < 0.01 ) discard;
-        gl_FragColor = vec4( uColor * tex.rgb, a );
+        gl_FragColor = vec4( uColor * vTint * tex.rgb, a );
       }`,
   })
 }
@@ -82,8 +103,10 @@ class EffectLayer {
 
     this.birth = new Float32Array(capacity).fill(-1000)
     this.life = new Float32Array(capacity).fill(1)
+    this.tint = new Float32Array(capacity * 3).fill(1)
     geo.setAttribute('aBirth', new THREE.InstancedBufferAttribute(this.birth, 1))
     geo.setAttribute('aLife', new THREE.InstancedBufferAttribute(this.life, 1))
+    geo.setAttribute('aTint', new THREE.InstancedBufferAttribute(this.tint, 3))
 
     this.mesh = new THREE.InstancedMesh(geo, material, capacity)
     this.mesh.frustumCulled = false
@@ -100,7 +123,7 @@ class EffectLayer {
   }
 
   /** Ring-buffer spawn: the oldest effect is overwritten when full. */
-  emit(x, y, z, scale, life, time, rotY = 0, flat = false) {
+  emit(x, y, z, scale, life, time, rotY = 0, flat = false, tint = null) {
     const i = this.next % this.capacity
     this.next++
     _dummy.position.set(x, y, z)
@@ -111,8 +134,14 @@ class EffectLayer {
     this.mesh.instanceMatrix.needsUpdate = true
     this.birth[i] = time
     this.life[i] = life
+    // White leaves the layer's own colour untouched, so every existing caller
+    // keeps working without passing a tint.
+    this.tint[i * 3] = tint ? tint[0] : 1
+    this.tint[i * 3 + 1] = tint ? tint[1] : 1
+    this.tint[i * 3 + 2] = tint ? tint[2] : 1
     this.geo.attributes.aBirth.needsUpdate = true
     this.geo.attributes.aLife.needsUpdate = true
+    this.geo.attributes.aTint.needsUpdate = true
   }
 
   setTime(t) {
@@ -155,6 +184,45 @@ export class Vfx {
 
   spark(x, z, y = 0.8, scale = 0.9) {
     this.layers.spark.emit(x, y, z, scale, 0.28, this.time)
+  }
+
+  /**
+   * The moment a weapon connects.
+   *
+   * Landing a hit used to produce a damage number and a white flash on the
+   * creature, and nothing at the point of contact — which is why the combat
+   * read as numbers going up rather than as blows landing. A cluster of sparks
+   * thrown along the direction of the blow, tinted to the element, is most of
+   * what the feel was missing, and it costs one instanced quad per spark.
+   */
+  hit(x, z, tag = 'physical', crit = false, dirX = 0, dirZ = 0, power = 1) {
+    const tint = HIT_TINTS[tag] ?? HIT_TINTS.physical
+    const len = Math.hypot(dirX, dirZ) || 1
+    const nx = dirX / len
+    const nz = dirZ / len
+    const count = crit ? 6 : 3
+
+    for (let i = 0; i < count; i++) {
+      // Thrown along the blow, spread wider the harder it landed.
+      const spread = (i / Math.max(1, count - 1) - 0.5) * (crit ? 1.5 : 0.95)
+      const c = Math.cos(spread)
+      const s = Math.sin(spread)
+      const ox = nx * c - nz * s
+      const oz = nx * s + nz * c
+      const reach = 0.35 + i * 0.16
+      // Small and quick. Large soft quads at this camera angle read as blobs
+      // sitting on the creature rather than as anything being struck.
+      this.layers.spark.emit(
+        x + ox * reach, 0.7 + (i % 2) * 0.45, z + oz * reach,
+        (crit ? 0.42 : 0.26) * power, crit ? 0.26 : 0.17, this.time, 0, false, tint,
+      )
+    }
+    // A flat flash under the contact. With the camera looking down, the ground
+    // plane is the surface the player actually reads, so this carries most of
+    // the hit and the airborne sparks only garnish it.
+    this.layers.ring.emit(
+      x, 0.1, z, (crit ? 1.7 : 1.05) * power, crit ? 0.3 : 0.2, this.time, 0, true, tint,
+    )
   }
 
   burst(x, z, radius, y = 0.8) {

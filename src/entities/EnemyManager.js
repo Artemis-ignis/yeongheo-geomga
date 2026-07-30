@@ -50,6 +50,9 @@ export class EnemyManager {
     // Reported outward; wired up by Game.
     this.onKill = null
     this.onDamageText = null
+    // Fired at the point of contact, separately from the damage number, so the
+    // impact can be drawn where the blow actually landed.
+    this.onHit = null
     this.onEnemyShot = null
     // Fired when a charger starts its wind-up, so the tell can be drawn.
     this.onTelegraph = null
@@ -227,6 +230,12 @@ export class EnemyManager {
 
     if (this.onDamageText) {
       this.onDamageText(this.px[i], 1.0 * this.scale[i], this.pz[i], amount, crit)
+    }
+    if (this.onHit) {
+      // Power scales with how big a bite this took out of the target, so a
+      // chip tick and a killing blow do not throw the same shower.
+      const power = 0.6 + Math.min(1, amount / Math.max(1, this.maxHp[i])) * 1.4
+      this.onHit(this.px[i], this.pz[i], tag, crit, opts.dirX ?? 0, opts.dirZ ?? 0, power)
     }
 
     const kb = opts.knockback ?? 0
