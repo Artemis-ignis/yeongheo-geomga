@@ -25,7 +25,38 @@ function softClipCurve(drive = 1.7, size = 2048) {
   return curve
 }
 
+/**
+ * How each damage element sounds when it lands.
+ *
+ * `filter` and `wave` do most of the work: a bright noise burst with a square
+ * partial reads as metal, a dark one with a sine reads as a thud, and a long
+ * plucked tail reads as glass. `ring` adds that tail where it belongs.
+ */
+const IMPACT_VOICE = {
+  physical: { freq: 300, drop: 0.28, wave: 'triangle', filter: 3200, decay: 0.1, body: 2.0, tone: 1.8, ring: 0, seed: 7717 },
+  // Loudness matched by ear-equivalent measurement, not by the numbers looking
+  // even: a short bright square reads far quieter than a long dark saw at the
+  // same gain, and 비검 measured at a quarter of 화염's peak before this.
+  sword: { freq: 720, drop: 0.35, wave: 'square', filter: 7200, decay: 0.09, body: 1.05, tone: 0.95, ring: 0.7, seed: 3313 },
+  fire: { freq: 240, drop: 0.4, wave: 'sawtooth', filter: 2400, decay: 0.14, body: 1.25, tone: 0.9, ring: 0, seed: 5501 },
+  ice: { freq: 980, drop: 0.55, wave: 'sine', filter: 8600, decay: 0.06, body: 0.6, tone: 0.6, ring: 1.2, seed: 9013 },
+  thunder: { freq: 1500, drop: 0.12, wave: 'square', filter: 11000, decay: 0.05, body: 1.1, tone: 0.8, ring: 0, seed: 4409 },
+  array: { freq: 180, drop: 0.7, wave: 'sine', filter: 1400, decay: 0.2, body: 0.7, tone: 1.2, ring: 0.9, seed: 1811 },
+  poison: { freq: 200, drop: 0.5, wave: 'sawtooth', filter: 1800, decay: 0.16, body: 1.0, tone: 0.5, ring: 0, seed: 2201 },
+  wind: { freq: 420, drop: 0.45, wave: 'triangle', filter: 5200, decay: 0.12, body: 0.9, tone: 0.5, ring: 0, seed: 6607 },
+}
+
+/** Launch voice per projectile kind, matched to the trail it leaves. */
+const LAUNCH_VOICE = {
+  sword: { freq: 1250, to: 420, filter: 6400, gain: 0.11, decay: 0.1 },
+  talisman: { freq: 620, to: 300, filter: 3000, gain: 0.09, decay: 0.15 },
+  vajra: { freq: 300, to: 130, filter: 1900, gain: 0.13, decay: 0.13 },
+  butterfly: { freq: 900, to: 620, filter: 5200, gain: 0.07, decay: 0.18 },
+  darkSword: { freq: 900, to: 260, filter: 4200, gain: 0.11, decay: 0.13 },
+}
+
 const VOICE_GAP = {
+  launch: 0.055,
   hit: 0.035,
   kill: 0.05,
   pickup: 0.045,
@@ -226,14 +257,45 @@ export class AudioEngine {
         })
         break
 
-      case 'hit':
-        playBuffer(ctx, bus, noiseBuffer(ctx, 0.2, 7717), {
-          gain: 0.24, decay: 0.075, filter: 3600, filterTo: 500, pan,
-        })
+      case 'launch': {
+        // Quiet by design. This fires on every shot of a built loadout, which
+        // is several a second — it has to be felt more than heard, or it buries
+        // the impacts it is announcing.
+        const v = LAUNCH_VOICE[opts.kind]
+        if (!v) break
         playTone(ctx, bus, {
-          freq: 320 + r * 90, toFreq: 90, type: 'triangle', gain: 0.18, decay: 0.085, pan,
+          freq: v.freq, toFreq: v.to, type: 'triangle',
+          gain: v.gain, attack: 0.004, decay: v.decay, pan,
+        })
+        playBuffer(ctx, bus, noiseBuffer(ctx, 0.22, 4001), {
+          gain: v.gain * 0.55, decay: v.decay * 0.8, filter: v.filter, filterTo: v.filter * 0.2, pan,
         })
         break
+      }
+
+      case 'hit': {
+        // Impact voiced by element.
+        //
+        // Every 법보 landed with the same click, so a loadout that had just been
+        // given six distinct silhouettes and six distinct trails still sounded
+        // like one weapon. Timbre is the channel that survives a crowded frame
+        // best — the player often hears a hit they did not see.
+        const v = IMPACT_VOICE[opts.tag] ?? IMPACT_VOICE.physical
+        playBuffer(ctx, bus, noiseBuffer(ctx, 0.22, v.seed), {
+          gain: 0.2 * v.body, decay: v.decay, filter: v.filter, filterTo: v.filter * 0.14, pan,
+        })
+        playTone(ctx, bus, {
+          freq: v.freq * (0.92 + r * 0.16), toFreq: v.freq * v.drop,
+          type: v.wave, gain: 0.16 * v.tone, decay: v.decay * 1.15, pan,
+        })
+        // Ice and 진법 ring on afterwards; a sword and a fist do not.
+        if (v.ring) {
+          playBuffer(ctx, bus, pluckBuffer(ctx, v.freq * 3, 0.7, 0.5, v.seed + 7), {
+            gain: 0.09 * v.ring, decay: 0.45, pan,
+          })
+        }
+        break
+      }
 
       case 'crit':
         playBuffer(ctx, bus, noiseBuffer(ctx, 0.25, 3313), {

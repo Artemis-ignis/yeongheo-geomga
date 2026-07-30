@@ -247,14 +247,18 @@ export class Game {
     // One place for both the number and the impact sound: every path that deals
     // damage already reports here, so nothing can land silently.
     this.enemies.onDamageText = (x, y, z, amount, crit) => {
-      this.audio.play(crit ? 'crit' : 'hit', { pan: this._panAt(x) })
       this.overlay.pushText(x, y, z, amount, crit)
     }
     // Each 법보 announces itself where it leaves her, in its own colour.
     this.projectiles.onLaunch = (x, z, dx, dz, kind) => {
       this.vfx.launch(x, z, dx, dz, kind)
+      this.audio.play('launch', { kind, pan: this._panAt(x) })
     }
     this.enemies.onHit = (x, z, tag, crit, dirX, dirZ, power) => {
+      // The impact sound lives here rather than with the damage number, because
+      // only this callback knows which element landed — and the element is the
+      // whole point of giving each 법보 its own voice.
+      this.audio.play(crit ? 'crit' : 'hit', { tag, pan: this._panAt(x) })
       this.vfx.hit(x, z, tag, crit, dirX, dirZ, power)
       if (crit) this.impact.hitstop(0.022)
     }
