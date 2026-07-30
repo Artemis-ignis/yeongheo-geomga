@@ -111,7 +111,15 @@ export class Post {
     // The grade belongs to the stage. Lifting every shadow toward the same navy
     // dragged a red wasteland and a snowfield back to looking like the same
     // blue-grey place however different their albedo was.
-    if (palette.abyss !== undefined) this.grade.uniforms.uLift.value.setHex(palette.abyss).multiplyScalar(0.55)
+    //
+    // The lift defaults to `abyss`, which is warm on a fire stage — so lift and
+    // gain were both warm and the grade remapped every pixel into one hue. The
+    // shader's own comment says it cools the shadows, and on 적염비경 it was
+    // doing the opposite. A stage whose void is warm has to name a cool lift
+    // explicitly, because heat is a comparison and there was nothing left in
+    // the frame to compare against.
+    const lift = palette.gradeLift ?? palette.abyss
+    if (lift !== undefined) this.grade.uniforms.uLift.value.setHex(lift).multiplyScalar(0.55)
     if (palette.skyBottom !== undefined) this.grade.uniforms.uGain.value.setHex(palette.skyBottom)
     this.composer.addPass(this.grade)
 

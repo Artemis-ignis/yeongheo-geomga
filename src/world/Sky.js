@@ -149,14 +149,20 @@ export class Sky {
     // Coloured top to bottom rather than left one flat grey. A distant island is
     // small on screen, but a single untextured tone at that size reads as a
     // placeholder rock — the green cap is what makes it land instead.
+    // Cap and root come from the stage. A green-topped island floating over a
+    // snowfield or a lava plain is the kind of detail that quietly tells the
+    // player the three 비경 are the same place with a filter on it.
+    const capTop = this.pal.islandCap ?? 0x6f9a63
+    const rockTone = this.pal.islandRock ?? 0x222c36
+
     const cap = buildColored([
       [roughen(new THREE.DodecahedronGeometry(6, 0), 0.5, 5), { y: 0, sy: 0.55 }, undefined],
       [roughen(new THREE.DodecahedronGeometry(2.4, 0), 0.3, 9), { x: 5.5, y: 0.8, sy: 0.6 }, undefined],
     ])
-    gradient(cap, 0x4a5c62, 0x6f9a63, 'y')
+    gradient(cap, 0x4a5c62, capTop, 'y')
 
     const root = roughen(new THREE.ConeGeometry(4.5, 11, 7), 0.45, 13)
-    gradient(root, 0x222c36, 0x51666f, 'y')
+    gradient(root, rockTone, 0x51666f, 'y')
 
     const geo = buildColored([
       [cap, {}, undefined],

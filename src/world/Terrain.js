@@ -297,11 +297,88 @@ export class Terrain {
     ]
   }
 
+  /**
+   * Basalt spires for 적염비경 — tall, cracked, glowing at the fissures. They
+   * replace the trees on a stage where nothing grows.
+   */
+  _spireGeometry() {
+    // Columnar jointing: basalt cools into a bundle of hexagonal columns that
+    // snap off at different heights. Three smooth cones read as red paper
+    // triangles — this reads as rock because the silhouette is stepped and the
+    // columns shade against each other.
+    const dark = 0x241b18
+    const mid = shade(this.pal.stone, 0.85)
+    const parts = []
+    const columns = [
+      [0.00, 0.00, 5.6, 0.40], [0.62, 0.18, 4.2, 0.34], [-0.55, 0.30, 4.8, 0.32],
+      [0.24, -0.64, 3.3, 0.30], [-0.30, -0.55, 2.5, 0.27], [0.86, -0.34, 2.0, 0.24],
+      [-0.86, -0.16, 1.6, 0.22],
+    ]
+    for (const [dx, dz, h, r] of columns) {
+      const col = new THREE.CylinderGeometry(r * 0.86, r, h, 6)
+      // Sheared so the bundle leans as one mass rather than standing to
+      // attention, and roughened so the snapped tops are not machined discs.
+      roughen(col, 0.05, 41 + Math.round(h * 7))
+      gradient(col, dark, mid, 'y')
+      parts.push([col, { x: dx, y: h * 0.5, z: dz, rz: dx * 0.09, rx: dz * 0.07 }, undefined])
+    }
+    // Molten seams in the gaps between columns — the fire on this stage comes up
+    // through the cracks, not off the surfaces.
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.4
+      parts.push([
+        new THREE.BoxGeometry(0.07, 1.1 + (i % 3) * 0.5, 0.06),
+        {
+          x: Math.sin(a) * 0.5, y: 0.7 + (i % 3) * 0.3, z: Math.cos(a) * 0.5,
+          rz: Math.sin(a) * 0.22,
+        },
+        this.pal.groundVein ?? 0xff6a1e,
+      ])
+    }
+    return buildColored(parts)
+  }
+
+  /**
+   * Standing ice for 한천비경.
+   *
+   * Dark at the root and pale only at the tips — a cone graded the other way
+   * round was invisible against a snowfield, which is the whole problem this
+   * stage had. Seven shards at varied angles rather than three, because ice
+   * that has been shattered and refrozen is a thicket, not a tepee.
+   */
+  _pillarGeometry() {
+    const deep = 0x1d3a52
+    const mid = 0x4f86a8
+    const pale = 0xd6f0ff
+    const parts = []
+    const shards = [
+      [0, 0, 5.0, 0.46, 0.0, 0.0],
+      [0.62, 0.26, 3.4, 0.30, 0.16, 0.06],
+      [-0.5, -0.34, 2.6, 0.26, -0.13, -0.09],
+      [0.30, -0.62, 3.9, 0.24, 0.07, -0.17],
+      [-0.66, 0.44, 2.1, 0.21, -0.18, 0.11],
+      [0.14, 0.70, 1.6, 0.17, 0.05, 0.20],
+      [-0.22, -0.16, 1.2, 0.14, -0.06, 0.04],
+    ]
+    for (const [dx, dz, h, r, rz, rx] of shards) {
+      const shard = new THREE.ConeGeometry(r, h, 4)
+      gradient(shard, deep, h > 3 ? pale : mid, 'y')
+      parts.push([shard, { x: dx, y: h * 0.5, z: dz, rz, rx }, undefined])
+    }
+    // A rimed base tying the cluster to the ground rather than leaving the
+    // shards to sprout out of flat snow.
+    const base = roughen(new THREE.DodecahedronGeometry(0.95, 0), 0.22, 31)
+    gradient(base, 0x16293a, mid, 'y')
+    parts.push([base, { y: 0.18, sy: 0.42 }, undefined])
+    return buildColored(parts)
+  }
+
   _buildProps() {
+    const cfg = this.pal.props ?? { rocks: 46, pines: 40, lanterns: 10, spires: 0, pillars: 0 }
     const rockMat = makeToonMaterial({ color: 0xffffff, rim: 0.2, vertexColors: true })
     // Rocks spill past the 결계 onto the outer rim so the plateau has a silhouette.
     // Kept sparse inside the arena: scenery must never hide an incoming enemy.
-    const rocks = this._scatter(46, 6, PLATEAU_RADIUS - 3)
+    const rocks = this._scatter(cfg.rocks, 6, PLATEAU_RADIUS - 3)
     const rockGeos = this._rockVariants()
     // Props cast now. With the key light low in the sky these throw long
     // shadows across the plateau, which is most of what gives a flat disc of
@@ -340,7 +417,10 @@ export class Terrain {
     const pineMat = makeToonMaterial({ color: 0xffffff, rim: 0.25, rimColor: 0x9be8c8, vertexColors: true })
     // Kept to the outer ring: with the camera this close, a pine anywhere near
     // the player fills a third of the screen and hides the fight behind it.
-    const pines = this._scatter(40, 6, PLATEAU_RADIUS - 3).filter(([x, z]) => Math.hypot(x, z) > ARENA_RADIUS * 0.92)
+    const pines = cfg.pines === 0
+      ? []
+      : this._scatter(cfg.pines, 6, PLATEAU_RADIUS - 3)
+        .filter(([x, z]) => Math.hypot(x, z) > ARENA_RADIUS * 0.92)
     const pineGeos = this._pineVariants()
     this.pines = pineGeos.map((geo) => {
       const mesh = new THREE.InstancedMesh(geo, pineMat, pines.length)
@@ -369,8 +449,8 @@ export class Terrain {
     ])
     const lanternMat = makeToonMaterial({ color: 0x9a927f, rim: 0.5, rimColor: PALETTE.gold })
     // Lanterns are tall, so they belong on the rim with the pines.
-    const lanterns = this._scatter(10, 12, PLATEAU_RADIUS - 3).filter(([x, z]) => Math.hypot(x, z) > ARENA_RADIUS * 0.85)
-    this.lanterns = new THREE.InstancedMesh(lanternGeo, lanternMat, lanterns.length)
+    const lanterns = this._scatter(cfg.lanterns, 12, PLATEAU_RADIUS - 3).filter(([x, z]) => Math.hypot(x, z) > ARENA_RADIUS * 0.85)
+    this.lanterns = new THREE.InstancedMesh(lanternGeo, lanternMat, Math.max(1, lanterns.length))
     lanterns.forEach(([x, z], i) => {
       _dummy.position.set(x, 0, z)
       _dummy.rotation.set(0, Math.random() * Math.PI * 2, 0)
@@ -378,8 +458,39 @@ export class Terrain {
       _dummy.updateMatrix()
       this.lanterns.setMatrixAt(i, _dummy.matrix)
     })
+    this.lanterns.count = lanterns.length
     this.lanterns.instanceMatrix.needsUpdate = true
     this.group.add(this.lanterns)
+
+    // Whatever this 비경 grows instead of trees.
+    this.landmarks = []
+    for (const [kind, count] of [['spires', cfg.spires ?? 0], ['pillars', cfg.pillars ?? 0]]) {
+      if (count <= 0) continue
+      const geo = kind === 'spires' ? this._spireGeometry() : this._pillarGeometry()
+      const mat = makeToonMaterial({
+        color: 0xffffff, rim: kind === 'pillars' ? 0.6 : 0.25,
+        rimColor: kind === 'pillars' ? 0xdff2ff : (this.pal.groundVein ?? 0xff8a4a),
+        vertexColors: true,
+      })
+      // Same rule as the pines: tall scenery lives past the barrier, where it
+      // frames the arena instead of hiding a creature inside it.
+      const spots = this._scatter(count, 6, PLATEAU_RADIUS - 3)
+        .filter(([x, z]) => Math.hypot(x, z) > ARENA_RADIUS * 0.9)
+      const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, spots.length))
+      mesh.castShadow = true
+      spots.forEach(([x, z], i) => {
+        const s = 0.65 + Math.random() * 0.75
+        _dummy.position.set(x, 0, z)
+        _dummy.rotation.set(0, Math.random() * Math.PI * 2, 0)
+        _dummy.scale.set(s, s * (0.8 + Math.random() * 0.7), s)
+        _dummy.updateMatrix()
+        mesh.setMatrixAt(i, _dummy.matrix)
+      })
+      mesh.count = spots.length
+      mesh.instanceMatrix.needsUpdate = true
+      this.group.add(mesh)
+      this.landmarks.push(mesh)
+    }
   }
 
   /** Record a barrier contact so the wall lights up where it was touched. */

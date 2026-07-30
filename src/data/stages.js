@@ -28,6 +28,10 @@ export const STAGES = [
       mote: 'petal',
       moteTint: 0xffffff,
       moteRise: false,
+      // Prop mix. Each 비경 was previously dressed identically — the same pines
+      // stood on the burning waste and on the snowfield — so the three read as
+      // one arena with three colour filters over it.
+      props: { rocks: 46, pines: 40, lanterns: 10, spires: 0, pillars: 0 },
     },
     grassDensity: 1.0,
     // The baseline bestiary. Fire and ice creatures belong to their own 비경 and
@@ -63,17 +67,27 @@ export const STAGES = [
       pine: 0x4a3a2e,
       stone: 0x6e4a3c,
       fog: 0xc98a6a,
-      skyTop: 0x2a1018,
-      skyMid: 0x8a3a2c,
+      // A cold violet at the zenith. Every tone on this stage was warm, so the
+      // frame had no relief anywhere and the fire stopped reading as fire —
+      // heat is a comparison, and there was nothing to compare it against.
+      skyTop: 0x241a3e,
+      skyMid: 0x7e3a3c,
       skyHaze: 0xe0a074,
       skyBottom: 0xffd0a0,
-      abyss: 0x3a1712,
+      abyss: 0x2a1520,
+      // Shadows go cold here even though everything else on the stage is hot.
+      gradeLift: 0x1a2242,
+      islandCap: 0x5c3a2e,
+      islandRock: 0x24161a,
       barrier: 0xff9a5a,
       // Cherry blossom over a burning waste was the single most out-of-place
       // thing on this stage. Embers, and they rise.
       mote: 'spark',
       moteTint: 0xff8a3c,
       moteRise: true,
+      // Nothing grows here. Bare rock and basalt spires instead of trees, and
+      // only a few lanterns left standing.
+      props: { rocks: 74, pines: 0, lanterns: 4, spires: 24, pillars: 0 },
     },
     grassDensity: 0.55,
     // Fire creatures plus the fast half of the baseline roster. 석귀 is dropped:
@@ -92,22 +106,46 @@ export const STAGES = [
     desc: '만년설이 덮인 고봉. 숨을 쉴 때마다 폐가 얼어붙는다.',
     unlockCost: 2200,
     palette: {
-      ground: 0x5e7386,
-      groundMoss: 0xd8ecf5,
-      grassBase: 0x6a8496,
-      grassTip: 0xd0e8f2,
-      pine: 0x2f4a52,
-      stone: 0x8c9aa8,
-      fog: 0xcfe0ea,
-      skyTop: 0x1c2a44,
-      skyMid: 0x6d90b4,
-      skyHaze: 0xd8e8f2,
-      skyBottom: 0xf0f6ff,
-      abyss: 0x33465c,
+      // Snow in shadow, not snow in a photograph.
+      //
+      // These were all in the 0xd0–0xf0 range and the stage rendered as a
+      // white-out: the ice was invisible against the sky, the pines were ghosts,
+      // and nothing in the frame had an edge. Lit snow is nearly white, but only
+      // the parts facing the sun are lit, and everything here faces a low key
+      // light — so the base tones have to sit far darker than the idea of snow
+      // suggests. The white is meant to come from the sun hitting it, not from
+      // the albedo.
+      // Slate-violet, not cyan. Darkening the field fixed the white-out but
+      // walked it straight into the ice creatures and the 영기 orb, which are
+      // all blue — the contrast gate caught 요랑, 설랑, 빙벽수 and the orb all
+      // inside ΔE 25 of the ground. Snow shadow is violet anyway; taking the
+      // green out of the ground is what gives everything blue somewhere to
+      // stand.
+      // Dark, and clearly dark. Two attempts sat this field at mid value —
+      // first cyan, then violet — and a mid-value neutral collides with
+      // everything: pale ice creatures, dark ones, and the 영기 orb all landed
+      // inside it. A deep field gives anything made of ice somewhere to be
+      // bright against, which is the whole visual idea of the stage.
+      ground: 0x2b3045,
+      groundMoss: 0x7d85a0,
+      grassBase: 0x333a52,
+      grassTip: 0x8e97b2,
+      pine: 0x22343c,
+      stone: 0x64788a,
+      fog: 0x9fb8ca,
+      skyTop: 0x121c30,
+      skyMid: 0x4d74a0,
+      skyHaze: 0xb2cbdc,
+      skyBottom: 0xdceaf4,
+      abyss: 0x22303f,
       barrier: 0xbfe8ff,
+      islandCap: 0xcfe4f2,
+      islandRock: 0x1b2a38,
       mote: 'spark',
       moteTint: 0xe8f6ff,
       moteRise: false,
+      // Frozen pines survive up here, thinned out, among standing ice.
+      props: { rocks: 40, pines: 22, lanterns: 8, spires: 0, pillars: 20 },
     },
     grassDensity: 0.35,
     // Ice creatures plus the durable half of the baseline roster. No 혈갈 and no

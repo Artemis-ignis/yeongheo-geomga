@@ -87,33 +87,42 @@ const BUILDERS = {
       [0.9, 1.25, 1.15, 0.72], 16, 9,
     )
     body.scale(0.30, 0.26, 0.30)
-    gradient(body, 0x9fb6cf, 0x4d6584, 'y')
+    // Light warm taupe, and every part of the pelt shares it.
+    //
+    // 요랑 is the only creature that fights on both the dark green plateau and
+    // the dark violet snowfield, so it cannot be dark itself. Recolouring the
+    // body alone moved nothing, because the dominant colour of a model is
+    // whichever bucket holds the most vertices — a gradient spreads across many
+    // buckets while four flat-shaded legs pile into one, so the legs were
+    // deciding what the creature looked like to the contrast gate, and to the
+    // eye.
+    gradient(body, 0xd6c9b8, 0x8c7c6c, 'y')
 
     const head = limb(
       [[0, 0.60, 0.48], [0, 0.58, 0.68], [0, 0.52, 0.86]],
       [0.62, 0.5, 0.24], 8, 8,
     )
     head.scale(0.33, 0.30, 0.33)
-    gradient(head, 0xaec2d8, 0x57708f, 'y')
+    gradient(head, 0xe0d3c2, 0x968574, 'y')
 
     const parts = [
       [body, {}, undefined],
       [head, {}, undefined],
       // Snout.
-      [new THREE.ConeGeometry(0.085, 0.24, 6), { y: 0.5, z: 0.92, rx: Math.PI / 2 }, 0x4a5f78],
+      [new THREE.ConeGeometry(0.085, 0.24, 6), { y: 0.5, z: 0.92, rx: Math.PI / 2 }, 0x6f6156],
       // Eyes.
       [new THREE.SphereGeometry(0.042, 6, 5), { x: -0.085, y: 0.63, z: 0.78 }, 0xffd76a],
       [new THREE.SphereGeometry(0.042, 6, 5), { x: 0.085, y: 0.63, z: 0.78 }, 0xffd76a],
       // Ears.
-      [new THREE.ConeGeometry(0.062, 0.17, 4), { x: -0.11, y: 0.78, z: 0.6, rx: -0.2 }, 0x56708c],
-      [new THREE.ConeGeometry(0.062, 0.17, 4), { x: 0.11, y: 0.78, z: 0.6, rx: -0.2 }, 0x56708c],
+      [new THREE.ConeGeometry(0.062, 0.17, 4), { x: -0.11, y: 0.78, z: 0.6, rx: -0.2 }, 0xb3a494],
+      [new THREE.ConeGeometry(0.062, 0.17, 4), { x: 0.11, y: 0.78, z: 0.6, rx: -0.2 }, 0xb3a494],
     ]
 
     // Legs, angled slightly outward.
     for (const [lx, lz] of [[-0.14, 0.3], [0.14, 0.3], [-0.14, -0.26], [0.14, -0.26]]) {
       parts.push([
         limb([[lx, 0.44, lz], [lx * 1.15, 0.24, lz - 0.02], [lx * 1.2, 0.02, lz]], [0.075, 0.055, 0.05], 6, 5),
-        {}, 0x5a7391,
+        {}, 0xd9cfc2,
       ])
     }
 
@@ -123,14 +132,14 @@ const BUILDERS = {
       parts.push([
         new THREE.ConeGeometry(0.055, 0.24, 4),
         { x: Math.sin(a) * 0.2, y: 0.76 + Math.cos(a) * 0.04, z: 0.18, rx: -0.55, rz: a },
-        0x4a6180,
+        0x8f8072,
       ])
     }
 
     // Tail.
     parts.push([
       limb([[0, 0.5, -0.5], [0, 0.62, -0.72], [0.04, 0.78, -0.88]], [0.07, 0.05, 0.02], 8, 5),
-      {}, 0x56708c,
+      {}, 0xb3a494,
     ])
 
     // A studded collar — hardware is what says "bound by something", and it
@@ -700,12 +709,15 @@ BUILDERS.frostWolf = () => {
   }
   const geo = buildColored(parts)
   // Wash the whole thing toward ice.
+  // Washed hard toward white. A light wash left it a mid blue-grey, which is
+  // the same value as the 한천 snowfield it hunts on — and unlike 요랑 this one
+  // really is made of ice, so pale is both correct and legible.
   const col = geo.attributes.color
   for (let i = 0; i < col.count; i++) {
     col.setXYZ(i,
-      col.getX(i) * 0.72 + 0.24,
-      col.getY(i) * 0.86 + 0.14,
-      col.getZ(i) * 0.95 + 0.05)
+      col.getX(i) * 0.30 + 0.46,
+      col.getY(i) * 0.26 + 0.66,
+      col.getZ(i) * 0.20 + 0.80)
   }
   col.needsUpdate = true
   return geo
@@ -769,7 +781,9 @@ BUILDERS.glacierWarden = () => {
     [0.00, 1.75], [0.50, 1.62], [0.78, 1.20], [0.86, 0.70],
     [0.74, 0.28], [0.52, 0.05], [0.00, 0.00],
   ], 10)
-  gradient(body, 0x3f6d90, 0xbfe4f8, 'y')
+  // Pale glacier ice, not deep water. Same reason as 설랑: the mid blue it had
+  // was the ground's own value on the only stage it appears on.
+  gradient(body, 0x7fc0e0, 0xeafaff, 'y')
 
   const parts = [[body, {}, undefined]]
   // A crest of ice erupting from its back, tallest along the spine and shorter
@@ -798,7 +812,7 @@ BUILDERS.glacierWarden = () => {
         [[side * 0.88, 1.3, 0], [side * 1.08, 0.8, 0.06], [side * 1.0, 0.3, 0.02]],
         [0.247, 0.286, 0.351], 8, 6,
       ),
-      {}, 0x6a9cbc,
+      {}, 0xa8d6ee,
     ])
   }
   return buildColored(parts)
