@@ -67,7 +67,7 @@ export class ShopScreen {
       const row = document.createElement('button')
       row.className = 'shop-card clickable'
       row.innerHTML = `
-        <img class="shop-icon" alt="" src="${iconFor(u.kind === 'characters' ? 'insight' : u.id)}" />
+        <img class="shop-icon" alt="" src="${iconFor(u.id)}" />
         <div class="shop-body">
           <div class="shop-name">${def?.name ?? u.id}</div>
           <div class="shop-desc">${u.kind === 'characters' ? '플레이 가능한 수사' : '돌파 보상에 등장하는 법보'}</div>

@@ -5,6 +5,12 @@
  * at 32px, so they are bold silhouettes rather than detailed drawings.
  */
 
+import { CHARACTERS } from '../data/characters.js'
+import { ENEMIES } from '../data/enemies.js'
+import { buildEnemyGeometry } from '../art/enemyGeometry.js'
+import { buildBossGeometry } from '../art/bossGeometry.js'
+import { measureModel, silhouetteMask } from '../art/modelGates.js'
+
 const SIZE = 64
 const cache = new Map()
 
@@ -352,7 +358,102 @@ const EVOLUTION_IDS = new Set([
 const PASSIVE_IDS = new Set(['swordArt', 'lightBody', 'guardianAura', 'spiritRoot', 'farSight', 'goldenCore'])
 const CONSUMABLE_IDS = new Set(['heal', 'stones', 'purge'])
 
+/**
+ * A portrait glyph per cultivator, drawn from her own palette.
+ *
+ * The 단전 was passing the 혜안 icon for every purchasable character, so all
+ * five looked identical on the one screen where the player is deciding which
+ * one to buy. Reusing the model here is not an option — these are 32px canvas
+ * glyphs — but hair, robe and eye colour are enough to tell them apart, and
+ * they are exactly what the player will see in game.
+ */
+for (const c of CHARACTERS) {
+  const pal = c.palette
+  const hex = (n) => `#${n.toString(16).padStart(6, '0')}`
+  DRAWERS[c.id] = (ctx) => {
+    // Shoulders.
+    ctx.fillStyle = hex(pal.cloth)
+    ctx.beginPath()
+    ctx.moveTo(-22, 26)
+    ctx.quadraticCurveTo(-16, 6, 0, 6)
+    ctx.quadraticCurveTo(16, 6, 22, 26)
+    ctx.closePath()
+    ctx.fill()
+    // Hair behind the head.
+    ctx.fillStyle = hex(pal.hair)
+    ctx.beginPath()
+    ctx.ellipse(0, -6, 19, 21, 0, 0, Math.PI * 2)
+    ctx.fill()
+    // Face.
+    ctx.fillStyle = hex(pal.skin)
+    ctx.beginPath()
+    ctx.ellipse(0, -3, 13, 15, 0, 0, Math.PI * 2)
+    ctx.fill()
+    // Fringe over the brow, so the hair colour reads on top too.
+    ctx.fillStyle = hex(pal.hair)
+    ctx.beginPath()
+    ctx.ellipse(0, -14, 16, 10, 0, Math.PI, Math.PI * 2)
+    ctx.fill()
+    // Eyes: the only saturated marks, so they carry at small sizes.
+    ctx.fillStyle = hex(pal.eye)
+    for (const dx of [-6, 6]) {
+      ctx.beginPath()
+      ctx.ellipse(dx, -2, 3.2, 4.2, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+}
+
+/**
+ * Creature icons, rasterised from the creature's own model.
+ *
+ * The 도감 was falling through to the generic grey circle for all thirteen
+ * 요괴 and both bosses, so the one screen whose entire purpose is telling them
+ * apart showed fifteen identical discs. Hand-drawing that many glyphs would
+ * also mean maintaining a second, silently-diverging picture of every model.
+ *
+ * The gate module already rasterises a silhouette mask to measure how a
+ * creature reads — the same mask, filled with the model's dominant vertex
+ * colour, is the icon. It cannot drift from the model because it is derived
+ * from it.
+ */
+function creatureDrawer(build, id) {
+  return (ctx) => {
+    const { res, mask } = silhouetteMask(build(id), 0.35)
+    const hex = measureModel(build(id)).dominant
+    const r = (hex >> 16) & 255
+    const g = (hex >> 8) & 255
+    const b = hex & 255
+    const cell = (SIZE - 14) / res
+    // Drawn twice: a dark offset copy for weight, then the creature's colour.
+    for (const [ox, oy, fill] of [[1.5, 1.5, 'rgba(0,0,0,0.55)'], [0, 0, `rgb(${r},${g},${b})`]]) {
+      ctx.fillStyle = fill
+      for (let y = 0; y < res; y++) {
+        for (let x = 0; x < res; x++) {
+          if (mask[y * res + x] === 0) continue
+          // The mask has y up; canvas has y down.
+          ctx.fillRect(
+            (x - res / 2) * cell + ox,
+            (res / 2 - 1 - y) * cell + oy,
+            cell + 0.6, cell + 0.6,
+          )
+        }
+      }
+    }
+  }
+}
+
+for (const e of ENEMIES) DRAWERS[e.id] = creatureDrawer(buildEnemyGeometry, e.id)
+for (const id of ['blueWolfKing', 'darkHeavenLord']) {
+  DRAWERS[id] = creatureDrawer(buildBossGeometry, id)
+}
+
+const CREATURE_IDS = new Set([...ENEMIES.map((e) => e.id), 'blueWolfKing', 'darkHeavenLord'])
+const CHARACTER_IDS = new Set(CHARACTERS.map((c) => c.id))
+
 function bgFor(id) {
+  if (CREATURE_IDS.has(id)) return BG.meta
+  if (CHARACTER_IDS.has(id)) return BG.passive
   if (META_IDS.has(id)) return BG.meta
   if (EVOLUTION_IDS.has(id)) return BG.evolution
   if (PASSIVE_IDS.has(id)) return BG.passive
