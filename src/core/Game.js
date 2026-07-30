@@ -190,6 +190,14 @@ export class Game {
   _startRun(characterId, stageId) {
     if (stageId) this._setStage(getStage(stageId))
     this._clearPreview()
+    // Own the invariant rather than trusting the caller. TitleScreen does hide
+    // itself before invoking this, so nothing reachable through the UI depends
+    // on these — but "a run is starting" is exactly the statement that should
+    // guarantee no menu is left on screen, and every other entry point into
+    // here would otherwise have to remember separately.
+    this.title.hide()
+    this.result.hide?.()
+    this.modal.close?.()
     this.audio.unlock()
     this.audio.startMusic(this.stage?.id ?? 'jade')
 

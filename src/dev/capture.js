@@ -29,6 +29,84 @@ export function installStepper(update, fixedDt) {
   }
 }
 
+/**
+ * Screenshot the DOM UI without the browser compositing the page.
+ *
+ * The HUD, menus, shop, codex and result screen are real DOM over the canvas,
+ * and `renderer.domElement.toDataURL()` only ever sees WebGL — so in a harness
+ * that cannot composite, every UI change I made was verified structurally and
+ * never actually looked at. That blind spot is where I was wrong twice about
+ * how something read.
+ *
+ * An SVG `foreignObject` renders arbitrary HTML into an image, and an image can
+ * be drawn to a canvas and read back. It needs everything inlined: the
+ * stylesheet is same-origin so its rules can be read out, and the item icons
+ * are already canvas-generated data URLs, so nothing has to be fetched.
+ */
+export function installUICapture(hudRoot) {
+  if (typeof window === 'undefined') return
+
+  const collectCss = () => {
+    let css = ''
+    for (const sheet of document.styleSheets) {
+      try {
+        for (const rule of sheet.cssRules) css += `${rule.cssText}\n`
+      } catch {
+        // A cross-origin sheet cannot be read. We do not ship any.
+      }
+    }
+    return css
+  }
+
+  window.__captureUI = async (name = 'ui', width = 1400, height = 860) => {
+    const css = collectCss()
+
+    // XMLSerializer, not innerHTML. A foreignObject is parsed as XML, and the
+    // HTML serialisation leaves void elements like <img> unclosed, which makes
+    // the whole SVG undecodable — the failure surfaces only as "the source
+    // image cannot be decoded", with no hint that the markup is the cause.
+    const host = document.createElementNS('http://www.w3.org/1999/xhtml', 'div')
+    // Carry the inherited typography down explicitly. Rules written against
+    // `body` do not match anything inside a foreignObject, so without this the
+    // HUD renders in the default black serif and the capture lies about the
+    // very thing it exists to show.
+    const b = getComputedStyle(document.body)
+    host.setAttribute('style',
+      `width:${width}px;height:${height}px;position:relative;` +
+      `color:${b.color};font-family:${b.fontFamily};font-size:${b.fontSize};` +
+      'line-height:normal;-webkit-font-smoothing:antialiased')
+    for (const child of hudRoot.children) host.appendChild(child.cloneNode(true))
+    const markup = new XMLSerializer().serializeToString(host)
+
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+      `<foreignObject width="100%" height="100%">` +
+      `<style xmlns="http://www.w3.org/1999/xhtml">/*<![CDATA[*/${css}/*]]>*/</style>` +
+      `${markup}</foreignObject></svg>`
+
+    const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+    const img = new Image()
+    img.src = url
+    await img.decode()
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    // A dark plate behind it, since the UI is transparent over the game.
+    ctx.fillStyle = '#101820'
+    ctx.fillRect(0, 0, width, height)
+    ctx.drawImage(img, 0, 0)
+
+    const response = await fetch('/__shot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: `${name}\n${canvas.toDataURL('image/png')}`,
+    })
+    return response.text()
+  }
+}
+
 export function installCapture(renderer, drawFrame) {
   if (typeof window === 'undefined') return
 
