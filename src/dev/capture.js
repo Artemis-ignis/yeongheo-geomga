@@ -58,7 +58,13 @@ export function installUICapture(hudRoot) {
     return css
   }
 
-  window.__captureUI = async (name = 'ui', width = 1400, height = 860) => {
+  /**
+   * `selector` captures one element instead of the whole overlay. A clone does
+   * not carry its source's scroll position, so anything below the fold of a
+   * scrolling panel is otherwise unphotographable — which is exactly where the
+   * codex keeps the creature list.
+   */
+  window.__captureUI = async (name = 'ui', width = 1400, height = 860, selector = null) => {
     const css = collectCss()
 
     // XMLSerializer, not innerHTML. A foreignObject is parsed as XML, and the
@@ -75,7 +81,13 @@ export function installUICapture(hudRoot) {
       `width:${width}px;height:${height}px;position:relative;` +
       `color:${b.color};font-family:${b.fontFamily};font-size:${b.fontSize};` +
       'line-height:normal;-webkit-font-smoothing:antialiased')
-    for (const child of hudRoot.children) host.appendChild(child.cloneNode(true))
+    if (selector) {
+      const target = document.querySelector(selector)
+      if (!target) throw new Error(`nothing matches ${selector}`)
+      host.appendChild(target.cloneNode(true))
+    } else {
+      for (const child of hudRoot.children) host.appendChild(child.cloneNode(true))
+    }
     const markup = new XMLSerializer().serializeToString(host)
 
     const svg =
