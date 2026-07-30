@@ -55,6 +55,9 @@ const LAUNCH_VOICE = {
   darkSword: { freq: 900, to: 260, filter: 4200, gain: 0.11, decay: 0.13 },
 }
 
+/** Intensity above which the low pulse joins the score. */
+const PULSE_THRESHOLD = 0.42
+
 const VOICE_GAP = {
   launch: 0.055,
   hit: 0.035,
@@ -85,6 +88,7 @@ export class AudioEngine {
     this._lastPlayed = new Map()
     this._musicOn = false
     this._noteTimer = 0
+    this._pulseTimer = 0
     this._degree = 0
     this._noteIndex = 0
     this._intensity = 0
@@ -406,6 +410,7 @@ export class AudioEngine {
     if (!this.ok) return
     this._musicOn = true
     this._noteTimer = 0
+    this._pulseTimer = 0
     this._noteIndex = 0
     this._startDrone()
   }
@@ -471,6 +476,27 @@ export class AudioEngine {
       const target = 560 + this._intensity * 900
       const g = this._drone.filter.frequency
       g.value += (target - g.value) * Math.min(1, dt * 0.6)
+    }
+
+    // A low pulse under everything once the run turns dangerous.
+    //
+    // Density alone does not read as danger: the melody just gets busier, and a
+    // player watching a screen full of creatures does not notice note spacing.
+    // A heartbeat in the bottom octave does, and it is the one part of this
+    // score that is felt rather than heard.
+    if (this._intensity > PULSE_THRESHOLD) {
+      this._pulseTimer -= dt
+      if (this._pulseTimer <= 0) {
+        const over = (this._intensity - PULSE_THRESHOLD) / (1 - PULSE_THRESHOLD)
+        this._pulseTimer = 0.92 - over * 0.34
+        playTone(this.ctx, this.musicBus, {
+          freq: tonicFor(this._stageId) / 4,
+          type: 'sine',
+          gain: 0.16 + over * 0.16,
+          attack: 0.012,
+          decay: 0.28 + over * 0.12,
+        })
+      }
     }
 
     this._noteTimer -= dt
