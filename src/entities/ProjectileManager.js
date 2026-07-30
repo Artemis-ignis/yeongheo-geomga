@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import { Pool } from '../core/Pool.js'
 import { buildMerged } from '../art/geometry.js'
-import { makeToonMaterial } from '../art/materials.js'
+import { makeToonMaterial, makeAdditiveMaterial } from '../art/materials.js'
+import { glowTexture } from '../art/textures.js'
 import { uploadInstances } from '../art/instancing.js'
 import { ARENA_RADIUS } from '../world/Terrain.js'
 
@@ -14,6 +15,7 @@ const RETARGET_INTERVAL = 0.15
 const BOSS_ID = -99
 
 const _dummy = new THREE.Object3D()
+const _color = new THREE.Color()
 
 function kindGeometry(kind) {
   switch (kind) {
@@ -102,6 +104,25 @@ export class ProjectileManager {
     this.tags = []
 
     this._out = new Int32Array(256)
+
+    // A ribbon dragged behind every shot, in one shared additive draw.
+    //
+    // Projectiles used to simply translate: no sense of speed, and at the
+    // cadence a built loadout fires at, a screen of them read as scattered
+    // objects rather than as anything being thrown. The ribbon is a single quad
+    // per shot stretched along its own heading, tinted per instance so one mesh
+    // serves every kind.
+    const trailGeo = new THREE.PlaneGeometry(1, 1)
+    trailGeo.rotateX(-Math.PI / 2)
+    this.trail = new THREE.InstancedMesh(
+      trailGeo,
+      makeAdditiveMaterial({ color: 0xffffff, opacity: 0.5, map: glowTexture() }),
+      MAX_PROJECTILES,
+    )
+    this.trail.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+    this.trail.frustumCulled = false
+    this.trail.count = 0
+    scene.add(this.trail)
 
     this.meshes = PROJECTILE_KINDS.map((kind) => {
       const mesh = new THREE.InstancedMesh(
@@ -314,33 +335,61 @@ export class ProjectileManager {
       this.typeLists[k][this.typeCounts[k]++] = i
     }
 
+    let trails = 0
     for (let k = 0; k < this.meshes.length; k++) {
       const mesh = this.meshes[k]
       const list = this.typeLists[k]
       const count = this.typeCounts[k]
+      _color.setHex(KIND_COLOR[PROJECTILE_KINDS[k]])
       for (let n = 0; n < count; n++) {
         const i = list[n]
         const x = this.prevX[i] + (this.px[i] - this.prevX[i]) * alpha
         const z = this.prevZ[i] + (this.pz[i] - this.prevZ[i]) * alpha
+        const heading = Math.atan2(this.dirX[i], this.dirZ[i])
         _dummy.position.set(x, this.py[i], z)
         // Point along travel; spinning kinds tumble around their own axis.
         _dummy.rotation.set(
           Math.PI / 2,
-          Math.atan2(this.dirX[i], this.dirZ[i]),
+          heading,
           this.spin[i] ? this.time * this.spin[i] : 0,
         )
-        _dummy.scale.setScalar(1)
+        // Stretched along its own heading in proportion to speed. Nothing else
+        // in the frame says "this is moving fast" — a rigid mesh translating
+        // between frames reads as a slow object however far it travels.
+        const stretch = 1 + Math.min(1.6, this.speed[i] / 16)
+        _dummy.scale.set(1, stretch, 1)
         _dummy.updateMatrix()
         mesh.setMatrixAt(n, _dummy.matrix)
+
+        // Ribbon behind it, in the horizontal plane so it reads from this
+        // camera. Spinning kinds get none: an orbiting 비검 has no travel
+        // direction to smear along, and a ribbon on one looks like a mistake.
+        if (this.spin[i] === 0 && trails < MAX_PROJECTILES) {
+          const len = 0.9 + Math.min(3.4, this.speed[i] * 0.16)
+          _dummy.position.set(
+            x - this.dirX[i] * len * 0.5,
+            this.py[i] - 0.05,
+            z - this.dirZ[i] * len * 0.5,
+          )
+          _dummy.rotation.set(0, heading, 0)
+          _dummy.scale.set(0.42, 1, len)
+          _dummy.updateMatrix()
+          this.trail.setMatrixAt(trails, _dummy.matrix)
+          this.trail.setColorAt(trails, _color)
+          trails++
+        }
       }
       mesh.count = count
       uploadInstances(mesh, count)
     }
+    this.trail.count = trails
+    uploadInstances(this.trail, trails, true)
   }
 
   clear() {
     this.pool.clear()
     for (const m of this.meshes) m.count = 0
+    this.trail.count = 0
     this.callbacks.length = 0
     this.expiries.length = 0
     this.stats.length = 0
@@ -353,5 +402,8 @@ export class ProjectileManager {
       m.removeFromParent()
     }
     this.meshes.length = 0
+    this.trail.geometry.dispose()
+    this.trail.material.dispose()
+    this.trail.removeFromParent()
   }
 }
