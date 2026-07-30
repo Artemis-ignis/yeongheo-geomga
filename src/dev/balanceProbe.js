@@ -22,6 +22,49 @@
  * Never imported by the production build.
  */
 
+import { ENEMIES, HP_SCALING } from '../data/enemies.js'
+import { WAVES } from '../data/waves.js'
+
+/**
+ * Scale the roster for one probe run and restore it afterwards.
+ *
+ * This has to live inside the app's own module graph. Reaching for the table
+ * from the console — `await import('/src/data/enemies.js')` — hands back a
+ * *different instance* than the one the game holds, and mutating it changes
+ * nothing while reporting success. I ran four sweeps that way and concluded
+ * enemy HP could be multiplied three hundredfold with no effect on the run,
+ * which is exactly what a dead copy looks like. The tell was that the level at
+ * death never moved either: at 300x HP she cannot possibly have killed enough
+ * to reach the same level 82.
+ */
+function withRoster(
+  { hpMul = 1, speedMul = 1, damageMul = 1, quadPeriod, linear, densityMul = 1, densityFrom = 0 },
+  body,
+) {
+  const base = ENEMIES.map((e) => ({ hp: e.hp, speed: e.speed, damage: e.damage }))
+  const scaling = { ...HP_SCALING }
+  const waves = WAVES.map((w) => w.perSpawn)
+  if (densityMul !== 1) {
+    WAVES.forEach((w, i) => {
+      if (w.t >= densityFrom) w.perSpawn = Math.max(1, Math.round(waves[i] * densityMul))
+    })
+  }
+  ENEMIES.forEach((e, i) => {
+    e.hp = base[i].hp * hpMul
+    e.speed = base[i].speed * speedMul
+    e.damage = base[i].damage * damageMul
+  })
+  if (quadPeriod !== undefined) HP_SCALING.quadPeriod = quadPeriod
+  if (linear !== undefined) HP_SCALING.linear = linear
+  try {
+    return body()
+  } finally {
+    ENEMIES.forEach((e, i) => { e.hp = base[i].hp; e.speed = base[i].speed; e.damage = base[i].damage })
+    Object.assign(HP_SCALING, scaling)
+    WAVES.forEach((w, i) => { w.perSpawn = waves[i] })
+  }
+}
+
 /** Auto-pick preference. Evolutions first, then new 법보, then 공법. */
 function rank(choice) {
   if (choice.kind === 'evolution') return 100
@@ -89,7 +132,28 @@ function steer(game, player, t) {
  */
 export function installBalanceProbe(game) {
   if (typeof window === 'undefined') return
-  window.__probe = ({ character = 'seolryeong', stage = 'jade', seconds = 960, band = 60 } = {}) => {
+  window.__probe = (opts = {}) => withRoster(opts, () => runOne(game, opts))
+
+  /**
+   * Sweep one roster knob and report the danger column for each value, so a
+   * balance question is answered by a table rather than by one run.
+   */
+  window.__sweep = (knob, values, opts = {}) =>
+    values.map((v) => {
+      const r = window.__probe({ ...opts, [knob]: v })
+      const d = r.rows.map((x) => x.danger)
+      return {
+        [knob]: v,
+        survived: r.survived,
+        level: r.level,
+        kills: r.kills,
+        noThreatMinutes: d.filter((x) => x <= 1).length,
+        minHp: Math.min(...r.rows.map((x) => x.hp)),
+        danger: d,
+      }
+    })
+
+  function runOne(game, { character = 'seolryeong', stage = 'jade', seconds = 960, band = 60 } = {}) {
     const realOpen = game.modal.open.bind(game.modal)
     let taken = 0
     let spawned = 0

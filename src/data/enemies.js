@@ -104,9 +104,29 @@ export function getEnemy(id) {
   return ENEMIES[ENEMY_INDEX.get(id)]
 }
 
-/** Enemies get tougher as the run goes on. Speed deliberately does not scale. */
+/**
+ * How toughness grows over a run. Speed deliberately does not scale — a roster
+ * that outruns the player removes the kiting the whole game is built on.
+ *
+ * Kept as data rather than literals inside `scaledHp` so `window.__sweep` can
+ * move one term at a time and read the danger column back out. Every number
+ * below was chosen from that table, not from taste.
+ */
+export const HP_SCALING = { linear: 0.28, quadPeriod: 4.6 }
+
+/**
+ * Enemies get tougher as the run goes on.
+ *
+ * `quadPeriod` was 6, and that is where the run had no ending: measured over
+ * full 900-second runs the player finished with her health above 94% and eleven
+ * of fifteen minutes containing no threat at all, because the term reaches only
+ * 11.4x by the last minute while a maxed loadout is worth far more than that
+ * against a level-one one. At 4.6 the same term reaches 15.8x, which barely
+ * moves the opening — 2.27x against 2.09x at three minutes, where she is still
+ * holding one 법보 — and bites where the quiet actually was.
+ */
 export function scaledHp(enemy, minutes) {
-  return enemy.hp * (1 + minutes * 0.28 + (minutes / 6) ** 2)
+  return enemy.hp * (1 + minutes * HP_SCALING.linear + (minutes / HP_SCALING.quadPeriod) ** 2)
 }
 
 export function scaledDamage(enemy, minutes) {

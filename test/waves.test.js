@@ -56,6 +56,41 @@ describe('wave timeline', () => {
     }
   })
 
+  /**
+   * The shape of the curve, not just its monotonicity.
+   *
+   * Every assertion above passed against a table that produced no threat for
+   * eleven of a run's fifteen minutes — a scripted player finished it with her
+   * health never below 94% — because "never eases off" is satisfied by a curve
+   * that rises far too slowly to matter. These pin the two ends that the
+   * measurement actually cared about.
+   */
+  const rateAt = (t) => { const w = waveAt(t); return w.perSpawn / w.spawnInterval }
+
+  it('keeps the opening sparse enough for one level-1 법보', () => {
+    // At 0:00 she has a single weapon and cannot clear a crowd.
+    expect(rateAt(0)).toBeLessThan(2)
+    expect(rateAt(60)).toBeLessThan(3)
+  })
+
+  it('closes with a swarm, which is where the run gets its only real threat', () => {
+    // Her power plateaus around minute ten: six 법보 and six 공법 all cap at
+    // level 5. Enemy health cannot answer that without killing her at four
+    // minutes on the way up, so the late game has to come from numbers.
+    expect(rateAt(870) / rateAt(420)).toBeGreaterThan(10)
+    expect(rateAt(870)).toBeGreaterThan(90)
+  })
+
+  it('ramps into the swarm rather than stepping into it', () => {
+    // No single band may more than double on the one before it, or the jump
+    // reads as the game breaking rather than as pressure arriving.
+    const bands = WAVES.filter((w) => !w.boss && w.t >= 420)
+    for (let i = 1; i < bands.length; i++) {
+      const jump = (bands[i].perSpawn / bands[i].spawnInterval) / (bands[i - 1].perSpawn / bands[i - 1].spawnInterval)
+      expect(jump, `band at ${bands[i].t}s jumps ${jump.toFixed(2)}x`).toBeLessThan(2)
+    }
+  })
+
   it('waveAt returns the active band', () => {
     expect(waveAt(0).t).toBe(0)
     expect(waveAt(29).t).toBe(0)
