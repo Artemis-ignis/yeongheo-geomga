@@ -13,7 +13,9 @@ export const BASE_STATS = Object.freeze({
   speedProj: 1.0,
   duration: 1.0,
   amount: 0,
-  magnet: 3.0,
+  // Radius of the hard pull. At 3.0 against a move speed of 5.7 an orb dropped
+  // behind a retreating player was simply never reached.
+  magnet: 5.0,
   luck: 1.0,
   growth: 1.0,
   critChance: 0.05,
