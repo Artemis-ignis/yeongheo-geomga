@@ -2,6 +2,16 @@
 import { makeToonMaterial, PALETTE } from '../art/materials.js'
 import { barrierTexture, groundTexture, groundNormalTexture, mistTexture } from '../art/textures.js'
 import { buildMerged } from '../art/geometry.js'
+import { buildColored, gradient, roughen } from '../art/shapeKit.js'
+
+/** Lighten or darken a hex by a factor, for cheap tonal variants of a palette. */
+function shade(hex, factor) {
+  const c = new THREE.Color(hex)
+  c.r = Math.min(1, c.r * factor)
+  c.g = Math.min(1, c.g * factor)
+  c.b = Math.min(1, c.b * factor)
+  return c.getHex()
+}
 
 export const ARENA_RADIUS = 36
 /** The plateau extends past the 결계 so the drop into the void is visible at the rim. */
@@ -196,59 +206,141 @@ export class Terrain {
     return points
   }
 
+  /**
+   * Three rock shapes rather than one.
+   *
+   * A single dodecahedron instanced thirty-four times is thirty-four copies of
+   * the same silhouette scattered around the rim, and the eye finds that
+   * repetition immediately — more so than it notices any individual rock being
+   * simple. Variants cost two extra draw calls.
+   */
+  _rockVariants() {
+    const dark = shade(this.pal.stone, 0.55)
+    const light = shade(this.pal.stone, 1.35)
+
+    // A weathered boulder: rounded, lighter where the sky hits the top.
+    const boulder = roughen(new THREE.DodecahedronGeometry(1, 0), 0.16, 3)
+    gradient(boulder, dark, light, 'y')
+
+    // A split shard, tilted, with a flat cleaved face.
+    const shard = buildColored([
+      [roughen(new THREE.ConeGeometry(0.85, 2.1, 5), 0.13, 7), { y: 0.6, rz: 0.26 }, undefined],
+      [roughen(new THREE.DodecahedronGeometry(0.5, 0), 0.1, 11), { x: 0.6, y: -0.35 }, dark],
+    ])
+    gradient(shard, dark, light, 'y')
+
+    // A stack, which reads as several stones settled together.
+    const stack = buildColored([
+      [roughen(new THREE.DodecahedronGeometry(0.9, 0), 0.14, 13), { y: -0.35, sy: 0.7 }, undefined],
+      [roughen(new THREE.DodecahedronGeometry(0.62, 0), 0.12, 17), { x: 0.2, y: 0.45, sy: 0.8 }, undefined],
+      [roughen(new THREE.DodecahedronGeometry(0.34, 0), 0.1, 19), { x: -0.15, y: 1.05 }, undefined],
+    ])
+    gradient(stack, dark, light, 'y')
+
+    return [boulder, shard, stack]
+  }
+
+  /**
+   * Tiered conifers. The old pine was two cones on a stick — the Christmas-tree
+   * shape, which reads as a placeholder. Real conifer silhouettes are a stack of
+   * skirts that narrow going up, and the notches between them are what make the
+   * outline read as foliage rather than as a triangle.
+   */
+  _pineVariants() {
+    const deep = shade(this.pal.pine, 0.62)
+    const bright = shade(this.pal.pine, 1.42)
+    const bark = shade(this.pal.pine, 0.5)
+
+    const build = (tiers, height, spread, lean) => {
+      const parts = [[
+        new THREE.CylinderGeometry(0.13, 0.2, height * 0.42, 6),
+        { y: height * 0.21 }, bark,
+      ]]
+      for (let i = 0; i < tiers; i++) {
+        const t = i / (tiers - 1)
+        const r = spread * (1 - t * 0.72)
+        const y = height * (0.3 + t * 0.62)
+        const h = height * (0.34 - t * 0.1)
+        const skirt = new THREE.ConeGeometry(r, h, 8)
+        gradient(skirt, deep, bright, 'y')
+        parts.push([skirt, {
+          y: y + h * 0.3,
+          x: Math.sin(i * 2.1) * lean * 0.16,
+          rz: lean * 0.06,
+        }, undefined])
+      }
+      return buildColored(parts)
+    }
+
+    return [
+      build(5, 5.4, 1.15, 0.4),
+      build(6, 6.8, 0.95, -0.7),
+      build(4, 4.2, 1.3, 0.2),
+    ]
+  }
+
   _buildProps() {
-    const rockGeo = new THREE.DodecahedronGeometry(1, 0)
-    const rockMat = makeToonMaterial({ color: this.pal.stone, rim: 0.2 })
+    const rockMat = makeToonMaterial({ color: 0xffffff, rim: 0.2, vertexColors: true })
     // Rocks spill past the 결계 onto the outer rim so the plateau has a silhouette.
     // Kept sparse inside the arena: scenery must never hide an incoming enemy.
-    const rocks = this._scatter(34, 6, PLATEAU_RADIUS - 3)
-    this.rocks = new THREE.InstancedMesh(rockGeo, rockMat, rocks.length)
+    const rocks = this._scatter(46, 6, PLATEAU_RADIUS - 3)
+    const rockGeos = this._rockVariants()
     // Props cast now. With the key light low in the sky these throw long
     // shadows across the plateau, which is most of what gives a flat disc of
     // ground any sense of depth — and they are a handful of merged draws, not
     // the horde, so the shadow pass can afford them.
-    this.rocks.castShadow = true
-    this.rocks.receiveShadow = true
-    rocks.forEach(([x, z], i) => {
+    this.rocks = rockGeos.map((geo) => {
+      const mesh = new THREE.InstancedMesh(geo, rockMat, rocks.length)
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      mesh.count = 0
+      this.group.add(mesh)
+      return mesh
+    })
+    rocks.forEach(([x, z]) => {
       // Inside the 결계 a rock must stay well under head height — anything taller
       // can park itself between the camera and the player and hide her entirely.
       // Past the barrier there is no gameplay to occlude, so they can be boulders.
       const d = Math.hypot(x, z)
       const rim = Math.min(1, Math.max(0, (d - ARENA_RADIUS) / (PLATEAU_RADIUS - ARENA_RADIUS)))
       const s = 0.30 + Math.random() * (0.22 + rim * 2.2)
+      // Shards and stacks are tall, so they only go out past the barrier.
+      const variant = rim > 0.15 ? Math.floor(Math.random() * 3) : 0
+      const mesh = this.rocks[variant]
       _dummy.position.set(x, s * 0.35, z)
-      _dummy.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3)
+      _dummy.rotation.set(
+        variant === 0 ? Math.random() * 3 : Math.random() * 0.25,
+        Math.random() * 6.28,
+        variant === 0 ? Math.random() * 3 : Math.random() * 0.25,
+      )
       _dummy.scale.set(s, s * (0.7 + Math.random() * 0.5), s)
       _dummy.updateMatrix()
-      this.rocks.setMatrixAt(i, _dummy.matrix)
+      mesh.setMatrixAt(mesh.count++, _dummy.matrix)
     })
-    this.rocks.instanceMatrix.needsUpdate = true
-    this.group.add(this.rocks)
+    for (const m of this.rocks) m.instanceMatrix.needsUpdate = true
 
-    // Pine: two cone canopies over a trunk, merged so one instance is one draw.
-    const pineGeo = buildMerged([
-      [new THREE.CylinderGeometry(0.16, 0.22, 1.6, 6), { y: 0.8 }],
-      [new THREE.ConeGeometry(1.05, 3.0, 7), { y: 3.0 }],
-      [new THREE.ConeGeometry(0.8, 2.2, 7), { y: 4.2 }],
-    ])
-    const pineMat = makeToonMaterial({ color: this.pal.pine, rim: 0.25, rimColor: 0x9be8c8 })
-    // Pines are pushed to the outer ring so they frame the arena instead of
-    // cluttering the middle of a fight.
+    const pineMat = makeToonMaterial({ color: 0xffffff, rim: 0.25, rimColor: 0x9be8c8, vertexColors: true })
     // Kept to the outer ring: with the camera this close, a pine anywhere near
     // the player fills a third of the screen and hides the fight behind it.
-    const pines = this._scatter(34, 6, PLATEAU_RADIUS - 3).filter(([x, z]) => Math.hypot(x, z) > ARENA_RADIUS * 0.92)
-    this.pines = new THREE.InstancedMesh(pineGeo, pineMat, pines.length)
-    this.pines.castShadow = true
-    pines.forEach(([x, z], i) => {
-      const s = 0.8 + Math.random() * 0.8
+    const pines = this._scatter(40, 6, PLATEAU_RADIUS - 3).filter(([x, z]) => Math.hypot(x, z) > ARENA_RADIUS * 0.92)
+    const pineGeos = this._pineVariants()
+    this.pines = pineGeos.map((geo) => {
+      const mesh = new THREE.InstancedMesh(geo, pineMat, pines.length)
+      mesh.castShadow = true
+      mesh.count = 0
+      this.group.add(mesh)
+      return mesh
+    })
+    pines.forEach(([x, z]) => {
+      const mesh = this.pines[Math.floor(Math.random() * this.pines.length)]
+      const s = 0.7 + Math.random() * 0.7
       _dummy.position.set(x, 0, z)
       _dummy.rotation.set(0, Math.random() * Math.PI * 2, 0)
-      _dummy.scale.set(s, s * (0.9 + Math.random() * 0.4), s)
+      _dummy.scale.set(s, s * (0.85 + Math.random() * 0.5), s)
       _dummy.updateMatrix()
-      this.pines.setMatrixAt(i, _dummy.matrix)
+      mesh.setMatrixAt(mesh.count++, _dummy.matrix)
     })
-    this.pines.instanceMatrix.needsUpdate = true
-    this.group.add(this.pines)
+    for (const m of this.pines) m.instanceMatrix.needsUpdate = true
 
     // Stone lanterns: a small stack topped with a light box and a pyramid cap.
     const lanternGeo = buildMerged([
