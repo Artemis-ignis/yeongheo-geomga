@@ -1,6 +1,18 @@
 import * as THREE from 'three'
 
-const BASE_BLADE_COUNT = 26000
+/**
+ * Blades across the whole plateau.
+ *
+ * 26k over a 48-unit disc is 3.6 blades per square metre, which is not a field
+ * — it is confetti with gaps you can see the floor through. The count has to
+ * carry the whole arena because the player walks all of it, and it is one
+ * instanced draw either way.
+ */
+const BASE_BLADE_COUNT = 92000
+
+/** Blades per tuft. Grass grows in clumps; uniform scatter never reads as grass. */
+const TUFT_SIZE = 7
+const TUFT_SPREAD = 0.42
 const CLEARING = 4
 
 /**
@@ -46,14 +58,28 @@ export class Grass {
       const a = Math.random() * Math.PI * 2
       const r = Math.sqrt(Math.random()) * outerRadius
       if (r < CLEARING) continue
-      offset[placed * 3 + 0] = Math.cos(a) * r
-      offset[placed * 3 + 1] = 0
-      offset[placed * 3 + 2] = Math.sin(a) * r
-      seed[placed * 3 + 0] = Math.random()
-      seed[placed * 3 + 1] = Math.random()
-      // Taller out on the rim where nothing has trampled it.
-      seed[placed * 3 + 2] = 0.7 + Math.random() * 0.6 * (0.6 + (r / outerRadius) * 0.8)
-      placed++
+      const cx = Math.cos(a) * r
+      const cz = Math.sin(a) * r
+      // One tuft per placement, so the field has clumps and bare patches
+      // between them rather than an even sprinkle.
+      const tuft = Math.min(TUFT_SIZE, bladeCount - placed)
+      const vigour = 0.55 + Math.random() * 0.75
+      for (let k = 0; k < tuft; k++) {
+        // Gaussian-ish falloff from the tuft centre: dense middle, loose edge.
+        const ta = Math.random() * Math.PI * 2
+        const tr = (Math.random() + Math.random()) * 0.5 * TUFT_SPREAD
+        offset[placed * 3 + 0] = cx + Math.cos(ta) * tr
+        offset[placed * 3 + 1] = 0
+        offset[placed * 3 + 2] = cz + Math.sin(ta) * tr
+        seed[placed * 3 + 0] = Math.random()
+        seed[placed * 3 + 1] = Math.random()
+        // Taller out on the rim where nothing has trampled it, and blades in one
+        // tuft share a vigour so a clump reads as one plant rather than as
+        // strangers standing close together.
+        seed[placed * 3 + 2] = vigour * (0.72 + Math.random() * 0.5)
+          * (0.6 + (r / outerRadius) * 0.8)
+        placed++
+      }
     }
     geo.setAttribute('aOffset', new THREE.InstancedBufferAttribute(offset, 3))
     geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 3))
@@ -77,6 +103,7 @@ export class Grass {
         uniform vec3 uPlayer;
         varying float vH;
         varying float vShade;
+        varying float vTint;
         varying float vFogDepth;
 
         void main() {
@@ -105,7 +132,17 @@ export class Grass {
           world.xz += normalize( away + vec2( 0.0001 ) ) * press * 0.42 * bend;
           world.y -= press * 0.25 * bend * scale;
 
+          // Arc the blade over as it rises instead of standing it up straight.
+          // A field of straight spikes reads as a pincushion; the curve is what
+          // says "grass" before any of the colour does.
+          float arc = bend * scale * ( 0.10 + aSeed.x * 0.16 );
+          world.x += cos( rot ) * arc;
+          world.z += sin( rot ) * arc;
+
           vShade = 0.55 + aSeed.y * 0.45;
+          // Per-blade hue drift between a cool and a warm green, so a clump has
+          // internal variation rather than being one flat colour repeated.
+          vTint = aSeed.x;
           vec4 mv = viewMatrix * vec4( world, 1.0 );
           vFogDepth = -mv.z;
           gl_Position = projectionMatrix * mv;
@@ -117,10 +154,23 @@ export class Grass {
         uniform float uFogDensity;
         varying float vH;
         varying float vShade;
+        varying float vTint;
         varying float vFogDepth;
 
         void main() {
           vec3 col = mix( uBase, uTip, vH * vH ) * vShade;
+
+          // Per-blade hue drift, warm one way and cool the other. A field where
+          // every blade is the same two colours reads as one painted surface
+          // however many blades are in it.
+          col.r *= 0.90 + vTint * 0.24;
+          col.b *= 1.10 - vTint * 0.24;
+
+          // Darken sharply at the very base so blades sink into the ground
+          // instead of sitting on top of it like cut-outs. This contact shading
+          // is doing the job an ambient occlusion pass would, for free.
+          col *= 0.42 + 0.58 * smoothstep( 0.0, 0.30, vH );
+
           // Matches the scene's FogExp2 so the field recedes with everything else.
           float f = 1.0 - exp( - uFogDensity * uFogDensity * vFogDepth * vFogDepth );
           gl_FragColor = vec4( mix( col, uFogColor, clamp( f, 0.0, 1.0 ) ), 1.0 );
