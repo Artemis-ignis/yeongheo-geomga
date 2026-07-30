@@ -136,9 +136,27 @@ export class Terrain {
     this.barrierTex = tex
 
     const geo = new THREE.CylinderGeometry(ARENA_RADIUS, ARENA_RADIUS, 11, 96, 1, true)
+    // Fade the ward out with height. It stands eleven units tall, so from the
+    // play camera the far wall crossed the horizon and its hexagons read as a
+    // technical pattern floating in the sky rather than as a barrier standing on
+    // the ground. Additive blending means black is invisible, so a vertex
+    // gradient to black is all this needs.
+    const bpos = geo.attributes.position
+    const bcol = new Float32Array(bpos.count * 3)
+    for (let i = 0; i < bpos.count; i++) {
+      // Local y runs -5.5 to 5.5 before the mesh is lifted.
+      const t = (bpos.getY(i) + 5.5) / 11
+      const k = Math.max(0, 1 - t * t * 1.55)
+      bcol[i * 3] = k
+      bcol[i * 3 + 1] = k
+      bcol[i * 3 + 2] = k
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(bcol, 3))
+
     this.barrierMat = new THREE.MeshBasicMaterial({
       map: tex,
       color: this.pal.barrier,
+      vertexColors: true,
       transparent: true,
       // Deliberately faint: standing next to it the wall fills a lot of screen,
       // and with bloom on top it must never compete with the enemies.

@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { makeToonMaterial, PALETTE } from '../art/materials.js'
 import { buildMerged } from '../art/geometry.js'
 import { moteTexture, petalTexture } from '../art/textures.js'
+import { buildColored, gradient, roughen } from '../art/shapeKit.js'
 
 const PETAL_COUNT = 300
 const PETAL_BOX = 90
@@ -43,6 +44,8 @@ export class Sky {
         uBottom: { value: new THREE.Color(this.pal.skyBottom) },
         uAbyss: { value: new THREE.Color(this.pal.abyss) },
         uTime: { value: 0 },
+        // Matches the DirectionalLight in Scene.js.
+        uSunDir: { value: new THREE.Vector3(20, 17, 13).normalize() },
       },
       vertexShader: `
         varying vec3 vDir;
@@ -57,6 +60,7 @@ export class Sky {
         uniform vec3 uBottom;
         uniform vec3 uAbyss;
         uniform float uTime;
+        uniform vec3 uSunDir;
         varying vec3 vDir;
 
         float hash( vec2 p ) {
@@ -103,6 +107,37 @@ export class Sky {
           float band = sin( y * 9.0 - uTime * 0.06 ) * 0.5 + 0.5;
           col += uHaze * band * smoothstep( 0.45, 0.95, y ) * 0.05;
 
+          // Cloud sheets, projected onto a plane above the dome and drifting.
+          //
+          // Summed sinusoids rather than any lattice noise: the same reason the
+          // ground textures use them, and here it also costs four sines instead
+          // of a hash and four fetches. A bare vertical gradient is the single
+          // clearest sign that a sky is a backdrop rather than a place.
+          if ( y > 0.015 ) {
+            vec2 cuv = vDir.xz / max( 0.16, y ) * 0.55;
+            cuv += vec2( uTime * 0.010, uTime * 0.006 );
+            float c = sin( cuv.x * 1.7 + cuv.y * 0.9 ) * 0.50
+                    + sin( cuv.x * -0.8 + cuv.y * 2.3 + 1.7 ) * 0.34
+                    + sin( cuv.x * 3.1 + cuv.y * -1.4 + 3.1 ) * 0.21
+                    + sin( cuv.x * 5.7 + cuv.y * 4.3 + 5.2 ) * 0.12;
+            float cloud = smoothstep( 0.24, 0.80, c * 0.5 + 0.5 );
+            // Thinning to nothing at the horizon keeps the haze band clean and
+            // stops the projection stretching into streaks down there.
+            cloud *= smoothstep( 0.015, 0.26, y ) * smoothstep( 1.05, 0.40, y );
+            // Lit from the sun side, shaded away from it, so the sheets have a
+            // form instead of being flat cut-outs pasted on the gradient.
+            float lit = 0.5 + 0.5 * dot( normalize( vDir ), uSunDir );
+            vec3 cloudCol = mix( uMid * 1.05, uHaze * 1.42, lit );
+            col = mix( col, cloudCol, cloud * 0.80 );
+          }
+
+          // The sun, in the direction the key light actually comes from. A lit
+          // scene whose sky has no light source in it always looks slightly
+          // wrong even when nobody can say why.
+          float sd = max( 0.0, dot( normalize( vDir ), uSunDir ) );
+          col += uBottom * pow( sd, 1400.0 ) * 2.2;
+          col += uBottom * pow( sd, 9.0 ) * 0.14;
+
           gl_FragColor = vec4( col, 1.0 );
         }`,
     })
@@ -111,12 +146,25 @@ export class Sky {
   }
 
   _buildIslands() {
-    const geo = buildMerged([
-      [new THREE.DodecahedronGeometry(6, 0), { y: 0, sy: 0.55 }],
-      [new THREE.ConeGeometry(4.5, 9, 6), { y: -5.5, rx: Math.PI }],
-      [new THREE.DodecahedronGeometry(2.4, 0), { x: 5.5, y: 0.8, sy: 0.6 }],
+    // Coloured top to bottom rather than left one flat grey. A distant island is
+    // small on screen, but a single untextured tone at that size reads as a
+    // placeholder rock — the green cap is what makes it land instead.
+    const cap = buildColored([
+      [roughen(new THREE.DodecahedronGeometry(6, 0), 0.5, 5), { y: 0, sy: 0.55 }, undefined],
+      [roughen(new THREE.DodecahedronGeometry(2.4, 0), 0.3, 9), { x: 5.5, y: 0.8, sy: 0.6 }, undefined],
     ])
-    const mat = makeToonMaterial({ color: 0x53707f, rim: 0.5, rimColor: this.pal.skyHaze, fog: false })
+    gradient(cap, 0x4a5c62, 0x6f9a63, 'y')
+
+    const root = roughen(new THREE.ConeGeometry(4.5, 11, 7), 0.45, 13)
+    gradient(root, 0x222c36, 0x51666f, 'y')
+
+    const geo = buildColored([
+      [cap, {}, undefined],
+      [root, { y: -6.2, rx: Math.PI }, undefined],
+    ])
+    const mat = makeToonMaterial({
+      color: 0xffffff, rim: 0.5, rimColor: this.pal.skyHaze, fog: false, vertexColors: true,
+    })
     this.islands = new THREE.InstancedMesh(geo, mat, ISLAND_COUNT)
     this.islandBase = []
     // Kept low and close: in a 3/4 view only a narrow band of sky is ever on
