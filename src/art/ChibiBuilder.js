@@ -110,8 +110,40 @@ function hairProfile() {
   return pts
 }
 
+/**
+ * What makes each cultivator a different shape, as opposed to a different
+ * palette.
+ *
+ * Put all six on the model sheet together and the problem was immediate: they
+ * differed by hair colour and cloth colour and by nothing else, so at play
+ * distance — where the palette is three or four pixels wide — the roster was
+ * one character recoloured six times. Silhouette is the only channel that
+ * survives that distance, so each gets a skirt of its own proportions, a crest
+ * on the head and something behind the shoulders.
+ *
+ * `skirt` is [waistRadius, hemRadius, dropDepth]. `crest` and `back` name the
+ * shapes built further down.
+ */
+const SILHOUETTE = {
+  // 검수: narrow and upright, with the sword-sash streamers behind.
+  seolryeong: { skirt: [0.17, 0.40, 0.26], crest: 'pin', back: 'streamers' },
+  // 화염: short and wide, so she reads as planted when she burns something.
+  hongryeon: { skirt: [0.21, 0.52, 0.14], crest: 'topknot', back: 'tail' },
+  // 요족: cropped robe that lets the tail carry the outline.
+  cheongmyo: { skirt: [0.16, 0.34, 0.10], crest: 'ears', back: 'tail' },
+  // 독: a long trailing over-robe that drags.
+  byeongna: { skirt: [0.19, 0.44, 0.34], crest: 'veil', back: 'drape' },
+  // 술사: tall scholar's cap over a narrow column.
+  mukyeon: { skirt: [0.16, 0.36, 0.32], crest: 'cap', back: 'drape' },
+  // 수집가: a broad 삿갓 and a full skirt.
+  baengno: { skirt: [0.22, 0.56, 0.18], crest: 'hat', back: 'streamers' },
+}
+
+const DEFAULT_SILHOUETTE = { skirt: [0.18, 0.44, 0.26], crest: 'pin', back: 'streamers' }
+
 export function buildChibi(character) {
   const pal = character.palette
+  const sil = SILHOUETTE[character.id] ?? DEFAULT_SILHOUETTE
   const root = new THREE.Group()
   // Everything below is authored at 1.9 units, which put her at 84 pixels of an
   // 860-pixel frame — under 10% of screen height, and most of that was scalp.
@@ -401,12 +433,93 @@ export function buildChibi(character) {
     legs.push(shoe)
   }
 
+  // ---- Crest ---------------------------------------------------------------
+  // Sits on top of the head where nothing else competes with it, which at this
+  // camera is the most legible part of the whole character.
+  if (sil.crest === 'topknot') {
+    const bun = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), hairMat)
+    bun.position.set(0, 0.52, -0.06)
+    bun.scale.set(1, 0.85, 1)
+    headPivot.add(bun)
+    const pinRod = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.44, 6), trimMat)
+    pinRod.position.set(0, 0.54, -0.06)
+    pinRod.rotation.z = 1.15
+    headPivot.add(pinRod)
+  } else if (sil.crest === 'cap') {
+    // A scholar's cap: a tall block with a brim, unmistakable in outline.
+    const capBody = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.20, 0.34, 8), clothMat)
+    capBody.position.set(0, 0.52, -0.03)
+    headPivot.add(capBody)
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.035, 10), trimMat)
+    brim.position.set(0, 0.37, -0.03)
+    headPivot.add(brim)
+  } else if (sil.crest === 'hat') {
+    // 삿갓: a wide cone that reads from any angle and shades the face.
+    const hat = new THREE.Mesh(new THREE.ConeGeometry(0.52, 0.26, 12), trimMat)
+    hat.position.set(0, 0.46, -0.02)
+    headPivot.add(hat)
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), clothMat)
+    knob.position.set(0, 0.60, -0.02)
+    headPivot.add(knob)
+  } else if (sil.crest === 'veil') {
+    const veil = new THREE.Mesh(
+      new THREE.SphereGeometry(0.46, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.44),
+      trimMat,
+    )
+    veil.position.set(0, 0.10, -0.04)
+    veil.scale.set(1.05, 1.25, 1.05)
+    veil.material.side = THREE.DoubleSide
+    headPivot.add(veil)
+  } else if (sil.crest === 'pin') {
+    // Minimal by design: 설령 carries her read in the twintails.
+    const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.36, 6), trimMat)
+    pin.position.set(0.12, 0.40, -0.10)
+    pin.rotation.z = -0.9
+    headPivot.add(pin)
+    const bead = new THREE.Mesh(new THREE.SphereGeometry(0.042, 8, 6), hairMat)
+    bead.position.set(0.27, 0.47, -0.10)
+    headPivot.add(bead)
+  }
+
+  // ---- Behind the shoulders ------------------------------------------------
+  if (sil.back === 'drape') {
+    // A long over-robe reaching the ground: the tallest back shape, and the one
+    // that most changes the outline from the side.
+    for (const [dx, len] of [[-0.13, 1.0], [0.06, 1.16], [0.16, 0.94]]) {
+      const geo = limb(
+        [[dx, 1.05, -0.12], [dx * 1.3, 0.72, -0.2], [dx * 1.5, 0.3, -0.22], [dx * 1.4, 1.05 - len, -0.16]],
+        [0.85, 0.95, 0.72, 0.3], 12, 8,
+      )
+      geo.scale(0.14, 1, 0.09)
+      gradient(geo, shade(pal.cloth, 0.55), shade(pal.cloth, 0.95), 'y')
+      const panel = new THREE.Mesh(geo, clothVertexMat)
+      panel.castShadow = true
+      root.add(panel)
+    }
+  } else if (sil.back === 'streamers') {
+    for (const side of [-1, 1]) {
+      const geo = limb(
+        [[side * 0.1, 0.86, -0.16], [side * 0.2, 0.6, -0.3], [side * 0.16, 0.3, -0.28]],
+        [0.6, 0.8, 0.2], 10, 7,
+      )
+      geo.scale(0.075, 1, 0.05)
+      gradient(geo, pal.trim, shade(pal.trim, 1.2), 'y')
+      root.add(new THREE.Mesh(geo, clothVertexMat))
+    }
+  }
+
   // ---- Skirt ---------------------------------------------------------------
   // A flared robe turned on a lathe, not a plain cone: the hem kicks out and the
   // waist pinches, which is what makes it read as cloth rather than a funnel.
+  const [waistR, hemR, drop] = sil.skirt
   const skirtGeo = revolve([
-    [0.18, 0.30], [0.23, 0.19], [0.28, 0.04], [0.34, -0.10],
-    [0.40, -0.20], [0.44, -0.245], [0.41, -0.26],
+    [waistR, 0.30],
+    [waistR + (hemR - waistR) * 0.16, 0.30 - drop * 0.42],
+    [waistR + (hemR - waistR) * 0.36, 0.30 - drop * 0.99],
+    [waistR + (hemR - waistR) * 0.62, 0.30 - drop * 1.53],
+    [hemR * 0.94, 0.30 - drop * 1.92],
+    [hemR, 0.30 - drop * 2.09],
+    [hemR * 0.93, 0.30 - drop * 2.15],
   ], 24)
   gradient(skirtGeo, shade(pal.cloth, 0.66), pal.cloth, 'y')
 
