@@ -9,6 +9,16 @@ const _dummy = new THREE.Object3D()
  * Impact colour per damage element. The layer's own colour is a warm spark, so
  * these are multipliers against it rather than absolute colours.
  */
+/** Launch flash per projectile kind, matched to the 법보 that throws it. */
+const LAUNCH_TINTS = {
+  sword: [0.82, 0.94, 1.2],
+  talisman: [1.2, 0.62, 0.28],
+  vajra: [1.15, 0.98, 0.5],
+  butterfly: [0.7, 1.0, 1.25],
+  darkSword: [0.85, 0.6, 1.25],
+  enemyShot: [0.8, 0.55, 1.1],
+}
+
 const HIT_TINTS = {
   physical: [1.0, 0.95, 0.85],
   sword: [0.85, 0.95, 1.15],
@@ -184,6 +194,27 @@ export class Vfx {
 
   spark(x, z, y = 0.8, scale = 0.9) {
     this.layers.spark.emit(x, y, z, scale, 0.28, this.time)
+  }
+
+  /**
+   * The moment a 법보 leaves her hand.
+   *
+   * Shots previously just appeared. A launch flash in the weapon's own colour
+   * is what makes a loadout feel like several distinct things firing rather
+   * than one emitter changing hue — and unlike the trail it happens at a fixed
+   * point the player is already looking at.
+   */
+  launch(x, z, dirX, dirZ, kind) {
+    const tint = LAUNCH_TINTS[kind] ?? LAUNCH_TINTS.sword
+    // Pushed slightly ahead so the flash sits at the muzzle, not inside her.
+    this.layers.spark.emit(
+      x + dirX * 0.55, 0.95, z + dirZ * 0.55,
+      0.42, 0.16, this.time, 0, false, tint,
+    )
+    this.layers.ring.emit(
+      x + dirX * 0.7, 0.12, z + dirZ * 0.7,
+      0.75, 0.18, this.time, 0, true, tint,
+    )
   }
 
   /**

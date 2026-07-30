@@ -62,6 +62,25 @@ const KIND_COLOR = {
 }
 
 /**
+ * How each 법보 moves through the air.
+ *
+ * One ribbon shape tinted six ways meant every weapon flew identically, and the
+ * loadout the player spent a whole run building read as one weapon in six
+ * colours. A 비검 is a cut and should leave a thin hard line; a 부적 is paper
+ * and should flutter wide and short; a 금강저 is a thrown weight and should
+ * barely smear at all. `width` and `stretch` scale the ribbon, `lift` raises it
+ * off the ground plane, and `blade` stretches the projectile mesh itself.
+ */
+const TRAIL = {
+  sword: { width: 0.26, stretch: 1.45, lift: -0.05, blade: 1.6 },
+  talisman: { width: 0.95, stretch: 0.55, lift: 0.02, blade: 0.55 },
+  vajra: { width: 0.62, stretch: 0.35, lift: -0.02, blade: 0.35 },
+  butterfly: { width: 0.80, stretch: 0.80, lift: 0.06, blade: 0.7 },
+  enemyShot: { width: 0.34, stretch: 0.55, lift: -0.04, blade: 0.7 },
+  darkSword: { width: 0.30, stretch: 1.70, lift: -0.05, blade: 1.5 },
+}
+
+/**
  * Pooled, instanced projectiles.
  *
  * One InstancedMesh per kind sharing a single pool, so a screen full of
@@ -104,6 +123,7 @@ export class ProjectileManager {
     this.tags = []
 
     this._out = new Int32Array(256)
+    this.onLaunch = null
 
     // A ribbon dragged behind every shot, in one shared additive draw.
     //
@@ -202,6 +222,11 @@ export class ProjectileManager {
     this.expiries[i] = opts.onExpire ?? null
     this.stats[i] = opts.stats ?? null
     this.tags[i] = opts.tag ?? 'array'
+    // Reported outward so the launch can be drawn without this module knowing
+    // the VFX layer exists. A shot that simply appears has no moment of firing.
+    if (this.onLaunch && !this.hostile[i]) {
+      this.onLaunch(this.px[i], this.pz[i], this.dirX[i], this.dirZ[i], kind)
+    }
     return i
   }
 
@@ -340,6 +365,7 @@ export class ProjectileManager {
       const mesh = this.meshes[k]
       const list = this.typeLists[k]
       const count = this.typeCounts[k]
+      const shape = TRAIL[PROJECTILE_KINDS[k]] ?? TRAIL.sword
       _color.setHex(KIND_COLOR[PROJECTILE_KINDS[k]])
       for (let n = 0; n < count; n++) {
         const i = list[n]
@@ -356,7 +382,7 @@ export class ProjectileManager {
         // Stretched along its own heading in proportion to speed. Nothing else
         // in the frame says "this is moving fast" — a rigid mesh translating
         // between frames reads as a slow object however far it travels.
-        const stretch = 1 + Math.min(1.6, this.speed[i] / 16)
+        const stretch = 1 + Math.min(1.6, this.speed[i] / 16) * shape.blade
         _dummy.scale.set(1, stretch, 1)
         _dummy.updateMatrix()
         mesh.setMatrixAt(n, _dummy.matrix)
@@ -365,14 +391,18 @@ export class ProjectileManager {
         // camera. Spinning kinds get none: an orbiting 비검 has no travel
         // direction to smear along, and a ribbon on one looks like a mistake.
         if (this.spin[i] === 0 && trails < MAX_PROJECTILES) {
-          const len = 0.9 + Math.min(3.4, this.speed[i] * 0.16)
+          const len = (0.9 + Math.min(3.4, this.speed[i] * 0.16)) * shape.stretch
           _dummy.position.set(
             x - this.dirX[i] * len * 0.5,
-            this.py[i] - 0.05,
+            this.py[i] + shape.lift,
             z - this.dirZ[i] * len * 0.5,
           )
-          _dummy.rotation.set(0, heading, 0)
-          _dummy.scale.set(0.42, 1, len)
+          // Paper and wings flutter about their own heading; a blade does not.
+          const flutter = shape.blade < 0.8
+            ? Math.sin(this.time * 9 + i) * 0.22
+            : 0
+          _dummy.rotation.set(0, heading + flutter, 0)
+          _dummy.scale.set(shape.width, 1, len)
           _dummy.updateMatrix()
           this.trail.setMatrixAt(trails, _dummy.matrix)
           this.trail.setColorAt(trails, _color)
