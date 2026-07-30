@@ -287,6 +287,15 @@ export class Game {
       if (fraction > 0.12) this.impact.hitstop(0.04)
     }
 
+    // A charge the player cannot see coming is a cheap hit. Draw the line it
+    // will take, on the ground, for exactly as long as the wind-up lasts.
+    this.enemies.onTelegraph = (x, z, dx, dz, seconds) => {
+      this.audio.play('swing', { pan: this._panAt(x) })
+      for (let i = 1; i <= 3; i++) {
+        this.vfx.telegraph(x + dx * i * 1.9, z + dz * i * 1.9, 1.5, seconds)
+      }
+    }
+
     this.enemies.onEnemyShot = (x, z, dx, dz, damage, speed) => {
       this.projectiles.spawn('enemyShot', {
         x, z, y: 1.0, dirX: dx, dirZ: dz, speed, damage, hostile: true, life: 5,

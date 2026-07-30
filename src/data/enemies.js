@@ -32,16 +32,20 @@ export const ENEMIES = [
     // it has already hit them.
     id: 'demonCultivator', name: '마수사',
     hp: 160, speed: 3.4, damage: 22, radius: 0.95, kbResist: 0.5, xp: 15,
-    behavior: 'dasher', color: 0x6b3fa0, scale: 1.22, elite: true, dashInterval: 4,
+    behavior: 'flanker', color: 0x6b3fa0, scale: 1.22, elite: true,
+    flankArc: 0.95, flankClose: 5, flankSpread: 14,
   },
 
   // ---- 청람비경 ----------------------------------------------------------
   {
     // A glass cannon: the fastest thing on the plateau and the hardest hitter
     // for its cost, but it dies to a single solid hit. Kill it on approach.
+    // Coils, then strikes in a straight line. The wind-up is the counterplay:
+    // it hits harder than anything else this early and is dodgeable on sight.
     id: 'jadeSerpent', name: '청사',
-    hp: 20, speed: 5.0, damage: 16, radius: 0.5, kbResist: 0.1, xp: 3,
-    behavior: 'dasher', color: 0x4fbf8a, scale: 0.9, dashInterval: 3.0,
+    hp: 20, speed: 4.2, damage: 16, radius: 0.5, kbResist: 0.1, xp: 3,
+    behavior: 'charger', color: 0x4fbf8a, scale: 0.9,
+    chargeInterval: 2.9, chargeWindup: 0.5, chargeTime: 0.55, chargeSpeed: 3.6,
   },
 
   // ---- 적염비경 ----------------------------------------------------------
@@ -56,16 +60,22 @@ export const ENEMIES = [
     behavior: 'chase', color: 0xd0442a, scale: 1.15,
   },
   {
+    // Dives and peels away rather than pressing, so it is a nuisance that
+    // interrupts rather than a body in the wall.
     id: 'ashRaven', name: '재까마귀',
     hp: 20, speed: 5.4, damage: 11, radius: 0.5, kbResist: 0.0, xp: 3,
-    behavior: 'dasher', color: 0x8a5a4a, scale: 0.85, dashInterval: 2.6,
+    behavior: 'skirmisher', color: 0x8a5a4a, scale: 0.85,
+    skirmishRange: 2.4, skirmishBack: 0.6,
   },
 
   // ---- 한천비경 ----------------------------------------------------------
   {
+    // Hunts as a pack: curves wide on the approach so a group arrives from
+    // several sides at once instead of stacking into one line.
     id: 'frostWolf', name: '설랑',
     hp: 26, speed: 4.4, damage: 12, radius: 0.55, kbResist: 0.15, xp: 3,
-    behavior: 'dasher', color: 0xa8d8ea, scale: 0.9, dashInterval: 3.4,
+    behavior: 'flanker', color: 0xa8d8ea, scale: 0.9,
+    flankArc: 1.25, flankClose: 3.5, flankSpread: 11,
   },
   {
     id: 'snowWraith', name: '설귀',

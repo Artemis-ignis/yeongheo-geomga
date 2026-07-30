@@ -51,6 +51,8 @@ export class EnemyManager {
     this.onKill = null
     this.onDamageText = null
     this.onEnemyShot = null
+    // Fired when a charger starts its wind-up, so the tell can be drawn.
+    this.onTelegraph = null
     // The boss is a single detailed object, not a pooled entity, so area damage
     // has to consider it separately. Set by Game; null when no boss is alive.
     this.boss = null
@@ -77,6 +79,10 @@ export class EnemyManager {
     this.dashT = new Float32Array(MAX_ENEMIES)
     this.flash = new Float32Array(MAX_ENEMIES)
     this.canSplit = new Uint8Array(MAX_ENEMIES)
+    // Signed flank offset, and the locked direction of a committed charge.
+    this.orbit = new Float32Array(MAX_ENEMIES)
+    this.chargeX = new Float32Array(MAX_ENEMIES)
+    this.chargeZ = new Float32Array(MAX_ENEMIES)
     this.damage = new Float32Array(MAX_ENEMIES)
     this.xpValue = new Float32Array(MAX_ENEMIES)
 
@@ -180,6 +186,10 @@ export class EnemyManager {
     this.hitCd[i] = 0
     this.stateT[i] = this.rng.next() * 3
     this.animPhase[i] = this.rng.next() * Math.PI * 2
+    // Half the pack goes left, half right, with varied commitment.
+    this.orbit[i] = (this.rng.next() < 0.5 ? -1 : 1) * (0.55 + this.rng.next() * 0.45)
+    this.chargeX[i] = 0
+    this.chargeZ[i] = 0
     this.dashT[i] = 0
     this.flash[i] = 0
     this.canSplit[i] = def.behavior === 'splitter' && scaleMul >= 1 ? 1 : 0
@@ -381,6 +391,13 @@ export class EnemyManager {
       let speed = def.speed * (1 - this.slowAmt[i])
       this.stateT[i] += dt
 
+      // Steering direction, normalised. Straight at the player unless a
+      // behaviour below turns it: everything used to beeline, which made twelve
+      // creature types move identically and made a crowd a wall rather than
+      // something with a shape to read.
+      let mx = dx / dist
+      let mz = dz / dist
+
       if (def.behavior === 'dasher') {
         const interval = def.dashInterval ?? 4
         if (this.dashT[i] > 0) {
@@ -391,6 +408,52 @@ export class EnemyManager {
         } else if (this.stateT[i] >= interval) {
           this.stateT[i] = 0
           this.dashT[i] = 0.5
+        }
+      } else if (def.behavior === 'flanker') {
+        // Curve in rather than converge. The arc is widest far out and unwinds
+        // to nothing at the kill distance, so a pack spreads around the player
+        // on the approach and still commits at the end. Each creature keeps its
+        // own signed offset, so they take opposite sides instead of queueing.
+        const closeR = def.flankClose ?? 4
+        const spread = def.flankSpread ?? 12
+        const t = Math.min(1, Math.max(0, (dist - closeR) / spread))
+        const arc = this.orbit[i] * t * (def.flankArc ?? 1.15)
+        const c = Math.cos(arc)
+        const s = Math.sin(arc)
+        mx = (dx / dist) * c - (dz / dist) * s
+        mz = (dx / dist) * s + (dz / dist) * c
+      } else if (def.behavior === 'charger') {
+        // Wind up in place, then commit to a straight line. The tell is the
+        // whole point: a fast enemy with no warning is unfair, and the same
+        // enemy with half a second of warning is a dodge the player earns.
+        const windup = def.chargeWindup ?? 0.55
+        const runFor = def.chargeTime ?? 0.6
+        if (this.dashT[i] > 0) {
+          this.dashT[i] -= dt
+          speed *= def.chargeSpeed ?? 3.4
+          mx = this.chargeX[i]
+          mz = this.chargeZ[i]
+        } else if (this.stateT[i] >= (def.chargeInterval ?? 3.2)) {
+          if (this.stateT[i] < (def.chargeInterval ?? 3.2) + windup) {
+            speed = 0
+            if (this.onTelegraph && this.stateT[i] - dt < (def.chargeInterval ?? 3.2)) {
+              this.onTelegraph(this.px[i], this.pz[i], dx / dist, dz / dist, windup)
+            }
+          } else {
+            this.stateT[i] = 0
+            this.dashT[i] = runFor
+            this.chargeX[i] = dx / dist
+            this.chargeZ[i] = dz / dist
+          }
+        }
+      } else if (def.behavior === 'skirmisher') {
+        // Dive, then peel away before it can be punished. Reads as a bird.
+        const backFor = def.skirmishBack ?? 0.55
+        if (this.dashT[i] > 0) {
+          this.dashT[i] -= dt
+          speed = -speed * 0.85
+        } else if (dist < (def.skirmishRange ?? 2.2)) {
+          this.dashT[i] = backFor
         }
       } else if (def.behavior === 'ranged') {
         const keep = def.keepDistance ?? 10
@@ -407,8 +470,10 @@ export class EnemyManager {
         }
       }
 
-      this.px[i] += (dx / dist) * speed * dt
-      this.pz[i] += (dz / dist) * speed * dt
+      this.px[i] += mx * speed * dt
+      this.pz[i] += mz * speed * dt
+      // Faces the player even while circling, so a flanker reads as stalking
+      // rather than as walking sideways past.
       this.facing[i] = Math.atan2(dx, dz)
 
       // Knockback velocity, decaying exponentially.
