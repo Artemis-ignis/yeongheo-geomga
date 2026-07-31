@@ -16,12 +16,35 @@ export const CONSUMABLES = [
   { kind: 'consumable', id: 'purge', name: '정화부', desc: '화면 안의 모든 적을 소멸시킨다.' },
 ]
 
-/** A weapon can evolve once it and its paired 공법 are both maxed. */
+/**
+ * Level the paired 공법 must reach before its 법보 can evolve.
+ *
+ * This was the 공법's own maximum, and that requirement was quietly deciding
+ * every run. Maxing a 법보 is five correct picks out of a random three-card
+ * draw and maxing its partner is five more, so an evolution cost ten of the
+ * twenty-odd upgrades a first run ever sees — and only if the draw offered the
+ * right pair. Measured over eight fresh-save runs it happened zero times.
+ *
+ * That mattered because evolutions are not a bonus here, they are the run.
+ * Sorted by how long they lasted, runs split into two populations with nothing
+ * between them: no evolution and dead at 240-285 s, or three evolutions and
+ * alive at 815. The gate sat just past where runs end, so the game was a
+ * lottery on whether the draw happened to hand over a matching pair in time.
+ *
+ * At 1 — the paired 공법 merely owned, which is the convention the genre
+ * settled on — four runs in eight reach an evolution, the median run gains 14%,
+ * and time spent inside contact range goes from 2.8% to 6.6%. Held in an object
+ * so the balance probe can sweep it; the sweep is what found this.
+ */
+export const EVOLUTION_GATE = { passiveLevel: 1 }
+
+/** A weapon can evolve once it is maxed and its paired 공법 has come far enough. */
 export function canEvolve(loadout, weapon) {
   if (!weapon?.evolvesTo || !weapon.pairPassive) return false
   if (loadout.weapons[weapon.id] !== weapon.levels.length) return false
   const passive = getPassive(weapon.pairPassive)
-  return loadout.passives[weapon.pairPassive] === passive.max
+  const needed = Math.min(passive.max, EVOLUTION_GATE.passiveLevel)
+  return (loadout.passives[weapon.pairPassive] ?? 0) >= needed
 }
 
 function buildCandidates(loadout, stats, unlockedWeapons) {

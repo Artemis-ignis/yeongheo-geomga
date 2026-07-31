@@ -26,6 +26,7 @@ import { ENEMIES, HP_SCALING } from '../data/enemies.js'
 import { WAVES } from '../data/waves.js'
 import { META_UPGRADES } from '../data/metaUpgrades.js'
 import { SPAWN_RING } from '../entities/EnemyManager.js'
+import { EVOLUTION_GATE } from '../combat/upgrades.js'
 
 /**
  * Scale the roster for one probe run and restore it afterwards.
@@ -42,11 +43,12 @@ import { SPAWN_RING } from '../entities/EnemyManager.js'
 function withRoster(
   {
     hpMul = 1, speedMul = 1, damageMul = 1, quadPeriod, linear,
-    densityMul = 1, densityFrom = 0, densityTo = Infinity, ringMul,
+    densityMul = 1, densityFrom = 0, densityTo = Infinity, ringMul, evoPassiveLevel,
   },
   body,
 ) {
   const ring = SPAWN_RING.mul
+  const gate = EVOLUTION_GATE.passiveLevel
   const roster = ENEMIES.map((e) => ({ hp: e.hp, speed: e.speed, damage: e.damage }))
   const scaling = { ...HP_SCALING }
   const waves = WAVES.map((w) => w.perSpawn)
@@ -65,10 +67,12 @@ function withRoster(
   if (quadPeriod !== undefined) HP_SCALING.quadPeriod = quadPeriod
   if (linear !== undefined) HP_SCALING.linear = linear
   if (ringMul !== undefined) SPAWN_RING.mul = ringMul
+  if (evoPassiveLevel !== undefined) EVOLUTION_GATE.passiveLevel = evoPassiveLevel
   try {
     return body()
   } finally {
     SPAWN_RING.mul = ring
+    EVOLUTION_GATE.passiveLevel = gate
     ENEMIES.forEach((e, i) => { e.hp = roster[i].hp; e.speed = roster[i].speed; e.damage = roster[i].damage })
     Object.assign(HP_SCALING, scaling)
     WAVES.forEach((w, i) => { w.perSpawn = waves[i] })
@@ -120,32 +124,69 @@ function rank(choice) {
 }
 
 /**
+ * How long the bot commits to a heading, in seconds, and how many enemies it
+ * can hold in its head at once.
+ *
+ * Both exist because the original steering was a perfect evasion controller: it
+ * recomputed an inverse-square-weighted repulsion from every enemy within 14
+ * units, sixty times a second, with no latency and no attention limit. Nothing
+ * in the game could touch it. Six levers were swept properly against it — enemy
+ * health, speed, contact damage, spawn density, entry distance and knockback,
+ * the last taken all the way to zero — and the share of frames spent inside
+ * contact range moved between 1.8% and 4.1% for all of them. That is not a
+ * finding about the game; it is a finding about the bot, and tuning difficulty
+ * against it would have been tuning against a machine no player is.
+ *
+ * 0.18 s is a middling human reaction; eight is generous for how many bodies
+ * anyone actually tracks in a crowd.
+ */
+const REACTION = 0.18
+const ATTENTION = 8
+
+/**
  * Steer away from the local crowd, weighted by closeness, and slide along the
  * 결계 rather than pressing into it. Not a good player — a consistent one, which
  * is what a balance baseline needs.
  */
-function steer(game, player, t) {
-  let tx = 0
-  let tz = 0
+function steer(game, player, t, memory) {
   let near = 0
   let closest = Infinity
   const e = game.enemies
+  // Sensing is free and instant — `closest` and `near` describe the world, not
+  // what she has noticed, and the danger metric depends on the world.
   for (let i = 0; i < e.pool.count; i++) {
     const dx = e.px[i] - player.x
     const dz = e.pz[i] - player.z
     const d = Math.hypot(dx, dz) || 1
     if (d < closest) closest = d
     if (d < 4) near++
-    if (d < 14) {
-      const w = 1 / (d * d)
-      tx -= (dx / d) * w
-      tz -= (dz / d) * w
-    }
   }
-  let mx = tx
-  let mz = tz
-  const len = Math.hypot(mx, mz)
-  if (len > 1e-4) { mx /= len; mz /= len } else { mx = Math.cos(t * 0.4); mz = Math.sin(t * 0.4) }
+
+  // Deciding is not. She re-reads the crowd every REACTION seconds and holds the
+  // heading in between, and she only weighs the nearest ATTENTION of them.
+  if (t >= memory.until) {
+    memory.until = t + REACTION
+    const seen = []
+    for (let i = 0; i < e.pool.count; i++) {
+      const dx = e.px[i] - player.x
+      const dz = e.pz[i] - player.z
+      const d = Math.hypot(dx, dz) || 1
+      if (d < 14) seen.push({ dx, dz, d })
+    }
+    seen.sort((a, b) => a.d - b.d)
+    let tx = 0
+    let tz = 0
+    for (const s of seen.slice(0, ATTENTION)) {
+      const w = 1 / (s.d * s.d)
+      tx -= (s.dx / s.d) * w
+      tz -= (s.dz / s.d) * w
+    }
+    const len = Math.hypot(tx, tz)
+    if (len > 1e-4) { memory.mx = tx / len; memory.mz = tz / len }
+    else { memory.mx = Math.cos(t * 0.4); memory.mz = Math.sin(t * 0.4) }
+  }
+  let mx = memory.mx
+  let mz = memory.mz
 
   const r = Math.hypot(player.x, player.z)
   if (r > 24) {
@@ -234,15 +275,19 @@ export function installBalanceProbe(game) {
       let lastSpawn = 0
       let frames = 0
       let danger = 0
+      let totalFrames = 0
+      let totalDanger = 0
 
+      const memory = { until: 0, mx: 0, mz: 1 }
       while (t < seconds && game.state !== 'result') {
-        const { mx, mz, near, closest } = steer(game, p, t)
+        const { mx, mz, near, closest } = steer(game, p, t, memory)
         game.input._x = mx
         game.input._z = mz
         if (p.dashCooldown <= 0 && (near >= 4 || closest < 1.5)) game.input._dash = true
 
         frames++
-        if (closest < 2.5) danger++
+        totalFrames++
+        if (closest < 2.5) { danger++; totalDanger++ }
         t += 1 / 60
         window.__step(1 / 60)
 
@@ -273,6 +318,21 @@ export function installBalanceProbe(game) {
         upgrades: taken,
         // Stated, not implied. Every earlier conclusion in this file's history
         // was conditioned on a 단전 nobody had written down.
+        // Two summaries, because the obvious one lies.
+        //
+        // Counting minutes whose danger is ~0 rewards dying early: the opening
+        // is deliberately gentle, so a run that ends at four minutes has bands
+        // [0,0,0,5] and scores 75% quiet by construction, while a full run that
+        // is genuinely tense for ten of its fifteen minutes scores 33%. I spent
+        // a sweep optimising that number before noticing it moves with run
+        // length rather than with the game.
+        //
+        // `exposure` is frames spent inside contact range over frames played —
+        // length-independent. `deadMinutes` ignores the first three, which are
+        // supposed to be quiet, and counts the ones after that which are not.
+        exposure: +(totalDanger / Math.max(1, totalFrames)).toFixed(3),
+        deadMinutes: rows.slice(3).filter((r) => r.danger <= 1).length,
+        playedMinutes: rows.length,
         meta: startStats,
         finalStats: {
           maxHp: Math.round(p.maxHp), armor: p.stats.armor,

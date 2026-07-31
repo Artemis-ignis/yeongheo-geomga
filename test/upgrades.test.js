@@ -70,6 +70,41 @@ describe('rollUpgrades', () => {
     expect(offered.some((c) => c.kind === 'evolution' && c.id === 'myriadSwords')).toBe(true)
   })
 
+  /**
+   * The gate that decided every run, and had no test at all.
+   *
+   * It used to need the paired 공법 maxed as well as the 법보 — ten correct
+   * picks out of random three-card draws, against the twenty-odd a first run
+   * sees. Measured over eight fresh-save runs it fired zero times, and runs
+   * split cleanly into "no evolution, dead at four minutes" and "three
+   * evolutions, alive at fourteen" with nothing in between.
+   */
+  it('needs only the pair 공법 owned, not maxed', () => {
+    expect(canEvolve(loadout({ flyingSword: 5 }, { swordArt: 1 }), getWeapon('flyingSword'))).toBe(true)
+    const offered = rollUpgrades(loadout({ flyingSword: 5 }, { swordArt: 1 }), stats, new RNG(7))
+    expect(offered.some((c) => c.kind === 'evolution' && c.id === 'myriadSwords')).toBe(true)
+  })
+
+  it('still needs the 법보 itself maxed', () => {
+    for (let level = 0; level < 5; level++) {
+      const lo = loadout({ flyingSword: level }, { swordArt: 5 })
+      expect(canEvolve(lo, getWeapon('flyingSword')), `evolved from level ${level}`).toBe(false)
+    }
+  })
+
+  it('still needs the pair 공법 at all', () => {
+    expect(canEvolve(loadout({ flyingSword: 5 }, {}), getWeapon('flyingSword'))).toBe(false)
+  })
+
+  it('gates every evolution on its own pair, not on any 공법', () => {
+    // A full set of the wrong 공법 must not unlock anything.
+    for (const w of WEAPONS.filter((x) => x.evolvesTo && x.pairPassive)) {
+      const wrong = {}
+      for (const p of PASSIVES) if (p.id !== w.pairPassive) wrong[p.id] = p.max
+      expect(canEvolve(loadout({ [w.id]: 5 }, wrong), w), `${w.id} evolved on the wrong pair`).toBe(false)
+    }
+  })
+
   it('marks the evolution with the weapon it replaces', () => {
     const lo = loadout({ frostPalm: 5 }, { guardianAura: 5 })
     const evo = rollUpgrades(lo, stats, new RNG(21)).find((c) => c.kind === 'evolution')
