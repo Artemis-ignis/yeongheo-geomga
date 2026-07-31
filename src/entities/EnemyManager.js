@@ -4,6 +4,7 @@ import { SpatialHash } from '../core/SpatialHash.js'
 import { rollDamage, knockbackImpulse } from '../combat/damage.js'
 import { ENEMIES, ENEMY_INDEX, scaledDamage, scaledHp, scaledXp } from '../data/enemies.js'
 import { waveAt } from '../data/waves.js'
+import { FORMATIONS, formationAngles } from '../data/formations.js'
 import { rosterFor } from '../data/stages.js'
 import { buildEnemyGeometry } from '../art/enemyGeometry.js'
 import { makeToonMaterial } from '../art/materials.js'
@@ -77,9 +78,12 @@ export class EnemyManager {
     this.grid = new SpatialHash(CELL_SIZE)
     this.killCount = 0
     this.spawnTimer = 0
+    /** Index of the next 진 to fire; formations are ordered by time. */
+    this._nextFormation = 0
 
     // Reported outward; wired up by Game.
     this.onKill = null
+    this.onFormation = null
     this.onDamageText = null
     // Fired at the point of contact, separately from the damage number, so the
     // impact can be drawn where the blow actually landed.
@@ -414,6 +418,41 @@ export class EnemyManager {
     this.hitCd[i] = 0
   }
 
+  /**
+   * Fire any 진 whose time has passed since the last tick.
+   *
+   * Independent of the wave table — a formation is on top of the drizzle, not
+   * instead of it, so the average pressure the table encodes is preserved and
+   * only its texture changes.
+   */
+  _spawnFormations(runTime, player) {
+    while (this._nextFormation < FORMATIONS.length && FORMATIONS[this._nextFormation].t <= runTime) {
+      const f = FORMATIONS[this._nextFormation++]
+      // A 진 still has to be made of things that belong in this 비경, or the
+      // stage rosters stop meaning anything. `rosterFor` falls back to the
+      // stage's own first entry when the named type is not allowed here.
+      const type = rosterFor(this.stage, [f.type])[0]
+      // Orient to where she is going, so a wall is the thing she was running
+      // toward rather than a surprise behind her.
+      const moving = player.x !== player.prevX || player.z !== player.prevZ
+      const facing = moving
+        ? Math.atan2(player.x - player.prevX, player.z - player.prevZ)
+        : this.rng.angle()
+      for (const a of formationAngles(f.kind, f.count, facing, f.arc)) {
+        let x = player.x + Math.sin(a) * f.radius
+        let z = player.z + Math.cos(a) * f.radius
+        const d = Math.hypot(x, z)
+        if (d > ARENA_RADIUS - 2) {
+          const k = (ARENA_RADIUS - 2) / d
+          x *= k
+          z *= k
+        }
+        this.spawn(type, x, z, runTime)
+      }
+      if (this.onFormation) this.onFormation(f)
+    }
+  }
+
   _spawnWave(dt, runTime, player, camera) {
     const band = waveAt(runTime)
     // The stage narrows which enemies a band may draw, so each 비경 fights
@@ -435,6 +474,7 @@ export class EnemyManager {
   update(dt, runTime, player, camera) {
     this.runTime = runTime
     this._spawnWave(dt, runTime, player, camera)
+    this._spawnFormations(runTime, player)
 
     // Rebuild the broadphase from the live set.
     this.grid.clear()
@@ -696,6 +736,7 @@ export class EnemyManager {
     this.grid.clear()
     this.killCount = 0
     this.spawnTimer = 0
+    this._nextFormation = 0
     for (const m of this.meshes) m.count = 0
   }
 

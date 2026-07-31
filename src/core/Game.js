@@ -41,6 +41,13 @@ import { DebugOverlay } from '../ui/DebugOverlay.js'
 import { Progress } from '../meta/Progress.js'
 import * as Save from '../meta/Save.js'
 
+/** What the 결계 announces when a 진 forms. One line per shape in formations.js. */
+const FORMATION_NAMES = {
+  ring: '마기가 에워싼다',
+  wall: '마기가 밀려온다',
+  pincer: '마기가 협공한다',
+}
+
 const BREAKTHROUGH_RADIUS = 8
 const BREAKTHROUGH_IFRAMES = 1.2
 
@@ -346,6 +353,16 @@ export class Game {
         this.pendingLevels += 1
         this._openNextModal()
       }
+    }
+
+    // A 진 has to land as a thing that happened. Spawned silently it is just a
+    // spike in a number the player cannot see, and the whole reason formations
+    // exist is that a steady drizzle reads as background.
+    this.enemies.onFormation = (f) => {
+      this.audio.play('boss', { gain: 0.45 })
+      this.overlay.pushBanner(FORMATION_NAMES[f.kind] ?? '마기가 진을 이룬다', 2.0)
+      this.camera.addTrauma(0.22)
+      this.terrain.pingBarrier?.(this.player.x, this.player.z)
     }
 
     this.boss.onWarning = (def) => {

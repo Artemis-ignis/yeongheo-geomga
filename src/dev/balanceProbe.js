@@ -220,6 +220,13 @@ export function installBalanceProbe(game) {
 
     try {
       const p = game.player
+      // Snapshot before the first 공법 lands. Taken at the end this reads 321
+      // health on a maxed 단전 that actually grants 159, because sixty in-run
+      // levels are folded into the same number.
+      const startStats = {
+        maxHp: Math.round(p.maxHp), armor: p.stats.armor,
+        might: +p.stats.might.toFixed(2), moveSpeed: +p.stats.moveSpeed.toFixed(2),
+      }
       const rows = []
       let t = 0
       let bandT = 0
@@ -266,7 +273,11 @@ export function installBalanceProbe(game) {
         upgrades: taken,
         // Stated, not implied. Every earlier conclusion in this file's history
         // was conditioned on a 단전 nobody had written down.
-        meta: { maxHp: Math.round(p.maxHp), armor: p.stats.armor, might: +p.stats.might.toFixed(2) },
+        meta: startStats,
+        finalStats: {
+          maxHp: Math.round(p.maxHp), armor: p.stats.armor,
+          might: +p.stats.might.toFixed(2), moveSpeed: +p.stats.moveSpeed.toFixed(2),
+        },
         loadout: JSON.parse(JSON.stringify(p.loadout)),
         rows,
       }
