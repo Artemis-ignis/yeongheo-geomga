@@ -1,5 +1,8 @@
 ﻿import { noiseBuffer, playBuffer, playTone, pluckBuffer } from './synth.js'
-import { intensityOf, isAnswerNote, nextDegree, noteFreq, noteInterval, scaleFor, tonicFor } from './theory.js'
+import {
+  BEATS_PER_BAR, chordRootAt, drumsForBar, intensityOf, noteFreq,
+  phraseAt, scaleFor, tempoFor, tonicFor,
+} from './theory.js'
 
 /**
  * The whole soundtrack and every sound effect, synthesised at runtime.
@@ -57,6 +60,15 @@ const LAUNCH_VOICE = {
 
 /** Intensity above which the low pulse joins the score. */
 const PULSE_THRESHOLD = 0.42
+
+/**
+ * How far ahead the sequencer schedules, in seconds.
+ *
+ * Long enough that a frame hitch — or a whole second of one, which is what the
+ * player reported — cannot leave a gap in the music, short enough that a change
+ * in intensity is heard within a bar rather than after one.
+ */
+const SCHEDULE_AHEAD = 0.35
 
 const VOICE_GAP = {
   launch: 0.055,
@@ -414,9 +426,12 @@ export class AudioEngine {
     this._stageId = stageId
     if (!this.ok) return
     this._musicOn = true
-    this._noteTimer = 0
     this._pulseTimer = 0
-    this._noteIndex = 0
+    // Where the sequencer has scheduled up to, on the audio clock. See _sequence.
+    this._nextNoteTime = this.ctx.currentTime + 0.12
+    this._beat = 0          // beats elapsed since the music started
+    this._noteAt = 0        // index into the current phrase
+    this._phraseIndex = 0
     this._startDrone()
   }
 
@@ -440,6 +455,9 @@ export class AudioEngine {
    * A slow bed under the plucks: the tonic and its fifth, detuned against each
    * other so the pair beats slowly. Without it the plucks sound like a demo of
    * a plucked string rather than like music.
+   *
+   * The oscillators are pitched by `_setDroneRoot` as the progression moves, so
+   * this is a bass part rather than the single held note it used to be.
    */
   _startDrone() {
     if (this._drone) return
@@ -455,7 +473,8 @@ export class AudioEngine {
     filter.connect(gain)
 
     const oscs = []
-    for (const [mult, detune] of [[0.5, -6], [0.5, 7], [0.75, 3]]) {
+    const mults = [[0.5, -6], [0.5, 7], [0.75, 3]]
+    for (const [mult, detune] of mults) {
       const osc = ctx.createOscillator()
       osc.type = 'sawtooth'
       osc.frequency.value = tonic * mult
@@ -465,7 +484,129 @@ export class AudioEngine {
       oscs.push(osc)
     }
     gain.gain.exponentialRampToValueAtTime(0.10, ctx.currentTime + 3)
-    this._drone = { gain, filter, oscs }
+    this._drone = { gain, filter, oscs, mults }
+  }
+
+  /**
+   * Glide the bass to a new chord root.
+   *
+   * Glide, not jump: three detuned sawtooths re-pitched instantly click, and a
+   * bass that slides between chords is the sound this score wants anyway.
+   */
+  _setDroneRoot(degree, when, seconds) {
+    if (!this._drone) return
+    const f = noteFreq(tonicFor(this._stageId), degree, -1, this._scale())
+    for (let i = 0; i < this._drone.oscs.length; i++) {
+      const [mult] = this._drone.mults[i]
+      const target = Math.max(20, f * mult * 2)
+      const p = this._drone.oscs[i].frequency
+      try {
+        p.cancelScheduledValues(when)
+        p.setValueAtTime(p.value, when)
+        p.exponentialRampToValueAtTime(target, when + seconds)
+      } catch {
+        // A stopped oscillator; the next startMusic rebuilds it.
+      }
+    }
+  }
+
+  /** 장구. `deep` is the palm-struck head, `tap` the stick. */
+  _drum(voice, when, velocity) {
+    const deep = voice === 'deep'
+    const buf = noiseBuffer(this.ctx, deep ? 0.34 : 0.12, deep ? 4241 : 991)
+    playBuffer(this.ctx, this.musicBus, buf, {
+      gain: (deep ? 0.30 : 0.13) * velocity,
+      attack: 0.001,
+      decay: deep ? 0.20 : 0.055,
+      filter: deep ? 420 : 5200,
+      filterTo: deep ? 90 : 2600,
+      pan: deep ? 0 : 0.22,
+      // Without this the noise body of every hit fires the instant it is
+      // scheduled while its pitched thump waits for the beat — the drum splits
+      // into two sounds up to a third of a second apart.
+      when: when - this.ctx.currentTime,
+    })
+    if (deep) {
+      // A pitched thump under the noise, or it reads as a hiss rather than a
+      // drum. The drop is what makes a membrane sound struck.
+      playTone(this.ctx, this.musicBus, {
+        freq: 128, toFreq: 52, type: 'sine',
+        gain: 0.26 * velocity, attack: 0.002, decay: 0.20, when: when - this.ctx.currentTime,
+      })
+    }
+  }
+
+  /**
+   * Schedule every event that falls inside the lookahead window.
+   *
+   * This is the whole reason the music now has a beat. It used to schedule notes
+   * from the render loop — a note fired whenever a frame happened to land, with
+   * the interval jittered on top — so the rhythm wobbled with the frame rate and
+   * fell apart entirely when the game stuttered. Nothing scheduled that way can
+   * hold a pulse.
+   *
+   * Here the sequencer runs on `ctx.currentTime` and schedules ahead, so timing
+   * is sample-accurate and completely independent of how the renderer is doing.
+   */
+  _sequence() {
+    const ctx = this.ctx
+    const horizon = ctx.currentTime + SCHEDULE_AHEAD
+    const tonic = tonicFor(this._stageId)
+    const scale = this._scale()
+
+    while (this._nextNoteTime < horizon) {
+      const spb = 60 / tempoFor(this._intensity)
+      const phrase = phraseAt(this._phraseIndex)
+      const [degree, beats] = phrase[this._noteAt]
+      const when = this._nextNoteTime
+      const bar = Math.floor(this._beat / BEATS_PER_BAR)
+
+      // Bar boundary: move the bass, and lay in the drums for the bar ahead.
+      if (this._beat % BEATS_PER_BAR === 0) {
+        this._setDroneRoot(chordRootAt(bar), when, spb * BEATS_PER_BAR * 0.6)
+        for (const [b, voice, vel] of drumsForBar(this._intensity, bar)) {
+          this._drum(voice, when + b * spb, vel)
+        }
+      }
+
+      if (degree !== null) {
+        const low = degree <= 0
+        const freq = noteFreq(tonic, degree, low ? 0 : 1, scale)
+        const buf = pluckBuffer(ctx, freq, low ? 2.4 : 1.5, low ? 0.25 : 0.45, 3607)
+        playBuffer(ctx, this.musicBus, buf, {
+          gain: (low ? 0.26 : 0.19) * (0.7 + this._intensity * 0.45),
+          decay: Math.min(1.9, beats * spb * 1.4),
+          pan: ((this._noteAt % 5) / 4 - 0.5) * 0.4,
+          when: when - ctx.currentTime,
+        })
+
+        // 편경 — a stone chime two octaves up, keeping air in a mix that is dark
+        // by construction: the drone is filtered sawtooths and a Karplus-Strong
+        // pluck is a lowpassed feedback loop. Measured, the bed carried 1-4%
+        // of its energy above 2.5 kHz without this.
+        const lift = beats >= 2 ? 1 : 0.34
+        for (const [mult, gain, decay] of [[1, 0.055, 0.7], [2.76, 0.022, 0.45]]) {
+          playTone(ctx, this.musicBus, {
+            freq: freq * 4 * mult, type: 'sine',
+            gain: gain * lift * (0.75 + this._intensity * 0.35),
+            attack: 0.004, decay: decay * lift,
+            pan: ((this._noteAt % 3) / 2 - 0.5) * 0.6,
+            when: when - ctx.currentTime,
+          })
+        }
+      }
+
+      this._nextNoteTime += beats * spb
+      this._beat += beats
+      this._noteAt++
+      if (this._noteAt >= phrase.length) {
+        this._noteAt = 0
+        this._phraseIndex++
+        // Re-anchor the bar count to the phrase so a phrase whose beats do not
+        // divide evenly cannot walk the downbeat off the drums.
+        this._beat = Math.round(this._beat / BEATS_PER_BAR) * BEATS_PER_BAR
+      }
+    }
   }
 
   /**
@@ -483,72 +624,13 @@ export class AudioEngine {
       g.value += (target - g.value) * Math.min(1, dt * 0.6)
     }
 
-    // A low pulse under everything once the run turns dangerous.
-    //
-    // Density alone does not read as danger: the melody just gets busier, and a
-    // player watching a screen full of creatures does not notice note spacing.
-    // A heartbeat in the bottom octave does, and it is the one part of this
-    // score that is felt rather than heard.
-    if (this._intensity > PULSE_THRESHOLD) {
-      this._pulseTimer -= dt
-      if (this._pulseTimer <= 0) {
-        const over = (this._intensity - PULSE_THRESHOLD) / (1 - PULSE_THRESHOLD)
-        this._pulseTimer = 0.92 - over * 0.34
-        playTone(this.ctx, this.musicBus, {
-          freq: tonicFor(this._stageId) / 4,
-          type: 'sine',
-          gain: 0.16 + over * 0.16,
-          attack: 0.012,
-          decay: 0.28 + over * 0.12,
-        })
-      }
-    }
+    // The free-running low pulse that used to live here is gone. It existed
+    // because there was no beat and danger had to be signalled somehow; now the
+    // 장구 carries it, on the grid, and two unsynchronised pulses in the bottom
+    // octave fight each other. `drumsForBar` escalates the kit with intensity,
+    // which is the same idea done in time.
 
-    this._noteTimer -= dt
-    if (this._noteTimer > 0) return
-    this._noteTimer = noteInterval(this._intensity) * (0.85 + this._rand() * 0.3)
-
-    const tonic = tonicFor(this._stageId)
-    this._degree = nextDegree(this._degree, this._rand(), this._intensity)
-    const answer = isAnswerNote(this._noteIndex)
-    this._noteIndex++
-
-    const freq = noteFreq(tonic, this._degree, answer ? 0 : 1, this._scale())
-    const buf = pluckBuffer(this.ctx, freq, answer ? 2.4 : 1.5, answer ? 0.25 : 0.45, 3607)
-    playBuffer(this.ctx, this.musicBus, buf, {
-      gain: (answer ? 0.26 : 0.17) * (0.7 + this._intensity * 0.5),
-      decay: answer ? 1.9 : 1.1,
-      pan: (this._rand() - 0.5) * 0.5,
-    })
-
-    // 편경 — a stone chime two octaves up on the answering notes.
-    //
-    // Measured over twelve seconds of real-time play, the mix carried 45-55% of
-    // its energy below 250 Hz, 44-54% in the mids, and 1-4% above 2.5 kHz. That
-    // is a game heard through a blanket, and nothing in the score could fix it:
-    // the drone is three sawtooths behind a lowpass that opens to 1.5 kHz at
-    // most, and a Karplus-Strong pluck is a lowpassed feedback loop that is dark
-    // by construction. There was no source of air anywhere in the bed.
-    //
-    // On every note, but only the answering ones ring out — on answers alone it
-    // reached 34% of the spectrum when it struck and 3.6% averaged over a run,
-    // which is a sparkle rather than air. Riding every note keeps something
-    // alive up there between them without becoming a second melody: the passing
-    // notes are a third the volume and a fifth the length, closer to the
-    // pluck's own overtone than to an instrument. Two partials, because a struck
-    // stone is not a sine.
-    const chime = freq * 4
-    const lift = answer ? 1 : 0.34
-    for (const [mult, gain, decay] of [[1, 0.055, 0.7], [2.76, 0.022, 0.45]]) {
-      playTone(this.ctx, this.musicBus, {
-        freq: chime * mult,
-        type: 'sine',
-        gain: gain * lift * (0.75 + this._intensity * 0.35),
-        attack: 0.004,
-        decay: decay * (answer ? 1 : 0.45),
-        pan: (this._rand() - 0.5) * 0.7,
-      })
-    }
+    this._sequence()
   }
 
   dispose() {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   PENTATONIC, MODES, intensityOf, isAnswerNote, nextDegree, noteFreq, noteInterval,
-  scaleFor, tonicFor,
+  scaleFor, tonicFor, BEATS_PER_BAR, tempoFor, phraseAt, chordRootAt, drumsForBar,
 } from '../src/audio/theory.js'
 import { AudioEngine } from '../src/audio/Audio.js'
 
@@ -220,5 +220,76 @@ describe('audio settings', () => {
     const a = new AudioEngine({ contextFactory: () => null, storage: store })
     expect(a.muted).toBe(false)
     expect(a.masterVolume).toBeGreaterThan(0)
+  })
+})
+
+describe('metre, motif and harmony', () => {
+  it('keeps the tempo walkable at every intensity', () => {
+    for (const i of [0, 0.25, 0.5, 0.75, 1]) {
+      const bpm = tempoFor(i)
+      expect(bpm).toBeGreaterThanOrEqual(76)
+      expect(bpm).toBeLessThanOrEqual(106)
+    }
+    expect(tempoFor(1)).toBeGreaterThan(tempoFor(0))
+  })
+
+  it('every phrase fills whole bars', () => {
+    // A phrase whose beats do not sum to a multiple of the bar walks the melody
+    // off the drums a little further every repeat.
+    for (let i = 0; i < 4; i++) {
+      const beats = phraseAt(i).reduce((n, [, b]) => n + b, 0)
+      expect(beats % BEATS_PER_BAR).toBe(0)
+    }
+  })
+
+  it('is A A B A — the tune repeats before it is answered', () => {
+    expect(phraseAt(0)).toBe(phraseAt(1))
+    expect(phraseAt(0)).toBe(phraseAt(3))
+    expect(phraseAt(2)).not.toBe(phraseAt(0))
+    expect(phraseAt(4)).toBe(phraseAt(0))
+  })
+
+  it('resolves each phrase onto the tonic', () => {
+    for (let i = 0; i < 4; i++) {
+      const sung = phraseAt(i).filter(([d]) => d !== null)
+      expect(sung[sung.length - 1][0]).toBe(0)
+    }
+  })
+
+  it('moves the bass and comes home', () => {
+    expect(chordRootAt(0)).toBe(0)
+    expect(chordRootAt(3)).toBe(0)
+    const roots = [0, 1, 2, 3].map(chordRootAt)
+    expect(new Set(roots).size).toBeGreaterThan(1)
+    // Wraps rather than running off the end, including backwards.
+    expect(chordRootAt(4)).toBe(chordRootAt(0))
+    expect(chordRootAt(-1)).toBe(chordRootAt(3))
+  })
+
+  it('brings the kit in only as the run turns', () => {
+    expect(drumsForBar(0.1, 0)).toHaveLength(0)
+    const early = drumsForBar(0.4, 0).length
+    const mid = drumsForBar(0.6, 0).length
+    const late = drumsForBar(0.9, 0).length
+    expect(early).toBeGreaterThan(0)
+    expect(mid).toBeGreaterThan(early)
+    expect(late).toBeGreaterThan(mid)
+  })
+
+  it('never places a drum hit outside its own bar', () => {
+    for (const i of [0.4, 0.6, 0.9]) {
+      for (const [beat] of drumsForBar(i, 0)) {
+        expect(beat).toBeGreaterThanOrEqual(0)
+        expect(beat).toBeLessThan(BEATS_PER_BAR)
+      }
+    }
+  })
+
+  it('only ever names a drum voice the engine can play', () => {
+    for (const i of [0.4, 0.6, 0.9]) {
+      for (const [, voice] of drumsForBar(i, 0)) {
+        expect(['deep', 'tap']).toContain(voice)
+      }
+    }
   })
 })

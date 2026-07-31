@@ -93,6 +93,104 @@ export function noteInterval(intensity) {
   return 1.15 - i * 0.72
 }
 
+// ---- metre, motif and harmony ----------------------------------------------
+//
+// What was here before was a random walk over the scale, fired at intervals
+// deliberately jittered off any grid, over a drone that never moved. Every
+// individual decision in it was defensible and the result was not music: no
+// pulse to tap, no phrase to recognise, no harmony to resolve. A player called
+// it a joke and they were right.
+//
+// Music needs three things this had none of — a beat, a tune that repeats, and
+// a chord that changes. All three are here, and all three are pure functions so
+// the suite can check them without an AudioContext.
+
+export const BEATS_PER_BAR = 4
+export const BARS_PER_PHRASE = 4
+
+/** Beats per minute. Pushes forward as the run tightens, but stays walkable. */
+export function tempoFor(intensity) {
+  return 76 + Math.min(1, Math.max(0, intensity)) * 30
+}
+
+/**
+ * The tune, as [scaleDegree, beats] — `null` is a rest.
+ *
+ * Written rather than generated. A phrase is memorable because it comes back,
+ * and nothing that samples fresh every bar can come back. Degrees are in the
+ * stage's own five-note mode, so the same shape sounds bright in 평조 and
+ * grieving in 계면조 without a second tune being written.
+ */
+const PHRASE_A = [
+  [0, 1.5], [1, 0.5], [2, 2],
+  [3, 1], [2, 1], [1, 2],
+  [2, 1.5], [3, 0.5], [4, 2],
+  [3, 1], [2, 1], [0, 1.5], [null, 0.5],
+]
+
+/** The answer: higher, quicker, and it falls back to the tonic to close. */
+const PHRASE_B = [
+  [4, 1], [3, 1], [4, 1], [5, 1],
+  [4, 2], [2, 1.5], [null, 0.5],
+  [3, 1], [4, 1], [3, 1], [2, 1],
+  [1, 2], [0, 2],
+]
+
+/**
+ * A A B A — the oldest song form there is, and the reason is that three
+ * statements of a tune make it yours before the answer arrives.
+ */
+const FORM = [PHRASE_A, PHRASE_A, PHRASE_B, PHRASE_A]
+
+export function phraseAt(index) {
+  return FORM[((index % FORM.length) + FORM.length) % FORM.length]
+}
+
+/**
+ * The bass, as a scale degree per bar of the phrase.
+ *
+ * Tonic, sixth, fifth, tonic — a descent that leans away from home and comes
+ * back. A single unchanging drone is not harmony, it is a held note, and no
+ * amount of filter movement over the top of it makes it move.
+ */
+const PROGRESSION = [0, 4, 3, 0]
+
+export function chordRootAt(bar) {
+  return PROGRESSION[((bar % PROGRESSION.length) + PROGRESSION.length) % PROGRESSION.length]
+}
+
+/**
+ * The 장구 pattern, as [beatWithinBar, voice, velocity].
+ *
+ * `deep` is the 북편 struck with the palm, `tap` the 채편 struck with the stick.
+ * The off-beat taps at 2.5 and 4.5 are what stop a four-square pattern from
+ * marching; without them this is a metronome.
+ */
+const DRUM_PATTERN = [
+  [0, 'deep', 1.0],
+  [1.5, 'tap', 0.45],
+  [2, 'deep', 0.7],
+  [2.5, 'tap', 0.35],
+  [3, 'tap', 0.55],
+  [3.5, 'tap', 0.4],
+]
+
+/**
+ * Which drum hits fall in a given bar. Below `intensity` 0.25 the kit sits out
+ * entirely — an opening minute with no threat on screen wants air, not a beat —
+ * and the full pattern only arrives once the run has actually turned.
+ */
+export function drumsForBar(intensity, bar) {
+  const i = Math.min(1, Math.max(0, intensity))
+  if (i < 0.25) return []
+  if (i < 0.55) {
+    // Downbeats only, and only every other bar: a pulse, not yet a groove.
+    return bar % 2 === 0 ? DRUM_PATTERN.filter(([b, v]) => v === 'deep' && b === 0) : []
+  }
+  if (i < 0.78) return DRUM_PATTERN.filter(([, v]) => v === 'deep')
+  return DRUM_PATTERN
+}
+
 /**
  * Pick the next scale degree.
  *
