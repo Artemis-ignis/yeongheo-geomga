@@ -1,4 +1,6 @@
-﻿/**
+﻿import { TRIAL } from './trials.js'
+
+/**
  * 마기에 물든 요괴와 마수사들. `hp`/`damage`/`xp` are the values at run time 0:00.
  *
  * The roster carries twice the health, half the contact damage and twice the
@@ -171,11 +173,12 @@ export const HP_SCALING = { linear: 0.28, quadPeriod: 6 }
  * entering closer. See `WAVES` and `EnemyManager.SPAWN_RING`.
  */
 export function scaledHp(enemy, minutes) {
-  return enemy.hp * (1 + minutes * HP_SCALING.linear + (minutes / HP_SCALING.quadPeriod) ** 2)
+  return enemy.hp * TRIAL.hp
+    * (1 + minutes * HP_SCALING.linear + (minutes / HP_SCALING.quadPeriod) ** 2)
 }
 
 export function scaledDamage(enemy, minutes) {
-  return enemy.damage * (1 + minutes * 0.06)
+  return enemy.damage * TRIAL.damage * (1 + minutes * 0.06)
 }
 
 export function scaledXp(enemy, minutes) {

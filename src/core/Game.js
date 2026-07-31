@@ -9,6 +9,7 @@ import { Grass } from '../world/Grass.js'
 import { Shadows } from '../world/Shadows.js'
 import { AudioEngine } from '../audio/Audio.js'
 import { HintOverlay } from '../ui/HintOverlay.js'
+import { applyTrial, getTrial } from '../data/trials.js'
 import { Post } from '../world/Post.js'
 import { Player } from '../entities/Player.js'
 import { EnemyManager } from '../entities/EnemyManager.js'
@@ -250,6 +251,10 @@ export class Game {
     this.audio.startMusic(this.stage?.id ?? 'jade')
 
     this._teardownRun()
+
+    // Before anything reads scaledHp: the tier multiplies the whole enemy side
+    // and is fixed for the length of the run.
+    this.trial = applyTrial(this.progress.trial)
 
     this.seed = makeSeed()
     this.rng = new RNG(this.seed)

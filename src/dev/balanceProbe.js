@@ -99,20 +99,28 @@ function withRoster(
  * `meta: 'none'` is what a new player meets. `meta: 'max'` is the endgame the
  * shop sells. Anything tuned against one has to be checked against the other.
  */
-function withMeta(game, meta, body) {
-  if (meta !== 'none' && meta !== 'max') return body()
+function withMeta(game, meta, trial, body) {
+  if (meta !== 'none' && meta !== 'max' && trial === undefined) return body()
   const progress = game.progress
   // Swap the backing state rather than rebuilding Progress — the title screen,
   // shop and codex all hold the same instance.
   const saved = JSON.parse(JSON.stringify(progress.state))
   try {
-    progress.state.upgrades = {}
-    progress.state.stones = 0
-    if (meta === 'max') {
-      progress.addStones(1e6)
-      for (const u of META_UPGRADES) {
-        while (!progress.isMaxed(u.id) && progress.buyUpgrade(u.id)) { /* buy it out */ }
+    if (meta === 'none' || meta === 'max') {
+      progress.state.upgrades = {}
+      progress.state.stones = 0
+      if (meta === 'max') {
+        progress.addStones(1e6)
+        for (const u of META_UPGRADES) {
+          while (!progress.isMaxed(u.id) && progress.buyUpgrade(u.id)) { /* buy it out */ }
+        }
       }
+    }
+    if (trial !== undefined) {
+      // Grant whatever record the tier needs, so a tier can be measured without
+      // first playing the ladder up to it.
+      progress.state.records.bestTime = Math.max(progress.state.records.bestTime ?? 0, 1e6)
+      progress.setTrial(trial)
     }
     return body()
   } finally {
@@ -224,7 +232,8 @@ function steer(game, player, t, memory) {
  */
 export function installBalanceProbe(game) {
   if (typeof window === 'undefined') return
-  window.__probe = (opts = {}) => withRoster(opts, () => withMeta(game, opts.meta, () => runOne(game, opts)))
+  window.__probe = (opts = {}) =>
+    withRoster(opts, () => withMeta(game, opts.meta, opts.trial, () => runOne(game, opts)))
 
   /**
    * Sweep one roster knob and report the danger column for each value, so a
@@ -339,6 +348,7 @@ export function installBalanceProbe(game) {
         deadMinutes: rows.slice(3).filter((r) => r.danger <= 1).length,
         playedMinutes: rows.length,
         meta: startStats,
+        trial: game.trial?.name ?? '평지',
         finalStats: {
           maxHp: Math.round(p.maxHp), armor: p.stats.armor,
           might: +p.stats.might.toFixed(2), moveSpeed: +p.stats.moveSpeed.toFixed(2),

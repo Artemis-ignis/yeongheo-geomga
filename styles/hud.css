@@ -421,6 +421,35 @@ body {
 }
 .stage-card .char-traits { min-height: 3.2em; }
 
+/* 시련 — the difficulty ladder, shown under the 비경 it applies to. */
+.trial-row { margin-top: 20px; }
+.trial-heading {
+  font-size: 12px; letter-spacing: 0.22em; color: #8b98a6; margin-bottom: 8px;
+}
+.trial-pips { display: flex; gap: 8px; flex-wrap: wrap; }
+.trial-pip {
+  flex: 1 1 0; min-width: 76px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px;
+  color: #c8d2dc; font: inherit;
+  transition: border-color 0.14s, background 0.14s, color 0.14s;
+}
+.trial-pip .trial-name { font-size: 13px; letter-spacing: 0.06em; }
+.trial-pip .trial-hanja { font-size: 10px; color: #6f7d8a; letter-spacing: 0.16em; }
+.trial-pip:hover:not(.locked) { border-color: rgba(255, 255, 255, 0.26); }
+.trial-pip.chosen {
+  border-color: var(--gold); color: var(--gold);
+  background: rgba(232, 197, 106, 0.09);
+}
+.trial-pip.chosen .trial-hanja { color: var(--gold); opacity: 0.7; }
+.trial-pip.locked { opacity: 0.34; cursor: not-allowed; }
+.trial-desc {
+  margin-top: 10px; min-height: 1.4em;
+  font-size: 12px; color: #8b98a6; letter-spacing: 0.03em;
+}
+
 .char-lock {
   position: absolute; top: 8px; right: 10px;
   font-size: 11px; color: var(--gold); letter-spacing: 0.04em;

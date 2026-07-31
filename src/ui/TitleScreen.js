@@ -2,6 +2,7 @@ import { iconFor } from './icons.js'
 import { getWeapon } from '../data/weapons.js'
 import { unlockCost } from '../data/unlocks.js'
 import { STAGES } from '../data/stages.js'
+import { TRIALS, getTrial } from '../data/trials.js'
 
 /**
  * Title, main menu, and character select.
@@ -37,6 +38,11 @@ export class TitleScreen {
         <div class="stage-select" style="display:none">
           <div class="select-heading">비경을 고르시오</div>
           <div class="stage-cards"></div>
+          <div class="trial-row">
+            <div class="trial-heading">시련</div>
+            <div class="trial-pips"></div>
+            <div class="trial-desc"></div>
+          </div>
           <button class="btn btn-alt btn-back clickable" data-act="stageBack">← 돌아가기</button>
         </div>
 
@@ -80,6 +86,21 @@ export class TitleScreen {
       card.addEventListener('mouseenter', () => this.setStageFocus(i))
       stageHost.appendChild(card)
       return { card, lock: card.querySelector('.char-lock'), id: s.id }
+    })
+
+    // 시련 sits with the 비경 because both are choices about the run rather than
+    // about the cultivator. Locked tiers stay visible with the time that opens
+    // them: a ladder you cannot see is a ladder nobody climbs.
+    const pipHost = this.node.querySelector('.trial-pips')
+    this.trialDesc = this.node.querySelector('.trial-desc')
+    this.trialPips = TRIALS.map((t) => {
+      const pip = document.createElement('button')
+      pip.className = 'trial-pip clickable'
+      pip.innerHTML = `<span class="trial-name">${t.name}</span><span class="trial-hanja">${t.hanja}</span>`
+      pip.addEventListener('click', () => this.pickTrial(t.id))
+      pip.addEventListener('mouseenter', () => this._describeTrial(t.id))
+      pipHost.appendChild(pip)
+      return { pip, id: t.id }
     })
 
     const host = this.node.querySelector('.char-cards')
@@ -141,6 +162,39 @@ export class TitleScreen {
     }
     const first = this.stageCards.findIndex((c) => this.progress.isUnlocked('stages', c.id))
     this.setStageFocus(first === -1 ? 0 : first)
+    this._renderTrials()
+  }
+
+  _renderTrials() {
+    const max = this.progress.maxTrial
+    const chosen = this.progress.trial
+    for (const p of this.trialPips) {
+      p.pip.classList.toggle('locked', p.id > max)
+      p.pip.classList.toggle('chosen', p.id === chosen)
+    }
+    // A row where every tier but one is locked is noise on a first run.
+    this.node.querySelector('.trial-row').style.display = max > 0 ? '' : 'none'
+    this._describeTrial(chosen)
+  }
+
+  _describeTrial(id) {
+    const t = getTrial(id)
+    if (id > this.progress.maxTrial) {
+      const mm = Math.floor(t.unlockSeconds / 60)
+      const ss = String(t.unlockSeconds % 60).padStart(2, '0')
+      this.trialDesc.textContent = `🔒 ${mm}:${ss} 생존하면 열린다`
+      return
+    }
+    this.trialDesc.textContent = t.id === 0
+      ? t.desc
+      : `${t.desc} · 영석 ×${t.stones.toFixed(1)}`
+  }
+
+  pickTrial(id) {
+    if (id > this.progress.maxTrial) return
+    this.progress.setTrial(id)
+    this.handlers.onUnlock?.()
+    this._renderTrials()
   }
 
   setStageFocus(i) {

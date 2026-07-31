@@ -1,5 +1,6 @@
 import { META_UPGRADES, getMetaUpgrade, metaCost } from '../data/metaUpgrades.js'
 import { unlockCost } from '../data/unlocks.js'
+import { getTrial, unlockedTrials } from '../data/trials.js'
 import { defaultSave } from './Save.js'
 
 /**
@@ -72,10 +73,34 @@ export class Progress {
     return mods
   }
 
-  /** 재물운 — multiplier applied to 영석 carried out of a run. */
+  /**
+   * 영석 carried out of a run: 재물운, times whatever 시련 the run was fought on.
+   *
+   * A tier that is harder and pays the same is a tier nobody sensible picks.
+   */
   get stoneMultiplier() {
     const up = getMetaUpgrade('fortune')
-    return 1 + this.levelOf('fortune') * (up?.effectValue ?? 0)
+    return (1 + this.levelOf('fortune') * (up?.effectValue ?? 0)) * getTrial(this.trial).stones
+  }
+
+  /**
+   * 시련 — the hardest tier earned, and the one selected for the next run.
+   *
+   * The unlock is derived from `records.bestTime` rather than stored, so it can
+   * never drift out of step with the record that earns it, and an old save
+   * arrives with whatever its history already deserves.
+   */
+  get maxTrial() {
+    return unlockedTrials(this.state.records?.bestTime ?? 0)
+  }
+
+  get trial() {
+    return Math.min(this.state.trial ?? 0, this.maxTrial)
+  }
+
+  setTrial(id) {
+    this.state.trial = Math.max(0, Math.min(id, this.maxTrial))
+    return this.state.trial
   }
 
   /** 환혼단 — how many times a run can continue past death. */

@@ -6,6 +6,7 @@ import { ENEMIES, ENEMY_INDEX, scaledDamage, scaledHp, scaledXp } from '../data/
 import { waveAt } from '../data/waves.js'
 import { FORMATIONS, formationAngles, formationType } from '../data/formations.js'
 import { rosterFor } from '../data/stages.js'
+import { TRIAL } from '../data/trials.js'
 import { buildEnemyGeometry } from '../art/enemyGeometry.js'
 import { makeToonMaterial } from '../art/materials.js'
 import { uploadInstances } from '../art/instancing.js'
@@ -486,7 +487,10 @@ export class EnemyManager {
     if (this.spawnTimer > 0) return
     this.spawnTimer += wave.spawnInterval
 
-    for (let n = 0; n < wave.perSpawn; n++) {
+    // 시련 raises the count rather than shortening the interval, so the pulse
+    // rhythm the table encodes survives the tier.
+    const perSpawn = Math.round(wave.perSpawn * TRIAL.density)
+    for (let n = 0; n < perSpawn; n++) {
       this._entryPoint(player, camera, _entry)
       this.spawn(this.rng.pick(wave.types), _entry.x, _entry.z, runTime)
     }
@@ -532,7 +536,7 @@ export class EnemyManager {
 
       if (dist * dist > despawnR2) { this._recycle(i, player, camera); continue }
 
-      let speed = def.speed * this.haste[i] * (1 - this.slowAmt[i])
+      let speed = def.speed * TRIAL.speed * this.haste[i] * (1 - this.slowAmt[i])
       this.stateT[i] += dt
 
       // Steering direction, normalised. Straight at the player unless a
