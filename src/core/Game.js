@@ -197,6 +197,44 @@ export class Game {
     this.previewChibis = null
   }
 
+  /**
+   * Give the previous run's scene objects back before building the next one.
+   *
+   * `_startRun` assigns a fresh Player, EnemyManager, ProjectileManager,
+   * PickupManager, Vfx, BossManager and WeaponSystem over the old ones. Every
+   * one of those adds meshes to the shared scene in its constructor, so simply
+   * dropping the reference orphaned all of them. Measured across six runs
+   * without reloading, the scene grew by 115 meshes and about 36,700 triangles
+   * per run, permanently.
+   *
+   * The visible symptom is worse than the count suggests: 팔괘진 holds a
+   * screen-wide additively blended plane, and additive layers do not average,
+   * they sum. By the fourth run seven of them were stacked and the whole
+   * playfield had burned out to flat orange with the character barely legible
+   * on it. The tone gate passed that frame — mean luma 0.38, nothing blown —
+   * because it measures brightness, and what had failed was the palette.
+   *
+   * Ordering matters: WeaponSystem.clear runs the weapons' own `detach`, which
+   * needs `this.world` and the managers it points at to still exist.
+   */
+  _teardownRun() {
+    this.weapons?.clear()
+    this.boss?.clear()
+    this.vfx?.dispose()
+    this.pickups?.dispose()
+    this.projectiles?.dispose()
+    this.enemies?.dispose()
+    this.player?.dispose()
+    this.weapons = null
+    this.boss = null
+    this.vfx = null
+    this.pickups = null
+    this.projectiles = null
+    this.enemies = null
+    this.player = null
+    this.world = null
+  }
+
   _startRun(characterId, stageId) {
     if (stageId) this._setStage(getStage(stageId))
     this._clearPreview()
@@ -210,6 +248,8 @@ export class Game {
     this.modal.close?.()
     this.audio.unlock()
     this.audio.startMusic(this.stage?.id ?? 'jade')
+
+    this._teardownRun()
 
     this.seed = makeSeed()
     this.rng = new RNG(this.seed)

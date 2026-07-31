@@ -34,6 +34,10 @@ export function installToneCheck(renderer, drawFrame) {
     let black = 0
     let blown = 0
     const hist = new Array(16).fill(0)
+    // Twelve 30-degree hue bins, counting only pixels colourful enough for their
+    // hue to mean anything.
+    const hues = new Array(12).fill(0)
+    let coloured = 0
     const n = width * height
 
     for (let i = 0; i < n; i++) {
@@ -50,6 +54,16 @@ export function installToneCheck(renderer, drawFrame) {
       if (luma < 0.02) black++
       if (luma > 0.98) blown++
       hist[Math.min(15, Math.floor(luma * 16))]++
+
+      if (sat > 0.15 && luma > 0.05) {
+        const d = max - min
+        let h
+        if (max === r) h = ((g - b) / d + 6) % 6
+        else if (max === g) h = (b - r) / d + 2
+        else h = (r - g) / d + 4
+        hues[Math.min(11, Math.floor((h / 6) * 12))]++
+        coloured++
+      }
     }
 
     const mean = sum / n
@@ -57,6 +71,16 @@ export function installToneCheck(renderer, drawFrame) {
     // Spread of the luminance histogram: a healthy frame uses a wide range, a
     // washed-out or crushed one collapses into a few buckets.
     const used = hist.filter((c) => c / n > 0.01).length
+    // Share of coloured pixels sitting in the single most common hue bin.
+    //
+    // This is here because the rest of the metrics passed a frame that was
+    // visibly ruined. A leak was stacking seven screen-wide additively blended
+    // 팔괘진 planes, and additive layers sum rather than average, so the entire
+    // playfield had burned to one flat orange with the character barely legible
+    // on it. Mean luma read 0.38 and nothing was blown, because brightness was
+    // never what failed — the palette was. A frame where four fifths of the
+    // colour is one hue has stopped being a picture of anything.
+    const dominant = coloured === 0 ? 0 : Math.max(...hues) / coloured
 
     return {
       meanLuma: +mean.toFixed(4),
@@ -64,7 +88,9 @@ export function installToneCheck(renderer, drawFrame) {
       blackFraction: +(black / n).toFixed(4),
       blownFraction: +(blown / n).toFixed(4),
       histogramBucketsUsed: used,
+      dominantHueShare: +dominant.toFixed(4),
       histogram: hist.map((c) => +(c / n).toFixed(3)),
+      hues: hues.map((c) => +(c / Math.max(1, coloured)).toFixed(3)),
     }
   }
 }
@@ -169,6 +195,20 @@ export const TONE_LIMITS = {
   blackFraction: [0, 0.45],
   blownFraction: [0, 0.12],
   histogramBucketsUsed: [4, 16],
+  // `dominantHueShare` is measured and reported but deliberately not gated.
+  //
+  // It was added to catch the frame that all the limits above passed: a leak
+  // stacking seven screen-wide additive 팔괘진 planes had burned the whole
+  // playfield to flat orange, and mean luma read 0.38 with nothing blown,
+  // because brightness was never what failed. Hue concentration does move on
+  // that frame — 0.51 healthy against 0.71 with six planes replanted.
+  //
+  // It is not a threshold, though, and the measurement says so. Sampled every
+  // minute of a clean four-minute run: 청람비경 peaks at 0.87 and 한천비경 at
+  // 0.82, because their floor is one colour by design and the floor is most of
+  // the screen. Any limit that catches the leak also fails those. Left here as
+  // a diagnostic to read alongside a screenshot, not as a gate that would cry
+  // wolf on every jade run.
 }
 
 /** Returns a list of human-readable failures, empty when the frame is healthy. */
