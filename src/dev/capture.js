@@ -20,6 +20,22 @@
  * `window.__step(seconds)` to advance the simulation deterministically in fixed
  * slices — which is also more precise for verification than waiting on wall time.
  */
+/**
+ * A warning for anyone reading a captured frame.
+ *
+ * `__capture` draws whatever the scene currently holds, and a scene that has
+ * stopped being stepped is not a scene a player ever sees. `Vfx` ages its
+ * instances from a `uTime` uniform that only advances while the game updates,
+ * and every effect grows with age — so a frame taken after stepping has stopped
+ * shows every live effect frozen at whatever size it had reached, none of them
+ * expiring, all of them additive.
+ *
+ * That produced a white mass covering a quarter of the frame in a boss capture,
+ * and I spent a long time hunting it through the boss, the sky, the terrain, the
+ * 팔괘진 and the player before checking the same moment during live play, where
+ * it does not exist. Capture *while* stepping, or capture a frame you have just
+ * stepped into; a paused scene is an artefact, not a screenshot.
+ */
 export function installStepper(update, fixedDt) {
   if (typeof window === 'undefined') return
   window.__step = (seconds = 1) => {
