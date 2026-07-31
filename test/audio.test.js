@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
-  PENTATONIC, intensityOf, isAnswerNote, nextDegree, noteFreq, noteInterval, tonicFor,
+  PENTATONIC, MODES, intensityOf, isAnswerNote, nextDegree, noteFreq, noteInterval,
+  scaleFor, tonicFor,
 } from '../src/audio/theory.js'
 import { AudioEngine } from '../src/audio/Audio.js'
 
@@ -27,6 +28,71 @@ describe('scale', () => {
     const t = tonicFor('jade')
     for (let d = -12; d <= 12; d++) expect(noteFreq(t, d)).toBeGreaterThan(0)
     expect(noteFreq(t, -5) / noteFreq(t, 0)).toBeCloseTo(0.5, 5)
+  })
+})
+
+describe('조 — the mode each 비경 is in', () => {
+  /**
+   * Each arena used to differ only by tonic: A3, G3, B3. A whole tone apart,
+   * with the same five intervals, the same drone and the same instruments —
+   * which is not three soundtracks, it is one piece played slightly higher.
+   * Three 비경 that look nothing alike sounded identical.
+   */
+  it('gives every 비경 a different set of intervals, not just a different pitch', () => {
+    const scales = ['jade', 'ember', 'frost'].map((id) => scaleFor(id).join(','))
+    expect(new Set(scales).size, 'two 비경 share a mode').toBe(3)
+  })
+
+  it('keeps every mode free of semitone steps', () => {
+    // The whole reason live generation against a drone cannot clash. A mode that
+    // lost this would produce dissonance nothing in the engine checks for.
+    for (const [name, scale] of Object.entries(MODES)) {
+      for (let i = 1; i < scale.length; i++) {
+        expect(scale[i] - scale[i - 1], `${name} has a semitone step`).toBeGreaterThan(1)
+      }
+      // And across the octave wrap.
+      expect(12 - scale[scale.length - 1] + scale[0], `${name} wraps onto a semitone`).toBeGreaterThan(1)
+    }
+  })
+
+  it('starts every mode on its tonic and stays inside the octave', () => {
+    for (const [name, scale] of Object.entries(MODES)) {
+      expect(scale[0], `${name} does not start on the tonic`).toBe(0)
+      expect(scale.length, `${name} is not pentatonic`).toBe(5)
+      expect(Math.max(...scale), `${name} leaves the octave`).toBeLessThan(12)
+    }
+  })
+
+  it('still rises an octave every five degrees in every mode', () => {
+    for (const id of ['jade', 'ember', 'frost']) {
+      const t = tonicFor(id)
+      const s = scaleFor(id)
+      expect(noteFreq(t, 5, 0, s) / noteFreq(t, 0, 0, s)).toBeCloseTo(2, 5)
+      expect(noteFreq(t, -5, 0, s) / noteFreq(t, 0, 0, s)).toBeCloseTo(0.5, 5)
+    }
+  })
+
+  it('sounds darker where the 비경 is darker', () => {
+    /**
+     * The third is where a mode's character lives. 평조 has the major third at
+     * 4 semitones, which is what makes 청람비경 read as daylight on grass.
+     * 계면조 flattens it to 3 for the burnt ground, and 황종조 omits a third
+     * entirely — the note between 2 and 7 is a fourth — which is why 한천비경
+     * sounds hollow rather than merely sad.
+     *
+     * My first version of this asserted the *top* degree fell, and it does the
+     * opposite: both dark modes raise it to a minor seventh. Nothing about the
+     * modes was wrong; the assertion was.
+     */
+    expect(scaleFor('jade')).toContain(4)
+    expect(scaleFor('ember'), '적염 lost its minor third').toContain(3)
+    expect(scaleFor('ember'), '적염 kept a major third').not.toContain(4)
+    expect(scaleFor('frost'), '한천 gained a third').not.toContain(3)
+    expect(scaleFor('frost'), '한천 gained a third').not.toContain(4)
+  })
+
+  it('falls back to 평조 for an unknown 비경', () => {
+    expect(scaleFor('nonsense')).toEqual(MODES['평조'])
   })
 })
 

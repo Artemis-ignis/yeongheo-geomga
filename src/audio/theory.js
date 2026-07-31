@@ -17,21 +17,57 @@
  */
 export const PENTATONIC = [0, 2, 4, 7, 9]
 
-/** Tonic per 비경, so each arena has its own key. */
-export const STAGE_TONIC = {
-  jade: 220.0,   // A3
-  ember: 196.0,  // G3
-  frost: 246.94, // B3
+/**
+ * 조(調) — a mode per 비경, because a tonic alone is not a different piece.
+ *
+ * Each arena already had its own key: A3, G3, B3. A whole tone apart, same five
+ * intervals, same drone, same instruments. Nobody hears that as three
+ * soundtracks — they hear one piece, slightly higher. Three 비경 that look
+ * nothing alike sounded identical.
+ *
+ * The mode is what carries character. All three keep the property the comment
+ * above is about — no two adjacent degrees a semitone apart — so live generation
+ * against a drone still cannot produce a clash:
+ *
+ *   평조   0 2 4 7 9    steps 2 2 3 2 3   open, bright
+ *   계면조 0 3 5 7 10   steps 3 2 2 3 2   dark, weighted low
+ *   황종조 0 2 5 7 10   steps 2 3 2 3 2   hollow, suspended
+ */
+export const MODES = {
+  평조: [0, 2, 4, 7, 9],
+  계면조: [0, 3, 5, 7, 10],
+  황종조: [0, 2, 5, 7, 10],
 }
+
+/** Tonic and mode per 비경. */
+export const STAGE_KEY = {
+  jade: { tonic: 220.0, mode: '평조' },    // A3, a green plateau in daylight
+  ember: { tonic: 196.0, mode: '계면조' },  // G3, burnt ground
+  frost: { tonic: 246.94, mode: '황종조' }, // B3, thin air over snow
+}
+
+/** Kept for callers that only want the pitch. */
+export const STAGE_TONIC = Object.fromEntries(
+  Object.entries(STAGE_KEY).map(([id, k]) => [id, k.tonic]),
+)
 
 export function tonicFor(stageId) {
-  return STAGE_TONIC[stageId] ?? STAGE_TONIC.jade
+  return (STAGE_KEY[stageId] ?? STAGE_KEY.jade).tonic
 }
 
-/** Equal-tempered frequency for a scale degree, `octave` steps of 12 apart. */
-export function noteFreq(tonic, degree, octave = 0) {
-  const semis = PENTATONIC[((degree % PENTATONIC.length) + PENTATONIC.length) % PENTATONIC.length]
-  const shift = Math.floor(degree / PENTATONIC.length) + octave
+export function scaleFor(stageId) {
+  return MODES[(STAGE_KEY[stageId] ?? STAGE_KEY.jade).mode]
+}
+
+/**
+ * Equal-tempered frequency for a scale degree, `octave` steps of 12 apart.
+ *
+ * `scale` defaults to 평조 so every existing caller keeps its behaviour.
+ */
+export function noteFreq(tonic, degree, octave = 0, scale = PENTATONIC) {
+  const n = scale.length
+  const semis = scale[((degree % n) + n) % n]
+  const shift = Math.floor(degree / n) + octave
   return tonic * 2 ** ((semis + shift * 12) / 12)
 }
 

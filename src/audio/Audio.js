@@ -1,5 +1,5 @@
-import { noiseBuffer, playBuffer, playTone, pluckBuffer } from './synth.js'
-import { intensityOf, isAnswerNote, nextDegree, noteFreq, noteInterval, tonicFor } from './theory.js'
+﻿import { noiseBuffer, playBuffer, playTone, pluckBuffer } from './synth.js'
+import { intensityOf, isAnswerNote, nextDegree, noteFreq, noteInterval, scaleFor, tonicFor } from './theory.js'
 
 /**
  * The whole soundtrack and every sound effect, synthesised at runtime.
@@ -153,6 +153,11 @@ export class AudioEngine {
     this.limiter.connect(this.clipper)
     this.clipper.connect(ctx.destination)
     this._applyVolumes()
+  }
+
+  /** The 조 this 비경 is in. Every note the score plays goes through it. */
+  _scale() {
+    return scaleFor(this._stageId)
   }
 
   _applyVolumes() {
@@ -318,7 +323,7 @@ export class AudioEngine {
       case 'pickup': {
         // Rises with the streak, so a chain of orbs is an ascending phrase.
         const step = Math.min(9, opts.step ?? 0)
-        const f = noteFreq(tonicFor(this._stageId) * 2, step)
+        const f = noteFreq(tonicFor(this._stageId) * 2, step, 0, this._scale())
         playBuffer(ctx, bus, pluckBuffer(ctx, f, 0.5, 0.85, 2201), { gain: 0.16, decay: 0.34, pan })
         break
       }
@@ -341,7 +346,7 @@ export class AudioEngine {
         // nearly 1.0 into the limiter, and a limiter working that hard pumps
         // every other sound in the mix down with it.
         for (const [i, degree] of [0, 2, 4, 6].entries()) {
-          playBuffer(ctx, bus, pluckBuffer(ctx, noteFreq(t, degree, 1), 1.6, 0.35, 4409), {
+          playBuffer(ctx, bus, pluckBuffer(ctx, noteFreq(t, degree, 1, this._scale()), 1.6, 0.35, 4409), {
             gain: 0.11, decay: 1.2, when: i * 0.085,
           })
         }
@@ -352,7 +357,7 @@ export class AudioEngine {
       }
 
       case 'levelPick':
-        playBuffer(ctx, bus, pluckBuffer(ctx, noteFreq(tonicFor(this._stageId), 4, 1), 0.9, 0.5, 8123), {
+        playBuffer(ctx, bus, pluckBuffer(ctx, noteFreq(tonicFor(this._stageId), 4, 1, this._scale()), 0.9, 0.5, 8123), {
           gain: 0.22, decay: 0.6,
         })
         break
@@ -374,7 +379,7 @@ export class AudioEngine {
       case 'victory': {
         const t = tonicFor(this._stageId)
         for (const [i, degree] of [0, 2, 4, 7, 9].entries()) {
-          playBuffer(ctx, bus, pluckBuffer(ctx, noteFreq(t, degree, 1), 2.2, 0.28, 1811), {
+          playBuffer(ctx, bus, pluckBuffer(ctx, noteFreq(t, degree, 1, this._scale()), 2.2, 0.28, 1811), {
             gain: 0.13, decay: 1.8, when: i * 0.17,
           })
         }
@@ -508,7 +513,7 @@ export class AudioEngine {
     const answer = isAnswerNote(this._noteIndex)
     this._noteIndex++
 
-    const freq = noteFreq(tonic, this._degree, answer ? 0 : 1)
+    const freq = noteFreq(tonic, this._degree, answer ? 0 : 1, this._scale())
     const buf = pluckBuffer(this.ctx, freq, answer ? 2.4 : 1.5, answer ? 0.25 : 0.45, 3607)
     playBuffer(this.ctx, this.musicBus, buf, {
       gain: (answer ? 0.26 : 0.17) * (0.7 + this._intensity * 0.5),
