@@ -547,6 +547,29 @@ body {
 }
 .codex-records b { color: var(--jade); font-variant-numeric: tabular-nums; }
 
+/* The panel that turns a collection tracker into a reference. */
+.codex-detail {
+  display: flex; align-items: flex-start; gap: 12px;
+  min-height: 74px; margin-top: 12px; padding: 11px 13px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 10px;
+}
+.codex-detail-icon { width: 42px; height: 42px; flex: none; }
+.codex-detail-name { font-size: 14px; color: #e4ecf4; letter-spacing: 0.04em; }
+.codex-detail-desc { margin-top: 3px; font-size: 12px; color: #93a2b0; }
+.codex-detail-facts {
+  display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px;
+  font-size: 11.5px; color: #b7c4d0; font-variant-numeric: tabular-nums;
+}
+.codex-detail-facts i { font-style: normal; color: #6f7d8a; margin-right: 4px; }
+.codex-detail-empty {
+  width: 100%; align-self: center; text-align: center;
+  font-size: 12px; color: #66727e;
+}
+.codex-cell { font: inherit; cursor: pointer; }
+.codex-cell.selected { border-color: var(--jade); }
+
 .result-stats em { font-style: normal; font-size: 11px; color: var(--gold); margin-left: 6px; }
 .result-stats b.gain { color: var(--gold); }
 .result-bank { margin-top: 14px; font-size: 12.5px; color: #93a2b0; }
