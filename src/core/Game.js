@@ -31,7 +31,7 @@ import { RNG, makeSeed } from './RNG.js'
 import { Emitter } from './Events.js'
 import { CHARACTERS, getCharacter } from '../data/characters.js'
 import { realmFor } from '../data/realms.js'
-import { BOSS_SCHEDULE, RUN_SECONDS } from '../data/waves.js'
+import { RUN_SECONDS, scheduleFor } from '../data/waves.js'
 import { validateData } from '../data/validate.js'
 import { STAGES, getStage } from '../data/stages.js'
 import { Hud } from '../ui/Hud.js'
@@ -260,6 +260,8 @@ export class Game {
     // and is fixed for the length of the run.
     this.trial = applyTrial(this.progress.trial)
     this._formationSeen = false
+    this._bossSchedule = scheduleFor(this.stage)
+    this._spawned = new Set()
 
     this.seed = makeSeed()
     this.rng = new RNG(this.seed)
@@ -657,8 +659,11 @@ export class Game {
 
     p.update(dt, this.input)
     this.enemies.update(dt, this.runTime, p, this.camera)
-    this.boss.checkWarning(this.runTime, BOSS_SCHEDULE)
-    for (const entry of BOSS_SCHEDULE) {
+    // Resolved once per run, in `_startRun`, so the 비경's own bosses are the
+    // ones that arrive.
+    const schedule = this._bossSchedule
+    this.boss.checkWarning(this.runTime, schedule)
+    for (const entry of schedule) {
       if (this.runTime >= entry.t && !this._spawned?.has(entry.id)) {
         this._spawned ??= new Set()
         this._spawned.add(entry.id)

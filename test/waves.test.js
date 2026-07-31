@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { WAVES, RUN_SECONDS, waveAt, BOSS_SCHEDULE } from '../src/data/waves.js'
+import { WAVES, RUN_SECONDS, waveAt, BOSS_SCHEDULE, scheduleFor } from '../src/data/waves.js'
 import { ENEMIES } from '../src/data/enemies.js'
+import { STAGES } from '../src/data/stages.js'
+import { BOSSES } from '../src/entities/BossManager.js'
 
 const enemyIds = new Set(ENEMIES.map((e) => e.id))
 
@@ -44,9 +46,41 @@ describe('wave timeline', () => {
     expect(WAVES.find((w) => w.t === 480)?.boss).toBe('blueWolfKing')
     expect(WAVES.find((w) => w.t === 900)?.boss).toBe('darkHeavenLord')
     expect(BOSS_SCHEDULE).toEqual([
-      { t: 480, id: 'blueWolfKing' },
-      { t: 900, id: 'darkHeavenLord' },
+      { t: 480, id: 'blueWolfKing', slot: 'mid' },
+      { t: 900, id: 'darkHeavenLord', slot: 'final' },
     ])
+  })
+
+  /**
+   * Every 비경 declares `bosses: { mid, final }` and, until `scheduleFor`
+   * existed, nothing read it — the ids came straight off the wave table, so all
+   * three fought the same two. The declaration looked like a feature and was
+   * dead data.
+   */
+  it('lets a 비경 field its own boss', () => {
+    const frost = STAGES.find((s) => s.id === 'frost')
+    expect(frost.bosses.mid, '한천 gave its slot back to 창랑').not.toBe('blueWolfKing')
+    const schedule = scheduleFor(frost)
+    expect(schedule.find((e) => e.slot === 'mid').id).toBe(frost.bosses.mid)
+    // Timing is the wave table's business and must not move with the boss.
+    expect(schedule.map((e) => e.t)).toEqual(BOSS_SCHEDULE.map((e) => e.t))
+  })
+
+  it('names a boss that actually exists, for every 비경', () => {
+    for (const stage of STAGES) {
+      for (const entry of scheduleFor(stage)) {
+        expect(BOSSES[entry.id], `${stage.id} fields unknown boss "${entry.id}"`).toBeTruthy()
+      }
+    }
+  })
+
+  it('falls back to the wave table for a stage that has not chosen', () => {
+    expect(scheduleFor(undefined)).toEqual(BOSS_SCHEDULE)
+    expect(scheduleFor({ id: 'x' })).toEqual(BOSS_SCHEDULE)
+    // A stage naming only one slot keeps the table's answer for the other.
+    const half = scheduleFor({ bosses: { mid: 'riverMaiden' } })
+    expect(half.find((e) => e.slot === 'mid').id).toBe('riverMaiden')
+    expect(half.find((e) => e.slot === 'final').id).toBe('darkHeavenLord')
   })
 
   it('never eases off on spawn pressure outside boss bands', () => {

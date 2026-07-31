@@ -93,5 +93,24 @@ export function waveAt(seconds) {
   return found
 }
 
-/** Boss ids in spawn order, with the time each appears. */
-export const BOSS_SCHEDULE = WAVES.filter((w) => w.boss).map((w) => ({ t: w.t, id: w.boss }))
+/**
+ * When a boss appears, and which slot it fills. The wave table sets the timing;
+ * the 비경 decides who walks out — see `scheduleFor`.
+ */
+export const BOSS_SCHEDULE = WAVES.filter((w) => w.boss)
+  .map((w, i, all) => ({ t: w.t, id: w.boss, slot: i === all.length - 1 ? 'final' : 'mid' }))
+
+/**
+ * The schedule for a given 비경.
+ *
+ * Every stage declares `bosses: { mid, final }` and, until now, nothing read it:
+ * the ids came straight off the wave table, so all three 비경 fought the same
+ * two. The declaration was dead data that looked like a feature. This resolves
+ * it, and falls back to whatever the wave table named for a stage that has not
+ * chosen — which is what keeps a stage without its own boss working.
+ */
+export function scheduleFor(stage) {
+  const chosen = stage?.bosses
+  if (!chosen) return BOSS_SCHEDULE
+  return BOSS_SCHEDULE.map((e) => ({ ...e, id: chosen[e.slot] ?? e.id }))
+}

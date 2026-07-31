@@ -216,9 +216,84 @@ function darkHeavenLord() {
   return buildColored(parts)
 }
 
+const RIME_DEEP = 0x21384f
+const RIME_MID = 0x4f7fa6
+const RIME_ICE = 0xa8dcf0
+const RIME_PALE = 0xdff2ff
+
+/**
+ * 설녀 빙하 — the mid boss of 한천비경.
+ *
+ * 요왕 창랑 is a quadruped that charges: mass low to the ground, coming at you.
+ * This one has to read as the opposite from the first frame or the two fights
+ * feel the same — so she is tall, still and vertical, a column of ice with a
+ * trailing veil, and she keeps her distance and drops the sky on you.
+ *
+ * Built from the same shapeKit as the other two. The silhouette rule from the
+ * 마존 comment applies here as well: a lathe alone has no front, so the veil,
+ * the shard crown and the two floating hands are what break the axis.
+ */
+function riverMaiden() {
+  const parts = []
+
+  // A column that widens into a pooled hem, leaning very slightly back.
+  const gown = revolve([
+    [0.00, 3.45], [0.34, 3.32], [0.46, 2.80], [0.54, 2.05],
+    [0.78, 1.25], [1.15, 0.48], [1.42, 0.08], [1.30, 0.00], [0.00, 0.00],
+  ], 26)
+  gradient(gown, RIME_MID, RIME_DEEP, 'y')
+  shear(gown, 0, -0.05, 0.9)
+  parts.push([gown, {}, undefined])
+
+  // Head and the frozen veil behind it.
+  parts.push([new THREE.SphereGeometry(0.42, 14, 12), { y: 3.62 }, RIME_PALE])
+  const veil = revolve([
+    [0.00, 0.00], [0.62, -0.35], [0.95, -1.15], [1.05, -2.10], [0.86, -2.95], [0.00, -3.05],
+  ], 20)
+  gradient(veil, RIME_ICE, RIME_DEEP, 'y')
+  shear(veil, 0, 0, -0.34)
+  parts.push([veil, { y: 3.75, z: -0.32 }, undefined])
+
+  // A crown of shards, tallest at the centre.
+  for (let i = 0; i < 9; i++) {
+    const a = -1.0 + i * 0.25
+    const len = 0.55 + Math.cos(a) * 0.75
+    parts.push([
+      new THREE.ConeGeometry(0.09, len, 4),
+      { x: Math.sin(a) * 0.44, y: 3.95 + len * 0.4, z: Math.cos(a) * 0.2 - 0.1, rz: a * 0.55 },
+      i % 2 ? RIME_PALE : RIME_ICE,
+    ])
+  }
+
+  // Two hands held out in front, unattached — she is not walking, she is
+  // presiding, and the gap where arms should be is the point.
+  for (const side of [-1, 1]) {
+    parts.push([
+      limb(
+        [[side * 0.72, 2.45, 0.55], [side * 0.95, 2.15, 0.95], [side * 1.02, 1.92, 1.18]],
+        [0.17, 0.13, 0.09], 10, 7,
+      ),
+      {}, RIME_PALE,
+    ])
+  }
+
+  // Ice slabs orbiting the hem, so the base is not a smooth cone.
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2
+    parts.push([
+      roughen(new THREE.OctahedronGeometry(0.30, 0), 0.07, 11 + i),
+      { x: Math.sin(a) * 1.35, y: 0.32 + (i % 3) * 0.22, z: Math.cos(a) * 1.35, ry: a },
+      i % 2 ? RIME_ICE : RIME_MID,
+    ])
+  }
+
+  return buildColored(parts)
+}
+
 const BUILDERS = {
   blueWolfKing: wolfKing,
   darkHeavenLord,
+  riverMaiden,
 }
 
 export function buildBossGeometry(bossId) {

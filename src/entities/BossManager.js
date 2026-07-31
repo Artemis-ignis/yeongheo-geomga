@@ -21,6 +21,39 @@ export const BOSSES = {
     hp: 24000, radius: 2.0, damage: 40, speed: 2.6, scale: 1.15,
     color: 0x4a2a70,
   },
+  /**
+   * 한천비경's own mid boss. Built at ~4.6 units tall, so barely scaled.
+   *
+   * She was written as a caster who stands off while 창랑 charges, and measured
+   * against the same build on the same ground that made her nearly unkillable:
+   * the player landed 82 damage a second on 창랑 and 17 on her. This game's kit
+   * is built around things coming to you — 팔괘진 is an aura at the player's
+   * feet and 뇌령주 orbits her — so two thirds of a typical loadout simply
+   * cannot reach something that keeps its distance. A boss that never closes is
+   * not a hard boss here, it is an immune one.
+   *
+   * So she closes, at 2.7 against 창랑's 3.0, and the difference between them
+   * lives in the pattern table instead: he commits to charges and she marks the
+   * ground. Her health is set from the DPS she actually takes rather than from
+   * looking bigger than his number.
+   */
+  riverMaiden: {
+    id: 'riverMaiden',
+    name: '설녀 빙하',
+    hp: 6600, radius: 2.2, damage: 34, speed: 2.7, scale: 1.15,
+    color: 0x5f93bd,
+  },
+}
+
+/**
+ * Which builder makes which boss. A table rather than a chain of `===`, so
+ * adding one is a data change and forgetting to wire it is a crash at spawn
+ * rather than silently getting the wrong model.
+ */
+const BOSS_BUILDERS = {
+  blueWolfKing(def) { return this._buildWolfKing(def) },
+  darkHeavenLord(def) { return this._buildDarkLord(def) },
+  riverMaiden(def) { return this._buildRiverMaiden(def) },
 }
 
 const WARNING_LEAD = 3
@@ -45,6 +78,16 @@ export const BOSS_PATTERNS = {
     ['swordRing', 'gapRing'],
     ['starfall', 'swordRing', 'gapRing'],
     ['voidZone', 'starfall', 'swordRing', 'summon'],
+  ],
+  /**
+   * She never charges. Every move is placed on the ground at range, so the
+   * fight is about reading marks rather than about dodging a body — the
+   * opposite of 창랑, who is nothing but body.
+   */
+  riverMaiden: [
+    ['starfall', 'gapRing'],
+    ['starfall', 'swordRing', 'gapRing'],
+    ['voidZone', 'starfall', 'gapRing', 'swordRing'],
   ],
 }
 
@@ -107,6 +150,28 @@ export class BossManager {
     return group
   }
 
+  _buildRiverMaiden(def) {
+    const group = new THREE.Group()
+    const body = new THREE.Mesh(
+      buildBossGeometry('riverMaiden'),
+      makeToonMaterial({ color: 0xffffff, rim: 0.3, rimColor: 0xdff2ff, vertexColors: true }),
+    )
+    body.scale.setScalar(def.scale)
+    body.castShadow = true
+    group.add(body)
+
+    // One cold light where her face is. 창랑 gets two hot eyes low down; hers is
+    // a single pale one held high, so the two read apart at a glance even in
+    // silhouette.
+    const glow = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.62, 0.62),
+      makeAdditiveMaterial({ color: 0x9fe4ff, opacity: 0.8, map: glowTexture() }),
+    )
+    glow.position.set(0, 3.66 * def.scale, 0.38 * def.scale)
+    group.add(glow)
+    return group
+  }
+
   _buildDarkLord(def) {
     const group = new THREE.Group()
     const robe = new THREE.Mesh(
@@ -142,7 +207,7 @@ export class BossManager {
     const def = BOSSES[bossId]
     if (!def || this.active) return
 
-    this.group = bossId === 'blueWolfKing' ? this._buildWolfKing(def) : this._buildDarkLord(def)
+    this.group = BOSS_BUILDERS[bossId].call(this, def)
     this.scene.add(this.group)
 
     const a = this.rng.angle()

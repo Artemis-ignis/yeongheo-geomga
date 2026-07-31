@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Procedural item icons.
  *
  * One canvas glyph per 법보/공법, cached as a data URL. Each has to be readable
@@ -444,11 +444,11 @@ function creatureDrawer(build, id) {
 }
 
 for (const e of ENEMIES) DRAWERS[e.id] = creatureDrawer(buildEnemyGeometry, e.id)
-for (const id of ['blueWolfKing', 'darkHeavenLord']) {
+for (const id of ['blueWolfKing', 'darkHeavenLord', 'riverMaiden']) {
   DRAWERS[id] = creatureDrawer(buildBossGeometry, id)
 }
 
-const CREATURE_IDS = new Set([...ENEMIES.map((e) => e.id), 'blueWolfKing', 'darkHeavenLord'])
+const CREATURE_IDS = new Set([...ENEMIES.map((e) => e.id), 'blueWolfKing', 'darkHeavenLord', 'riverMaiden'])
 const CHARACTER_IDS = new Set(CHARACTERS.map((c) => c.id))
 
 function bgFor(id) {

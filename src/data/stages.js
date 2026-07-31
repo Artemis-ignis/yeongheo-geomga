@@ -165,7 +165,11 @@ export const STAGES = [
       'wisp', 'wolf', 'stoneGhoul', 'demonCultivator',
       'frostWolf', 'snowWraith', 'glacierWarden',
     ],
-    bosses: { mid: 'blueWolfKing', final: 'darkHeavenLord' },
+    // Her own 비경, and the only one that fields her. 창랑 charges; 빙하 stands
+    // off and marks the ground, so the mid fight here is a different problem
+    // rather than the same one in a different colour. See `waves.scheduleFor` —
+    // this line did nothing at all until that existed.
+    bosses: { mid: 'riverMaiden', final: 'darkHeavenLord' },
     hpScale: 1.55,
     stoneScale: 1.8,
   },
