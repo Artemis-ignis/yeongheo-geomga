@@ -6,6 +6,7 @@
  */
 
 import { CHARACTERS } from '../data/characters.js'
+import { PASSIVES } from '../data/passives.js'
 import { ENEMIES } from '../data/enemies.js'
 import { buildEnemyGeometry } from '../art/enemyGeometry.js'
 import { buildBossGeometry } from '../art/bossGeometry.js'
@@ -168,6 +169,49 @@ const DRAWERS = {
     g.addColorStop(1, '#e0a33c')
     ctx.fillStyle = g
     ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill()
+  },
+
+  // 심법 — a struck point, the moment a blow lands where it counts.
+  heartMethod: (ctx) => {
+    ctx.strokeStyle = '#ff9a7a'; ctx.lineWidth = 3; ctx.lineCap = 'round'
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI
+      ctx.beginPath()
+      ctx.moveTo(Math.cos(a) * 8, Math.sin(a) * 8)
+      ctx.lineTo(Math.cos(a) * 19, Math.sin(a) * 19)
+      ctx.moveTo(-Math.cos(a) * 8, -Math.sin(a) * 8)
+      ctx.lineTo(-Math.cos(a) * 19, -Math.sin(a) * 19)
+      ctx.stroke()
+    }
+    ctx.fillStyle = '#fff0d8'
+    ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill()
+  },
+
+  // 어검결 — a blade already gone, with the streak it left.
+  swordRiding: (ctx) => {
+    ctx.strokeStyle = 'rgba(200, 226, 255, 0.55)'; ctx.lineWidth = 5; ctx.lineCap = 'round'
+    ctx.beginPath(); ctx.moveTo(-20, 14); ctx.lineTo(4, -6); ctx.stroke()
+    ctx.save(); ctx.rotate(-Math.PI / 4); blade(ctx, '#e8f4ff'); ctx.restore()
+  },
+
+  // 분신결 — one becoming three.
+  cloneArt: (ctx) => {
+    for (const [dx, alpha] of [[-11, 0.4], [0, 1], [11, 0.4]]) {
+      ctx.globalAlpha = alpha
+      ctx.fillStyle = '#bfe0ff'
+      ctx.beginPath(); ctx.ellipse(dx, 0, 6, 17, 0, 0, Math.PI * 2); ctx.fill()
+    }
+    ctx.globalAlpha = 1
+  },
+
+  // 연분 — two threads that meet.
+  destinedBond: (ctx) => {
+    ctx.strokeStyle = '#ffb0c8'; ctx.lineWidth = 3.5; ctx.lineCap = 'round'
+    ctx.beginPath(); ctx.moveTo(-18, -14); ctx.quadraticCurveTo(0, 4, 18, -14); ctx.stroke()
+    ctx.strokeStyle = '#a8c8ff'
+    ctx.beginPath(); ctx.moveTo(-18, 16); ctx.quadraticCurveTo(0, -2, 18, 16); ctx.stroke()
+    ctx.fillStyle = '#fff2f6'
+    ctx.beginPath(); ctx.arc(0, 1, 5, 0, Math.PI * 2); ctx.fill()
   },
 
   venomMist: (ctx) => {
@@ -355,7 +399,8 @@ const META_IDS = new Set([
 const EVOLUTION_IDS = new Set([
   'myriadSwords', 'infernoSea', 'violetThunder', 'frozenSky', 'plagueTide', 'needleStorm',
 ])
-const PASSIVE_IDS = new Set(['swordArt', 'lightBody', 'guardianAura', 'spiritRoot', 'farSight', 'goldenCore'])
+/** Derived, so a new 공법 can never fall through to a weapon's background. */
+const PASSIVE_IDS = new Set(PASSIVES.map((p) => p.id))
 const CONSUMABLE_IDS = new Set(['heal', 'stones', 'purge'])
 
 /**

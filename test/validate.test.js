@@ -6,6 +6,7 @@ import { CHARACTERS, TAGS } from '../src/data/characters.js'
 import { realmFor, xpFor } from '../src/data/realms.js'
 import { ENEMIES, getEnemy, scaledHp, scaledDamage, scaledXp } from '../src/data/enemies.js'
 import { WEAPON_MODULES, getWeaponModule } from '../src/combat/weapons/index.js'
+import { MAX_PASSIVE_SLOTS } from '../src/combat/upgrades.js'
 
 describe('data validation', () => {
   it('passes on the shipped tables', () => {
@@ -59,9 +60,23 @@ describe('data validation', () => {
     }
   })
 
-  it('ships 6 passives, all capped at 5', () => {
-    expect(PASSIVES).toHaveLength(6)
+  it('ships more 공법 than a player can hold, all capped at 5', () => {
+    /**
+     * This used to assert exactly six, which is also `MAX_PASSIVE_SLOTS`. Supply
+     * equalling capacity means every run ends holding all of them and the
+     * passive half of every level-up is a queue rather than a choice. The
+     * assertion enforced the thing that made it dull.
+     */
+    expect(PASSIVES.length).toBeGreaterThan(MAX_PASSIVE_SLOTS)
     for (const p of PASSIVES) expect(p.max).toBe(5)
+  })
+
+  it('leaves every evolution pairing pointing at a real 공법', () => {
+    const ids = new Set(PASSIVES.map((p) => p.id))
+    for (const w of WEAPONS) {
+      if (!w.pairPassive) continue
+      expect(ids.has(w.pairPassive), `"${w.id}" pairs with unknown 공법 "${w.pairPassive}"`).toBe(true)
+    }
   })
 
   it('gives every character a real starting weapon', () => {
