@@ -14,6 +14,27 @@
  * team ever sees again after the first time.
  */
 
+/**
+ * Pick the right Korean particle for a word.
+ *
+ * `이(가)` and `을(를)` are the form you use in a spec when you do not know the
+ * word yet. A game does know — the choice falls out of whether the last syllable
+ * has a final consonant, which is arithmetic on the Hangul block. Writing the
+ * slashed form on screen is the text equivalent of leaving a placeholder in.
+ *
+ * @param word The noun the particle follows.
+ * @param withFinal Form used after a final consonant (이, 을, 은, 과).
+ * @param withoutFinal Form used after a vowel (가, 를, 는, 와).
+ */
+export function particle(word, withFinal, withoutFinal) {
+  const last = String(word ?? '').trim().slice(-1)
+  const code = last.charCodeAt(0)
+  // Outside the Hangul syllable block there is nothing to inspect; the
+  // consonant form is the safer read for the Sino-Korean names used here.
+  if (!(code >= 0xac00 && code <= 0xd7a3)) return withFinal
+  return (code - 0xac00) % 28 === 0 ? withoutFinal : withFinal
+}
+
 export const HINTS = [
   {
     id: 'move',
@@ -69,6 +90,37 @@ export const HINTS = [
     when: (s) => s.bossAlive,
     hold: 5,
   },
+  {
+    id: 'formation',
+    text: '마기가 진을 이루면 한쪽이 막힌다. 뚫고 나가거나 돌아가라',
+    when: (s) => s.formationSeen === true,
+    hold: 5,
+  },
+  /**
+   * The one thing a player cannot work out by playing.
+   *
+   * Measured over eight fresh-save runs, evolutions decide the outcome outright:
+   * sorted by how long they lasted, runs split into "no evolution, dead at four
+   * minutes" and "three evolutions, alive at fourteen", with nothing between.
+   * And nothing in the game says the pairing exists — a 법보 at its cap looks
+   * finished. A player can reach that point a dozen times and never learn why
+   * their runs keep ending.
+   *
+   * Named rather than generic, because "pair a maxed 법보 with its 공법" is a
+   * rule to memorise and "비검 is waiting on 검결" is a thing to do next.
+   */
+  {
+    id: 'evolve',
+    text: (s) => {
+      const { weapon, passive } = s.maxedWeapon
+      return `${weapon}${particle(weapon, '이', '가')} 극에 달했다.`
+        + ` ${passive}${particle(passive, '을', '를')} 익히면 한 단계 위로 변한다`
+    },
+    when: (s) => Boolean(s.maxedWeapon),
+    hold: 6.5,
+    // Not onboarding — see HintOverlay._isOpen.
+    always: true,
+  },
 ]
 
 /**
@@ -76,10 +128,15 @@ export const HINTS = [
  *
  * `shown` is the set of ids already used — every hint fires once per save, not
  * once per run, because the second run is not the first time any more.
+ *
+ * `isOpen` decides whether a hint is still allowed to fire at all; the overlay
+ * uses it to retire the onboarding lines after a couple of runs while keeping
+ * the ones that state a rule the game never states.
  */
-export function nextHint(state, shown) {
+export function nextHint(state, shown, isOpen = () => true) {
   for (const hint of HINTS) {
     if (shown.has(hint.id)) continue
+    if (!isOpen(hint)) continue
     if (hint.when(state)) return hint
   }
   return null

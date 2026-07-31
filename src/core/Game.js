@@ -10,6 +10,8 @@ import { Shadows } from '../world/Shadows.js'
 import { AudioEngine } from '../audio/Audio.js'
 import { HintOverlay } from '../ui/HintOverlay.js'
 import { PauseScreen } from '../ui/PauseScreen.js'
+import { getWeapon } from '../data/weapons.js'
+import { getPassive } from '../data/passives.js'
 import { applyTrial, getTrial } from '../data/trials.js'
 import { Post } from '../world/Post.js'
 import { Player } from '../entities/Player.js'
@@ -257,6 +259,7 @@ export class Game {
     // Before anything reads scaledHp: the tier multiplies the whole enemy side
     // and is fixed for the length of the run.
     this.trial = applyTrial(this.progress.trial)
+    this._formationSeen = false
 
     this.seed = makeSeed()
     this.rng = new RNG(this.seed)
@@ -406,6 +409,7 @@ export class Game {
     // spike in a number the player cannot see, and the whole reason formations
     // exist is that a steady drizzle reads as background.
     this.enemies.onFormation = (f) => {
+      this._formationSeen = true
       this.audio.play('boss', { gain: 0.45 })
       this.overlay.pushBanner(FORMATION_NAMES[f.kind] ?? '마기가 진을 이룬다', 2.0)
       this.camera.addTrauma(0.22)
@@ -450,7 +454,35 @@ export class Game {
       qiOnGround: this.pickups?.liveCount ?? 0,
       nearbyEnemies: this.enemies?.pool.count ?? 0,
       bossAlive: Boolean(this.boss?.active),
+      // A 법보 sitting at its cap with no evolution taken yet. This is the one
+      // thing in the game a player cannot work out by playing it.
+      maxedWeapon: this._maxedWeaponWaiting(),
+      formationSeen: this._formationSeen === true,
     }
+  }
+
+  /**
+   * The name of a 법보 that is maxed, can still evolve, and is waiting on its
+   * paired 공법 — or null.
+   *
+   * Measured, evolutions decide the run outright: sorted by survival, runs split
+   * into "no evolution, dead at four minutes" and "three evolutions, alive at
+   * fourteen" with nothing in between. And nothing anywhere in the game says the
+   * pairing exists. A player can reach a maxed 법보 a dozen times and never
+   * learn why the run keeps ending.
+   */
+  _maxedWeaponWaiting() {
+    const loadout = this.player?.loadout
+    if (!loadout) return null
+    for (const id in loadout.weapons) {
+      const def = getWeapon(id)
+      if (!def?.evolvesTo || !def.pairPassive) continue
+      if (loadout.weapons[id] !== def.levels.length) continue
+      if (loadout.weapons[def.evolvesTo]) continue
+      if ((loadout.passives[def.pairPassive] ?? 0) > 0) continue
+      return { weapon: def.name, passive: getPassive(def.pairPassive)?.name ?? def.pairPassive }
+    }
+    return null
   }
 
   /** Screen-space pan for a world x, so hits sound where they happen. */

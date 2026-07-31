@@ -27,17 +27,23 @@ export class HintOverlay {
     this.cooldown = 0
   }
 
-  /** Nothing to teach a player who has finished runs before. */
-  get active() {
-    return (this.progress.records?.runs ?? 0) < 2 && this.shown.size < 99
+  /**
+   * Nothing to teach a player who has finished runs before — with one exception.
+   *
+   * `always` hints are not onboarding. They are rules the game never states
+   * anywhere and that a player cannot deduce by playing, and the pairing that
+   * unlocks an evolution is the only one: a 법보 at its cap looks finished, and
+   * measured over eight runs, whether an evolution happens is what separates
+   * dying at four minutes from surviving fourteen. Gating that behind "your
+   * first two runs" would hide it from exactly the player who has not reached a
+   * maxed 법보 yet.
+   */
+  _isOpen(hint) {
+    if (hint.always) return true
+    return (this.progress.records?.runs ?? 0) < 2
   }
 
   update(dt, state) {
-    if (!this.active) {
-      if (this.node.style.opacity !== '0') this.node.style.opacity = '0'
-      return
-    }
-
     if (this.current) {
       this.timer -= dt
       if (this.timer <= 0) {
@@ -53,12 +59,14 @@ export class HintOverlay {
       return
     }
 
-    const hint = nextHint(state, this.shown)
+    const hint = nextHint(state, this.shown, (h) => this._isOpen(h))
     if (!hint) return
     this.shown.add(hint.id)
     this.current = hint
     this.timer = hint.hold
-    this.node.textContent = hint.text
+    // A hint may name what it is about — "비검 is waiting on 검결" is a thing to
+    // do next, where a generic rule is a thing to memorise.
+    this.node.textContent = typeof hint.text === 'function' ? hint.text(state) : hint.text
     this.node.style.opacity = '1'
   }
 
