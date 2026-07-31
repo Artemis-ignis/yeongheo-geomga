@@ -409,6 +409,27 @@ body {
 .title-stones { margin-top: 16px; font-size: 13px; color: var(--gold); letter-spacing: 0.1em; }
 
 .char-card { position: relative; }
+
+/*
+ * The face on the card. Baked from the same chibi the player gets in the fight
+ * (src/art/portrait.js), so it can never promise something the model does not
+ * deliver.
+ */
+.char-portrait {
+  width: 100%; aspect-ratio: 1 / 1; max-height: 116px;
+  margin: 0 auto 6px;
+  background: radial-gradient(ellipse at 50% 42%, rgba(255, 255, 255, 0.09), transparent 68%);
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: contain;
+  border-radius: 10px;
+}
+.char-portrait.empty { display: none; }
+/* Dimmed, not erased — a locked cultivator still has to be worth wanting. */
+.char-card.locked .char-portrait { filter: grayscale(0.55) brightness(0.78); }
+.char-card.focused .char-portrait {
+  background-color: rgba(126, 200, 255, 0.07);
+}
 .char-card.locked { opacity: 0.45; cursor: not-allowed; }
 .char-card.locked.focused { transform: none; border-color: rgba(255, 255, 255, 0.12); }
 .select-heading {

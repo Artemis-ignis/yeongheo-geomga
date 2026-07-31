@@ -3,6 +3,7 @@ import { getWeapon } from '../data/weapons.js'
 import { unlockCost } from '../data/unlocks.js'
 import { STAGES } from '../data/stages.js'
 import { TRIALS, getTrial } from '../data/trials.js'
+import { portraitFor } from '../art/portrait.js'
 
 /**
  * Title, main menu, and character select.
@@ -12,10 +13,12 @@ import { TRIALS, getTrial } from '../data/trials.js'
  * hidden, so the player can see what there is to work toward.
  */
 export class TitleScreen {
-  constructor(root, characters, progress) {
+  /** @param renderer Borrowed to bake the character portraits; optional. */
+  constructor(root, characters, progress, renderer = null) {
     this.root = root
     this.characters = characters
     this.progress = progress
+    this.renderer = renderer
     this.focus = 0
     this.view = 'menu'
     this.handlers = {}
@@ -110,6 +113,7 @@ export class TitleScreen {
       const weapon = getWeapon(c.startWeapon)
       card.innerHTML = `
         <div class="char-lock"></div>
+        <div class="char-portrait"></div>
         <div class="char-name">${c.name}</div>
         <div class="char-path">${c.path}</div>
         <div class="char-start">
@@ -120,7 +124,8 @@ export class TitleScreen {
       card.addEventListener('click', () => this.pick(i))
       card.addEventListener('mouseenter', () => this.setFocus(i))
       host.appendChild(card)
-      return { card, lock: card.querySelector('.char-lock'), id: c.id }
+      return { card, lock: card.querySelector('.char-lock'), id: c.id, character: c,
+        portrait: card.querySelector('.char-portrait') }
     })
   }
 
@@ -222,10 +227,30 @@ export class TitleScreen {
     this.stonesLabel.style.display = 'none'
     this.stageView.style.display = 'none'
     this.selectView.style.display = ''
+    this._bakePortraits()
     this._refreshLocks()
     // Land on the first playable cultivator, not a locked one.
     const first = this.cards.findIndex((c) => this.progress.isUnlocked('characters', c.id))
     this.setFocus(first === -1 ? 0 : first)
+  }
+
+  /**
+   * Bake the six portraits the first time this screen is opened.
+   *
+   * Not at construction: the renderer is busy drawing the title behind this and
+   * six render-target reads in the same frame as boot is a visible hitch on the
+   * one screen a player is looking at hardest. Cached inside `portraitFor`, so
+   * this is free on every later visit.
+   */
+  _bakePortraits() {
+    if (this._portraitsDone || !this.renderer) return
+    this._portraitsDone = true
+    for (const c of this.cards) {
+      const url = portraitFor(c.character, this.renderer)
+      // No portrait is a card without a picture, not a broken image.
+      if (url) c.portrait.style.backgroundImage = `url(${url})`
+      else c.portrait.classList.add('empty')
+    }
   }
 
   _refreshLocks() {

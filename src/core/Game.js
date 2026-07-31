@@ -86,7 +86,7 @@ export class Game {
 
     this.hud = new Hud(hudRoot)
     this.modal = new LevelUpModal(hudRoot)
-    this.title = new TitleScreen(hudRoot, CHARACTERS, this.progress)
+    this.title = new TitleScreen(hudRoot, CHARACTERS, this.progress, this.renderer)
     this.result = new ResultScreen(hudRoot)
     this.shop = new ShopScreen(hudRoot, this.progress, () => this._persist())
     this.codex = new CodexScreen(hudRoot, this.progress)
