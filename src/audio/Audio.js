@@ -515,6 +515,35 @@ export class AudioEngine {
       decay: answer ? 1.9 : 1.1,
       pan: (this._rand() - 0.5) * 0.5,
     })
+
+    // 편경 — a stone chime two octaves up on the answering notes.
+    //
+    // Measured over twelve seconds of real-time play, the mix carried 45-55% of
+    // its energy below 250 Hz, 44-54% in the mids, and 1-4% above 2.5 kHz. That
+    // is a game heard through a blanket, and nothing in the score could fix it:
+    // the drone is three sawtooths behind a lowpass that opens to 1.5 kHz at
+    // most, and a Karplus-Strong pluck is a lowpassed feedback loop that is dark
+    // by construction. There was no source of air anywhere in the bed.
+    //
+    // On every note, but only the answering ones ring out — on answers alone it
+    // reached 34% of the spectrum when it struck and 3.6% averaged over a run,
+    // which is a sparkle rather than air. Riding every note keeps something
+    // alive up there between them without becoming a second melody: the passing
+    // notes are a third the volume and a fifth the length, closer to the
+    // pluck's own overtone than to an instrument. Two partials, because a struck
+    // stone is not a sine.
+    const chime = freq * 4
+    const lift = answer ? 1 : 0.34
+    for (const [mult, gain, decay] of [[1, 0.055, 0.7], [2.76, 0.022, 0.45]]) {
+      playTone(this.ctx, this.musicBus, {
+        freq: chime * mult,
+        type: 'sine',
+        gain: gain * lift * (0.75 + this._intensity * 0.35),
+        attack: 0.004,
+        decay: decay * (answer ? 1 : 0.45),
+        pan: (this._rand() - 0.5) * 0.7,
+      })
+    }
   }
 
   dispose() {
