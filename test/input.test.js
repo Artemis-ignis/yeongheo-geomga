@@ -28,6 +28,145 @@ function makeTarget() {
 const keyDown = (t, code) => t.fire('keydown', { code })
 const keyUp = (t, code) => t.fire('keyup', { code })
 
+/** A standard-mapping pad whose axes and buttons the test drives directly. */
+function makePad() {
+  const pad = {
+    connected: true,
+    axes: [0, 0, 0, 0],
+    buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })),
+    press(i) { pad.buttons[i] = { pressed: true, value: 1 } },
+    release(i) { pad.buttons[i] = { pressed: false, value: 0 } },
+    stick(x, z) { pad.axes[0] = x; pad.axes[1] = z },
+  }
+  return pad
+}
+
+/**
+ * A controller is table stakes for this genre — every game this one is measured
+ * against ships one — and `Input` was keyboard-only. The whole pad path takes
+ * its device list through an injected function so it can be driven here without
+ * a browser or hardware, the same way `Save` takes its storage.
+ */
+describe('gamepad', () => {
+  const rig = () => { const t = makeTarget(); const pad = makePad(); return { t, pad, input: new Input(t, () => [pad]) } }
+
+  it('does nothing at all when no pad is connected', () => {
+    const t = makeTarget()
+    const input = new Input(t, () => [])
+    input.poll()
+    expect(input.moveX).toBe(0)
+    expect(input.usingGamepad).toBe(false)
+    expect(input.consumeDash()).toBe(false)
+  })
+
+  it('ignores a resting stick', () => {
+    const { input, pad } = rig()
+    pad.stick(0.1, -0.08)
+    input.poll()
+    expect(input.moveX).toBe(0)
+    expect(input.moveZ).toBe(0)
+  })
+
+  it('starts from a standstill at the edge of the deadzone rather than lurching', () => {
+    const { input, pad } = rig()
+    pad.stick(0.19, 0)
+    input.poll()
+    expect(input.moveX).toBeGreaterThan(0)
+    expect(input.moveX, 'the deadzone edge jumps straight to a walk').toBeLessThan(0.1)
+  })
+
+  it('keeps the stick\'s magnitude, so a pad can walk', () => {
+    const { input, pad } = rig()
+    pad.stick(0, -0.6)
+    input.poll()
+    const half = Math.abs(input.moveZ)
+    pad.stick(0, -1)
+    input.poll()
+    expect(Math.abs(input.moveZ)).toBeGreaterThan(half)
+    expect(Math.abs(input.moveZ)).toBeCloseTo(1, 2)
+  })
+
+  it('never lets a diagonal outrun a straight line', () => {
+    const { input, pad } = rig()
+    pad.stick(1, 1)
+    input.poll()
+    expect(Math.hypot(input.moveX, input.moveZ)).toBeLessThanOrEqual(1.0001)
+  })
+
+  it('latches a button press once, not once per frame it is held', () => {
+    const { input, pad } = rig()
+    pad.press(0)
+    input.poll()
+    expect(input.consumeDash()).toBe(true)
+    input.poll()
+    expect(input.consumeDash(), 'a held button re-fired').toBe(false)
+    pad.release(0)
+    input.poll()
+    pad.press(0)
+    input.poll()
+    expect(input.consumeDash(), 'a fresh press did not register').toBe(true)
+  })
+
+  it('pauses on start and confirms on the south face', () => {
+    const { input, pad } = rig()
+    pad.press(9)
+    input.poll()
+    expect(input.consumePause()).toBe(true)
+    pad.release(9)
+    pad.press(0)
+    input.poll()
+    expect(input.consumeConfirm()).toBe(true)
+  })
+
+  it('steers menus with the d-pad', () => {
+    const { input, pad } = rig()
+    pad.press(14)
+    input.poll()
+    expect(input.moveX).toBeLessThan(-0.5)
+    pad.release(14)
+    input.poll()
+    pad.press(15)
+    input.poll()
+    expect(input.moveX).toBeGreaterThan(0.5)
+  })
+
+  it('hands control back to whichever device was used last', () => {
+    const { input, pad, t } = rig()
+    pad.stick(1, 0)
+    input.poll()
+    expect(input.usingGamepad).toBe(true)
+    expect(input.moveX).toBeCloseTo(1, 2)
+
+    // A key press takes over even while the stick is still held over.
+    keyDown(t, 'KeyA')
+    expect(input.usingGamepad).toBe(false)
+    expect(input.moveX).toBe(-1)
+
+    // And the stick takes it back on the next poll that sees movement.
+    input.poll()
+    expect(input.usingGamepad).toBe(true)
+    expect(input.moveX).toBeCloseTo(1, 2)
+    keyUp(t, 'KeyA')
+  })
+
+  it('does not steal control from the keyboard while resting', () => {
+    const { input, pad, t } = rig()
+    keyDown(t, 'KeyD')
+    pad.stick(0.05, 0.05)
+    input.poll()
+    expect(input.usingGamepad, 'a resting stick grabbed control').toBe(false)
+    expect(input.moveX).toBe(1)
+    keyUp(t, 'KeyD')
+  })
+
+  it('survives a pad that reports nothing useful', () => {
+    const t = makeTarget()
+    const input = new Input(t, () => [null, { connected: false }, {}])
+    expect(() => input.poll()).not.toThrow()
+    expect(input.moveX).toBe(0)
+  })
+})
+
 describe('Input movement', () => {
   it('is zero with nothing held', () => {
     const input = new Input(makeTarget())

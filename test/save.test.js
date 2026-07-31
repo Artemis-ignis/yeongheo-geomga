@@ -55,10 +55,66 @@ describe('save / load round trip', () => {
     expect(save(defaultSave(), hostileStorage())).toBe(false)
   })
 
-  it('resets on a version mismatch rather than trusting old fields', () => {
+  /**
+   * This used to assert the opposite — that a version mismatch resets the save.
+   * That is data loss dressed as safety: a save file is the only thing in this
+   * project a player cannot regenerate, and the first schema change would have
+   * silently taken their shop, their unlocks and their records the moment they
+   * loaded a new build.
+   */
+  it('carries an older save forward instead of deleting it', () => {
     const storage = memoryStorage()
-    storage.setItem(SAVE_KEY, JSON.stringify({ version: SAVE_VERSION + 1, stones: 99999 }))
-    expect(load(storage).stones).toBe(0)
+    storage.setItem(SAVE_KEY, JSON.stringify({
+      version: 1,
+      stones: 4200,
+      upgrades: { vitality: 5, edge: 3 },
+      unlockedCharacters: ['seolryeong', 'hongryeon'],
+      unlockedStages: ['jade', 'ember'],
+      hintsSeen: ['dash', 'levelUp'],
+      records: { runs: 40, victories: 1, bestTime: 512, bestLevel: 61, totalKills: 9000 },
+    }))
+    const out = load(storage)
+    expect(out.version).toBe(SAVE_VERSION)
+    expect(out.stones).toBe(4200)
+    expect(out.upgrades).toEqual({ vitality: 5, edge: 3 })
+    expect(out.unlockedCharacters).toContain('hongryeon')
+    expect(out.unlockedStages).toContain('ember')
+    expect(out.records.bestTime).toBe(512)
+    expect(out.records.totalKills).toBe(9000)
+    // Fields the new version adds arrive at their defaults.
+    expect(out.trial).toBe(0)
+  })
+
+  it('keeps a save written by a newer build rather than wiping it', () => {
+    // Downgrading loses whatever this build cannot read either way, but the
+    // player's 영석 and unlocks are not that.
+    const storage = memoryStorage()
+    storage.setItem(SAVE_KEY, JSON.stringify({
+      version: SAVE_VERSION + 1, stones: 99999, unlockedStages: ['jade', 'frost'],
+    }))
+    const out = load(storage)
+    expect(out.stones).toBe(99999)
+    expect(out.unlockedStages).toContain('frost')
+  })
+
+  it('keeps the two fields normalize was quietly dropping', () => {
+    // `normalize` rebuilds the save from scratch and simply did not name
+    // `hintsSeen` or `trial`, so every reload replayed the first-run hints and
+    // reset the chosen 시련. Neither had a test.
+    const storage = memoryStorage()
+    const state = { ...defaultSave(), hintsSeen: ['dash', 'chest'], trial: 3 }
+    save(state, storage)
+    const back = load(storage)
+    expect(back.hintsSeen).toEqual(['dash', 'chest'])
+    expect(back.trial).toBe(3)
+  })
+
+  it('refuses a nonsense 시련 without discarding the rest', () => {
+    const storage = memoryStorage()
+    storage.setItem(SAVE_KEY, JSON.stringify({ ...defaultSave(), trial: -7, stones: 55 }))
+    const out = load(storage)
+    expect(out.trial).toBe(0)
+    expect(out.stones).toBe(55)
   })
 
   it('survives corrupt JSON', () => {

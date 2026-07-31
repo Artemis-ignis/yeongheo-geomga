@@ -6,6 +6,26 @@ const MOVE_KEYS = {
 }
 
 /**
+ * Standard-gamepad button indices, per the W3C mapping every controller worth
+ * supporting reports. Named rather than inlined because `buttons[9]` in a
+ * condition is unreadable and wrong silently.
+ */
+const PAD = {
+  south: 0, east: 1, west: 2, north: 3,
+  l1: 4, r1: 5,
+  select: 8, start: 9,
+  up: 12, down: 13, left: 14, right: 15,
+}
+
+/**
+ * Stick deadzone. Cheap analogue sticks rest anywhere inside about 0.12; going
+ * much above that eats the slow walk that makes threading a crowd possible.
+ */
+const DEADZONE = 0.18
+/** How far a stick or trigger must travel before it counts as a press. */
+const AXIS_PRESS = 0.55
+
+/**
  * Keyboard input.
  *
  * Movement is normalised so diagonals are not faster. Edge-triggered actions are
@@ -13,8 +33,25 @@ const MOVE_KEYS = {
  * twice even when several fixed ticks run in a single frame.
  */
 export class Input {
-  constructor(target = window) {
+  /**
+   * @param target Event source for the keyboard.
+   * @param pads A function returning the connected gamepads, injected so the
+   *   whole controller path is testable without a browser or a device — the
+   *   same trick `Save` uses for localStorage.
+   */
+  constructor(target = window, pads = () => (typeof navigator === 'undefined' ? [] : navigator.getGamepads?.() ?? [])) {
     this.target = target
+    this.pads = pads
+    /**
+     * Which device last said anything. Keyboard and pad both feed the same
+     * fields, and without this a resting stick at 0.02 would fight a held key
+     * every frame. Last input wins, which is what every game that supports both
+     * does and what a player expects when they put the controller down.
+     */
+    this.source = 'keyboard'
+    this._padX = 0
+    this._padZ = 0
+    this._padPrev = []
     this.down = new Set()
     this._dash = false
     this._pause = false
@@ -67,11 +104,71 @@ export class Input {
       this._x = x / len
       this._z = z / len
     }
+    if (len !== 0) this.source = 'keyboard'
   }
 
-  get moveX() { return this._x }
-  get moveZ() { return this._z }
-  get hasMove() { return this._x !== 0 || this._z !== 0 }
+  /**
+   * Read the first connected pad and latch its edges. Call once a frame.
+   *
+   * Buttons are edge-triggered into the same latches the keyboard writes, so
+   * every `consume*` reader works unchanged and a press is never handled twice
+   * when several fixed ticks run in one frame.
+   *
+   * The stick keeps its magnitude rather than being normalised: a gamepad can
+   * walk, and taking that away would make it strictly worse than the keyboard
+   * for threading a crowd. Diagonals are clamped to length 1 so it can never be
+   * faster than one.
+   */
+  poll() {
+    const pad = this._firstPad()
+    if (!pad) return
+
+    const ax = pad.axes?.[0] ?? 0
+    const az = pad.axes?.[1] ?? 0
+    const mag = Math.hypot(ax, az)
+    if (mag > DEADZONE) {
+      // Rescale so the deadzone edge is a standstill rather than a lurch to 0.18.
+      const k = Math.min(1, (mag - DEADZONE) / (1 - DEADZONE)) / mag
+      this._padX = ax * k
+      this._padZ = az * k
+      this.source = 'gamepad'
+    } else {
+      this._padX = 0
+      this._padZ = 0
+    }
+
+    const held = (i) => (pad.buttons?.[i]?.pressed ?? (pad.buttons?.[i]?.value ?? 0) > AXIS_PRESS)
+    const pressed = (i) => {
+      const now = held(i)
+      const was = this._padPrev[i] ?? false
+      this._padPrev[i] = now
+      if (now && !was) this.source = 'gamepad'
+      return now && !was
+    }
+
+    if (pressed(PAD.south) || pressed(PAD.r1)) { this._dash = true; this._confirm = true }
+    if (pressed(PAD.start)) this._pause = true
+    if (pressed(PAD.east)) this._confirm = true
+    // D-pad drives menus through the same axis the menus already read.
+    const dl = pressed(PAD.left)
+    const dr = pressed(PAD.right)
+    if (dl || dr) { this._padX = dl ? -1 : 1; this.source = 'gamepad' }
+    // Keep the remaining edges warm so a later press is still an edge.
+    pressed(PAD.up); pressed(PAD.down); pressed(PAD.west); pressed(PAD.north)
+    pressed(PAD.l1); pressed(PAD.select)
+  }
+
+  _firstPad() {
+    const list = this.pads() ?? []
+    for (const p of list) if (p && p.connected !== false) return p
+    return null
+  }
+
+  get moveX() { return this.source === 'gamepad' ? this._padX : this._x }
+  get moveZ() { return this.source === 'gamepad' ? this._padZ : this._z }
+  get hasMove() { return this.moveX !== 0 || this.moveZ !== 0 }
+  /** True while a controller is the thing being used, for prompt glyphs. */
+  get usingGamepad() { return this.source === 'gamepad' }
 
   consumeDash() { const v = this._dash; this._dash = false; return v }
   consumePause() { const v = this._pause; this._pause = false; return v }

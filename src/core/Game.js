@@ -696,6 +696,9 @@ export class Game {
       this._last = now
       if (this.state === 'playing') this.quality.sample(elapsedMs)
 
+      // Pads are polled, not evented: read once a frame before anything asks.
+      this.input.poll()
+
       if (this.input.consumeDebug()) this.debug.toggle()
       if (this.input.consumeQuality()) {
         this.overlay.pushBanner(`화질 ${this.quality.cycle()}`, 1.4)
