@@ -137,6 +137,26 @@ export class Hud {
 
     const hpRatio = Math.max(0, state.hp / Math.max(1, state.maxHp))
     this._set(this.hpFill, 'hpWidth', `${(Math.round(hpRatio * 200) / 2)}%`)
+    // The bar carried no information: it was the same red gradient at 100/100 as
+    // at 8/100, so the only way to know whether you were hurt was to read the
+    // number — during a fight, in the corner of the eye, which is exactly when
+    // nobody reads a number. The hue does the telling now, and it stays in the
+    // 기혈 family rather than going traffic-light green: full is a warm bright
+    // vermilion, and it deepens toward a dark crimson as it drains. Quantised to
+    // twentieths so this writes a style property a few times a run, not sixty
+    // times a second.
+    const band = Math.round(hpRatio * 20)
+    if (this._last.hpBand !== band) {
+      this._last.hpBand = band
+      const k = band / 20
+      // 0 -> #6d1a1e, 1 -> #ff8a72
+      const lerp = (a, b) => Math.round(a + (b - a) * k)
+      const top = `rgb(${lerp(0x8e, 0xff)},${lerp(0x27, 0x8a)},${lerp(0x24, 0x72)})`
+      const bottom = `rgb(${lerp(0x4a, 0xc4)},${lerp(0x12, 0x3a)},${lerp(0x14, 0x33)})`
+      this.hpFill.style.setProperty('--hp-top', top)
+      this.hpFill.style.setProperty('--hp-bottom', bottom)
+      this.hpFill.classList.toggle('low', k <= 0.25)
+    }
     // The ghost lags behind so the player can see how much was just lost.
     this.ghostHp += (hpRatio - this.ghostHp) * Math.min(1, HP_GHOST_LAG * dt)
     if (this.ghostHp < hpRatio) this.ghostHp = hpRatio

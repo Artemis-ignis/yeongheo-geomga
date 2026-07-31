@@ -103,9 +103,13 @@ body {
 .hud-hp-ghost { position: absolute; inset: 0; width: 100%; background: rgba(255, 240, 240, 0.32); }
 .hud-hp-fill {
   position: absolute; inset: 0; width: 100%;
+  /* Set from Hud.update: the gradient carries the health level, so a glance at
+   * the corner of the screen answers "am I hurt" without reading the number. */
+  --hp-top: #ff8a72;
+  --hp-bottom: #c43a33;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 42%),
-    linear-gradient(180deg, #e8635f, #8e2724);
+    linear-gradient(180deg, var(--hp-top), var(--hp-bottom));
 }
 /*
  * Tick marks across the bar. A plain filling rectangle gives no sense of how
@@ -123,6 +127,17 @@ body {
     rgba(0, 0, 0, 0.22) calc(10% - 1px) 10%
   );
 }
+/* Under a quarter the bar breathes. Colour alone is a weak signal in peripheral
+ * vision; movement is not, and this is the one moment worth interrupting for. */
+.hud-hp-fill.low { animation: hp-low 0.9s ease-in-out infinite; }
+@keyframes hp-low {
+  0%, 100% { filter: none; }
+  50% { filter: brightness(1.5); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud-hp-fill.low { animation: none; filter: brightness(1.25); }
+}
+
 .hud-hp-text {
   position: absolute; inset: 0;
   display: grid; place-items: center;
