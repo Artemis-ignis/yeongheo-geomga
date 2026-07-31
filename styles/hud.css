@@ -538,11 +538,56 @@ body {
 .result-bank b { color: var(--gold); font-variant-numeric: tabular-nums; }
 
 /* ---------- Pause & error ---------- */
-.pause-note {
-  position: absolute; inset: 0; z-index: 11;
-  display: grid; place-items: center; gap: 10px;
-  background: rgba(6, 9, 14, 0.55);
-  font-size: 30px; letter-spacing: 0.3em; color: #dbe6f0;
+.pause-screen { z-index: 12; background: rgba(6, 9, 14, 0.72); }
+.pause-inner { max-width: 620px; }
+.pause-title { font-size: 30px; letter-spacing: 0.28em; color: #dbe6f0; }
+.pause-title-sub { font-size: 15px; color: #6f7d8a; letter-spacing: 0.2em; }
+.pause-sub { margin-top: 6px; font-size: 12.5px; color: #8b98a6; }
+
+.pause-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  margin: 20px 0 4px;
+}
+.pause-stat {
+  padding: 8px 4px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.pause-stat span { display: block; font-size: 10.5px; color: #7d8b98; letter-spacing: 0.12em; }
+.pause-stat b { display: block; margin-top: 3px; font-size: 15px; color: var(--jade); font-variant-numeric: tabular-nums; }
+
+.pause-heading {
+  margin: 16px 0 7px; font-size: 11px; letter-spacing: 0.22em; color: #7d8b98;
+}
+.pause-row { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
+.pause-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 9px 5px 5px; border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  font-size: 12px; color: #cfd9e3;
+}
+.pause-chip img { width: 20px; height: 20px; }
+.pause-chip-level {
+  min-width: 15px; text-align: center;
+  color: var(--gold); font-variant-numeric: tabular-nums;
+}
+.pause-empty { font-size: 12px; color: #66727e; }
+
+.pause-settings { margin-top: 22px; }
+.pause-slider {
+  display: grid; grid-template-columns: 74px 1fr 30px; align-items: center; gap: 10px;
+  margin-bottom: 8px; font-size: 12px; color: #93a2b0;
+}
+.pause-slider input { width: 100%; accent-color: var(--jade); }
+.pause-slider b { color: var(--jade); font-variant-numeric: tabular-nums; text-align: right; }
+.pause-toggles { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.pause-toggles .btn.on { border-color: var(--gold); color: var(--gold); }
+
+.pause-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 22px; }
+.pause-buttons .key {
+  margin-left: 6px; padding: 1px 5px; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.28); font-size: 10px; opacity: 0.75;
 }
 .error-panel {
   position: absolute; inset: 0; z-index: 20;

@@ -9,6 +9,7 @@ import { Grass } from '../world/Grass.js'
 import { Shadows } from '../world/Shadows.js'
 import { AudioEngine } from '../audio/Audio.js'
 import { HintOverlay } from '../ui/HintOverlay.js'
+import { PauseScreen } from '../ui/PauseScreen.js'
 import { applyTrial, getTrial } from '../data/trials.js'
 import { Post } from '../world/Post.js'
 import { Player } from '../entities/Player.js'
@@ -92,11 +93,12 @@ export class Game {
     this.codex = new CodexScreen(hudRoot, this.progress)
     this.hints = new HintOverlay(hudRoot, this.progress)
     this.debug = new DebugOverlay(hudRoot)
-    this.pauseNote = document.createElement('div')
-    this.pauseNote.className = 'pause-note'
-    this.pauseNote.textContent = '일시정지'
-    this.pauseNote.style.display = 'none'
-    hudRoot.appendChild(this.pauseNote)
+    this.pause = new PauseScreen(hudRoot, {
+      audio: this.audio,
+      quality: this.quality,
+      onResume: () => this._setPaused(false),
+      onQuit: () => this._giveUp(),
+    })
 
     this.hud.hide()
 
@@ -576,11 +578,24 @@ export class Game {
   _setPaused(on) {
     if (on && this.state === 'playing') {
       this.state = 'paused'
-      this.pauseNote.style.display = ''
+      this.pause.show(this._hudState(), this.player?.loadout)
     } else if (!on && this.state === 'paused') {
       this.state = 'playing'
-      this.pauseNote.style.display = 'none'
+      this.pause.hide()
     }
+  }
+
+  /**
+   * Leave a run on purpose.
+   *
+   * There was no way out of one except dying in it, which for a fifteen-minute
+   * format means a player who has already decided the run is lost has to sit
+   * through the rest of it. The 영석 earned so far are kept — they were earned.
+   */
+  _giveUp() {
+    this.pause.hide()
+    this.state = 'playing'
+    this._endRun()
   }
 
   _readMenuInput() {
