@@ -191,9 +191,45 @@ export class Terrain {
     this.mistTex = mistTexture()
     const mat = new THREE.MeshBasicMaterial({
       map: this.mistTex,
+      /**
+       * Deliberately the shared pale grey rather than each 비경's own `fog`.
+       *
+       * Tinting it per stage looked obviously right — 적염's ground goes faintly
+       * olive under a cool mist — and measured clearly worse. Those `fog` values
+       * are saturated scene colours, and adding a saturated colour to every
+       * ground pixel drove 적염 to 0.995 saturation and pushed 한천 to 79% of
+       * its pixels near-black. Three of five sampled minutes failed in each,
+       * against none for all three stages with this grey and a per-stage
+       * strength. An additive lift wants to be neutral; the colour belongs in
+       * the ground texture, where it already is.
+       */
       color: PALETTE.mist,
       transparent: true,
-      opacity: 0.35,
+      /**
+       * Per-비경, because one number cannot serve all three — and finding that
+       * out cost me a wrong fix first.
+       *
+       * The mist is an additive disc covering the whole plateau, so every pixel
+       * of ground gets a pale wash added to it. Hiding it and re-reading the
+       * frame put it at 0.212 of a mean luminance of 0.427 — half the light in
+       * the picture — while costing 0.285 of saturation. That is what "washed
+       * out" was on 청람비경; it was not the weapons and it was not the bloom.
+       * Dropping it to 0.18 there is a large, visible win: the grass goes green
+       * again and 설령's robe separates from the ground.
+       *
+       *   청람, mid-run    0.35  luma 0.427  sat 0.576
+       *                    0.18  luma 0.335  sat 0.743
+       *                    off   luma 0.216  sat 0.862
+       *
+       * Then 적염비경 went nearly black. Its palette is scorched earth —
+       * ground #3a2f2a on grass #4a3a30 — and the mist was not decoration
+       * there, it was the only thing lifting the ground out of the floor. At
+       * 0.35 its opening reads luma 0.101 with 6% of pixels near-black; at 0.18,
+       * luma 0.024 with 78%. Enemies at the screen edge simply were not visible.
+       *
+       * So it belongs in the palette next to every other per-비경 colour.
+       */
+      opacity: this.pal.mistStrength ?? 0.18,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     })

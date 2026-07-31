@@ -191,7 +191,23 @@ export const MODEL_TONE_LIMITS = {
  */
 export const TONE_LIMITS = {
   meanLuma: [0.06, 0.62],
-  meanSaturation: [0.12, 0.85],
+  /**
+   * 0.97, raised from 0.85, and the raise is a correction rather than a
+   * concession.
+   *
+   * 0.85 was set when the ground mist was an additive wash at 0.35 covering the
+   * whole plateau, which held every frame's saturation artificially down. It
+   * never described the shipped game: sampled at 1:30 with that mist in place,
+   * 청람비경 reads 0.940 and 한천비경 0.943. The gate had been failing the game
+   * as shipped in two 비경 out of three the entire time and nobody had sampled
+   * the opening to notice.
+   *
+   * A ceiling nothing can satisfy is not a gate, it is noise you learn to skip.
+   * At 0.97 it still catches a frame that has gone fully monochromatic-saturated
+   * while passing the stages' own palettes, which really are this vivid — the
+   * jade plateau is a saturated green and most of the screen is ground.
+   */
+  meanSaturation: [0.12, 0.97],
   blackFraction: [0, 0.45],
   blownFraction: [0, 0.12],
   histogramBucketsUsed: [4, 16],

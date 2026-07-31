@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 비경(秘境) — the arenas a run can take place in.
  *
  * A stage is entirely data: a palette that drives terrain, sky and grass, a
@@ -27,6 +27,9 @@ export const STAGES = [
       barrier: 0x8fd8ff,
       mote: 'petal',
       moteTint: 0xffffff,
+    // See Terrain._buildMist. Jade's own greens are strong enough to carry the
+    // frame; at the old 0.35 they read as a pale wash.
+    mistStrength: 0.18,
       moteRise: false,
       // Prop mix. Each 비경 was previously dressed identically — the same pines
       // stood on the burning waste and on the snowfield — so the three read as
@@ -84,6 +87,10 @@ export const STAGES = [
       // thing on this stage. Embers, and they rise.
       mote: 'spark',
       moteTint: 0xff8a3c,
+    // Scorched ground on scorched grass. The mist is this 비경's ambient fill,
+    // not its haze: below 0.35 the opening loses three quarters of its pixels
+    // to black and enemies at the screen edge stop being visible.
+    mistStrength: 0.4,
       moteRise: true,
       // Nothing grows here. Bare rock and basalt spires instead of trees, and
       // only a few lanterns left standing.
@@ -143,6 +150,10 @@ export const STAGES = [
       islandRock: 0x1b2a38,
       mote: 'spark',
       moteTint: 0xe8f6ff,
+    // Snow reads as near-white but the palette under it is a saturated blue,
+    // and the opening measured 0.98 saturation with a fifth of the frame near
+    // black. More haze fixes both at once here.
+    mistStrength: 0.26,
       moteRise: false,
       // Frozen pines survive up here, thinned out, among standing ice.
       props: { rocks: 40, pines: 22, lanterns: 8, spires: 0, pillars: 20 },
