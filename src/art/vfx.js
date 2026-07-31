@@ -100,6 +100,19 @@ function makeEffectMaterial({ color, additive = true, map = null, grow = 1.0, sp
   })
 }
 
+/**
+ * One pooled effect kind.
+ *
+ * Note for anyone auditing what is on screen: `mesh.count` here is always the
+ * layer's *capacity*, never its live population. Dead instances are collapsed to
+ * a point in the vertex shader rather than culled, because that keeps the
+ * instance buffer contiguous and costs nothing. Reading the count as "live
+ * effects" is wrong by a wide margin — walking the scene during a level-98 run
+ * I read 468 additive instances at full opacity, concluded they covered 40% of
+ * the playfield, and shipped a fix for it. They were eight layers' capacities
+ * added up, and almost all of them were zero-sized. To know how many are
+ * actually drawing, compare `birth + life` against the current time.
+ */
 class EffectLayer {
   constructor(scene, geometry, material, capacity) {
     this.capacity = capacity

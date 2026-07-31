@@ -9,6 +9,8 @@ import { ARENA_RADIUS } from '../world/Terrain.js'
 export const MAX_PROJECTILES = 1200
 export const PROJECTILE_KINDS = ['sword', 'talisman', 'vajra', 'butterfly', 'enemyShot', 'darkSword']
 
+const TRAIL_OPACITY = 0.5
+
 const HIT_MEMORY = 8
 const RETARGET_INTERVAL = 0.15
 /** Sentinel id for the boss in a projectile's already-hit memory. */
@@ -136,7 +138,7 @@ export class ProjectileManager {
     trailGeo.rotateX(-Math.PI / 2)
     this.trail = new THREE.InstancedMesh(
       trailGeo,
-      makeAdditiveMaterial({ color: 0xffffff, opacity: 0.5, map: glowTexture() }),
+      makeAdditiveMaterial({ color: 0xffffff, opacity: TRAIL_OPACITY, map: glowTexture() }),
       MAX_PROJECTILES,
     )
     this.trail.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
