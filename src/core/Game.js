@@ -125,6 +125,10 @@ export class Game {
     this.stage = stage
     this.scene = createScene(stage.palette)
     this.camera = new FollowCamera(Math.max(1, innerWidth) / Math.max(1, innerHeight))
+    // The rig is rebuilt per stage, so the player's zoom has to be reapplied
+    // here or it would silently reset every time they change 비경.
+    this._loadView()
+    this.camera._zoom = this.camera.zoom
     this.sun = this.scene.userData.sun
     this.terrain = new Terrain(this.scene, stage.palette)
     this.grass = new Grass(this.scene, 0, PLATEAU_RADIUS - 2, {
@@ -189,6 +193,28 @@ export class Game {
       onShop: () => { this.state = 'shop'; this.shop.show(() => { this.state = 'title'; this.title.show() }) },
       onCodex: () => { this.state = 'codex'; this.codex.show(() => { this.state = 'title'; this.title.show() }) },
     })
+  }
+
+  /**
+   * Zoom is a comfort setting, not run state — it lives beside the audio
+   * settings rather than in the save, so it survives a reset and does not
+   * travel with progress.
+   */
+  _saveView() {
+    try {
+      localStorage?.setItem('yeongheo.view', JSON.stringify({ zoom: this.camera.zoom }))
+    } catch {
+      // Private browsing. The zoom still works, it just will not be remembered.
+    }
+  }
+
+  _loadView() {
+    try {
+      const raw = JSON.parse(localStorage?.getItem('yeongheo.view') ?? 'null')
+      if (Number.isFinite(raw?.zoom)) this.camera.setZoom(raw.zoom)
+    } catch {
+      // Corrupt blob; the default is fine.
+    }
   }
 
   _persist() {
@@ -750,6 +776,12 @@ export class Game {
 
       // Pads are polled, not evented: read once a frame before anything asks.
       this.input.poll()
+
+      const zoomSteps = this.input.consumeZoom()
+      if (zoomSteps !== 0 && this.camera) {
+        this.camera.nudgeZoom(zoomSteps)
+        this._saveView()
+      }
 
       if (this.input.consumeDebug()) this.debug.toggle()
       if (this.input.consumeQuality()) {

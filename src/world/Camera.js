@@ -10,6 +10,22 @@ const FOLLOW_LAMBDA = 8
 const TRAUMA_DECAY = 1.6
 const MAX_SHAKE = 0.9
 
+/**
+ * How far the player may pull the camera in or out.
+ *
+ * There was no zoom at all — one fixed rig, which is cramped on a small window
+ * and wasteful on a large one, and there is no reason a player should not decide
+ * how much of the field they want to see.
+ *
+ * The range is deliberately narrow at the near end: below about 0.8 the horde
+ * arrives from outside the frame with no warning, which is not a preference,
+ * it is a broken game.
+ */
+export const ZOOM_MIN = 0.8
+export const ZOOM_MAX = 1.9
+const ZOOM_STEP = 0.12
+const ZOOM_LAMBDA = 12
+
 const _target = new THREE.Vector3()
 const _corner = new THREE.Vector3()
 
@@ -28,8 +44,32 @@ export class FollowCamera {
     this.trauma = 0
     this.time = 0
     this.viewRadius = 40
+    /**
+     * What the player asked for, and where the rig actually is — eased, so a
+     * wheel notch is a movement rather than a jump cut.
+     */
+    this.zoom = 1
+    this._zoom = 1
     this.setAspect(aspect)
     this.snapTo(0, 0)
+  }
+
+  /**
+   * Pull the camera in or out. Clamped, and deliberately does not touch
+   * `viewRadius`.
+   *
+   * `viewRadius` decides where enemies enter the arena, so letting zoom move it
+   * would mean zooming out spawns them further away and zooming in brings them
+   * closer — a difficulty slider disguised as a view preference. The spawn ring
+   * stays measured at the default rig; zoom changes only what you can see.
+   */
+  setZoom(z) {
+    this.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z))
+    return this.zoom
+  }
+
+  nudgeZoom(steps) {
+    return this.setZoom(this.zoom + steps * ZOOM_STEP)
   }
 
   setAspect(aspect) {
@@ -61,6 +101,7 @@ export class FollowCamera {
     const t = 1 - Math.exp(-FOLLOW_LAMBDA * dt)
     this.x += (x - this.x) * t
     this.z += (z - this.z) * t
+    this._zoom += (this.zoom - this._zoom) * (1 - Math.exp(-ZOOM_LAMBDA * dt))
     this.time += dt
     this.trauma = Math.max(0, this.trauma - TRAUMA_DECAY * dt)
     this._place()
@@ -76,7 +117,7 @@ export class FollowCamera {
     const sx = Math.sin(this.time * 37.1) * shake
     const sy = Math.sin(this.time * 29.7 + 1.7) * shake
     // A punch scales the whole offset, so the camera dips toward the action.
-    const k = 1 - (this.punch ?? 0) * 0.06
+    const k = (1 - (this.punch ?? 0) * 0.06) * this._zoom
     this.camera.position.set(
       this.x + OFFSET.x + sx,
       OFFSET.y * k + sy,

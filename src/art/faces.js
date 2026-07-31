@@ -26,15 +26,35 @@ function bothEyes(ctx, draw) {
   }
 }
 
+/**
+ * Brows.
+ *
+ * These used to span 96px against a 160px-wide eye and sit centred over it, so
+ * each one read as a small arc floating in the middle of the eye rather than as
+ * a brow above it — and the pair, with the gap between them, read as a dark "W"
+ * printed between the eyes. On every character.
+ *
+ * An anime brow is *wider* than the eye it sits over and clears the lash line,
+ * so it now overhangs on both sides and starts above the eye's top edge. It also
+ * tapers: thick at the inner end, fine at the outer, which is the difference
+ * between a drawn brow and a bent wire.
+ */
 function drawBrows(ctx, tilt, color) {
   bothEyes(ctx, (c) => {
     c.strokeStyle = color
-    c.lineWidth = 9
     c.lineCap = 'round'
-    c.beginPath()
-    c.moveTo(-52, -104 + tilt)
-    c.quadraticCurveTo(-6, -122, 44, -100 - tilt)
-    c.stroke()
+    for (const [t0, t1, w] of [[0, 0.55, 11], [0.5, 1, 7]]) {
+      // Two overlapping segments of a shared curve, drawn at different weights.
+      const p = (t) => [
+        -88 + t * 172,
+        -128 + tilt * (1 - t * 2) - Math.sin(t * Math.PI) * 16,
+      ]
+      c.lineWidth = w
+      c.beginPath()
+      c.moveTo(...p(t0))
+      c.quadraticCurveTo(...p((t0 + t1) / 2 - 0.06), ...p(t1))
+      c.stroke()
+    }
   })
 }
 

@@ -26,6 +26,21 @@ const DEADZONE = 0.18
 const AXIS_PRESS = 0.55
 
 /**
+ * Walks up from a wheel event's target looking for an element that can actually
+ * scroll — overflowing content *and* a style that permits it. Returns false in
+ * the test environment, where there is no real DOM and nothing to protect.
+ */
+function scrollableUnder(node) {
+  if (typeof getComputedStyle !== 'function') return false
+  for (let el = node; el && el.nodeType === 1; el = el.parentElement) {
+    if (el.scrollHeight <= el.clientHeight) continue
+    const oy = getComputedStyle(el).overflowY
+    if (oy === 'auto' || oy === 'scroll') return true
+  }
+  return false
+}
+
+/**
  * Keyboard input.
  *
  * Movement is normalised so diagonals are not faster. Edge-triggered actions are
@@ -81,9 +96,38 @@ export class Input {
     this._onKeyUp = (e) => { this.down.delete(e.code); this._recompute() }
     this._onBlur = () => { this.down.clear(); this._recompute() }
 
+    /**
+     * Camera zoom, accumulated and drained once a frame.
+     *
+     * A wheel event can fire many times between frames, and trackpads send
+     * dozens of small ones, so this sums deltas rather than counting events —
+     * otherwise a trackpad flick would slam the camera to a limit.
+     */
+    this._zoomAccum = 0
+    this._onWheel = (e) => {
+      // The 단전 shop and the codex scroll. Zooming the camera out from under a
+      // list the player is reading would be maddening, so a wheel that lands on
+      // something scrollable belongs to that thing, not to us.
+      if (scrollableUnder(e.target)) return
+      e.preventDefault?.()
+      // Wheel down (positive deltaY) pulls the camera out.
+      this._zoomAccum += Math.sign(e.deltaY) * Math.min(1, Math.abs(e.deltaY) / 100)
+    }
+
     target.addEventListener('keydown', this._onKeyDown)
     target.addEventListener('keyup', this._onKeyUp)
     target.addEventListener('blur', this._onBlur)
+    target.addEventListener('wheel', this._onWheel, { passive: false })
+  }
+
+  /** Zoom steps requested since the last call. Positive = further out. */
+  consumeZoom() {
+    // Keys are read live rather than latched: holding one should keep zooming.
+    let v = this._zoomAccum
+    this._zoomAccum = 0
+    if (this.down.has('Minus') || this.down.has('NumpadSubtract')) v += 0.14
+    if (this.down.has('Equal') || this.down.has('NumpadAdd')) v -= 0.14
+    return v
   }
 
   /** Recomputed on key change rather than per read, so `update` does no work. */
@@ -182,6 +226,7 @@ export class Input {
     this.target.removeEventListener('keydown', this._onKeyDown)
     this.target.removeEventListener('keyup', this._onKeyUp)
     this.target.removeEventListener('blur', this._onBlur)
+    this.target.removeEventListener('wheel', this._onWheel)
     this.down.clear()
   }
 }

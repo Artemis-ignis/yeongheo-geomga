@@ -111,6 +111,171 @@ function hairProfile() {
 }
 
 /**
+ * One lock of hair: a flattened, tapered blade that hugs the skull at the root
+ * and comes to a point at the tip.
+ *
+ * `wide` is the tangential width and `thick` the radial thickness, and the two
+ * are deliberately different — a lock with a round cross-section is a spike, and
+ * a head ringed with spikes is a pineapple. Hair is made of ribbons.
+ *
+ * `sweep` bends the lock sideways as it descends, which is the whole difference
+ * between bangs that were cut with a ruler and bangs that were styled.
+ */
+function hairLock({ len, wide, thick, sweep = 0, curl = 0, root, tip }) {
+  // The real radius goes through `radii`, not through a post-hoc scale.
+  //
+  // `limb` builds a radius-1 tube and its `radii` rescale each ring, so the
+  // usual `geo.scale(w, 1, t)` afterwards only squeezes X and Z — the tube keeps
+  // a full 1.0-unit bulge along Y wherever the curve is not vertical. Every lock
+  // was a metre-long spike hidden inside a thin ribbon, which is what turned the
+  // fringe into a spiked fan standing above her head. Sizing the rings up front
+  // is correct in all three axes; the scale below only sets the aspect.
+  const geo = limb(
+    [
+      [0, 0, 0],
+      [sweep * 0.25, -len * 0.36, curl * 0.3],
+      [sweep * 0.7, -len * 0.72, curl * 0.75],
+      [sweep, -len, curl],
+    ],
+    [wide, wide * 0.92, wide * 0.62, wide * 0.05], 10, 7,
+  )
+  geo.scale(1, 1, thick / wide)
+  // Tinted here rather than by the caller. Skipping this once left every lock
+  // painted the default white by buildColored, which under the warm key light
+  // came out a flat pale beige — the exact tone that got the whole model called
+  // a rice ball. An untinted lock is not a subtle bug; it is the whole problem.
+  gradient(geo, tip, root, 'y')
+  return geo
+}
+
+/**
+ * The hair, as one merged geometry instead of three dozen separate meshes.
+ *
+ * The previous crown was sixteen cones splayed almost horizontally around the
+ * skull plus twenty more ringing the hairline. From the play camera — which
+ * looks down at 52°, so the crown is most of what you see — that read as a
+ * jagged pale ring around a rounded lump, which is to say it read as a rice
+ * ball. That is not a figure of speech; it is what it was called, four times.
+ *
+ * What anime hair actually is at this scale is a small number of broad,
+ * pointed, *asymmetric* shapes. Seven bangs of varying length beat thirty-six
+ * uniform spikes, and merging them takes one character's head from ~38 draw
+ * calls to 1.
+ */
+/** Where the hairline sits, as a function of azimuth (0 = straight ahead). */
+const HAIRLINE_FRONT = 0.255
+const HAIRLINE_SIDE = -0.055
+const HAIRLINE_BACK = -0.20
+
+/**
+ * The crown, as a dome whose lower rim rides high over the brow and sweeps down
+ * past the ears to cover the back of the skull.
+ *
+ * A dome with a *level* rim is the thing that kept reading as a hat, and three
+ * previous attempts tried to fix that by decorating the rim instead of moving
+ * it. Real hair has no level rim anywhere: it is high at the forehead and low
+ * everywhere else, and that single asymmetry is what makes it hair.
+ *
+ * Built by taking a hemisphere and remapping each vertex's height so the
+ * hemisphere's equator lands on the target hairline for its own azimuth.
+ */
+function crownShell(radius) {
+  const geo = new THREE.SphereGeometry(radius, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.5)
+  const pos = geo.attributes.position
+  const top = radius
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)
+    const y = pos.getY(i)
+    const z = pos.getZ(i)
+    // 1 straight ahead, 0 at the back.
+    const front = (Math.cos(Math.atan2(x, z)) + 1) * 0.5
+    const rim = front > 0.5
+      ? HAIRLINE_SIDE + (HAIRLINE_FRONT - HAIRLINE_SIDE) * ((front - 0.5) * 2) ** 1.6
+      : HAIRLINE_BACK + (HAIRLINE_SIDE - HAIRLINE_BACK) * (front * 2)
+    pos.setY(i, rim + (y / top) * (top - rim))
+  }
+  pos.needsUpdate = true
+  geo.computeVertexNormals()
+  return geo
+}
+
+function buildHair(pal, style) {
+  const parts = []
+  const root = pal.hairRoot ?? shade(pal.hair, 0.55)
+  const tip = pal.hair
+
+  // Grown a little proud of the 0.42 skull so it reads as hair with volume
+  // rather than as paint on the scalp.
+  const crown = crownShell(0.44)
+  crown.scale(0.98, 1, 1.0)
+  crown.translate(0, 0, -0.015)
+  gradient(crown, root, tip, 'y')
+  parts.push([crown, {}])
+
+  // Bangs, hanging from the front rim to just above the brow. Lengths follow a
+  // low-frequency wave rather than a constant, and the wave is offset so the two
+  // halves do not mirror — a symmetric fringe is the most doll-like thing a face
+  // can wear. They sit slightly proud of the face shell so they overlap it.
+  const BANGS = 7
+  for (let i = 0; i < BANGS; i++) {
+    const t = i / (BANGS - 1)
+    // ±52°, not ±72°. Wider than this and the outermost bangs stop sitting on
+    // the forehead and start sticking out past the temples, which turns the
+    // whole upper silhouette into a spiked fan.
+    const a = (t - 0.5) * 1.82
+    // Short in the middle, long at the temples: a fringe that parts and opens
+    // the face, rather than one that hangs a lock down between the eyes. The
+    // previous wave peaked at centre and put a dark bar across the bridge of her
+    // nose that read as a scowl. The `t*0.06` skews the parting off-centre so
+    // the two halves are not mirrors.
+    const len = 0.105 + Math.abs(t - 0.5) * 0.30 + t * 0.06
+    const geo = hairLock({
+      len,
+      wide: 0.085 + Math.abs(0.5 - t) * 0.03,
+      thick: 0.036,
+      // Everything sweeps the same way, so the fringe has a parting and a
+      // direction instead of falling open down the middle.
+      sweep: 0.05 - t * 0.09,
+      root, tip,
+    })
+    parts.push([geo, {
+      ry: a,
+      x: Math.sin(a) * 0.40,
+      y: HAIRLINE_FRONT + 0.04,
+      z: Math.cos(a) * 0.40,
+    }])
+  }
+
+  // Side locks down past the jaw. Framing the face is most of what separates a
+  // character from a bald sphere with eyes drawn on it — but they frame it only
+  // if they stay beside it. At 0.062 wide and hung from the temples they were
+  // two curtains falling to the waist, wider than her head and reading as ears.
+  for (const side of [-1, 1]) {
+    const geo = hairLock({
+      len: style.sideLock ?? 0.34,
+      wide: 0.042, thick: 0.055,
+      sweep: side * 0.03,
+      root, tip,
+    })
+    parts.push([geo, { ry: side * 1.5, x: side * 0.345, y: 0.06, z: 0.09 }])
+  }
+
+  // Ahoge — the one strand that will not lie down. A stock chibi cue, and unlike
+  // everything else on the head it stands clear of the silhouette, so it
+  // survives being viewed from above at a hundred pixels tall.
+  if (style.ahoge !== false) {
+    const a = limb(
+      [[0, 0, 0], [0.01, 0.09, -0.03], [0.06, 0.15, -0.09], [0.13, 0.14, -0.12]],
+      [0.024, 0.017, 0.010, 0.0015], 12, 6,
+    )
+    gradient(a, tip, tip, 'y')
+    parts.push([a, { y: 0.40, z: -0.03 }])
+  }
+
+  return buildColored(parts)
+}
+
+/**
  * What makes each cultivator a different shape, as opposed to a different
  * palette.
  *
@@ -122,24 +287,26 @@ function hairProfile() {
  * on the head and something behind the shoulders.
  *
  * `skirt` is [waistRadius, hemRadius, dropDepth]. `crest` and `back` name the
- * shapes built further down.
+ * shapes built further down. `sideLock` is how far the face-framing hair falls,
+ * and it does more work than any other number here: it is the difference
+ * between a face and a sphere with eyes on it.
  */
 const SILHOUETTE = {
   // 검수: narrow and upright, with the sword-sash streamers behind.
-  seolryeong: { skirt: [0.17, 0.40, 0.26], crest: 'pin', back: 'streamers' },
+  seolryeong: { skirt: [0.17, 0.40, 0.26], crest: 'pin', back: 'streamers', sideLock: 0.42 },
   // 화염: short and wide, so she reads as planted when she burns something.
-  hongryeon: { skirt: [0.21, 0.52, 0.14], crest: 'topknot', back: 'tail' },
+  hongryeon: { skirt: [0.21, 0.52, 0.14], crest: 'topknot', back: 'tail', sideLock: 0.26 },
   // 요족: cropped robe that lets the tail carry the outline.
-  cheongmyo: { skirt: [0.16, 0.34, 0.10], crest: 'ears', back: 'tail' },
+  cheongmyo: { skirt: [0.16, 0.34, 0.10], crest: 'ears', back: 'tail', sideLock: 0.22 },
   // 독: a long trailing over-robe that drags.
-  byeongna: { skirt: [0.19, 0.44, 0.34], crest: 'veil', back: 'drape' },
+  byeongna: { skirt: [0.19, 0.44, 0.34], crest: 'veil', back: 'drape', sideLock: 0.38, ahoge: false },
   // 술사: tall scholar's cap over a narrow column.
-  mukyeon: { skirt: [0.16, 0.36, 0.32], crest: 'cap', back: 'drape' },
+  mukyeon: { skirt: [0.16, 0.36, 0.32], crest: 'cap', back: 'drape', sideLock: 0.30, ahoge: false },
   // 수집가: a broad 삿갓 and a full skirt.
-  baengno: { skirt: [0.22, 0.56, 0.18], crest: 'hat', back: 'streamers' },
+  baengno: { skirt: [0.22, 0.56, 0.18], crest: 'hat', back: 'streamers', sideLock: 0.32, ahoge: false },
 }
 
-const DEFAULT_SILHOUETTE = { skirt: [0.18, 0.44, 0.26], crest: 'pin', back: 'streamers' }
+const DEFAULT_SILHOUETTE = { skirt: [0.18, 0.44, 0.26], crest: 'pin', back: 'streamers', sideLock: 0.32 }
 
 export function buildChibi(character) {
   const pal = character.palette
@@ -149,7 +316,10 @@ export function buildChibi(character) {
   // 860-pixel frame — under 10% of screen height, and most of that was scalp.
   // The camera distance is tuned for how much of the horde has to be visible
   // and is not the thing to change, so she is scaled here instead.
-  root.scale.setScalar(1.34)
+  // 1.34 put her at roughly 110 pixels of a 720-pixel frame. The face is the
+  // most-worked part of the model and at that size none of it survives; nothing
+  // about the rig is derived from this scale, so it costs nothing to fix here.
+  root.scale.setScalar(1.52)
 
   const uniforms = {
     uTime: { value: 0 },
@@ -176,12 +346,16 @@ export function buildChibi(character) {
   // front with the face and buries the expression.
   const headPivot = new THREE.Group()
   headPivot.position.y = 1.36
-  // Tipped back toward the camera. The play camera looks down from 52°, and on
-  // an upright spherical head that means the player spends the whole run staring
-  // at the top of her scalp — the face, which is the entire point of the
-  // character, ends up as a thin band at the bottom of the head. Only .y is
-  // animated, so this base tilt survives.
-  headPivot.rotation.x = -0.34
+  // Tipped back toward the camera. The play camera looks down steeply, and on an
+  // upright spherical head that means the player spends the whole run staring at
+  // the top of her scalp — the face, which is the entire point of the character,
+  // ends up as a thin band at the bottom of the head. Only .y is animated, so
+  // this base tilt survives.
+  //
+  // -0.34 was not enough: at play distance the visible face was forehead and the
+  // upper half of the eyes. This is most of the way to facing the camera square,
+  // and stops short of the angle where the profile reads as staring at the sky.
+  headPivot.rotation.x = -0.50
   root.add(headPivot)
 
   // Slightly narrower and shorter than before. With the hair mass on top the
@@ -214,97 +388,10 @@ export function buildChibi(character) {
   hairBack.castShadow = true
   headPivot.add(hairBack)
 
-  // Crown: the hair volume on top and around the back. It stops above the brow —
-  // No smooth dome on the crown any more.
-  //
-  // Three versions of it were tried — larger than the skull, hugging the skull,
-  // with locks laid over the top — and every one still read as a cap set on her
-  // head. A smooth pale surface with a boundary is a hat; that is what the shape
-  // *is*, and no amount of shading argues with it. What is left underneath is a
-  // dark scalp, so any gap between the locks reads as depth in the hair rather
-  // than as bare skin, and the crown itself is built entirely out of the locks.
-  const scalp = new THREE.Mesh(
-    new THREE.SphereGeometry(0.405, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.52),
-    makeToonMaterial({ color: shade(pal.hair, 0.42), rim: 0.1 }),
-  )
-  scalp.position.y = 0.012
-  scalp.scale.set(1.0, 0.96, 0.965)
-  headPivot.add(scalp)
-
-  // Locks radiating from the crown point, overlapping enough to cover it.
-  const CAP_LOCKS = 16
-  for (let i = 0; i < CAP_LOCKS; i++) {
-    const a = (i / CAP_LOCKS) * Math.PI * 2 + 0.24
-    const ring = i % 2
-    // Two staggered rings, so the gaps in one are covered by the other.
-    // Past horizontal (pi/2), so the outer ring lies down the sides of the
-    // skull instead of standing out from it like the brim of a hat.
-    const tilt = ring ? 1.62 : 2.12
-    const len = ring ? 0.30 : 0.42
-    const top = new THREE.Mesh(new THREE.ConeGeometry(0.075, len, 5), hairMat)
-    // YXZ, not the default XYZ.
-    //
-    // A cone points along its own +Y, and under XYZ the azimuth rotation is
-    // applied to the vector before the tip-over, so it does nothing at all —
-    // every lock ended up tipped the same way regardless of where it sat on the
-    // ring, which turned the crown into a pineapple. YXZ tips first and spins
-    // the result, which is what "radiating from the crown" needs.
-    top.rotation.order = 'YXZ'
-    top.rotation.set(tilt, a, 0)
-    top.position.set(
-      Math.sin(a) * (ring ? 0.11 : 0.21),
-      0.33 - ring * 0.015,
-      Math.cos(a) * (ring ? 0.11 : 0.21),
-    )
-    top.scale.set(1, 1, 0.55)
-    top.castShadow = true
-    headPivot.add(top)
-  }
-
-  // Locks, as separate cones with gaps between them. Hair reads as hair because
-  // of the gaps and the points — a smooth surface never will, however well it is
-  // shaded. They ring the whole head rather than only the front: with a smooth
-  // crown edge everywhere except the fringe, the crown still read as a cap set
-  // on top of her head instead of as the top of her hair.
-  //
-  // Cones rather than tapered tubes along a spline. The tube is the nicer shape
-  // on paper, but its extent is hard to predict and the locks kept ending up
-  // above the skull entirely; a cone's apex and base are exactly where the
-  // numbers say. Same material as the back hair, so the colours match.
-  const HEAD_R = 0.42
-  const LOCKS = 20
-  const rootY = 0.235
-  const rootR = Math.sqrt(HEAD_R * HEAD_R - rootY * rootY) - 0.015
-  for (let i = 0; i < LOCKS; i++) {
-    const a = (i / LOCKS) * Math.PI * 2 - Math.PI
-    // `front` is 1 straight ahead and 0 at the back of the head.
-    const front = (Math.cos(a) + 1) * 0.5
-    if (front < 0.18) continue // the back is covered by the hairBack lathe
-    // Short over the brow, a little longer at the temples. Capped hard: the
-    // previous falloff produced 0.88 at the sides, which before the body scale
-    // hung a lock from each temple to below the chest — two flat boards down
-    // her flanks, measured at 1.02 units tall. These are bangs, not a curtain.
-    const len = 0.25 + (1 - front) * 0.15
-    const wide = 0.048 + front * 0.022
-    const lock = new THREE.Mesh(new THREE.ConeGeometry(wide, len, 5), hairMat)
-    // Apex down: a lock of hair comes to a point at its tip, not at its root.
-    lock.rotation.set(Math.PI, a, Math.sin(a) * 0.42)
-    lock.position.set(
-      Math.sin(a) * rootR,
-      rootY - len * 0.5 + 0.04,
-      Math.cos(a) * rootR,
-    )
-    // Flattened against the skull so it reads as a ribbon of hair, not a spike.
-    lock.scale.set(1, 1, 0.55)
-    lock.castShadow = true
-    headPivot.add(lock)
-  }
-
-  // The anime hair sheen used to be a translucent band wrapped round the crown.
-  // With the dome gone there is no smooth surface for it to sit on, and a ring
-  // floating over a field of separate locks was the last thing still drawing a
-  // hard horizontal line across the top of her head. The locks carry their own
-  // root-to-tip shading instead.
+  // Crown, bangs, side locks and ahoge, merged into one mesh. See buildHair.
+  const hair = new THREE.Mesh(buildHair(pal, sil), hairVertexMat)
+  hair.castShadow = true
+  headPivot.add(hair)
 
   const strands = []
   const addStrand = (x, y, z, len, rz, radius = 0.09) => {
@@ -316,11 +403,11 @@ export function buildChibi(character) {
     // planes reads as a carved board — which is exactly what these looked like.
     const geo = limb(
       [[0, 0, 0], [0, -len * 0.45, len * 0.06], [0, -len * 0.82, len * 0.02], [0, -len * 1.05, -len * 0.08]],
-      [1.0, 1.12, 0.78, 0.18], 12, 10,
+      // Real radii, not multipliers scaled afterwards. A post-hoc scale(r, 1, r)
+      // leaves the tube's full Y extent intact wherever the curve leans, which
+      // hung an invisible spike off every flick at the tip. See hairLock.
+      [radius, radius * 1.12, radius * 0.78, radius * 0.18], 12, 10,
     )
-    // limb() builds at a base radius of 1 and its `radii` are multipliers, so the
-    // cross-section has to be scaled to the real thickness here.
-    geo.scale(radius, 1, radius)
     gradient(geo, pal.hair, shade(pal.hair, 1.28), 'y')
     const m = new THREE.Mesh(geo, hairVertexMat)
     m.position.set(x, y - 1.36, z)

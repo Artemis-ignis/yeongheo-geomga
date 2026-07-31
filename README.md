@@ -8,26 +8,36 @@ Three.js로 만든 **뱀서라이크(Vampire Survivors-like)** 게임. 미소녀
 
 ## 실행
 
+### 그냥 하고 싶다면
+
+**`게임 시작.bat` 을 더블클릭하세요.** 그게 전부입니다.
+
+필요한 걸 알아서 준비하고 브라우저를 띄웁니다. 검은 창은 게임이 켜져 있는 동안
+그대로 두세요 — 닫으면 게임도 꺼집니다.
+
+처음 한 번은 [Node.js](https://nodejs.org) 설치가 필요합니다(LTS 버전). 없으면
+`.bat` 이 알려줍니다.
+
+> `dist/index.html` 을 직접 더블클릭하면 **빈 화면만 나옵니다.** 브라우저가
+> `file://` 경로에서는 ES 모듈을 실행하지 않기 때문입니다. 로컬 서버가 필요하고,
+> `.bat` 이 존재하는 이유가 그것입니다.
+
+### 터미널을 쓴다면
+
 ```bash
 npm install
+npm start          # 빌드하고 브라우저를 엽니다
 ```
+
+개발용:
 
 ```bash
-npm run dev
+npm run dev        # 핫 리로드, http://localhost:5173
+npm run build      # dist/ 로 빌드
+npm run preview    # 빌드 결과를 서빙
 ```
 
-브라우저가 열리면 캐릭터를 고르고 바로 시작합니다. WebGL2를 지원하는 최신 브라우저가
-필요합니다(Chrome, Edge, Firefox).
-
-빌드와 미리보기:
-
-```bash
-npm run build
-```
-
-```bash
-npm run preview
-```
+WebGL2를 지원하는 최신 브라우저가 필요합니다(Chrome, Edge, Firefox).
 
 ## 조작
 

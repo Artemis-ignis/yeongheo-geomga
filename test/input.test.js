@@ -270,8 +270,35 @@ describe('Input edge-triggered actions', () => {
   it('dispose removes every listener', () => {
     const t = makeTarget()
     const input = new Input(t)
-    expect(t.listenerCount).toBe(3)
+    expect(t.listenerCount).toBe(4)
     input.dispose()
     expect(t.listenerCount).toBe(0)
+  })
+
+  it('sums wheel deltas and drains them once', () => {
+    const t = makeTarget()
+    const input = new Input(t)
+    t.fire('wheel', { deltaY: 100 })
+    t.fire('wheel', { deltaY: 100 })
+    expect(input.consumeZoom()).toBeCloseTo(2)
+    expect(input.consumeZoom()).toBe(0)
+  })
+
+  it('clamps a single huge wheel delta so a trackpad flick cannot slam the rig', () => {
+    const t = makeTarget()
+    const input = new Input(t)
+    t.fire('wheel', { deltaY: 4000 })
+    expect(input.consumeZoom()).toBe(1)
+  })
+
+  it('keeps zooming while a zoom key is held', () => {
+    const t = makeTarget()
+    const input = new Input(t)
+    keyDown(t, 'Minus')
+    expect(input.consumeZoom()).toBeGreaterThan(0)
+    // Still held, so it must still report — unlike the latched actions.
+    expect(input.consumeZoom()).toBeGreaterThan(0)
+    keyUp(t, 'Minus')
+    expect(input.consumeZoom()).toBe(0)
   })
 })

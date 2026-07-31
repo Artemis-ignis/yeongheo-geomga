@@ -56,7 +56,7 @@ export class TitleScreen {
         </div>
 
         <div class="controls-legend">
-          WASD·방향키 이동 &nbsp;·&nbsp; Space 축지법 &nbsp;·&nbsp; P 일시정지 &nbsp;·&nbsp; 공격은 자동
+          WASD·방향키 이동 &nbsp;·&nbsp; Space 축지법 &nbsp;·&nbsp; 마우스 휠 화면 확대·축소 &nbsp;·&nbsp; P 일시정지 &nbsp;·&nbsp; 공격은 자동
         </div>
       </div>`
     root.appendChild(this.node)
