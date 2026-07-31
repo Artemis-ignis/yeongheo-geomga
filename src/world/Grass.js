@@ -139,6 +139,17 @@ export class Grass {
          * the floor's own value and the less every blade edge costs.
          */
         uContactHeight: { value: 0.75 },
+        /**
+         * Pulls the field toward its own luminance.
+         *
+         * Calming the blade-to-ground contrast had a side effect worth naming:
+         * with the bright tips pulled back, nearly every pixel of ground became
+         * the one deeply saturated base green, and the frame measured 0.98 mean
+         * saturation — above even the 0.97 ceiling. Quiet and garish at once.
+         * The field is the largest object in the game and does not need to be
+         * the most colourful thing in it.
+         */
+        uSaturation: { value: 0.78 },
       },
       vertexShader: `
         attribute vec3 aOffset;
@@ -201,6 +212,7 @@ export class Grass {
         uniform float uTintDrift;
         uniform float uContact;
         uniform float uContactHeight;
+        uniform float uSaturation;
         varying float vH;
         varying float vShade;
         varying float vTint;
@@ -219,6 +231,9 @@ export class Grass {
           // instead of sitting on top of it like cut-outs. This contact shading
           // is doing the job an ambient occlusion pass would, for free.
           col *= ( 1.0 - uContact ) + uContact * smoothstep( 0.0, uContactHeight, vH );
+
+          // Ease the field off its own hue. See uSaturation.
+          col = mix( vec3( dot( col, vec3( 0.2126, 0.7152, 0.0722 ) ) ), col, uSaturation );
 
           // Matches the scene's FogExp2 so the field recedes with everything else.
           float f = 1.0 - exp( - uFogDensity * uFogDensity * vFogDepth * vFogDepth );

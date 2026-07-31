@@ -10,6 +10,76 @@
  *
  * Exposed as `window.__tone()`.
  */
+/**
+ * Install `window.__salience(projectFn, width, height, boxPx)`.
+ *
+ * Answers one question the other metrics cannot: is the player the thing your
+ * eye goes to? She is the only object on screen you must never lose, and in a
+ * genre that fills the frame with light it is entirely possible for her to end
+ * up dimmer than the wallpaper.
+ *
+ * `projectFn(width, height)` returns her pixel position, supplied by the caller
+ * so this file stays free of scene knowledge. Returns her mean luminance, the
+ * frame's, and where she falls in the frame's own brightness distribution.
+ */
+export function installSalience(renderer, drawFrame) {
+  if (typeof window === 'undefined') return
+  window.__salience = (projectFn, width = 480, height = 270, boxPx = 26) => {
+    const prevRatio = renderer.getPixelRatio()
+    const prev = renderer.getSize({ x: 0, y: 0, set(x, y) { this.x = x; this.y = y; return this } })
+    renderer.setPixelRatio(1)
+    renderer.setSize(width, height, false)
+    drawFrame(width, height)
+    drawFrame(width, height)
+
+    const gl = renderer.getContext()
+    const pixels = new Uint8Array(width * height * 4)
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+    renderer.setPixelRatio(prevRatio)
+    renderer.setSize(prev.x, prev.y, false)
+
+    const luma = new Float32Array(width * height)
+    for (let i = 0; i < luma.length; i++) {
+      luma[i] = (0.2126 * pixels[i * 4] + 0.7152 * pixels[i * 4 + 1] + 0.0722 * pixels[i * 4 + 2]) / 255
+    }
+
+    const p = projectFn(width, height)
+    // readPixels is bottom-up.
+    const py = height - 1 - Math.round(p.y)
+    const px = Math.round(p.x)
+    const half = Math.round(boxPx / 2)
+    let sum = 0
+    let n = 0
+    let peak = 0
+    for (let y = Math.max(0, py - half); y <= Math.min(height - 1, py + half); y++) {
+      for (let x = Math.max(0, px - half); x <= Math.min(width - 1, px + half); x++) {
+        const l = luma[y * width + x]
+        sum += l
+        if (l > peak) peak = l
+        n++
+      }
+    }
+    const her = n ? sum / n : 0
+    const frame = luma.reduce((a, b) => a + b, 0) / luma.length
+    const sorted = Array.from(luma).sort((a, b) => a - b)
+    const pct = (f) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * f))]
+    // What share of the frame is brighter than she is.
+    let brighter = 0
+    for (let i = 0; i < luma.length; i++) if (luma[i] > her) brighter++
+
+    return {
+      her: +her.toFixed(4),
+      herPeak: +peak.toFixed(4),
+      frame: +frame.toFixed(4),
+      ratio: +(her / Math.max(1e-4, frame)).toFixed(2),
+      brighterShare: +(brighter / luma.length).toFixed(4),
+      frameP90: +pct(0.9).toFixed(4),
+      frameP99: +pct(0.99).toFixed(4),
+      at: { x: px, y: py },
+    }
+  }
+}
+
 export function installToneCheck(renderer, drawFrame) {
   if (typeof window === 'undefined') return
 

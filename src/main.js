@@ -3,7 +3,7 @@ import { Game } from './core/Game.js'
 import { installCapture, installStepper, installUICapture } from './dev/capture.js'
 import { installBalanceProbe } from './dev/balanceProbe.js'
 import {
-  installToneCheck, installModelTone, checkTone, MODEL_TONE_LIMITS,
+  installToneCheck, installModelTone, installSalience, checkTone, MODEL_TONE_LIMITS,
 } from './dev/toneCheck.js'
 
 const canvas = document.getElementById('scene')
@@ -29,6 +29,7 @@ if (!isWebGL2Available()) {
     installUICapture(hudRoot)
     installBalanceProbe(game)
     installToneCheck(game.renderer, drawAt)
+    installSalience(game.renderer, drawAt)
     installModelTone(game.renderer, game.scene, game.camera.camera, () => {
       // Subjects: the horde plus whichever character is on screen.
       const subjects = []
