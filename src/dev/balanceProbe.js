@@ -44,12 +44,13 @@ function withRoster(
   {
     hpMul = 1, speedMul = 1, damageMul = 1, quadPeriod, linear,
     densityMul = 1, densityFrom = 0, densityTo = Infinity, ringMul, evoPassiveLevel,
+    xpMul = 1,
   },
   body,
 ) {
   const ring = SPAWN_RING.mul
   const gate = EVOLUTION_GATE.passiveLevel
-  const roster = ENEMIES.map((e) => ({ hp: e.hp, speed: e.speed, damage: e.damage }))
+  const roster = ENEMIES.map((e) => ({ hp: e.hp, speed: e.speed, damage: e.damage, xp: e.xp }))
   const scaling = { ...HP_SCALING }
   const waves = WAVES.map((w) => w.perSpawn)
   if (densityMul !== 1) {
@@ -63,6 +64,7 @@ function withRoster(
     e.hp = roster[i].hp * hpMul
     e.speed = roster[i].speed * speedMul
     e.damage = roster[i].damage * damageMul
+    e.xp = roster[i].xp * xpMul
   })
   if (quadPeriod !== undefined) HP_SCALING.quadPeriod = quadPeriod
   if (linear !== undefined) HP_SCALING.linear = linear
@@ -73,7 +75,10 @@ function withRoster(
   } finally {
     SPAWN_RING.mul = ring
     EVOLUTION_GATE.passiveLevel = gate
-    ENEMIES.forEach((e, i) => { e.hp = roster[i].hp; e.speed = roster[i].speed; e.damage = roster[i].damage })
+    ENEMIES.forEach((e, i) => {
+      e.hp = roster[i].hp; e.speed = roster[i].speed
+      e.damage = roster[i].damage; e.xp = roster[i].xp
+    })
     Object.assign(HP_SCALING, scaling)
     WAVES.forEach((w, i) => { w.perSpawn = waves[i] })
   }
