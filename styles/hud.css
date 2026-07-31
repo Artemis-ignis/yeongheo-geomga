@@ -299,6 +299,43 @@ body {
 }
 .screen-inner { width: min(1040px, 94vw); text-align: center; }
 
+/*
+ * Screens and the level-up card arrive rather than appear.
+ *
+ * Every one of these was a display swap, so the game cut to a menu the way a
+ * broken video cuts to black. A CSS animation restarts on its own when an
+ * element goes from display:none to visible, which is exactly the lifecycle
+ * these already have — no code changes, no state to keep.
+ *
+ * Deliberately short. The level-up card interrupts a fight that is still moving
+ * underneath it, and a menu that takes half a second to settle is worse than one
+ * that snaps: the player is waiting to get back to the thing they were doing.
+ * 160ms for the wash, 220ms for the content, and the cards stagger over 90ms so
+ * the eye lands on the first one.
+ */
+@keyframes screen-wash { from { opacity: 0; } to { opacity: 1; } }
+@keyframes screen-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.988); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes card-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+.screen, .modal-backdrop { animation: screen-wash 0.16s ease-out both; }
+.screen-inner, .modal-panel { animation: screen-rise 0.22s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+/* The three choices land left to right. */
+.modal-cards > * { animation: card-rise 0.26s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+.modal-cards > *:nth-child(2) { animation-delay: 0.045s; }
+.modal-cards > *:nth-child(3) { animation-delay: 0.09s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .screen, .modal-backdrop, .screen-inner, .modal-panel, .modal-cards > * {
+    animation: none;
+  }
+}
+
 .title-mark { font-size: 56px; letter-spacing: 0.4em; color: var(--gold); text-shadow: 0 6px 26px rgba(0, 0, 0, 0.9); }
 .title-sub { margin-top: 6px; font-size: 20px; letter-spacing: 0.34em; color: #cfe0d8; }
 .title-tag { margin-top: 12px; font-size: 13px; color: #8b98a6; letter-spacing: 0.06em; }
