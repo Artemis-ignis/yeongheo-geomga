@@ -4,7 +4,7 @@ import { SpatialHash } from '../core/SpatialHash.js'
 import { rollDamage, knockbackImpulse } from '../combat/damage.js'
 import { ENEMIES, ENEMY_INDEX, scaledDamage, scaledHp, scaledXp } from '../data/enemies.js'
 import { waveAt } from '../data/waves.js'
-import { FORMATIONS, formationAngles } from '../data/formations.js'
+import { FORMATIONS, formationAngles, formationType } from '../data/formations.js'
 import { rosterFor } from '../data/stages.js'
 import { buildEnemyGeometry } from '../art/enemyGeometry.js'
 import { makeToonMaterial } from '../art/materials.js'
@@ -12,6 +12,9 @@ import { uploadInstances } from '../art/instancing.js'
 import { ARENA_RADIUS } from '../world/Terrain.js'
 
 export const MAX_ENEMIES = 900
+
+/** Enemy defs keyed by id, for `formationType`. */
+const ENEMY_BY_ID = Object.fromEntries(ENEMIES.map((e) => [e.id, e]))
 
 const CELL_SIZE = 4
 const SEPARATION_STRENGTH = 14
@@ -108,6 +111,22 @@ export class EnemyManager {
     this.facing = new Float32Array(MAX_ENEMIES)
     this.slowT = new Float32Array(MAX_ENEMIES)
     this.slowAmt = new Float32Array(MAX_ENEMIES)
+    /**
+     * Per-instance speed multiplier, 1 for everything that walks in normally.
+     *
+     * Only 진 members carry anything else. The roster is deliberately slower
+     * than the player — the note on `scaledHp` explains why, and it is right:
+     * a horde that outruns her deletes the kiting the whole game is built on.
+     * But taken absolutely it also means nothing can ever close on a player who
+     * is simply leaving, and the numbers say so. She starts at 5.7 and a bought
+     * 단전 puts her at 6.6, while the fastest thing in the table is 재까마귀 at
+     * 5.4 and every elite is a tank at 1.3 to 3.4. Measured on a maxed save,
+     * minutes five through eleven ran at zero contact even with rings of elites
+     * dropped nine units away: they were still walking when she left.
+     *
+     * A 진 is an ambush rather than a chase, so its members get to move like one.
+     */
+    this.haste = new Float32Array(MAX_ENEMIES).fill(1)
     this.freezeT = new Float32Array(MAX_ENEMIES)
     this.burnT = new Float32Array(MAX_ENEMIES)
     this.burnDps = new Float32Array(MAX_ENEMIES)
@@ -188,6 +207,7 @@ export class EnemyManager {
     this.type[to] = this.type[from]; this.scale[to] = this.scale[from]
     this.facing[to] = this.facing[from]
     this.slowT[to] = this.slowT[from]; this.slowAmt[to] = this.slowAmt[from]
+    this.haste[to] = this.haste[from]
     this.freezeT[to] = this.freezeT[from]
     this.burnT[to] = this.burnT[from]; this.burnDps[to] = this.burnDps[from]
     this.burnTick[to] = this.burnTick[from]
@@ -203,7 +223,7 @@ export class EnemyManager {
     if (moved !== -1) this._moveSlot(moved, i)
   }
 
-  spawn(enemyId, x, z, runTime, scaleMul = 1, hpMul = 1) {
+  spawn(enemyId, x, z, runTime, scaleMul = 1, hpMul = 1, haste = 1) {
     const t = ENEMY_INDEX.get(enemyId)
     if (t === undefined) return -1
     const i = this.pool.acquire()
@@ -220,6 +240,7 @@ export class EnemyManager {
     this.scale[i] = def.scale * scaleMul
     this.facing[i] = 0
     this.slowT[i] = 0; this.slowAmt[i] = 0; this.freezeT[i] = 0
+    this.haste[i] = haste
     this.burnT[i] = 0; this.burnDps[i] = 0; this.burnTick[i] = 0
     this.hitCd[i] = 0
     this.stateT[i] = this.rng.next() * 3
@@ -429,9 +450,9 @@ export class EnemyManager {
     while (this._nextFormation < FORMATIONS.length && FORMATIONS[this._nextFormation].t <= runTime) {
       const f = FORMATIONS[this._nextFormation++]
       // A 진 still has to be made of things that belong in this 비경, or the
-      // stage rosters stop meaning anything. `rosterFor` falls back to the
-      // stage's own first entry when the named type is not allowed here.
-      const type = rosterFor(this.stage, [f.type])[0]
+      // stage rosters stop meaning anything — but the substitute has to be the
+      // toughest thing the 비경 allows, not the first. See `formationType`.
+      const type = formationType(f.type, this.stage?.roster, ENEMY_BY_ID)
       // Orient to where she is going, so a wall is the thing she was running
       // toward rather than a surprise behind her.
       const moving = player.x !== player.prevX || player.z !== player.prevZ
@@ -447,7 +468,7 @@ export class EnemyManager {
           x *= k
           z *= k
         }
-        this.spawn(type, x, z, runTime)
+        this.spawn(type, x, z, runTime, 1, 1, f.haste ?? 1)
       }
       if (this.onFormation) this.onFormation(f)
     }
@@ -511,7 +532,7 @@ export class EnemyManager {
 
       if (dist * dist > despawnR2) { this._recycle(i, player, camera); continue }
 
-      let speed = def.speed * (1 - this.slowAmt[i])
+      let speed = def.speed * this.haste[i] * (1 - this.slowAmt[i])
       this.stateT[i] += dt
 
       // Steering direction, normalised. Straight at the player unless a

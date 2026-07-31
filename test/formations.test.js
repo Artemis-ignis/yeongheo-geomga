@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { FORMATIONS, formationAngles } from '../src/data/formations.js'
-import { ENEMY_INDEX } from '../src/data/enemies.js'
+import { FORMATIONS, formationAngles, formationType } from '../src/data/formations.js'
+import { STAGES } from '../src/data/stages.js'
+import { ENEMIES, ENEMY_INDEX } from '../src/data/enemies.js'
 import { RUN_SECONDS } from '../src/data/waves.js'
 
 /**
@@ -95,11 +96,95 @@ describe('the formation timeline', () => {
     expect(FORMATIONS.length / (RUN_SECONDS / 60)).toBeLessThan(1)
   })
 
+  it('builds the late 진 out of elites, which a finished build cannot delete', () => {
+    // A ring of fodder at minute nine is a light show to a loadout that has come
+    // together. Measured on a maxed 단전, minutes five through eleven sat at zero
+    // danger exposure while the drizzle underneath was already at fifteen spawns
+    // a second — nothing arriving in that window had the health to survive
+    // contact. From 7:00 the formations are the one pressure that does not
+    // evaporate when the player gets strong, so they have to be made of things
+    // that take a while to kill.
+    const late = FORMATIONS.filter((f) => f.t >= 420)
+    expect(late.length, 'the late game has no 진 at all').toBeGreaterThanOrEqual(5)
+    for (const f of late) {
+      const def = ENEMIES[ENEMY_INDEX.get(f.type)]
+      expect(def.elite, `${f.t}s fields "${f.type}", which is not an elite`).toBe(true)
+    }
+    // And the early ones must not be, or the opening becomes a wall.
+    for (const f of FORMATIONS.filter((x) => x.t < 420)) {
+      const def = ENEMIES[ENEMY_INDEX.get(f.type)]
+      expect(def.elite, `${f.t}s opens with an elite 진`).toBeFalsy()
+    }
+  })
+
+  it('keeps the elite 진 small enough to fight through', () => {
+    // 빙벽수 carries 640 health before scaling. Twenty is a wall; forty is a
+    // sentence.
+    for (const f of FORMATIONS.filter((x) => x.t >= 420)) {
+      expect(f.count, `${f.t}s fields ${f.count} elites`).toBeLessThanOrEqual(20)
+    }
+  })
+
   it('spawns inside the 결계 but outside arm\'s reach', () => {
     for (const f of FORMATIONS) {
-      expect(f.radius).toBeGreaterThan(10)
+      expect(f.radius).toBeGreaterThan(8)
       expect(f.radius).toBeLessThan(20)
       expect(f.count).toBeGreaterThan(8)
+    }
+  })
+
+  it('puts slow members where they can actually arrive', () => {
+    // 빙벽수 moves at 1.3 against a player doing 5.7 and climbing. Dropped at 16
+    // units it spends twelve seconds walking to where she was, and measured that
+    // way it was worth no more than fodder. Anything that stays slower than half
+    // her pace even after `haste` has to start inside her working distance.
+    const player = 5.7
+    for (const f of FORMATIONS) {
+      const def = ENEMIES[ENEMY_INDEX.get(f.type)]
+      if (def.speed * (f.haste ?? 1) >= player / 2) continue
+      expect(f.radius, `${f.t}s drops ${f.type} at ${f.radius}`).toBeLessThanOrEqual(10)
+    }
+  })
+
+  it('hastens 진 members enough to close, and never past a sprint', () => {
+    // The point is that they cut her off, not that they chase her down. Above
+    // her own top speed a 진 stops being an ambush and becomes unavoidable.
+    const player = 5.7
+    for (const f of FORMATIONS) {
+      const def = ENEMIES[ENEMY_INDEX.get(f.type)]
+      const speed = def.speed * (f.haste ?? 1)
+      expect(speed, `${f.t}s: ${f.type} at ${speed.toFixed(1)} outruns her`).toBeLessThanOrEqual(player * 1.05)
+    }
+  })
+
+  it('substitutes the toughest creature a 비경 allows, never its weakest', () => {
+    /**
+     * 빙벽수 exists only in 한천비경 and 용암귀 only in 적염비경, so a 진 naming
+     * one has to field something else elsewhere. Routing that through the wave
+     * table's `rosterFor` picked the roster's *first* entry, which is 마기 잔영
+     * — every elite 진 in 청람비경 was fielding the weakest creature in the game.
+     * It was invisible in every danger number and obvious the moment I read one
+     * ring's health: 84 apiece where 빙벽수 should have been 3350.
+     */
+    const byId = Object.fromEntries(ENEMIES.map((e) => [e.id, e]))
+    for (const stage of STAGES) {
+      for (const f of FORMATIONS.filter((x) => x.t >= 420)) {
+        const got = formationType(f.type, stage.roster, byId)
+        expect(stage.roster.includes(got), `${stage.id} fields "${got}", not in its roster`).toBe(true)
+        if (got === f.type) continue
+        // A substitute must be the heaviest thing available, and never fodder.
+        const heaviest = stage.roster.reduce((a, b) => (byId[b].hp > byId[a].hp ? b : a))
+        expect(got, `${stage.id} swapped ${f.type} for ${got}`).toBe(heaviest)
+        expect(byId[got].hp, `${stage.id} substituted fodder`).toBeGreaterThan(byId.wisp.hp * 4)
+      }
+    }
+  })
+
+  it('leaves the ordinary horde alone', () => {
+    // Only 진 carry haste. If this ever reads true of the wave table instead,
+    // the kiting the whole game is built on has quietly been removed.
+    for (const f of FORMATIONS.filter((x) => x.t < 420)) {
+      expect(f.haste ?? 1, `the opening 진 at ${f.t}s is hastened`).toBe(1)
     }
   })
 })
