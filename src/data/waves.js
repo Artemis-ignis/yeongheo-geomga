@@ -5,8 +5,25 @@
 export const RUN_SECONDS = 900
 
 /**
- * The opening is deliberately sparse: at 0:00 the player has one level-1 법보
- * and cannot clear a crowd.
+ * The opening used to be deliberately sparse, on the reasoning that a player
+ * holding one level-1 법보 cannot clear a crowd. That reasoning was sound and
+ * the numbers were far too timid. Measured on a fresh save — no 단전 at all,
+ * which is what a first run actually is — it produced two and a half minutes in
+ * which nothing ever came within contact range: 86% of the run's minutes at zero
+ * threat, then death at 4:11 the moment 석귀 arrived with four times the health
+ * of anything seen so far. Boring, then abrupt.
+ *
+ * The opening now starts at 3.8 spawns a second and climbs smoothly to the 9.5
+ * the table already reached at 7:30, instead of crawling from 1.3. The first
+ * attempt simply tripled the first six bands, which measured well and was wrong:
+ * it put 9.2 a second at 2:30 and then dropped back to 3.2 at 3:00, a cliff
+ * downward in the middle of the run. `test/waves.test.js` caught it, which is
+ * the entire reason that test exists.
+ *
+ * Density cannot carry an opening by itself: more enemies is more 영기, which is
+ * levels, which is damage, and the danger column barely moves. It works only in
+ * company with the shorter entry ring in `EnemyManager.SPAWN_RING`, which is
+ * what lets any of them arrive at all.
  *
  * From 7:00 the counts ramp to roughly three times what they were, and that is
  * where the run's only real threat comes from. Measured with `window.__probe`
@@ -26,22 +43,22 @@ export const RUN_SECONDS = 900
  * have room where it dies around 13:30.
  */
 export const WAVES = [
-  { t: 0, spawnInterval: 1.60, perSpawn: 2, types: ['wisp'] },
-  { t: 30, spawnInterval: 1.50, perSpawn: 2, types: ['wisp'] },
-  { t: 60, spawnInterval: 1.45, perSpawn: 3, types: ['wisp'] },
-  { t: 90, spawnInterval: 1.40, perSpawn: 3, types: ['wisp', 'wolf'] },
-  { t: 120, spawnInterval: 1.35, perSpawn: 3, types: ['wisp', 'wolf'] },
-  { t: 150, spawnInterval: 1.30, perSpawn: 4, types: ['wisp', 'wolf', 'stoneGhoul', 'emberSprite', 'frostWolf'] },
-  { t: 180, spawnInterval: 1.25, perSpawn: 4, types: ['wisp', 'wolf', 'stoneGhoul'] },
-  { t: 210, spawnInterval: 1.20, perSpawn: 4, types: ['wolf', 'stoneGhoul', 'talismanGhost', 'jadeSerpent', 'emberSprite', 'frostWolf'] },
-  { t: 240, spawnInterval: 1.15, perSpawn: 5, types: ['wisp', 'wolf', 'talismanGhost'] },
-  { t: 270, spawnInterval: 1.10, perSpawn: 5, types: ['wolf', 'talismanGhost', 'bloodScorpion', 'jadeSerpent', 'ashRaven', 'snowWraith'] },
-  { t: 300, spawnInterval: 1.05, perSpawn: 5, types: ['wisp', 'wolf', 'bloodScorpion'] },
-  { t: 330, spawnInterval: 1.00, perSpawn: 6, types: ['wolf', 'stoneGhoul', 'bloodScorpion', 'jadeSerpent', 'ashRaven', 'snowWraith'] },
-  { t: 360, spawnInterval: 0.95, perSpawn: 6, types: ['wisp', 'wolf', 'talismanGhost', 'bloodScorpion'] },
-  { t: 390, spawnInterval: 0.90, perSpawn: 6, types: ['wolf', 'stoneGhoul', 'talismanGhost', 'magmaBrute', 'glacierWarden'] },
+  { t: 0, spawnInterval: 1.60, perSpawn: 6, types: ['wisp'] },
+  { t: 30, spawnInterval: 1.50, perSpawn: 6, types: ['wisp'] },
+  { t: 60, spawnInterval: 1.45, perSpawn: 7, types: ['wisp'] },
+  { t: 90, spawnInterval: 1.40, perSpawn: 7, types: ['wisp', 'wolf'] },
+  { t: 120, spawnInterval: 1.35, perSpawn: 8, types: ['wisp', 'wolf'] },
+  { t: 150, spawnInterval: 1.30, perSpawn: 8, types: ['wisp', 'wolf', 'stoneGhoul', 'emberSprite', 'frostWolf'] },
+  { t: 180, spawnInterval: 1.25, perSpawn: 8, types: ['wisp', 'wolf', 'stoneGhoul'] },
+  { t: 210, spawnInterval: 1.20, perSpawn: 8, types: ['wolf', 'stoneGhoul', 'talismanGhost', 'jadeSerpent', 'emberSprite', 'frostWolf'] },
+  { t: 240, spawnInterval: 1.15, perSpawn: 8, types: ['wisp', 'wolf', 'talismanGhost'] },
+  { t: 270, spawnInterval: 1.10, perSpawn: 8, types: ['wolf', 'talismanGhost', 'bloodScorpion', 'jadeSerpent', 'ashRaven', 'snowWraith'] },
+  { t: 300, spawnInterval: 1.05, perSpawn: 8, types: ['wisp', 'wolf', 'bloodScorpion'] },
+  { t: 330, spawnInterval: 1.00, perSpawn: 8, types: ['wolf', 'stoneGhoul', 'bloodScorpion', 'jadeSerpent', 'ashRaven', 'snowWraith'] },
+  { t: 360, spawnInterval: 0.95, perSpawn: 8, types: ['wisp', 'wolf', 'talismanGhost', 'bloodScorpion'] },
+  { t: 390, spawnInterval: 0.90, perSpawn: 8, types: ['wolf', 'stoneGhoul', 'talismanGhost', 'magmaBrute', 'glacierWarden'] },
   // The ramp starts here.
-  { t: 420, spawnInterval: 0.88, perSpawn: 7, types: ['wisp', 'wolf', 'bloodScorpion', 'demonCultivator'] },
+  { t: 420, spawnInterval: 0.88, perSpawn: 8, types: ['wisp', 'wolf', 'bloodScorpion', 'demonCultivator'] },
   { t: 450, spawnInterval: 0.84, perSpawn: 8, types: ['wolf', 'stoneGhoul', 'demonCultivator', 'magmaBrute', 'glacierWarden'] },
   { t: 480, boss: 'blueWolfKing', spawnInterval: 1.60, perSpawn: 4, types: ['wolf'] },
   { t: 510, spawnInterval: 0.82, perSpawn: 11, types: ['wisp', 'wolf', 'talismanGhost', 'bloodScorpion'] },

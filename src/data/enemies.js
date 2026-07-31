@@ -112,18 +112,27 @@ export function getEnemy(id) {
  * move one term at a time and read the danger column back out. Every number
  * below was chosen from that table, not from taste.
  */
-export const HP_SCALING = { linear: 0.28, quadPeriod: 4.6 }
+export const HP_SCALING = { linear: 0.28, quadPeriod: 6 }
 
 /**
  * Enemies get tougher as the run goes on.
  *
- * `quadPeriod` was 6, and that is where the run had no ending: measured over
- * full 900-second runs the player finished with her health above 94% and eleven
- * of fifteen minutes containing no threat at all, because the term reaches only
- * 11.4x by the last minute while a maxed loadout is worth far more than that
- * against a level-one one. At 4.6 the same term reaches 15.8x, which barely
- * moves the opening — 2.27x against 2.09x at three minutes, where she is still
- * holding one 법보 — and bites where the quiet actually was.
+ * The late game is answered by numbers, not health — see the note on WAVES.
+ * Steepening the quadratic instead was tried twice and measured both times:
+ * `quadPeriod` 4.6 lands inside run-to-run noise, and the 2.8 that does bite at
+ * fifteen minutes kills the player at four on the way there, because a
+ * quadratic steep at the end is steep in the middle too.
+ *
+ * A flat toughness multiplier over the whole curve was also tried, at 1.15, and
+ * removed. It appeared to put danger into the first half of the run, but that
+ * reading came from runs measured against a browser save with the entire 단전
+ * bought — the confound `withMeta` in the balance probe now exists to prevent.
+ * Compared properly on a fresh save it sits inside noise (223/264/223 seconds
+ * against 233/270/195), and it costs the invariant that an enemy at 0:00 has the
+ * health its table row says it has.
+ *
+ * The opening was fixed where the measurement actually pointed: more of them,
+ * entering closer. See `WAVES` and `EnemyManager.SPAWN_RING`.
  */
 export function scaledHp(enemy, minutes) {
   return enemy.hp * (1 + minutes * HP_SCALING.linear + (minutes / HP_SCALING.quadPeriod) ** 2)

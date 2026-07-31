@@ -24,6 +24,8 @@
 
 import { ENEMIES, HP_SCALING } from '../data/enemies.js'
 import { WAVES } from '../data/waves.js'
+import { META_UPGRADES } from '../data/metaUpgrades.js'
+import { SPAWN_RING } from '../entities/EnemyManager.js'
 
 /**
  * Scale the roster for one probe run and restore it afterwards.
@@ -38,30 +40,74 @@ import { WAVES } from '../data/waves.js'
  * to reach the same level 82.
  */
 function withRoster(
-  { hpMul = 1, speedMul = 1, damageMul = 1, quadPeriod, linear, densityMul = 1, densityFrom = 0 },
+  {
+    hpMul = 1, speedMul = 1, damageMul = 1, quadPeriod, linear,
+    densityMul = 1, densityFrom = 0, densityTo = Infinity, ringMul,
+  },
   body,
 ) {
-  const base = ENEMIES.map((e) => ({ hp: e.hp, speed: e.speed, damage: e.damage }))
+  const ring = SPAWN_RING.mul
+  const roster = ENEMIES.map((e) => ({ hp: e.hp, speed: e.speed, damage: e.damage }))
   const scaling = { ...HP_SCALING }
   const waves = WAVES.map((w) => w.perSpawn)
   if (densityMul !== 1) {
     WAVES.forEach((w, i) => {
-      if (w.t >= densityFrom) w.perSpawn = Math.max(1, Math.round(waves[i] * densityMul))
+      if (w.t >= densityFrom && w.t <= densityTo) {
+        w.perSpawn = Math.max(1, Math.round(waves[i] * densityMul))
+      }
     })
   }
   ENEMIES.forEach((e, i) => {
-    e.hp = base[i].hp * hpMul
-    e.speed = base[i].speed * speedMul
-    e.damage = base[i].damage * damageMul
+    e.hp = roster[i].hp * hpMul
+    e.speed = roster[i].speed * speedMul
+    e.damage = roster[i].damage * damageMul
   })
   if (quadPeriod !== undefined) HP_SCALING.quadPeriod = quadPeriod
   if (linear !== undefined) HP_SCALING.linear = linear
+  if (ringMul !== undefined) SPAWN_RING.mul = ringMul
   try {
     return body()
   } finally {
-    ENEMIES.forEach((e, i) => { e.hp = base[i].hp; e.speed = base[i].speed; e.damage = base[i].damage })
+    SPAWN_RING.mul = ring
+    ENEMIES.forEach((e, i) => { e.hp = roster[i].hp; e.speed = roster[i].speed; e.damage = roster[i].damage })
     Object.assign(HP_SCALING, scaling)
     WAVES.forEach((w, i) => { w.perSpawn = waves[i] })
+  }
+}
+
+/**
+ * Run `body` with the 단전 forced to a known state, then put the save back.
+ *
+ * Without this every number the probe reports is silently conditioned on
+ * whatever the browser happened to have in localStorage, and that is not a
+ * hypothetical: most of this file's history was measured against a save where I
+ * had bought every meta upgrade during an unrelated experiment. Those runs
+ * reached 866 of 900 seconds and produced the conclusion that the game has no
+ * difficulty curve. The same build on a fresh save ends at four minutes. Both
+ * are true, they are just different games, and the probe never said which one it
+ * had run.
+ *
+ * `meta: 'none'` is what a new player meets. `meta: 'max'` is the endgame the
+ * shop sells. Anything tuned against one has to be checked against the other.
+ */
+function withMeta(game, meta, body) {
+  if (meta !== 'none' && meta !== 'max') return body()
+  const progress = game.progress
+  // Swap the backing state rather than rebuilding Progress — the title screen,
+  // shop and codex all hold the same instance.
+  const saved = JSON.parse(JSON.stringify(progress.state))
+  try {
+    progress.state.upgrades = {}
+    progress.state.stones = 0
+    if (meta === 'max') {
+      progress.addStones(1e6)
+      for (const u of META_UPGRADES) {
+        while (!progress.isMaxed(u.id) && progress.buyUpgrade(u.id)) { /* buy it out */ }
+      }
+    }
+    return body()
+  } finally {
+    progress.state = saved
   }
 }
 
@@ -132,7 +178,7 @@ function steer(game, player, t) {
  */
 export function installBalanceProbe(game) {
   if (typeof window === 'undefined') return
-  window.__probe = (opts = {}) => withRoster(opts, () => runOne(game, opts))
+  window.__probe = (opts = {}) => withRoster(opts, () => withMeta(game, opts.meta, () => runOne(game, opts)))
 
   /**
    * Sweep one roster knob and report the danger column for each value, so a
@@ -218,6 +264,9 @@ export function installBalanceProbe(game) {
         kills: game.enemies.killCount,
         victory: game.victory,
         upgrades: taken,
+        // Stated, not implied. Every earlier conclusion in this file's history
+        // was conditioned on a 단전 nobody had written down.
+        meta: { maxHp: Math.round(p.maxHp), armor: p.stats.armor, might: +p.stats.might.toFixed(2) },
         loadout: JSON.parse(JSON.stringify(p.loadout)),
         rows,
       }

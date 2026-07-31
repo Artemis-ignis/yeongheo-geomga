@@ -31,6 +31,35 @@ const _color = new THREE.Color()
 const _entry = { x: 0, z: 0 }
 
 /**
+ * How far out enemies enter, as a fraction of the view radius.
+ *
+ * This is the quietest of the balance levers and the most structural. At 1.0 an
+ * enemy appears 29 units away, and the 결계 is only 36 — so "just off screen"
+ * was in practice the far rim of the whole arena. A 마기 잔영 at speed 2.4 needs
+ * twelve seconds to cross that against a player standing still, and never
+ * crosses it against one who is moving at 5.7. That is why a run could hold a
+ * hundred live enemies and still report no threat: they were a tail, not a ring.
+ *
+ * 0.75 was measured, not guessed. Over four fresh-save runs each, against the
+ * shipped table:
+ *
+ *   ring   1.00   survived 251 s avg, 86% of minutes with no threat
+ *   ring   0.75   survived 290 s avg, 43%
+ *   ring   0.55   survived 216 s avg, 50%
+ *   ring   0.40   survived 227 s avg, 50%
+ *
+ * Below 0.75 it stops buying anything and starts costing survival, because
+ * enemies arrive before the opening 법보 can thin them. Paired with the denser
+ * opening in `waves.js` it takes a first run from 251 s to 351 s while halving
+ * the dead minutes, and it leaves a maxed 단전 alone: 820 and 814 s against 821
+ * and 817 shipped.
+ *
+ * Held in an object so `src/dev/balanceProbe.js` can sweep it against a real run
+ * rather than against a copy of the module.
+ */
+export const SPAWN_RING = { mul: 0.75 }
+
+/**
  * The horde.
  *
  * Enemies live in parallel typed arrays with one InstancedMesh per type, so a
@@ -335,7 +364,7 @@ export class EnemyManager {
    * indistinguishable from a fresh one.
    */
   _entryPoint(player, camera, out) {
-    const ring = camera.viewRadius + 2
+    const ring = (camera.viewRadius + 2) * SPAWN_RING.mul
     const moveAngle = Math.atan2(player.x - player.prevX, player.z - player.prevZ)
     let a = this.rng.angle()
     if (this.rng.chance(0.6) && (player.x !== player.prevX || player.z !== player.prevZ)) {

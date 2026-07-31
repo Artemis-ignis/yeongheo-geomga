@@ -67,10 +67,27 @@ describe('wave timeline', () => {
    */
   const rateAt = (t) => { const w = waveAt(t); return w.perSpawn / w.spawnInterval }
 
-  it('keeps the opening sparse enough for one level-1 법보', () => {
-    // At 0:00 she has a single weapon and cannot clear a crowd.
-    expect(rateAt(0)).toBeLessThan(2)
-    expect(rateAt(60)).toBeLessThan(3)
+  it('puts something in the opening without burying a level-1 법보', () => {
+    // This used to assert the opening stayed under 2 spawns a second, on the
+    // theory that a single starting weapon cannot clear a crowd. Measured on a
+    // fresh save — no 단전, which is what a first run is — that produced two and
+    // a half minutes in which nothing came within contact range at all, and a
+    // death at 4:11 the moment 석귀 arrived. Both ends are pinned now: enough to
+    // fight, not enough to drown.
+    expect(rateAt(0)).toBeGreaterThan(3)
+    expect(rateAt(0)).toBeLessThan(5)
+    // And it must not open at anything like the closing pressure.
+    expect(rateAt(0)).toBeLessThan(rateAt(870) / 10)
+  })
+
+  it('reaches the pre-ramp plateau gradually rather than in one band', () => {
+    // The first fix for the quiet opening tripled the first six bands, which
+    // put 9.2 spawns a second at 2:30 — ahead of where the table sat at 7:00 —
+    // and then dropped back to 3.2. Monotonicity above catches the drop; this
+    // catches the overshoot that caused it.
+    for (const w of WAVES.filter((b) => !b.boss && b.t <= 300)) {
+      expect(w.perSpawn / w.spawnInterval, `band ${w.t}s outruns the mid game`).toBeLessThan(8)
+    }
   })
 
   it('closes with a swarm, which is where the run gets its only real threat', () => {
