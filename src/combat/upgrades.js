@@ -47,8 +47,9 @@ export function canEvolve(loadout, weapon) {
   return (loadout.passives[weapon.pairPassive] ?? 0) >= needed
 }
 
-function buildCandidates(loadout, stats, unlockedWeapons) {
+function buildCandidates(loadout, stats, unlockedWeapons, banished) {
   const out = []
+  const gone = (id) => banished !== null && banished !== undefined && banished.has(id)
   const luck = stats.luck ?? 1
   const weaponCount = Object.keys(loadout.weapons).length
   const passiveCount = Object.keys(loadout.passives).length
@@ -57,6 +58,7 @@ function buildCandidates(loadout, stats, unlockedWeapons) {
     // A locked 법보 is invisible to the roll. Its evolution follows it, since an
     // evolution can only ever come from a weapon the player already has.
     if (unlockedWeapons && !unlockedWeapons.includes(w.id)) continue
+    if (gone(w.id)) continue
     const level = loadout.weapons[w.id] ?? 0
 
     if (canEvolve(loadout, w) && !loadout.weapons[w.evolvesTo]) {
@@ -86,6 +88,7 @@ function buildCandidates(loadout, stats, unlockedWeapons) {
   }
 
   for (const p of PASSIVES) {
+    if (gone(p.id)) continue
     const level = loadout.passives[p.id] ?? 0
     if (level >= p.max) continue
     if (level === 0 && passiveCount >= MAX_PASSIVE_SLOTS) continue
@@ -104,8 +107,17 @@ function buildCandidates(loadout, stats, unlockedWeapons) {
  * `unlockedWeapons` filters the pool to what the player owns permanently; pass
  * null (the default) to offer everything.
  */
-export function rollUpgrades(loadout, stats, rng, count = 3, unlockedWeapons = null) {
-  const pool = buildCandidates(loadout, stats, unlockedWeapons)
+/**
+ * `banished` is a Set of ids the player has struck from this run's pool.
+ *
+ * With six weapon slots and six passive slots, a roll late in a run can offer
+ * three things the player has deliberately not built toward, and without a way
+ * to refuse, the 경지 돌파 that should be a decision becomes a formality. Banish
+ * is the strongest of the three answers to that: reroll asks again, skip
+ * declines once, banish means never again this run.
+ */
+export function rollUpgrades(loadout, stats, rng, count = 3, unlockedWeapons = null, banished = null) {
+  const pool = buildCandidates(loadout, stats, unlockedWeapons, banished)
   const picked = []
 
   while (picked.length < count && pool.length > 0) {

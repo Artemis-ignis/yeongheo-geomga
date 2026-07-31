@@ -20,20 +20,77 @@ export class LevelUpModal {
       <div class="modal-panel">
         <div class="modal-title">경지 돌파</div>
         <div class="modal-cards"></div>
+        <div class="modal-actions">
+          <button class="modal-action clickable" data-act="reroll">점괘 <span class="act-count"></span></button>
+          <button class="modal-action clickable" data-act="banish">봉인 <span class="act-count"></span></button>
+          <button class="modal-action clickable" data-act="skip">넘기기</button>
+        </div>
         <div class="modal-hint">1 · 2 · 3 또는 ← → 로 선택, Enter 로 확정</div>
       </div>`
     root.appendChild(this.node)
     this.cardsHost = this.node.querySelector('.modal-cards')
+    this.actionsHost = this.node.querySelector('.modal-actions')
+    this.hintNode = this.node.querySelector('.modal-hint')
+
+    /**
+     * Banish arms rather than firing, because it needs a target.
+     *
+     * Pressing it and then picking a card would otherwise be indistinguishable
+     * from taking that card — the most expensive misclick in the game.
+     */
+    this.arming = false
+
+    for (const btn of this.actionsHost.querySelectorAll('.modal-action')) {
+      btn.addEventListener('click', () => this._act(btn.dataset.act))
+    }
+  }
+
+  _act(act) {
+    if (!this.isOpen) return
+    if (act === 'skip') { const cb = this.onSkip; this.close(); cb?.(); return }
+    if (act === 'reroll') {
+      if (!this.charges.reroll) return
+      const cb = this.onReroll
+      this.close()
+      cb?.()
+      return
+    }
+    if (act === 'banish') {
+      if (!this.charges.banish) return
+      this.arming = !this.arming
+      this._render()
+    }
+  }
+
+  /** Repaint the action row and whatever the cards currently mean. */
+  _render() {
+    const counts = { reroll: this.charges.reroll ?? 0, banish: this.charges.banish ?? 0 }
+    for (const btn of this.actionsHost.querySelectorAll('.modal-action')) {
+      const act = btn.dataset.act
+      const span = btn.querySelector('.act-count')
+      if (span) span.textContent = counts[act] > 0 ? `×${counts[act]}` : ''
+      if (act !== 'skip') btn.disabled = counts[act] <= 0
+      btn.classList.toggle('armed', this.arming && act === 'banish')
+    }
+    this.cardsHost.classList.toggle('banishing', this.arming)
+    this.hintNode.textContent = this.arming
+      ? '지울 패를 고르세요. 이번 런에서 다시 나오지 않습니다.'
+      : '1 · 2 · 3 또는 ← → 로 선택, Enter 로 확정'
   }
 
   get isOpen() {
     return this.node.style.display !== 'none'
   }
 
-  open(choices, onPick) {
+  open(choices, onPick, opts = {}) {
     if (this.isOpen) return
     this.choices = choices
     this.onPick = onPick
+    this.onSkip = opts.onSkip ?? null
+    this.onReroll = opts.onReroll ?? null
+    this.onBanish = opts.onBanish ?? null
+    this.charges = opts.charges ?? { reroll: 0, banish: 0 }
+    this.arming = false
     this.focus = 0
     this.cardsHost.innerHTML = ''
 
@@ -57,6 +114,7 @@ export class LevelUpModal {
     })
 
     this.node.style.display = ''
+    this._render()
     this.setFocus(0)
   }
 
@@ -70,6 +128,13 @@ export class LevelUpModal {
     if (!this.isOpen) return
     const choice = this.choices[i]
     if (!choice) return
+    // Armed to banish: this card is a target, not a selection.
+    if (this.arming) {
+      const cb = this.onBanish
+      this.close()
+      cb?.(choice)
+      return
+    }
     const cb = this.onPick
     this.close()
     if (cb) cb(choice)
@@ -87,6 +152,10 @@ export class LevelUpModal {
     this.node.style.display = 'none'
     this.choices = []
     this.onPick = null
+    this.onSkip = null
+    this.onReroll = null
+    this.onBanish = null
+    this.arming = false
   }
 
   dispose() {

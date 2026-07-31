@@ -69,6 +69,29 @@ export const META_UPGRADES = [
     effect: 'revive', effectValue: 1,
     perLevel: [],
   },
+  /**
+   * The two charges that turn 경지 돌파 from a formality back into a decision.
+   *
+   * With six 법보 slots and six 공법 slots, a roll late in a run routinely offers
+   * three things the player has deliberately not built toward — and with no way
+   * to refuse, taking a dead upgrade was mandatory. Skipping is free and always
+   * available; asking again, and striking something from the run for good, are
+   * the things worth buying.
+   */
+  {
+    id: 'insightRoll', name: '점괘', max: 4,
+    desc: '경지 돌파에서 패를 다시 뽑을 수 있다.',
+    baseCost: 150, costGrowth: 1.65,
+    effect: 'reroll', effectValue: 1,
+    perLevel: [],
+  },
+  {
+    id: 'sealing', name: '봉인술', max: 3,
+    desc: '이번 런에서 원치 않는 패를 아예 지운다.',
+    baseCost: 220, costGrowth: 1.7,
+    effect: 'banish', effectValue: 1,
+    perLevel: [],
+  },
 ]
 
 export const META_INDEX = new Map(META_UPGRADES.map((u) => [u.id, u]))

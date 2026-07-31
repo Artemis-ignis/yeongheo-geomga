@@ -270,3 +270,60 @@ describe('applyChoice', () => {
     expect(lo.weapons).toEqual({ vajra: 1 })
   })
 })
+
+describe('banish', () => {
+  const stats = { luck: 1 }
+
+  it('removes a weapon from the pool for the rest of the run', () => {
+    const loadout = { weapons: {}, passives: {} }
+    const target = WEAPONS[0].id
+    const banished = new Set([target])
+    // Many draws, because a single draw missing it proves nothing.
+    for (let i = 0; i < 60; i++) {
+      const rolled = rollUpgrades(loadout, stats, new RNG(i), 3, null, banished)
+      expect(rolled.some((c) => c.id === target)).toBe(false)
+    }
+  })
+
+  it('removes a passive too', () => {
+    const loadout = { weapons: {}, passives: {} }
+    const target = PASSIVES[0].id
+    const banished = new Set([target])
+    for (let i = 0; i < 60; i++) {
+      const rolled = rollUpgrades(loadout, stats, new RNG(i), 3, null, banished)
+      expect(rolled.some((c) => c.id === target)).toBe(false)
+    }
+  })
+
+  it('takes the evolution with the weapon it comes from', () => {
+    // Banishing is offered on an evolution card, and the game strikes the base
+    // weapon. That has to hide the evolution as well, or the strike does nothing.
+    const base = WEAPONS.find((w) => w.evolvesTo && w.pairPassive)
+    const loadout = {
+      weapons: { [base.id]: base.levels.length },
+      passives: { [base.pairPassive]: 1 },
+    }
+    const open = rollUpgrades(loadout, stats, new RNG(3), 3, null, null)
+    expect(open.some((c) => c.kind === 'evolution' && c.replaces === base.id)).toBe(true)
+    const banished = new Set([base.id])
+    for (let i = 0; i < 40; i++) {
+      const rolled = rollUpgrades(loadout, stats, new RNG(i), 3, null, banished)
+      expect(rolled.some((c) => c.kind === 'evolution' && c.replaces === base.id)).toBe(false)
+    }
+  })
+
+  it('still fills the modal when the pool is banished down to nothing', () => {
+    const loadout = { weapons: {}, passives: {} }
+    const banished = new Set([...WEAPONS.map((w) => w.id), ...PASSIVES.map((p) => p.id)])
+    const rolled = rollUpgrades(loadout, stats, new RNG(1), 3, null, banished)
+    expect(rolled).toHaveLength(3)
+    expect(rolled.every((c) => c.kind === 'consumable')).toBe(true)
+  })
+
+  it('is a no-op when nothing is banished', () => {
+    const loadout = { weapons: {}, passives: {} }
+    const a = rollUpgrades(loadout, stats, new RNG(7), 3, null, null)
+    const b = rollUpgrades(loadout, stats, new RNG(7), 3, null, new Set())
+    expect(b.map((c) => c.id)).toEqual(a.map((c) => c.id))
+  })
+})

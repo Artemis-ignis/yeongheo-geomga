@@ -245,3 +245,36 @@ describe('run bookkeeping', () => {
     expect(() => new Progress().markSeen('nope', 'x')).not.toThrow()
   })
 })
+
+describe('build-agency charges', () => {
+  it('grants nothing on a fresh save', () => {
+    const p = new Progress(defaultSave())
+    expect(p.rerollCharges).toBe(0)
+    expect(p.banishCharges).toBe(0)
+  })
+
+  it('grants one charge per level bought', () => {
+    const p = new Progress(defaultSave())
+    p.addStones(100000)
+    p.buyUpgrade('insightRoll')
+    p.buyUpgrade('insightRoll')
+    p.buyUpgrade('sealing')
+    expect(p.rerollCharges).toBe(2)
+    expect(p.banishCharges).toBe(1)
+  })
+
+  it('caps at the upgrade maximum', () => {
+    const p = new Progress(defaultSave())
+    p.addStones(10000000)
+    for (let i = 0; i < 20; i++) { p.buyUpgrade('insightRoll'); p.buyUpgrade('sealing') }
+    expect(p.rerollCharges).toBe(getMetaUpgrade('insightRoll').max)
+    expect(p.banishCharges).toBe(getMetaUpgrade('sealing').max)
+  })
+
+  it('survives a save round-trip', () => {
+    const a = new Progress(defaultSave())
+    a.addStones(100000)
+    a.buyUpgrade('sealing')
+    expect(new Progress(a.toSaveState()).banishCharges).toBe(1)
+  })
+})

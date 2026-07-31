@@ -297,6 +297,10 @@ export class Game {
     this.runTime = 0
     this.victory = false
     this.pendingLevels = 0
+    // Build-agency resources, spent within one run and restocked from 단전.
+    this.rerolls = this.progress.rerollCharges
+    this.banishes = this.progress.banishCharges
+    this.banished = new Set()
 
     this.player = new Player(getCharacter(characterId), this.scene, this.terrain, {
       metaMods: this.progress.statMods,
@@ -541,11 +545,16 @@ export class Game {
     this._openNextModal()
   }
 
-  _openNextModal() {
-    if (this.modal.isOpen || this.pendingLevels <= 0) return
-    this.pendingLevels--
+  _openNextModal(refunded = false) {
+    if (this.modal.isOpen) return
+    // A reroll re-opens the same level-up, so it must not consume another one.
+    if (!refunded) {
+      if (this.pendingLevels <= 0) return
+      this.pendingLevels--
+    }
     const choices = rollUpgrades(
-      this.player.loadout, this.player.stats, this.rng, 3, this.progress.unlockedWeapons,
+      this.player.loadout, this.player.stats, this.rng, 3,
+      this.progress.unlockedWeapons, this.banished,
     )
 
     // Late in a run everything is maxed and the roll can only return consumables.
@@ -557,7 +566,36 @@ export class Game {
     }
 
     this.state = 'levelUp'
-    this.modal.open(choices, (choice) => this._takeUpgrade(choice))
+    this.modal.open(choices, (choice) => this._takeUpgrade(choice), {
+      charges: { reroll: this.rerolls, banish: this.banishes },
+      // Both guards are re-checked here rather than trusted from the modal. The
+      // modal caches its counts at open time, so it is a view of the resource
+      // and not the resource itself; spending against a stale view drove the
+      // count negative, which buys charges the player never earned.
+      onReroll: () => {
+        if (this.rerolls <= 0) { this._openNextModal(true); return }
+        this.rerolls--
+        this.audio?.play('uiMove')
+        this._openNextModal(true)
+      },
+      onBanish: (choice) => {
+        if (this.banishes <= 0) { this._openNextModal(true); return }
+        this.banishes--
+        // Evolutions are banished by the weapon they come from, or the strike
+        // would land on an id that can never be rolled directly anyway.
+        this.banished.add(choice.kind === 'evolution' ? choice.replaces : choice.id)
+        this.audio?.play('uiMove')
+        this.overlay?.pushBanner(`${choice.name} 봉인`, 1.2)
+        this._openNextModal(true)
+      },
+      onSkip: () => {
+        // Declining is free, and with six slots each it is often correct: a
+        // level not spent is a slot kept open for what the run actually needs.
+        this.audio?.play('uiMove')
+        this.state = 'playing'
+        this._openNextModal()
+      },
+    })
   }
 
   _takeUpgrade(choice) {

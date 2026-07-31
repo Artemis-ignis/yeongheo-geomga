@@ -109,6 +109,18 @@ export class Progress {
     return this.levelOf('revive') * (up?.effectValue ?? 0)
   }
 
+  /** How many times a run may re-draw its 경지 돌파 cards. */
+  get rerollCharges() {
+    const up = getMetaUpgrade('insightRoll')
+    return this.levelOf('insightRoll') * (up?.effectValue ?? 0)
+  }
+
+  /** How many options a run may strike from its pool for good. */
+  get banishCharges() {
+    const up = getMetaUpgrade('sealing')
+    return this.levelOf('sealing') * (up?.effectValue ?? 0)
+  }
+
   // ---- unlocks -------------------------------------------------------------
 
   _unlockList(kind) {

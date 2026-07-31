@@ -363,6 +363,31 @@ const DRAWERS = {
     ctx.beginPath(); ctx.arc(0, 0, 20, 0.4, Math.PI * 1.4); ctx.stroke()
   },
 
+  // 점괘 — three cast coins over a broken/solid trigram line. It has to read as
+  // "ask again" at 40px, and a hexagram is the one image that says divination
+  // without any text.
+  insightRoll: (ctx) => {
+    ctx.strokeStyle = '#8fd8ff'; ctx.lineWidth = 3.5; ctx.lineCap = 'round'
+    ctx.beginPath(); ctx.moveTo(-14, 9); ctx.lineTo(14, 9); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(-14, 16); ctx.lineTo(-4, 16); ctx.moveTo(4, 16); ctx.lineTo(14, 16); ctx.stroke()
+    ctx.fillStyle = '#e8c56a'; ctx.strokeStyle = '#8a6a1e'; ctx.lineWidth = 2
+    for (const [x, y] of [[-10, -8], [0, -14], [10, -8]]) {
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke()
+      ctx.strokeRect(x - 2.2, y - 2.2, 4.4, 4.4)
+    }
+  },
+  // 봉인술 — a 부적 strip with a seal struck across it.
+  sealing: (ctx) => {
+    ctx.fillStyle = '#e2c9a0'
+    ctx.fillRect(-10, -19, 20, 38)
+    ctx.strokeStyle = '#8a5a3a'; ctx.lineWidth = 2
+    ctx.strokeRect(-10, -19, 20, 38)
+    ctx.strokeStyle = '#b04a3a'; ctx.lineWidth = 3; ctx.lineCap = 'round'
+    ctx.beginPath(); ctx.moveTo(-5, -11); ctx.lineTo(5, -11); ctx.moveTo(0, -11); ctx.lineTo(0, 4); ctx.stroke()
+    ctx.strokeStyle = '#e2764f'; ctx.lineWidth = 4
+    ctx.beginPath(); ctx.moveTo(-16, 13); ctx.lineTo(16, -13); ctx.stroke()
+  },
+
   heal: (ctx) => {
     ctx.fillStyle = '#ff9aa8'
     ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.fill()
@@ -393,7 +418,7 @@ const BG = {
 
 const META_IDS = new Set([
   'vitality', 'edge', 'swift', 'circulation', 'bulwark',
-  'reach', 'insight', 'mending', 'fortune', 'revive',
+  'reach', 'insight', 'mending', 'fortune', 'revive', 'insightRoll', 'sealing',
 ])
 
 const EVOLUTION_IDS = new Set([
