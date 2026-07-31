@@ -80,22 +80,48 @@ describe('wave timeline', () => {
     expect(rateAt(0)).toBeLessThan(rateAt(870) / 10)
   })
 
-  it('reaches the pre-ramp plateau gradually rather than in one band', () => {
-    // The first fix for the quiet opening tripled the first six bands, which
-    // put 9.2 spawns a second at 2:30 — ahead of where the table sat at 7:00 —
-    // and then dropped back to 3.2. Monotonicity above catches the drop; this
-    // catches the overshoot that caused it.
-    for (const w of WAVES.filter((b) => !b.boss && b.t <= 300)) {
-      expect(w.perSpawn / w.spawnInterval, `band ${w.t}s outruns the mid game`).toBeLessThan(8)
-    }
-  })
-
-  it('closes with a swarm, which is where the run gets its only real threat', () => {
+  it('closes with a swarm, which is what her plateaued build has left to fight', () => {
     // Her power plateaus around minute ten: six 법보 and six 공법 all cap at
     // level 5. Enemy health cannot answer that without killing her at four
     // minutes on the way up, so the late game has to come from numbers.
-    expect(rateAt(870) / rateAt(420)).toBeGreaterThan(10)
     expect(rateAt(870)).toBeGreaterThan(90)
+    expect(rateAt(870) / rateAt(0)).toBeGreaterThan(20)
+  })
+
+  /**
+   * The property that replaced two assertions written around a back-loaded
+   * table: they pinned the opening under 8 spawns a second and the close at more
+   * than ten times the seven-minute mark, and both were satisfied only because
+   * the middle of the run was flat.
+   *
+   * That flat stretch was the last dead zone left. Measured on a maxed 단전, the
+   * per-minute danger column read 0,0,7,0,0,0,0,0,0,0,0,6,35,39,33 — eight
+   * consecutive minutes with nothing in them, because pressure sat between 5.9
+   * and 9.5 a second from 2:00 to 7:30 and then exploded. The table is now one
+   * geometric curve end to end, which is what the file's own opening comment
+   * claimed it was all along: pressure doubles roughly every three minutes.
+   */
+  it('doubles pressure on a steady clock instead of saving it all for the end', () => {
+    const bands = WAVES.filter((w) => !w.boss)
+    const rate = (w) => w.perSpawn / w.spawnInterval
+    const steps = []
+    for (let i = 1; i < bands.length; i++) steps.push(rate(bands[i]) / rate(bands[i - 1]))
+
+    // Every band grows, and none of them lurches.
+    for (let i = 0; i < steps.length; i++) {
+      expect(steps[i], `band ${bands[i + 1].t}s`).toBeGreaterThan(1.0)
+      expect(steps[i], `band ${bands[i + 1].t}s lurches`).toBeLessThan(1.35)
+    }
+    // No flat stretch: the middle of the run has to climb like the rest of it.
+    const middle = bands.filter((w) => w.t >= 120 && w.t <= 450)
+    expect(rate(middle.at(-1)) / rate(middle[0]), 'the mid game is a plateau').toBeGreaterThan(3)
+
+    // A doubling time near three minutes, measured over the whole table rather
+    // than asserted band by band.
+    const halvings = Math.log2(rate(bands.at(-1)) / rate(bands[0]))
+    const doublingMinutes = (bands.at(-1).t - bands[0].t) / 60 / halvings
+    expect(doublingMinutes).toBeGreaterThan(2.4)
+    expect(doublingMinutes).toBeLessThan(3.6)
   })
 
   it('ramps into the swarm rather than stepping into it', () => {
