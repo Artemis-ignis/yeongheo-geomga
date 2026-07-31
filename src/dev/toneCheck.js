@@ -66,6 +66,33 @@ export function installToneCheck(renderer, drawFrame) {
       }
     }
 
+    /**
+     * How busy the picture is: mean absolute luminance step between horizontally
+     * adjacent pixels.
+     *
+     * Luminance, saturation and the histogram all describe a frame's *level* and
+     * say nothing about its *texture*, so all three passed a screen a player
+     * described as messy and hard to look at. What they were seeing is
+     * high-frequency contrast: 92,000 grass blades each shaded to a random 55%
+     * to 100% brightness with an independent hue drift, which is salt-and-pepper
+     * noise across the whole background at the scale it is drawn.
+     *
+     * This is scale-dependent by nature — it is measured on the same 480x270
+     * sample every other number here uses, and only comparable against itself.
+     */
+    let detail = 0
+    for (let y = 0; y < height; y++) {
+      const row = y * width
+      for (let x = 1; x < width; x++) {
+        const a = (row + x) * 4
+        const b = (row + x - 1) * 4
+        const la = 0.2126 * pixels[a] + 0.7152 * pixels[a + 1] + 0.0722 * pixels[a + 2]
+        const lb = 0.2126 * pixels[b] + 0.7152 * pixels[b + 1] + 0.0722 * pixels[b + 2]
+        detail += Math.abs(la - lb)
+      }
+    }
+    detail /= 255 * height * (width - 1)
+
     const mean = sum / n
     const meanSat = sumSat / n
     // Spread of the luminance histogram: a healthy frame uses a wide range, a
@@ -88,6 +115,7 @@ export function installToneCheck(renderer, drawFrame) {
       blackFraction: +(black / n).toFixed(4),
       blownFraction: +(blown / n).toFixed(4),
       histogramBucketsUsed: used,
+      detail: +detail.toFixed(4),
       dominantHueShare: +dominant.toFixed(4),
       histogram: hist.map((c) => +(c / n).toFixed(3)),
       hues: hues.map((c) => +(c / Math.max(1, coloured)).toFixed(3)),

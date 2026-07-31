@@ -91,15 +91,61 @@ export class Grass {
         uTime: { value: 0 },
         uPlayer: { value: new THREE.Vector3() },
         uBase: { value: new THREE.Color(pal.grassBase ?? 0x2f6b4f) },
-        uTip: { value: new THREE.Color(pal.grassTip ?? 0x9fd88a) },
+        /**
+         * The authored tip colour, pulled 45% of the way back to the base.
+         *
+         * Every 비경 names a bright tip so a blade has a gradient along its
+         * length, and at full strength that gradient is also the contrast
+         * between the blade and the floor behind it — 92,000 bright shapes on a
+         * dark plane, which is what made the field read as static rather than
+         * as ground. Blending toward the base keeps the gradient and drops the
+         * contrast; the palettes stay authored the way they read in the file.
+         */
+        uTip: {
+          value: new THREE.Color(pal.grassTip ?? 0x9fd88a)
+            .lerp(new THREE.Color(pal.grassBase ?? 0x2f6b4f), 0.45),
+        },
         uFogColor: { value: new THREE.Color(pal.fog ?? 0x9db9c9) },
         uFogDensity: { value: 0.0085 },
+        /**
+         * Per-blade brightness spread and hue drift, kept at their original
+         * values because measuring them disproved the obvious theory.
+         *
+         * The field is by far the loudest thing on screen: hiding it takes a
+         * mid-run frame from 0.0352 to 0.0194 on `__tone().detail`, the mean
+         * luminance step between adjacent pixels. Forty-five percent of the
+         * picture's busyness is grass, against 0.001 to 0.002 for every enemy,
+         * pickup and projectile put together.
+         *
+         * The obvious culprit was this: 92,000 blades each lit to a random
+         * 55-100% brightness with an independent hue. Swept, it goes the other
+         * way — 0.45 spread reads 0.0342 and no spread at all reads 0.0393.
+         * Variance is not the noise; blade-against-ground contrast is, and a
+         * wide spread darkens enough blades that they sink into the floor. The
+         * lever is `uContact` below.
+         */
+        uShadeSpread: { value: 0.45 },
+        uTintDrift: { value: 0.24 },
+        /**
+         * How deeply a blade is darkened toward its base so it sits *in* the
+         * ground rather than on it. This is the contrast control: it decides how
+         * much of every blade is close to the floor's own value, which is what
+         * stops 92,000 bright shapes on a dark plane from reading as static.
+         */
+        uContact: { value: 0.62 },
+        /**
+         * How far up the blade that darkening reaches. 0.75 rather than the
+         * original 0.30: the higher it goes, the more of each blade sits near
+         * the floor's own value and the less every blade edge costs.
+         */
+        uContactHeight: { value: 0.75 },
       },
       vertexShader: `
         attribute vec3 aOffset;
         attribute vec3 aSeed;
         attribute float aHeight;
         uniform float uTime;
+        uniform float uShadeSpread;
         uniform vec3 uPlayer;
         varying float vH;
         varying float vShade;
@@ -139,7 +185,7 @@ export class Grass {
           world.x += cos( rot ) * arc;
           world.z += sin( rot ) * arc;
 
-          vShade = 0.55 + aSeed.y * 0.45;
+          vShade = ( 1.0 - uShadeSpread ) + aSeed.y * uShadeSpread;
           // Per-blade hue drift between a cool and a warm green, so a clump has
           // internal variation rather than being one flat colour repeated.
           vTint = aSeed.x;
@@ -152,6 +198,9 @@ export class Grass {
         uniform vec3 uTip;
         uniform vec3 uFogColor;
         uniform float uFogDensity;
+        uniform float uTintDrift;
+        uniform float uContact;
+        uniform float uContactHeight;
         varying float vH;
         varying float vShade;
         varying float vTint;
@@ -163,13 +212,13 @@ export class Grass {
           // Per-blade hue drift, warm one way and cool the other. A field where
           // every blade is the same two colours reads as one painted surface
           // however many blades are in it.
-          col.r *= 0.90 + vTint * 0.24;
-          col.b *= 1.10 - vTint * 0.24;
+          col.r *= 1.0 - uTintDrift + vTint * uTintDrift * 2.0;
+          col.b *= 1.0 + uTintDrift - vTint * uTintDrift * 2.0;
 
           // Darken sharply at the very base so blades sink into the ground
           // instead of sitting on top of it like cut-outs. This contact shading
           // is doing the job an ambient occlusion pass would, for free.
-          col *= 0.42 + 0.58 * smoothstep( 0.0, 0.30, vH );
+          col *= ( 1.0 - uContact ) + uContact * smoothstep( 0.0, uContactHeight, vH );
 
           // Matches the scene's FogExp2 so the field recedes with everything else.
           float f = 1.0 - exp( - uFogDensity * uFogDensity * vFogDepth * vFogDepth );

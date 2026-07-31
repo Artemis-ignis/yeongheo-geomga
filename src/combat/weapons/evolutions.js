@@ -57,7 +57,24 @@ function ensureFields(ctx) {
   state.next = 0
 
   const geo = new THREE.PlaneGeometry(1, 1)
-  const mat = makeAdditiveMaterial({ color: 0xff7a3c, opacity: 0.55, map: glowTexture() })
+  /**
+   * 0.24, down from 0.55, because these stack and additive layers sum.
+   *
+   * A field is one plane, and 염해 keeps up to a dozen of them alive at once
+   * across overlapping ground. Measured with twelve live, the frame read mean
+   * luminance 0.438 at saturation 0.54 — saturation *falling* is the tell, it
+   * means the orange had summed its way to near-white. 설령's navy robe came out
+   * bleached and the burning ground was a flat yellow blob rather than burning
+   * ground.
+   *
+   *   0.55  luma 0.438  sat 0.54
+   *   0.34  luma 0.366  sat 0.77
+   *   0.24  luma 0.350  sat 0.76
+   *
+   * At 0.24 a single field still reads as fire and twelve of them read as a
+   * scorched patch you can still see the grass and the character through.
+   */
+  const mat = makeAdditiveMaterial({ color: 0xff7a3c, opacity: 0.24, map: glowTexture() })
   state.mesh = new THREE.InstancedMesh(geo, mat, MAX_FIELDS)
   state.mesh.frustumCulled = false
   state.dummy = new THREE.Object3D()
