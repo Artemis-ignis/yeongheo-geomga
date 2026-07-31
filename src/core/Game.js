@@ -70,6 +70,9 @@ export class Game {
     this.renderer = createRenderer(canvas)
     this.clock = new Clock()
     this.quality = new Quality(this.renderer)
+    // Thin the field whenever the quality tier moves, not only on resize —
+    // the whole point of the adaptive scaler is that it reacts mid-run.
+    this.quality.onScale = (_scale, density) => this.grass?.setDensityScale(density)
     this.impact = new Impact()
     this.input = new Input(window)
 
@@ -780,6 +783,7 @@ export class Game {
       const zoomSteps = this.input.consumeZoom()
       if (zoomSteps !== 0 && this.camera) {
         this.camera.nudgeZoom(zoomSteps)
+        this.grass?.setView(this.camera.viewRadius, this.camera.zoom)
         this._saveView()
       }
 
@@ -881,6 +885,10 @@ export class Game {
     resizeToWindow(this.renderer, this.camera, this.overlayCanvas)
     this.overlay?.resize(innerWidth, innerHeight, Math.min(devicePixelRatio, 1.5))
     this.post?.setSize(Math.max(1, innerWidth), Math.max(1, innerHeight))
+    // The grass field is sized to the frustum, so it has to be told when the
+    // frustum changes — a widened window otherwise shows the tile's own seam.
+    this.grass?.setView(this.camera.viewRadius, this.camera.zoom)
+    this.grass?.setDensityScale(this.quality.densityScale)
   }
 
   dispose() {

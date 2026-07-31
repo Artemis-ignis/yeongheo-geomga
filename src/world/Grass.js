@@ -1,14 +1,39 @@
 import * as THREE from 'three'
 
 /**
- * Blades across the whole plateau.
+ * Blades in the tile that follows the player.
  *
- * 26k over a 48-unit disc is 3.6 blades per square metre, which is not a field
- * — it is confetti with gaps you can see the floor through. The count has to
- * carry the whole arena because the player walks all of it, and it is one
- * instanced draw either way.
+ * This used to be 92,000 scattered across the whole 46-unit plateau, on the
+ * reasoning that the count has to carry the arena because the player walks all
+ * of it, and that it is one instanced draw either way. One draw call, yes —
+ * but 276,000 triangles of it, every frame, which measured at 73% of the entire
+ * scene. And with the camera seeing a 27-unit radius, 65.6% of those blades
+ * were drawn while standing dead centre and never seen once. From the rim it is
+ * worse.
+ *
+ * The field is now a square tile that wraps around the player in the vertex
+ * shader, so the blades are always exactly where the camera is looking and the
+ * count only has to cover one screen instead of the whole arena. Density per
+ * square metre is *higher* than before; there is simply no longer a majority of
+ * the field being rasterised out of frame.
  */
-const BASE_BLADE_COUNT = 92000
+const BASE_BLADE_COUNT = 49000
+
+/**
+ * Side of the tile the blades are authored in.
+ *
+ * The tile the shader actually wraps at is a uniform, because the camera can now
+ * zoom: at 1.9x the view radius outruns any fixed tile and its seam walks across
+ * the ground as a hard edge of grass. `setView` rescales the wrap to the frustum
+ * instead, so there is no zoom level at which the seam can be reached. Blades
+ * keep their authored size and their tufts keep their authored spread; only the
+ * spacing between tufts opens up, which is the right trade — zoomed out,
+ * everything is smaller on screen anyway.
+ */
+const TILE_BUILD = 60
+
+/** Tile side as a multiple of the view radius. Above 2 the seam is off-screen. */
+const TILE_TO_VIEW = 2.2
 
 /** Blades per tuft. Grass grows in clumps; uniform scatter never reads as grass. */
 const TUFT_SIZE = 7
@@ -52,14 +77,12 @@ export class Grass {
     const offset = new Float32Array(bladeCount * 3)
     const seed = new Float32Array(bladeCount * 3)
     let placed = 0
-    let guard = 0
-    while (placed < bladeCount && guard < bladeCount * 6) {
-      guard++
-      const a = Math.random() * Math.PI * 2
-      const r = Math.sqrt(Math.random()) * outerRadius
-      if (r < CLEARING) continue
-      const cx = Math.cos(a) * r
-      const cz = Math.sin(a) * r
+    while (placed < bladeCount) {
+      // Scattered over the tile, not the plateau. The shader wraps this into
+      // place around the player, so a uniform square is what is wanted here —
+      // any radial structure would slide about as she walks.
+      const cx = (Math.random() - 0.5) * TILE_BUILD
+      const cz = (Math.random() - 0.5) * TILE_BUILD
       // One tuft per placement, so the field has clumps and bare patches
       // between them rather than an even sprinkle.
       const tuft = Math.min(TUFT_SIZE, bladeCount - placed)
@@ -73,23 +96,28 @@ export class Grass {
         offset[placed * 3 + 2] = cz + Math.sin(ta) * tr
         seed[placed * 3 + 0] = Math.random()
         seed[placed * 3 + 1] = Math.random()
-        // Taller out on the rim where nothing has trampled it, and blades in one
-        // tuft share a vigour so a clump reads as one plant rather than as
-        // strangers standing close together.
+        // Blades in one tuft share a vigour so a clump reads as one plant rather
+        // than as strangers standing close together. The rim-is-taller term that
+        // used to be baked in here has moved into the shader, which is the only
+        // place that now knows where a blade actually stands.
         seed[placed * 3 + 2] = vigour * (0.72 + Math.random() * 0.5)
-          * (0.6 + (r / outerRadius) * 0.8)
         placed++
       }
     }
     geo.setAttribute('aOffset', new THREE.InstancedBufferAttribute(offset, 3))
     geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 3))
     geo.instanceCount = placed
+    this.fullCount = placed
 
     this.material = new THREE.ShaderMaterial({
       side: THREE.DoubleSide,
       uniforms: {
         uTime: { value: 0 },
         uPlayer: { value: new THREE.Vector3() },
+        uTileSize: { value: TILE_BUILD },
+        uTileBuild: { value: TILE_BUILD },
+        uOuter: { value: outerRadius },
+        uClearing: { value: CLEARING },
         uBase: { value: new THREE.Color(pal.grassBase ?? 0x2f6b4f) },
         /**
          * The authored tip colour, pulled 45% of the way back to the base.
@@ -158,6 +186,10 @@ export class Grass {
         uniform float uTime;
         uniform float uShadeSpread;
         uniform vec3 uPlayer;
+        uniform float uTileSize;
+        uniform float uTileBuild;
+        uniform float uOuter;
+        uniform float uClearing;
         varying float vH;
         varying float vShade;
         varying float vTint;
@@ -165,20 +197,51 @@ export class Grass {
 
         void main() {
           vH = aHeight;
-          float scale = aSeed.z;
+
+          // Wrap the tile so it is always centred on the player.
+          //
+          // This is the whole reason the field costs a third of what it did: the
+          // blades follow the camera instead of being scattered over an arena
+          // whose majority is off-screen at any moment. The wrap is done on the
+          // tuft's own origin rather than per blade, so a clump that crosses the
+          // seam travels intact instead of being torn in half.
+          // The tuft's origin is wrapped; the blade's offset within its tuft is
+          // added afterwards at its authored size, so a clump that crosses the
+          // seam travels intact and never stretches with the zoom.
+          vec2 anchor = floor( aOffset.xz / uTileBuild + 0.5 ) * uTileBuild;
+          vec2 tuftO = aOffset.xz - anchor;
+          vec2 spread = anchor * ( uTileSize / uTileBuild );
+          vec2 base = mod( spread - uPlayer.xz + uTileSize * 0.5, uTileSize )
+                    - uTileSize * 0.5 + uPlayer.xz;
+          vec2 root = base + tuftO;
+
+          // Where the blade actually stands decides how it grows: taller out on
+          // the rim where nothing has trampled it, gone entirely off the plateau
+          // and in the clearing at the centre. Baking this in at build time is
+          // no longer possible now that a blade does not keep one position.
+          float rad = length( root );
+          float scale = aSeed.z * ( 0.6 + clamp( rad / uOuter, 0.0, 1.0 ) * 0.8 );
+          scale *= smoothstep( uOuter, uOuter - 3.0, rad );
+          scale *= smoothstep( uClearing - 1.2, uClearing, rad );
 
           // Rotate each blade to its own facing so the field is not all aligned.
           float rot = aSeed.x * 6.2831;
           float cr = cos( rot ), sr = sin( rot );
           vec3 p = vec3( position.x * cr, position.y, position.x * sr );
+          // Collapse a culled blade completely. Scaling only the height would
+          // leave its full width lying flat on the ground as a visible sliver.
+          p *= vec3( step( 0.001, scale ) );
           p.y *= scale;
 
-          vec3 world = aOffset + p;
+          vec3 world = vec3( root.x, 0.0, root.y ) + p;
 
           // Wind: two waves at different scales, only affecting the upper blade.
+          // Driven by the blade's world position, not its position within the
+          // tile — otherwise the whole wind pattern would travel with the player
+          // and the field would look like it was breathing in step with her.
           float bend = aHeight * aHeight;
-          float wind = sin( uTime * 1.6 + aOffset.x * 0.25 + aSeed.y * 6.28 ) * 0.16
-                     + sin( uTime * 3.1 + aOffset.z * 0.4 ) * 0.06;
+          float wind = sin( uTime * 1.6 + root.x * 0.25 + aSeed.y * 6.28 ) * 0.16
+                     + sin( uTime * 3.1 + root.y * 0.4 ) * 0.06;
           world.x += wind * bend * scale;
           world.z += wind * 0.6 * bend * scale;
 
@@ -250,6 +313,35 @@ export class Grass {
   update(dt, playerX, playerZ) {
     this.material.uniforms.uTime.value += dt
     this.material.uniforms.uPlayer.value.set(playerX, 0, playerZ)
+  }
+
+  /**
+   * Size the wrapping tile to what the camera can actually see.
+   *
+   * Called on resize and whenever the player zooms. `viewRadius` is measured at
+   * zoom 1 by design — it sets the enemy spawn ring and must not move with a
+   * view preference — so the zoom has to be multiplied back in here, or zooming
+   * out would walk the tile seam into frame.
+   */
+  setView(viewRadius, zoom = 1) {
+    this.material.uniforms.uTileSize.value = Math.max(
+      TILE_BUILD * 0.5, viewRadius * zoom * TILE_TO_VIEW,
+    )
+  }
+
+  /**
+   * Thin the field on a machine that cannot afford all of it.
+   *
+   * Measured, GPU cost is linear in the blade count, so this is the one lever
+   * that buys frames proportionally. It needs no reshuffle and allocates
+   * nothing: the blades were written to the buffer in random order, so any
+   * prefix of it is already a uniform random subset of the field. Tufts stay
+   * whole because a tuft is seven consecutive entries.
+   */
+  setDensityScale(fraction) {
+    const f = Math.max(0.15, Math.min(1, fraction))
+    const tufts = Math.max(1, Math.round((this.fullCount * f) / TUFT_SIZE))
+    this.mesh.geometry.instanceCount = Math.min(this.fullCount, tufts * TUFT_SIZE)
   }
 
   dispose() {

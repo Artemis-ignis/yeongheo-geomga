@@ -70,6 +70,21 @@ export class Quality {
     // setPixelRatio alone does not resize the backbuffer; re-apply the CSS size.
     this.renderer.setSize(Math.max(1, innerWidth), Math.max(1, innerHeight), false)
     this.changes++
+    this.onScale?.(this.scale, this.densityScale)
+  }
+
+  /**
+   * How much of the grass field to draw at the current resolution scale.
+   *
+   * Dropping resolution alone only helps if the frame is fill-bound. The field
+   * is the largest piece of geometry in the game by an order of magnitude and
+   * its cost measured linear in the blade count, so a machine that has already
+   * been pushed to the minimum resolution should not still be paying for every
+   * blade. Full density until resolution starts dropping, then down with it.
+   */
+  get densityScale() {
+    const span = Math.max(0.0001, 1 - this.min)
+    return Math.max(0.35, Math.min(1, 0.35 + ((this.scale - this.min) / span) * 0.65))
   }
 
   /** Feed one frame's duration in milliseconds. */
