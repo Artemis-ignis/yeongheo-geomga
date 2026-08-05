@@ -3,6 +3,8 @@ import { makeToonMaterial, PALETTE } from '../art/materials.js'
 import { barrierTexture, groundTexture, groundNormalTexture, mistTexture } from '../art/textures.js'
 import { buildMerged } from '../art/geometry.js'
 import { buildColored, gradient, roughen } from '../art/shapeKit.js'
+import { Shrine } from './Shrine.js'
+import { SanctuaryLandmarks } from './SanctuaryLandmarks.js'
 
 /** Lighten or darken a hex by a factor, for cheap tonal variants of a palette. */
 function shade(hex, factor) {
@@ -50,6 +52,8 @@ export class Terrain {
     this._buildGround()
     this._buildBarrier()
     this._buildMist()
+    this.shrine = new Shrine(this.group, this.pal)
+    this.landmarks = new SanctuaryLandmarks(this.group, this.pal)
     this._buildProps()
   }
 
@@ -123,7 +127,7 @@ export class Terrain {
     ])
     this.underside = new THREE.Mesh(
       underside,
-      makeToonMaterial({ color: 0x4a5a55, rim: 0.35, rimColor: PALETTE.mist, flatShading: true }),
+      makeToonMaterial({ color: 0x4a5a55, rim: 0.35, rimColor: PALETTE.mist }),
     )
     this.group.add(this.underside)
   }
@@ -185,6 +189,23 @@ export class Terrain {
     this.arc = new THREE.Mesh(arcGeo, this.arcMat)
     this.arc.position.y = 5.5
     this.group.add(this.arc)
+
+    // A ground-level accent makes the playable boundary readable even when the
+    // vertical ward is hidden by fog or the camera is zoomed in.
+    this.boundaryMat = new THREE.MeshBasicMaterial({
+      color: this.pal.barrier,
+      transparent: true,
+      opacity: 0.32,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+    this.boundary = new THREE.Mesh(
+      new THREE.TorusGeometry(ARENA_RADIUS - 0.35, 0.10, 8, 128),
+      this.boundaryMat,
+    )
+    this.boundary.rotation.x = Math.PI / 2
+    this.boundary.position.y = 0.09
+    this.group.add(this.boundary)
   }
 
   _buildMist() {
@@ -499,7 +520,7 @@ export class Terrain {
     this.group.add(this.lanterns)
 
     // Whatever this 비경 grows instead of trees.
-    this.landmarks = []
+    this.propLandmarks = []
     for (const [kind, count] of [['spires', cfg.spires ?? 0], ['pillars', cfg.pillars ?? 0]]) {
       if (count <= 0) continue
       const geo = kind === 'spires' ? this._spireGeometry() : this._pillarGeometry()
@@ -525,7 +546,7 @@ export class Terrain {
       mesh.count = spots.length
       mesh.instanceMatrix.needsUpdate = true
       this.group.add(mesh)
-      this.landmarks.push(mesh)
+      this.propLandmarks.push(mesh)
     }
   }
 
@@ -572,6 +593,9 @@ export class Terrain {
       this.arcMat.opacity = (bestLife / PING_LIFE) * 0.75
       this.arc.rotation.y = -this.pingAngle[best] - 0.35
     }
+    this.boundaryMat.opacity = 0.27 + (0.5 + 0.5 * Math.sin(this.time * 1.6)) * 0.08
+    this.shrine?.update(dt)
+    this.landmarks?.update(dt)
   }
 
   dispose() {

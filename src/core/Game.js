@@ -44,6 +44,7 @@ import { CodexScreen } from '../ui/CodexScreen.js'
 import { DebugOverlay } from '../ui/DebugOverlay.js'
 import { Progress } from '../meta/Progress.js'
 import * as Save from '../meta/Save.js'
+import { SanctuaryCinematicSet } from '../world/SanctuaryCinematicSet.js'
 
 /** What the 결계 announces when a 진 forms. One line per shape in formations.js. */
 const FORMATION_NAMES = {
@@ -72,13 +73,19 @@ export class Game {
     this.quality = new Quality(this.renderer)
     // Thin the field whenever the quality tier moves, not only on resize —
     // the whole point of the adaptive scaler is that it reacts mid-run.
-    this.quality.onScale = (_scale, density) => this.grass?.setDensityScale(density)
+    this.quality.onScale = (scale, density) => {
+      this.grass?.setDensityScale(density)
+      this.post?.setQuality(scale)
+      this.cinematic?.setQuality(scale)
+    }
     this.impact = new Impact()
     this.input = new Input(window)
 
     this.pendingLevels = 0
     this.runTime = 0
     this.victory = false
+    this._radarCacheAt = -Infinity
+    this._radarCache = []
 
     // Meta progression is loaded once and lives for the whole session.
     this.progress = new Progress(Save.load())
@@ -136,12 +143,16 @@ export class Game {
     this.terrain = new Terrain(this.scene, stage.palette)
     this.grass = new Grass(this.scene, 0, PLATEAU_RADIUS - 2, {
       palette: stage.palette, density: stage.grassDensity,
+      clearing: stage.id === 'jade' ? 28 : 4,
     })
-    this.sky = new Sky(this.scene, stage.palette)
+    this.sky = new Sky(this.scene, stage.palette, stage.id)
+    this.cinematic = new SanctuaryCinematicSet(this.scene, stage.palette, stage.id)
     this.shadows = new Shadows(this.scene)
     this.shadows.setPalette(stage.palette)
     this.overlay = new OverlayCanvas(this.overlayCanvas, this.camera.camera)
     this.post = new Post(this.renderer, this.scene, this.camera.camera, stage.palette)
+    this.post.setQuality(this.quality.scale)
+    this.cinematic.setQuality(this.quality.scale)
     this._resize()
   }
 
@@ -150,11 +161,13 @@ export class Game {
     this.terrain?.dispose()
     this.grass?.dispose()
     this.sky?.dispose()
+    this.cinematic?.dispose()
     this.shadows?.dispose()
     this._clearPreview()
     this.terrain = null
     this.grass = null
     this.sky = null
+    this.cinematic = null
     this.shadows = null
   }
 
@@ -168,13 +181,17 @@ export class Game {
     this.terrain = new Terrain(this.scene, stage.palette)
     this.grass = new Grass(this.scene, 0, PLATEAU_RADIUS - 2, {
       palette: stage.palette, density: stage.grassDensity,
+      clearing: stage.id === 'jade' ? 28 : 4,
     })
-    this.sky = new Sky(this.scene, stage.palette)
+    this.sky = new Sky(this.scene, stage.palette, stage.id)
+    this.cinematic = new SanctuaryCinematicSet(this.scene, stage.palette, stage.id)
     this.shadows = new Shadows(this.scene)
     this.shadows.setPalette(stage.palette)
     // The composer holds a reference to the old scene, so it has to be rebuilt.
     this.post.dispose()
     this.post = new Post(this.renderer, this.scene, this.camera.camera, stage.palette)
+    this.post.setQuality(this.quality.scale)
+    this.cinematic.setQuality(this.quality.scale)
     this._resize()
   }
 
@@ -296,11 +313,19 @@ export class Game {
     this.rng = new RNG(this.seed)
     this.runTime = 0
     this.victory = false
+    this._radarCacheAt = -Infinity
+    this._radarCache = []
     this.pendingLevels = 0
     // Build-agency resources, spent within one run and restocked from 단전.
     this.rerolls = this.progress.rerollCharges
     this.banishes = this.progress.banishCharges
     this.banished = new Set()
+    // What the 업적 table asks about a run. Counted here rather than derived at
+    // the end, because none of it can be reconstructed once the run is over.
+    this.runStats = {
+      evolutions: 0, bossKills: 0, damageTaken: 0,
+      rerollsUsed: 0, banishesUsed: 0,
+    }
 
     this.player = new Player(getCharacter(characterId), this.scene, this.terrain, {
       metaMods: this.progress.statMods,
@@ -396,6 +421,7 @@ export class Game {
     }
 
     this.player.onHurt = (fraction) => {
+      this.runStats.damageTaken++
       this.audio.play('hurt')
       this.impact.screenFlash(Math.min(0.42, 0.10 + fraction * 1.9), 1, 0.22, 0.26)
       this.camera.addTrauma(0.22 + fraction * 1.2)
@@ -463,6 +489,7 @@ export class Game {
       this.impact.screenFlash(0.42, 0.85, 0.45, 1.0)
     }
     this.boss.onDefeated = (id, x, z) => {
+      this.runStats.bossKills++
       this.impact.hitstop(0.12)
       this.impact.punch(1.4)
       this.impact.screenFlash(0.7, 1, 0.92, 0.75)
@@ -575,12 +602,14 @@ export class Game {
       onReroll: () => {
         if (this.rerolls <= 0) { this._openNextModal(true); return }
         this.rerolls--
+        this.runStats.rerollsUsed++
         this.audio?.play('uiMove')
         this._openNextModal(true)
       },
       onBanish: (choice) => {
         if (this.banishes <= 0) { this._openNextModal(true); return }
         this.banishes--
+        this.runStats.banishesUsed++
         // Evolutions are banished by the weapon they come from, or the strike
         // would land on an id that can never be rolled directly anyway.
         this.banished.add(choice.kind === 'evolution' ? choice.replaces : choice.id)
@@ -600,6 +629,7 @@ export class Game {
 
   _takeUpgrade(choice) {
     applyChoice(this.player.loadout, choice)
+    if (choice.kind === 'evolution') this.runStats.evolutions++
     if (choice.kind === 'weapon' || choice.kind === 'evolution') {
       this.progress.markSeen('weapons', choice.id)
     }
@@ -633,6 +663,19 @@ export class Game {
       kills: this.enemies.killCount,
       victory: this.victory,
     })
+    // Order matters: the 비경 has to be marked cleared and the lifetime records
+    // updated *before* the 업적 are evaluated, or the run that finally completes
+    // the third 비경 earns 삼경답파 one run late.
+    if (this.victory) this.progress.markStageCleared(this.stage?.id)
+    const achievements = this.progress.awardAchievements({
+      runTime: this.runTime,
+      level: this.player.level,
+      kills: this.enemies.killCount,
+      victory: this.victory,
+      trial: this.progress.trial,
+      weaponCount: this.weapons.equipped.length,
+      ...this.runStats,
+    })
     this._persist()
 
     this.result.show({
@@ -645,6 +688,7 @@ export class Game {
       earnedStones: earned,
       totalStones: this.progress.stones,
       bests,
+      achievements,
       weapons: this.weapons.equipped,
       passives: Object.entries(this.player.loadout.passives).map(([id, level]) => ({ id, level })),
       seed: this.seed,
@@ -768,6 +812,7 @@ export class Game {
     this.terrain?.update(dt, px, pz)
     this.grass?.update(dt, px, pz)
     this.sky?.update(dt, px, pz)
+    this.cinematic?.update(dt, px, pz)
   }
 
   draw(alpha, dt) {
@@ -786,6 +831,7 @@ export class Game {
       this.sky.update(dt, 0, 0)
       this.terrain.update(dt, 0, 0)
       this.grass.update(dt, 0, 0)
+      this.cinematic?.update(dt, 0, 0)
     }
     this.post.render(this.scene, this.camera.camera)
     this.overlay.render(dt)
@@ -873,6 +919,13 @@ export class Game {
   _hudState() {
     const p = this.player
     const b = this.boss?.active
+    // Radar is deliberately slower than the simulation. Rebuilding up to 96
+    // marker objects every render tick created avoidable GC pressure during a
+    // crowded wave; 12.5 Hz is still visually continuous on the HUD.
+    if (this.runTime - this._radarCacheAt >= 0.08) {
+      this._radarCacheAt = this.runTime
+      this._radarCache = this.enemies?.radarSnapshot(p.x, p.z) ?? []
+    }
     return {
       hp: p.hp, maxHp: p.maxHp,
       xp: p.xp, xpNeeded: p.xpNeeded,
@@ -881,6 +934,8 @@ export class Game {
       kills: this.enemies.killCount,
       stones: Math.round(p.stones),
       dashCooldown: p.dashCooldown,
+      playerHeading: p.facing,
+      radar: this._radarCache,
       weapons: this.weapons.equipped,
       passives: Object.entries(p.loadout.passives).map(([id, level]) => ({ id, level })),
       boss: b ? { name: b.def.name, hp: b.hp, maxHp: b.maxHp } : null,
@@ -901,6 +956,7 @@ export class Game {
         + (this.projectiles?.pool.dropped ?? 0)
         + (this.pickups?.pool.dropped ?? 0),
       scale: this.quality.scale,
+      backend: this.renderer.backendLabel ?? (this.renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL'),
       seed: this.seed ?? 0,
     }
   }

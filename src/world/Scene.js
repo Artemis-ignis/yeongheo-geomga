@@ -35,16 +35,20 @@ export function showFallback(reason) {
 export function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    // FXAA is part of the post stack; driver MSAA would duplicate the colour-buffer cost.
+    antialias: false,
     powerPreference: 'high-performance',
   })
   // Starting point only — Quality takes over and scales this from measured
   // frame time. A fixed 2 on a high-DPI panel renders 4x the pixels of 1x.
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.35))
+  // Start at 1x; Quality raises the scale only after measuring real frame time.
+  renderer.setPixelRatio(1)
   renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  renderer.shadowMap.type = THREE.PCFShadowMap
+  renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.05
+  renderer.backendLabel = renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL'
   return renderer
 }
 
@@ -71,7 +75,9 @@ export function createScene(palette = {}) {
   const sun = new THREE.DirectionalLight(0xfff4e2, 2.05)
   sun.position.set(20, 17, 13)
   sun.castShadow = true
-  sun.shadow.mapSize.set(2048, 2048)
+  // A 1024 shadow atlas is enough for the tight follow frustum and avoids
+  // paying a 4x memory/fill cost on integrated GPUs.
+  sun.shadow.mapSize.set(1024, 1024)
   sun.shadow.camera.near = 1
   sun.shadow.camera.far = 120
   sun.shadow.camera.left = -SHADOW_EXTENT

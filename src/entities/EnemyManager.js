@@ -199,6 +199,26 @@ export class EnemyManager {
     return this.pool.count
   }
 
+  /** Compact tactical readout for the DOM radar. The full horde stays in GPU
+   * instancing; only nearby threat positions cross the UI boundary. */
+  radarSnapshot(x, z, radius = 28, limit = 96) {
+    const radius2 = radius * radius
+    const points = []
+    for (let i = 0; i < this.pool.count && points.length < limit; i++) {
+      const dx = this.px[i] - x
+      const dz = this.pz[i] - z
+      if (dx * dx + dz * dz > radius2) continue
+      const def = ENEMIES[this.type[i]]
+      points.push({
+        x: dx / radius,
+        z: dz / radius,
+        elite: Boolean(def.elite),
+        ranged: def.behavior === 'ranged',
+      })
+    }
+    return points
+  }
+
   /** Copy every parallel array from one slot to another. */
   _moveSlot(from, to) {
     this.px[to] = this.px[from]; this.pz[to] = this.pz[from]

@@ -12,11 +12,11 @@ export const STAGES = [
     desc: '마기가 스며들기 시작한 옥산 고원. 바람에 풀이 눕는다.',
     unlockCost: 0,
     palette: {
-      ground: 0x2b4d42,
-      groundMoss: 0x96d696,
-      grassBase: 0x2f6b4f,
-      grassTip: 0x9fd88a,
-      pine: 0x2d5442,
+      ground: 0x263247,
+      groundMoss: 0x668c89,
+      grassBase: 0x2d574c,
+      grassTip: 0x8ab9a2,
+      pine: 0x244a43,
       stone: 0x7d7466,
       fog: 0x9db9c9,
       skyTop: 0x161c3f,
@@ -36,7 +36,7 @@ export const STAGES = [
       // one arena with three colour filters over it.
       props: { rocks: 46, pines: 40, lanterns: 10, spires: 0, pillars: 0 },
     },
-    grassDensity: 1.0,
+    grassDensity: 0.72,
     // The baseline bestiary. Fire and ice creatures belong to their own 비경 and
     // never wander in here, so this list is explicit rather than `null`.
     roster: [

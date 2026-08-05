@@ -3,6 +3,7 @@ import { ENEMIES } from '../data/enemies.js'
 import { WEAPONS, EVOLUTIONS } from '../data/weapons.js'
 import { BOSSES } from '../entities/BossManager.js'
 import { getPassive } from '../data/passives.js'
+import { ACHIEVEMENTS } from '../data/achievements.js'
 
 /** Element tags, as the game words them rather than as the code spells them. */
 const TAG_NAMES = {
@@ -48,6 +49,8 @@ export class CodexScreen {
           <div class="codex-grid" data-kind="enemies"></div>
           <div class="shop-section">마존</div>
           <div class="codex-grid" data-kind="bosses"></div>
+          <div class="shop-section">업적</div>
+          <div class="codex-achievements"></div>
           <div class="shop-section">기록</div>
           <div class="codex-records"></div>
         </div>
@@ -59,6 +62,7 @@ export class CodexScreen {
     this.node.querySelector('[data-act="back"]').addEventListener('click', () => this.close())
     this.progressLabel = this.node.querySelector('.codex-progress')
     this.recordsHost = this.node.querySelector('.codex-records')
+    this.achievementsHost = this.node.querySelector('.codex-achievements')
 
     this.detail = this.node.querySelector('.codex-detail')
 
@@ -154,6 +158,21 @@ export class CodexScreen {
       e.cell.title = known ? e.name : '아직 만나지 못했다'
     }
     this.progressLabel.textContent = `${seen} / ${this.entries.length}`
+
+    // Every 업적 is listed whether earned or not, with its condition legible.
+    // A hidden goal is not a goal — the point of this list is to tell the
+    // player what the game wants from them next, and a row of question marks
+    // does the opposite.
+    const done = this.progress.achievements
+    this.achievementsHost.innerHTML = ACHIEVEMENTS.map((a) => {
+      const got = done.includes(a.id)
+      return `
+        <div class="codex-ach${got ? ' earned' : ''}">
+          <b>${a.name} <i>${a.hanja}</i></b>
+          <span>${a.desc}</span>
+          <em>${got ? '달성' : `+${a.stones}`}</em>
+        </div>`
+    }).join('')
 
     const r = this.progress.records
     const m = Math.floor(r.bestTime / 60)

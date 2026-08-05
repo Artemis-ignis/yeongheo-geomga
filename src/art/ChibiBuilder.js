@@ -5,6 +5,7 @@ import { buildMerged } from './geometry.js'
 import { buildColored, gradient, limb, revolve } from './shapeKit.js'
 import { panelSeams, studRing, tassel, trimBand } from './detailKit.js'
 import { faceSet } from './faces.js'
+import { buildHeroicSeolryeong } from './HeroicModels.js'
 
 /** Lighten or darken a hex colour by a factor, for cheap tonal variants. */
 function shade(hex, factor) {
@@ -293,7 +294,7 @@ function buildHair(pal, style) {
  */
 const SILHOUETTE = {
   // 검수: narrow and upright, with the sword-sash streamers behind.
-  seolryeong: { skirt: [0.17, 0.40, 0.26], crest: 'pin', back: 'streamers', sideLock: 0.42 },
+  seolryeong: { skirt: [0.18, 0.44, 0.18], crest: 'pin', back: 'streamers', sideLock: 0.42 },
   // 화염: short and wide, so she reads as planted when she burns something.
   hongryeon: { skirt: [0.21, 0.52, 0.14], crest: 'topknot', back: 'tail', sideLock: 0.26 },
   // 요족: cropped robe that lets the tail carry the outline.
@@ -309,17 +310,15 @@ const SILHOUETTE = {
 const DEFAULT_SILHOUETTE = { skirt: [0.18, 0.44, 0.26], crest: 'pin', back: 'streamers', sideLock: 0.32 }
 
 export function buildChibi(character) {
+  if (character.id === 'seolryeong') return buildHeroicSeolryeong(character)
   const pal = character.palette
   const sil = SILHOUETTE[character.id] ?? DEFAULT_SILHOUETTE
   const root = new THREE.Group()
-  // Everything below is authored at 1.9 units, which put her at 84 pixels of an
-  // 860-pixel frame — under 10% of screen height, and most of that was scalp.
-  // The camera distance is tuned for how much of the horde has to be visible
-  // and is not the thing to change, so she is scaled here instead.
-  // 1.34 put her at roughly 110 pixels of a 720-pixel frame. The face is the
-  // most-worked part of the model and at that size none of it survives; nothing
-  // about the rig is derived from this scale, so it costs nothing to fix here.
-  root.scale.setScalar(1.52)
+  // The camera is tuned for horde readability, not for a portrait close-up.
+  // Keep the model large enough to anchor the frame, but move the silhouette
+  // toward an action-RPG proportion instead of enlarging the head to make the
+  // face survive at distance.
+  root.scale.setScalar(1.70)
 
   const uniforms = {
     uTime: { value: 0 },
@@ -345,7 +344,7 @@ export function buildChibi(character) {
   // always turn together. Rotating them separately misaligns the hair's open
   // front with the face and buries the expression.
   const headPivot = new THREE.Group()
-  headPivot.position.y = 1.36
+  headPivot.position.y = 1.62
   // Tipped back toward the camera. The play camera looks down steeply, and on an
   // upright spherical head that means the player spends the whole run staring at
   // the top of her scalp — the face, which is the entire point of the character,
@@ -355,14 +354,17 @@ export function buildChibi(character) {
   // -0.34 was not enough: at play distance the visible face was forehead and the
   // upper half of the eyes. This is most of the way to facing the camera square,
   // and stops short of the angle where the profile reads as staring at the sky.
-  headPivot.rotation.x = -0.50
+  headPivot.rotation.x = -0.32
+  // Face and hair remain detailed, but the head no longer dominates the body.
+  // Scaling the shared pivot keeps all facial, hair and crest offsets aligned.
+  headPivot.scale.setScalar(0.37)
   root.add(headPivot)
 
   // Slightly narrower and shorter than before. With the hair mass on top the
   // head was reading as roughly 60% of her whole silhouette, which is past
   // chibi and into bobblehead — there was no body left to recognise.
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 24, 18), skinMat)
-  head.scale.set(0.94, 0.88, 0.9)
+  head.scale.set(0.94, 0.92, 0.9)
   head.castShadow = true
   headPivot.add(head)
 
@@ -470,13 +472,51 @@ export function buildChibi(character) {
   ], 20)
   gradient(torsoGeo, shade(pal.cloth, 0.68), shade(pal.cloth, 1.12), 'y')
   const torso = new THREE.Mesh(torsoGeo, clothVertexMat)
-  torso.position.y = 0.86
+  torso.position.y = 1.04
+  torso.scale.set(1.12, 1.42, 1.10)
   torso.castShadow = true
   root.add(torso)
 
   const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.245, 0.20, 0.10, 12), trimMat)
-  collar.position.y = 1.08
+  collar.position.y = 1.35
   root.add(collar)
+
+  // A layered chest bib breaks the deep toon shadow on the front of the lathed
+  // torso and gives the cultivator a clear martial-robe construction at play
+  // distance: shoulder mantle, central panel, waist clasp.
+  const bibGeo = buildColored([
+    [new THREE.BoxGeometry(0.22, 0.48, 0.055), { y: 1.10, z: 0.245 }, shade(pal.cloth, 1.22)],
+    [new THREE.BoxGeometry(0.045, 0.42, 0.018), { y: 1.10, z: 0.279 }, pal.trim],
+    [new THREE.BoxGeometry(0.22, 0.045, 0.018), { y: 1.29, z: 0.279 }, pal.trim],
+    [new THREE.OctahedronGeometry(0.055, 0), { y: 1.30, z: 0.295 }, pal.accent],
+  ])
+  const bib = new THREE.Mesh(bibGeo, clothVertexMat)
+  bib.castShadow = true
+  root.add(bib)
+
+  // Layered shoulder guards and a central chest clasp give the torso a designed
+  // hard-surface break. A single smooth robe was reading as one coloured blob
+  // once the oversized head was removed.
+  const shoulderGeo = buildColored([
+    [new THREE.SphereGeometry(0.17, 12, 8), { x: -0.32, y: 1.28, z: 0.01, sx: 1.25, sy: 0.42, sz: 0.78 }, shade(pal.trim, 0.78)],
+    [new THREE.SphereGeometry(0.17, 12, 8), { x: 0.32, y: 1.28, z: 0.01, sx: 1.25, sy: 0.42, sz: 0.78 }, shade(pal.trim, 0.78)],
+    [new THREE.BoxGeometry(0.13, 0.34, 0.07), { y: 1.18, z: 0.25 }, pal.accent],
+    [new THREE.OctahedronGeometry(0.08, 0), { y: 1.20, z: 0.31 }, pal.trim],
+  ])
+  const shoulders = new THREE.Mesh(shoulderGeo, clothVertexMat)
+  shoulders.castShadow = true
+  root.add(shoulders)
+
+  // A back-slung sword is visible even before the first projectile fires, which
+  // makes the selected character read as a cultivator rather than a mannequin.
+  const sheathGeo = buildMerged([
+    [new THREE.CylinderGeometry(0.055, 0.07, 0.86, 8), { y: 1.18, z: -0.31, rz: -0.38 }],
+    [new THREE.TorusGeometry(0.075, 0.018, 5, 12), { y: 0.96, z: -0.31, rz: -0.38 }],
+    [new THREE.ConeGeometry(0.08, 0.16, 6), { y: 1.58, z: -0.31, rz: -0.38 }],
+  ])
+  const sheath = new THREE.Mesh(sheathGeo, trimMat)
+  sheath.castShadow = true
+  root.add(sheath)
 
   // Sleeves widen toward the wrist, 한푸 style, then a bare hand.
   const arms = []
@@ -488,14 +528,14 @@ export function buildChibi(character) {
     sleeve.scale(0.115, 1, 0.115)
     gradient(sleeve, shade(pal.cloth, 1.1), shade(pal.cloth, 0.72), 'y')
     const arm = new THREE.Mesh(sleeve, clothVertexMat)
-    arm.position.set(side * 0.29, 0.84, 0)
+    arm.position.set(side * 0.32, 1.00, 0)
     arm.castShadow = true
     root.add(arm)
     arms.push(arm)
 
     const hand = new THREE.Mesh(new THREE.SphereGeometry(0.082, 10, 8), skinMat)
     hand.scale.set(1, 1.15, 0.9)
-    hand.position.set(side * 0.29, 0.62, 0)
+    hand.position.set(side * 0.32, 0.72, 0)
     root.add(hand)
     arms.push(hand)
   }
@@ -569,6 +609,46 @@ export function buildChibi(character) {
   }
 
   // ---- Behind the shoulders ------------------------------------------------
+  if (character.id === 'seolryeong') {
+    // Her signature is a pale, wind-caught sword mantle. The old blue torso was
+    // readable but did not carry the white-robed sword cultivator silhouette of
+    // the setting; these tapered cloth planes add that shape without changing
+    // hitboxes or the survivor camera's central clearing.
+    const cloakMat = makeToonMaterial({
+      color: 0xffffff,
+      rim: 0.52,
+      rimColor: pal.accent,
+      side: THREE.DoubleSide,
+      vertexColors: true,
+    })
+    const cloak = limb(
+      [[0, 1.22, -0.16], [0, 0.86, -0.32], [0, 0.42, -0.43], [0, 0.08, -0.52]],
+      [0.30, 0.35, 0.21, 0.025], 14, 7,
+    )
+    gradient(cloak, 0xf7fbff, 0x7198c6, 'y')
+    const cloakMesh = new THREE.Mesh(cloak, cloakMat)
+    cloakMesh.castShadow = true
+    root.add(cloakMesh)
+    for (const side of [-1, 1]) {
+      const panel = limb(
+        [[side * 0.18, 1.18, -0.12], [side * 0.32, 0.82, -0.30], [side * 0.46, 0.42, -0.40], [side * 0.60, 0.12, -0.48]],
+        [0.16, 0.19, 0.11, 0.018], 12, 6,
+      )
+      gradient(panel, 0xffffff, 0x8ab4e0, 'y')
+      const panelMesh = new THREE.Mesh(panel, cloakMat)
+      panelMesh.castShadow = true
+      root.add(panelMesh)
+    }
+    const heldBlade = new THREE.Mesh(
+      new THREE.BoxGeometry(0.045, 0.78, 0.025),
+      makeToonMaterial({ color: 0xeaf7ff, rim: 0.9, rimColor: pal.accent }),
+    )
+    heldBlade.position.set(0.47, 0.94, 0.20)
+    heldBlade.rotation.z = -0.58
+    heldBlade.castShadow = true
+    root.add(heldBlade)
+  }
+
   if (sil.back === 'drape') {
     // A long over-robe reaching the ground: the tallest back shape, and the one
     // that most changes the outline from the side.

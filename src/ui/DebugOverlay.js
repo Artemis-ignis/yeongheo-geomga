@@ -39,6 +39,7 @@ export class DebugOverlay {
       `pickups  ${s.pickups}`,
       `dropped  ${s.dropped}`,
       `res      ${(s.scale ?? 1).toFixed(2)}x`,
+      `backend  ${s.backend ?? 'unknown'}`,
       `seed     ${s.seed}`,
     ].join('\n')
   }

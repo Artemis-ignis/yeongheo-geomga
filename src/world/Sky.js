@@ -17,8 +17,9 @@ const _dummy = new THREE.Object3D()
  * 300 petals cost the CPU nothing per frame.
  */
 export class Sky {
-  constructor(scene, palette = {}) {
+  constructor(scene, palette = {}, stageId = '') {
     this.scene = scene
+    this.usePaintedBackdrop = stageId === 'jade'
     this.pal = {
       skyTop: PALETTE.skyTop, skyMid: PALETTE.skyMid, skyHaze: PALETTE.skyHaze,
       skyBottom: PALETTE.skyBottom, abyss: PALETTE.abyss, ...palette,
@@ -30,6 +31,18 @@ export class Sky {
     this._buildDome()
     this._buildIslands()
     this._buildPetals()
+    this.group.visible = !this.usePaintedBackdrop
+  }
+
+  /**
+   * The jade court has a painted sanctuary horizon. Keep the procedural dome and
+   * floating islands for the other stages, but do not let the opaque dome cover
+   * the authored background plate on this stage.
+   */
+  setPaintedBackdrop(on) {
+    this.usePaintedBackdrop = on
+    if (this.dome) this.dome.visible = !on
+    if (this.islands) this.islands.visible = !on
   }
 
   _buildDome() {
@@ -142,6 +155,7 @@ export class Sky {
         }`,
     })
     this.dome = new THREE.Mesh(new THREE.SphereGeometry(300, 32, 16), mat)
+    this.dome.visible = !this.usePaintedBackdrop
     this.group.add(this.dome)
   }
 
@@ -189,6 +203,7 @@ export class Sky {
       })
     }
     this.group.add(this.islands)
+    this.islands.visible = !this.usePaintedBackdrop
     // Place them immediately: an InstancedMesh starts at identity, which would
     // stack every island on top of the player for the first rendered frame.
     this._placeIslands(0, 0)

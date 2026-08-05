@@ -1,6 +1,7 @@
 import { META_UPGRADES, getMetaUpgrade, metaCost } from '../data/metaUpgrades.js'
 import { unlockCost } from '../data/unlocks.js'
 import { getTrial, unlockedTrials } from '../data/trials.js'
+import { evaluate } from '../data/achievements.js'
 import { defaultSave } from './Save.js'
 
 /**
@@ -23,6 +24,8 @@ export class Progress {
     if (!this.state.upgrades || typeof this.state.upgrades !== 'object') this.state.upgrades = {}
     if (!this.state.seen) this.state.seen = { ...base.seen }
     if (!Array.isArray(this.state.hintsSeen)) this.state.hintsSeen = []
+    if (!Array.isArray(this.state.achievements)) this.state.achievements = []
+    if (!Array.isArray(this.state.stagesCleared)) this.state.stagesCleared = []
     if (!this.state.records) this.state.records = { ...base.records }
     if (!Number.isFinite(this.state.stones)) this.state.stones = 0
   }
@@ -164,6 +167,49 @@ export class Progress {
     const n = Math.max(0, Math.round(amount))
     this.state.stones += n
     return n
+  }
+
+  get achievements() {
+    return this.state.achievements
+  }
+
+  hasAchievement(id) {
+    return this.state.achievements.includes(id)
+  }
+
+  /** Career totals in the shape the career-scope 업적 tests expect. */
+  get careerSummary() {
+    const r = this.state.records
+    return {
+      runs: r.runs, victories: r.victories, totalKills: r.totalKills,
+      bestTime: r.bestTime, bestLevel: r.bestLevel,
+      unlockedCharacters: this.state.unlockedCharacters.length,
+      unlockedWeapons: this.state.unlockedWeapons.length,
+      stagesCleared: this.state.stagesCleared.length,
+    }
+  }
+
+  /**
+   * Bank every 업적 a finished run earned, and pay for them.
+   *
+   * Career records are updated by `recordRun` before this is called, so a run
+   * that pushes a lifetime total over a threshold earns the career 업적 in the
+   * same breath rather than one run later.
+   */
+  awardAchievements(run) {
+    const earned = evaluate(run, this.careerSummary, this.state.achievements)
+    for (const a of earned) {
+      this.state.achievements.push(a.id)
+      this.state.stones += a.stones ?? 0
+    }
+    return earned
+  }
+
+  /** Remember a completed 비경, which the 삼경답파 업적 counts. */
+  markStageCleared(stageId) {
+    if (!stageId || this.state.stagesCleared.includes(stageId)) return false
+    this.state.stagesCleared.push(stageId)
+    return true
   }
 
   /** Record what the player has encountered, for the 도감. */

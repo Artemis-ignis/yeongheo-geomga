@@ -5,7 +5,9 @@ import * as THREE from 'three'
  * that the character reads at a glance, steep enough that a horde closing from
  * every side stays legible.
  */
-export const OFFSET = new THREE.Vector3(0, 12.6, 9.8)
+// A slightly lower three-quarter angle gives the hero a readable torso and
+// weapon silhouette while keeping enough ground visible for a survivor horde.
+export const OFFSET = new THREE.Vector3(0, 9.2, 14.5)
 const FOLLOW_LAMBDA = 8
 const TRAUMA_DECAY = 1.6
 const MAX_SHAKE = 0.9
@@ -44,12 +46,15 @@ export class FollowCamera {
     this.trauma = 0
     this.time = 0
     this.viewRadius = 40
+    // Portrait screens otherwise frame the shrine and player too tightly. A
+    // wider rig keeps the incoming ring readable without changing spawn logic.
+    const portraitZoom = aspect < 0.82 ? 1.42 : 1
     /**
      * What the player asked for, and where the rig actually is — eased, so a
      * wheel notch is a movement rather than a jump cut.
      */
-    this.zoom = 1
-    this._zoom = 1
+    this.zoom = portraitZoom * 0.82
+    this._zoom = portraitZoom
     this.setAspect(aspect)
     this.snapTo(0, 0)
   }

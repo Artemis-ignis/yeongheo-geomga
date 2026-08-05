@@ -6,9 +6,23 @@ Three.js로 만든 **뱀서라이크(Vampire Survivors-like)** 게임. 미소녀
 15분을 버팁니다. 공격은 전부 자동입니다. 당신이 하는 일은 **움직이는 것**과
 **경지를 돌파할 때 무엇을 얻을지 고르는 것** 뿐입니다.
 
-## 실행
+## 어디서나 실행
 
-### 그냥 하고 싶다면
+이 프로젝트는 운영체제별 실행 파일에 묶이지 않은 Vite 정적 웹 게임입니다.
+Windows, macOS, Linux에서 Node.js LTS와 WebGL2 브라우저만 있으면 같은 빌드를 실행할 수
+있습니다. 권장 Node 버전은 20.19 이상 또는 22.12 이상입니다.
+
+### 공개 웹사이트에서 플레이
+
+GitHub Pages 배포 주소:
+
+<https://artemis-ignis.github.io/yeongheo-geomga/>
+
+`master`에 push할 때 `.github/workflows/pages.yml`이 테스트와 production build를 통과한
+`dist/`만 자동 배포합니다. 첫 배포가 끝난 뒤에는 이 주소를 운영체제와 관계없이 공유하면
+누구나 바로 플레이할 수 있습니다.
+
+### Windows에서 그냥 하고 싶다면
 
 **`게임 시작.bat` 을 더블클릭하세요.** 그게 전부입니다.
 
@@ -22,11 +36,11 @@ Three.js로 만든 **뱀서라이크(Vampire Survivors-like)** 게임. 미소녀
 > `file://` 경로에서는 ES 모듈을 실행하지 않기 때문입니다. 로컬 서버가 필요하고,
 > `.bat` 이 존재하는 이유가 그것입니다.
 
-### 터미널을 쓴다면
+### macOS/Linux 또는 터미널을 쓴다면
 
 ```bash
-npm install
-npm start          # 빌드하고 브라우저를 엽니다
+npm ci
+npm start          # production build 후 미리보기 서버와 브라우저 실행
 ```
 
 개발용:
@@ -34,10 +48,12 @@ npm start          # 빌드하고 브라우저를 엽니다
 ```bash
 npm run dev        # 핫 리로드, http://localhost:5173
 npm run build      # dist/ 로 빌드
-npm run preview    # 빌드 결과를 서빙
+npm run preview    # 이미 만든 dist/를 서빙
 ```
 
 WebGL2를 지원하는 최신 브라우저가 필요합니다(Chrome, Edge, Firefox).
+`dist/index.html`을 직접 더블클릭하지 말고 반드시 `npm run preview` 같은 HTTP 서버로
+실행하십시오. 브라우저는 `file://`에서 ES 모듈과 정적 자산을 안전하게 로드하지 않습니다.
 
 ## 조작
 
@@ -109,13 +125,31 @@ WebGL2를 지원하는 최신 브라우저가 필요합니다(Chrome, Edge, Fire
 - **15:00** — 마존 흑천. 체력 구간마다 3페이즈: 검비 → 흑구환 → 소환.
   격파하면 **승천**, 기혈이 다하면 **좌화**.
 
+## 렌더링과 배포 구조
+
+Three.js WebGL2를 기본 백엔드로 사용합니다. GitHub Pages와 저사양 macOS에서도 호환성을
+우선해야 하므로 WebGPU로 강제 전환하지 않고, 1x 기본 해상도·적응형 품질·인스턴싱·1024px
+그림자·선택적 bloom으로 프레임 비용을 제어합니다. 청람비경의 환경은 먼 배경 텍스처로만
+사용하고, 제단·문루·수호신·플레이어·적·법보는 실제 Three.js 3D 오브젝트로 렌더링합니다.
+
+개발용 캡처 엔드포인트는 기본적으로 꺼져 있어 게임 실행 중 파일을 만들지 않습니다.
+시각 QA가 필요할 때만 다음처럼 명시적으로 켤 수 있습니다.
+
+```bash
+# macOS/Linux
+VITE_ENABLE_CAPTURE=1 npm run dev
+
+# PowerShell
+$env:VITE_ENABLE_CAPTURE='1'; npm run dev
+```
+
 ## 구조
 
 ```
 src/
   core/     Game(상태 머신·루프)  Time  Input  SpatialHash  Pool  RNG  Events
-  world/    Scene  Camera  Terrain  Sky
-  art/      faces  ChibiBuilder  enemyGeometry  materials  textures  geometry  vfx
+  world/    Scene  Camera  Terrain  Sky  SanctuaryCinematicSet
+  art/      faces  ChibiBuilder  HeroicModels  enemyGeometry  materials  textures  geometry  vfx
   entities/ Player  EnemyManager  ProjectileManager  PickupManager  BossManager
   combat/   WeaponSystem  Stats  damage  upgrades  weapons/(법보 12종)
   meta/     Save(localStorage)  Progress(영석 경제·해금·기록)
@@ -135,10 +169,9 @@ src/
   아무것도 할당하지 않습니다.
 - **공간 해시(uniform grid).** 충돌과 적끼리 밀어내기를 O(n)으로 처리합니다.
   이 밀어내기가 없으면 적들이 한 덩어리로 겹쳐버립니다.
-- **외부 에셋 0.** 모델·텍스처·폰트·이미지 파일이 하나도 없습니다. 얼굴은
-  Canvas2D로 그려 머리 곡면에 입히고, 지형·법보·적은 전부 프리미티브를 병합해
-  만듭니다.
-- **사운드 없음.** 설계 단계에서 명시적으로 제외했습니다.
+- **시네마틱 3D 세트.** 공개 배포에 포함된 청람비경 환경 텍스처는 원경에만 두고,
+  전경은 procedural Three.js 모델과 조명으로 구성합니다.
+- **사운드.** 브라우저 제스처 이후 AudioContext를 해제하고 전투·돌파·UI 피드백을 냅니다.
 
 ## 밸런스 수정
 

@@ -27,6 +27,10 @@ export function defaultSave() {
     hintsSeen: [],
     /** Selected 시련; what the player may select is derived from records. */
     trial: 0,
+    /** 업적 ids already earned. Ids, not flags, so the table can be reordered. */
+    achievements: [],
+    /** Stage ids the player has actually completed, for the career 업적. */
+    stagesCleared: [],
     records: { runs: 0, victories: 0, bestTime: 0, bestLevel: 0, totalKills: 0 },
   }
 }
@@ -105,6 +109,11 @@ function normalize(input) {
     // the first-run hints and reset the chosen 시련 to 평지.
     hintsSeen: arr(raw.hintsSeen, []),
     trial: Math.max(0, Math.trunc(num(raw.trial, 0))),
+    // A save written before 업적 existed keeps everything it earned; the list
+    // simply starts empty and fills from the next run, which is the same
+    // outcome as having always been there minus the back-pay.
+    achievements: arr(raw.achievements, []),
+    stagesCleared: arr(raw.stagesCleared, []),
     seen: {
       enemies: arr(raw.seen?.enemies, []),
       weapons: arr(raw.seen?.weapons, []),

@@ -19,7 +19,7 @@ function hex(n) {
 function bothEyes(ctx, draw) {
   for (const side of [-1, 1]) {
     ctx.save()
-    ctx.translate(SIZE / 2 + side * 92, SIZE / 2 + 34)
+    ctx.translate(SIZE / 2 + side * 82, SIZE / 2 + 34)
     ctx.scale(side, 1)
     draw(ctx)
     ctx.restore()
@@ -46,8 +46,8 @@ function drawBrows(ctx, tilt, color) {
     for (const [t0, t1, w] of [[0, 0.55, 11], [0.5, 1, 7]]) {
       // Two overlapping segments of a shared curve, drawn at different weights.
       const p = (t) => [
-        -88 + t * 172,
-        -128 + tilt * (1 - t * 2) - Math.sin(t * Math.PI) * 16,
+        -58 + t * 116,
+        -106 + tilt * (1 - t * 2) - Math.sin(t * Math.PI) * 10,
       ]
       c.lineWidth = w
       c.beginPath()
@@ -60,10 +60,11 @@ function drawBrows(ctx, tilt, color) {
 
 function drawOpenEye(ctx, palette, { wide = 1, highlight = 1 } = {}) {
   bothEyes(ctx, (c) => {
-    // Deliberately oversized: at the gameplay camera the head is only ~40px tall,
-    // and anything smaller stops reading as a face.
-    const w = 80
-    const h = 96 * wide
+    // The face has to read at gameplay distance without turning the character
+    // into a bobblehead. Smaller irises and more visible cheek space make the
+    // model feel like an action-RPG character rather than a UI mascot.
+    const w = 50
+    const h = 60 * wide
 
     // Eye white.
     c.fillStyle = '#ffffff'
@@ -101,18 +102,18 @@ function drawOpenEye(ctx, palette, { wide = 1, highlight = 1 } = {}) {
     // Heavy upper lash, thickening toward the outer corner.
     c.strokeStyle = '#14161f'
     c.lineCap = 'round'
-    c.lineWidth = 13
+    c.lineWidth = 8
     c.beginPath()
     c.ellipse(0, 0, w, h, 0, Math.PI * 1.08, Math.PI * 1.92)
     c.stroke()
-    c.lineWidth = 20
+    c.lineWidth = 12
     c.beginPath()
     c.moveTo(-w * 0.98, -h * 0.12)
     c.quadraticCurveTo(-w * 1.15, -h * 0.5, -w * 1.24, -h * 0.72)
     c.stroke()
 
     // Thin lower lid.
-    c.lineWidth = 5
+    c.lineWidth = 4
     c.strokeStyle = 'rgba(20,22,31,0.55)'
     c.beginPath()
     c.ellipse(0, 2, w * 0.92, h * 0.92, 0, Math.PI * 0.18, Math.PI * 0.8)

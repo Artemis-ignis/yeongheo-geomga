@@ -4,7 +4,10 @@ const SAMPLES = 45
 const SETTLE = 40
 
 export const MIN_SCALE = 0.6
-export const MAX_SCALE = 1.35
+// Keep the default ceiling at native CSS resolution. The scene has several
+// transparent/post-process layers, so a 1.25x backbuffer costs 56% more pixels
+// without improving readability on the target 1280x720 playfield.
+export const MAX_SCALE = 1.0
 
 /**
  * Adaptive render resolution.
@@ -24,12 +27,15 @@ export class Quality {
     this.renderer = renderer
     this.min = min
     this.max = max
-    this.scale = Math.min(max, devicePixelRatio || 1)
+    // High-DPI is not a quality guarantee; it multiplies every transparent
+    // surface and post pass. Begin at 1x and earn more resolution adaptively.
+    this.scale = Math.max(min, Math.min(max, Math.min(1, devicePixelRatio || 1)))
     this.samples = new Float32Array(SAMPLES)
     this.cursor = 0
     this.cooldown = SETTLE
     this.locked = false
     this.changes = 0
+    this._apply()
   }
 
   /** Pin the resolution, e.g. when the player picks a fixed quality setting. */

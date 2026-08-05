@@ -492,3 +492,65 @@ export function mistTexture() {
     return finish(c, { repeat: 3 })
   })
 }
+
+/** Large hand-laid stone slabs for the playable shrine centre. */
+export function shrineTexture(baseHex = 0x3d5d54, groutHex = 0x1d302d, accentHex = 0x8fd8ff) {
+  return cached(`shrine${baseHex}${groutHex}${accentHex}`, () => {
+    const S = 512
+    const c = canvas(S)
+    const ctx = c.getContext('2d')
+    const hex = (n) => `#${n.toString(16).padStart(6, '0')}`
+    const rgb = (n) => [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    const [ar, ag, ab] = rgb(accentHex)
+
+    ctx.fillStyle = hex(baseHex)
+    ctx.fillRect(0, 0, S, S)
+    ctx.lineJoin = 'round'
+
+    // Concentric cuts echo the physical shrine rings, but every slab has a
+    // slightly different angle and radius so the pattern does not become a
+    // perfect procedural target.
+    const cx = S / 2
+    const cy = S / 2
+    const rings = [36, 82, 132, 190, 252]
+    for (let r = 0; r < rings.length - 1; r++) {
+      const inner = rings[r]
+      const outer = rings[r + 1]
+      const count = 10 + r * 2
+      for (let i = 0; i < count; i++) {
+        const a0 = (i / count) * Math.PI * 2 + (r % 2) * 0.08
+        const a1 = ((i + 0.96) / count) * Math.PI * 2 + (r % 2) * 0.08
+        const wobble = 1 + Math.sin(i * 7.3 + r * 3.1) * 0.035
+        ctx.beginPath()
+        ctx.moveTo(cx + Math.cos(a0) * inner * wobble, cy + Math.sin(a0) * inner * wobble)
+        ctx.lineTo(cx + Math.cos(a1) * inner * wobble, cy + Math.sin(a1) * inner * wobble)
+        ctx.lineTo(cx + Math.cos(a1) * outer * wobble, cy + Math.sin(a1) * outer * wobble)
+        ctx.lineTo(cx + Math.cos(a0) * outer * wobble, cy + Math.sin(a0) * outer * wobble)
+        ctx.closePath()
+        const light = 0.82 + ((i + r) % 3) * 0.07
+        const [br, bg, bb] = rgb(baseHex)
+        ctx.fillStyle = `rgb(${Math.min(255, Math.round(br * light))},${Math.min(255, Math.round(bg * light))},${Math.min(255, Math.round(bb * light))})`
+        ctx.fill()
+        ctx.strokeStyle = hex(groutHex)
+        ctx.lineWidth = 3.2
+        ctx.stroke()
+      }
+    }
+
+    // A few restrained spirit-inlay marks keep the focal surface connected to
+    // the jade magic without turning the entire floor into a light source.
+    ctx.strokeStyle = `rgba(${ar},${ag},${ab},0.28)`
+    ctx.lineWidth = 2
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + Math.PI / 8
+      const x = cx + Math.sin(a) * 112
+      const y = cy + Math.cos(a) * 112
+      ctx.beginPath()
+      ctx.moveTo(x - Math.cos(a) * 13, y + Math.sin(a) * 13)
+      ctx.lineTo(x + Math.cos(a) * 13, y - Math.sin(a) * 13)
+      ctx.stroke()
+    }
+
+    return finish(c, { repeat: 1 })
+  })
+}

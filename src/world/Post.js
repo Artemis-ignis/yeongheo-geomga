@@ -101,7 +101,7 @@ export class Post {
       new THREE.Vector2(size.x, size.y),
       // Tuned against captured frames. Anything stronger and the toon rim light
       // pushes the whole character over threshold, turning her into a white blob.
-      0.30, // strength
+      0.24, // strength
       0.55, // radius
       0.95, // threshold — only genuinely bright things glow
     )
@@ -152,6 +152,12 @@ export class Post {
   /** Dropped entirely at low quality — it is the most expensive thing we draw. */
   setEnabled(on) {
     this.enabled = on
+  }
+
+  /** Keep grading available, but drop the expensive full-screen bloom first. */
+  setQuality(scale) {
+    this.bloom.enabled = scale >= 0.82
+    this.fxaa.enabled = scale >= 0.68
   }
 
   render(scene, camera) {

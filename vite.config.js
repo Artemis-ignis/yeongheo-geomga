@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { defineConfig } from 'vitest/config'
 
 const SHOT_DIR = resolve(process.cwd(), '.shots')
+const CAPTURE_ENABLED = process.env.VITE_ENABLE_CAPTURE === '1'
 
 /**
  * Dev-only: lets the page POST a rendered frame to disk so it can be inspected
@@ -50,7 +51,8 @@ export default defineConfig({
   // Open http://localhost:5173 yourself, or use `npm run dev -- --open`.
   server: { open: false },
   build: { target: 'es2022', outDir: 'dist' },
-  plugins: [screenshotSink()],
+  // The filesystem sink is only needed during an explicit visual-QA session.
+  plugins: CAPTURE_ENABLED ? [screenshotSink()] : [],
   test: {
     environment: 'node',
     include: ['test/**/*.test.js'],

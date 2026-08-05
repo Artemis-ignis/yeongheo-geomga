@@ -52,6 +52,7 @@ export class Grass {
   constructor(scene, innerRadius, outerRadius, opts = {}) {
     const pal = opts.palette ?? {}
     const density = opts.density ?? 1
+    const clearing = opts.clearing ?? CLEARING
     this.scene = scene
 
     // A tapered blade: wide at the base, pinched to a point.
@@ -117,7 +118,7 @@ export class Grass {
         uTileSize: { value: TILE_BUILD },
         uTileBuild: { value: TILE_BUILD },
         uOuter: { value: outerRadius },
-        uClearing: { value: CLEARING },
+        uClearing: { value: clearing },
         uBase: { value: new THREE.Color(pal.grassBase ?? 0x2f6b4f) },
         /**
          * The authored tip colour, pulled 45% of the way back to the base.

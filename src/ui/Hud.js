@@ -36,6 +36,17 @@ export class Hud {
     this.kills = el('div', 'hud-count', left)
     this.stones = el('div', 'hud-count', left)
 
+    // Top right: a small tactical radar. It is intentionally canvas-native so
+    // the horde never becomes dozens of DOM nodes during a late run.
+    const radar = el('div', 'hud-radar', this.node)
+    this.radarCanvas = el('canvas', 'hud-radar-canvas', radar)
+    this.radarCanvas.width = 176
+    this.radarCanvas.height = 176
+    this.radarCtx = this.radarCanvas.getContext('2d')
+    this.radarLabel = el('div', 'hud-radar-label', radar)
+    this.radarLabel.textContent = '영맥 감지'
+    this._radarAt = -Infinity
+
     // Bottom left: health and dash.
     const bl = el('div', 'hud-vitals', this.node)
     const hpTrack = el('div', 'hud-hp', bl)
@@ -135,6 +146,11 @@ export class Hud {
     this._set(this.kills, 'kills', `처치 ${state.kills}`)
     this._set(this.stones, 'stones', `영석 ${state.stones}`)
 
+    if (state.radar && state.runTime - this._radarAt >= 0.08) {
+      this._radarAt = state.runTime
+      this._drawRadar(state.radar, state.playerHeading ?? 0)
+    }
+
     const hpRatio = Math.max(0, state.hp / Math.max(1, state.maxHp))
     this._set(this.hpFill, 'hpWidth', `${(Math.round(hpRatio * 200) / 2)}%`)
     // The bar carried no information: it was the same red gradient at 100/100 as
@@ -193,6 +209,77 @@ export class Hud {
 
   show() { this.node.style.display = '' }
   hide() { this.node.style.display = 'none' }
+
+  _drawRadar(points, heading) {
+    const ctx = this.radarCtx
+    if (!ctx) return
+    const w = this.radarCanvas.width
+    const h = this.radarCanvas.height
+    const cx = w * 0.5
+    const cy = h * 0.5
+    const r = w * 0.38
+    ctx.clearRect(0, 0, w, h)
+
+    ctx.fillStyle = 'rgba(5, 13, 17, 0.58)'
+    ctx.beginPath()
+    ctx.arc(cx, cy, r + 15, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(127, 214, 181, 0.42)'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.strokeStyle = 'rgba(127, 214, 181, 0.14)'
+    ctx.lineWidth = 1
+    for (const ring of [0.5, 0.75]) {
+      ctx.beginPath()
+      ctx.arc(cx, cy, r * ring, 0, Math.PI * 2)
+      ctx.stroke()
+    }
+    ctx.beginPath()
+    ctx.moveTo(cx - r, cy)
+    ctx.lineTo(cx + r, cy)
+    ctx.moveTo(cx, cy - r)
+    ctx.lineTo(cx, cy + r)
+    ctx.stroke()
+
+    for (const point of points) {
+      const px = cx + point.x * r
+      const py = cy + point.z * r
+      const size = point.elite ? 4.2 : 2.4
+      ctx.fillStyle = point.elite
+        ? '#f0cf76'
+        : point.ranged ? '#ff967c' : '#bc8cff'
+      ctx.beginPath()
+      if (point.elite) {
+        ctx.moveTo(px, py - size)
+        ctx.lineTo(px + size, py)
+        ctx.lineTo(px, py + size)
+        ctx.lineTo(px - size, py)
+        ctx.closePath()
+      } else {
+        ctx.arc(px, py, size, 0, Math.PI * 2)
+      }
+      ctx.fill()
+    }
+
+    // Player marker and heading cone.
+    ctx.save()
+    ctx.translate(cx, cy)
+    ctx.rotate(heading)
+    ctx.fillStyle = '#dffff1'
+    ctx.strokeStyle = '#7fd6b5'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(0, -8)
+    ctx.lineTo(5, 6)
+    ctx.lineTo(0, 3)
+    ctx.lineTo(-5, 6)
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+    ctx.restore()
+  }
 
   dispose() {
     this.node.remove()
