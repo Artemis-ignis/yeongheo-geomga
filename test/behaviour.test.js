@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { EnemyManager } from '../src/entities/EnemyManager.js'
 import { ENEMIES, getEnemy } from '../src/data/enemies.js'
 import { STAGES } from '../src/data/stages.js'
-import { RNG } from '../src/core/rng.js'
+import { RNG } from '../src/core/RNG.js'
 
 /**
  * EnemyManager builds InstancedMeshes but never touches a WebGL context, so the
