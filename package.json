@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "assets:audit": "node tools/asset-audit.mjs",
+    "assets:img2three-gate": "node tools/img2threejs/prepare-gate-factory.mjs artifacts/img2threejs/jade-sanctuary-gate/generated/JadeSanctuaryGateFactory.ts src/art/generated/JadeSanctuaryGateFactory.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

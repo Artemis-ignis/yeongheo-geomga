@@ -25,11 +25,11 @@ body {
   position: absolute; inset: 0; z-index: 1; pointer-events: none;
   display: none;
   background: center top / cover no-repeat url('/assets/environment/jade-sanctuary-environment-v2.png');
-  opacity: 0.48;
+  opacity: 0.30;
   /* Only the horizon receives the generated plate. The lower fade preserves
    * the live arena, character silhouettes, pickups, and combat readability. */
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 12%, rgba(0,0,0,0.55) 24%, transparent 36%);
-  mask-image: linear-gradient(180deg, #000 0%, #000 12%, rgba(0,0,0,0.55) 24%, transparent 36%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 8%, rgba(0,0,0,0.55) 18%, transparent 30%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 8%, rgba(0,0,0,0.55) 18%, transparent 30%);
 }
 #cinematic-backdrop.active { display: block; }
 #overlay { z-index: 2; pointer-events: none; }

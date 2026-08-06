@@ -8,6 +8,7 @@ import {
   buildJadeTitan,
   buildVoidSage,
 } from '../art/HeroicModels.js'
+import { buildJadeSanctuaryGate } from '../art/JadeSanctuaryGate.js'
 
 // import.meta.env.BASE_URL keeps the public asset reachable both at `/` during
 // local development and at `/yeongheo-geomga/` on GitHub Pages.
@@ -45,6 +46,7 @@ export class SanctuaryCinematicSet {
 
     this.geometries = []
     this.materials = []
+    this.textures = []
     this.lights = []
     this.texture = null
     this.previousBackground = scene.background
@@ -258,6 +260,20 @@ export class SanctuaryCinematicSet {
       crest.position.y = 3.65
       crest.renderOrder = 3
     }
+
+    // The imagegen gate reference is now represented by a real foreground
+    // modular asset. The old horizon props stay available for the other realms,
+    // but jade uses this img2threejs-authored structure so the image never has
+    // to pretend to be the playable 3D architecture.
+    this.gate = adoptModel(buildJadeSanctuaryGate(), this.geometries, this.materials)
+    this.gate.name = 'jade-sanctuary-gate-img2threejs'
+    this.gate.position.set(0, 0, -6.4)
+    this.gate.scale.setScalar(0.58)
+    this.group.add(this.gate)
+    this.textures.push(...(this.gate.userData.ownedTextures ?? []))
+    for (const item of this.gate.userData.lights ?? []) {
+      this.lights.push({ light: item.light, base: item.base, phase: item.phase, speed: 2.2 })
+    }
   }
 
   _buildGuardians() {
@@ -402,6 +418,7 @@ export class SanctuaryCinematicSet {
     // live court, guardians, focus runes, and all combat geometry remain 3D;
     // only the duplicate low-poly horizon props are removed.
     if (this.horizonArchitecture) this.horizonArchitecture.visible = this.stageId !== 'jade'
+    this.gate?.userData.setQuality?.(scale)
 
     // The four showcase guardians are made from layered physical meshes. They
     // are valuable at native resolution, but become dark, noisy silhouettes at
@@ -433,6 +450,7 @@ export class SanctuaryCinematicSet {
     this.focusInner.rotation.z = -this.time * 0.31
     this.focusSlash.rotation.z = -this.time * 0.56
     this.focusSlashWarm.rotation.z = this.time * 0.34 + 1.1
+    this.gate?.userData.update?.(dt)
     this.focusSlash.material.opacity = 0.44 + Math.sin(this.time * 2.2) * 0.16
     for (let i = 0; i < this.moteData.length; i++) {
       const m = this.moteData[i]
@@ -478,6 +496,7 @@ export class SanctuaryCinematicSet {
     }
     for (const geometry of this.geometries) geometry.dispose()
     for (const material of this.materials) material.dispose()
+    for (const texture of this.textures) texture.dispose()
     this.texture?.dispose()
   }
 }
