@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { Pool } from '../core/Pool.js'
 import { buildMerged } from '../art/geometry.js'
 import { makeToonMaterial, makeAdditiveMaterial } from '../art/materials.js'
@@ -23,14 +24,16 @@ function kindGeometry(kind) {
   switch (kind) {
     case 'sword':
       return buildMerged([
-        [new THREE.BoxGeometry(0.07, 0.6, 0.03), { y: 0.1 }],
-        [new THREE.ConeGeometry(0.05, 0.18, 4), { y: 0.49 }],
-        [new THREE.BoxGeometry(0.2, 0.04, 0.04), { y: -0.22 }],
+        [new RoundedBoxGeometry(0.10, 0.66, 0.045, 2, 0.018), { y: 0.1 }],
+        [new THREE.ConeGeometry(0.075, 0.20, 6), { y: 0.53 }],
+        [new RoundedBoxGeometry(0.24, 0.05, 0.055, 2, 0.018), { y: -0.24 }],
+        [new THREE.CapsuleGeometry(0.035, 0.18, 4, 8), { y: -0.35, rz: Math.PI / 2 }],
       ])
     case 'talisman':
       return buildMerged([
-        [new THREE.BoxGeometry(0.26, 0.42, 0.02), {}],
-        [new THREE.BoxGeometry(0.06, 0.30, 0.03), { z: 0.02 }],
+        [new RoundedBoxGeometry(0.30, 0.46, 0.035, 2, 0.028), {}],
+        [new RoundedBoxGeometry(0.07, 0.30, 0.045, 2, 0.018), { z: 0.025 }],
+        [new THREE.CylinderGeometry(0.055, 0.055, 0.035, 12), { z: 0.04, rx: Math.PI / 2 }],
       ])
     case 'vajra':
       return buildMerged([
@@ -46,11 +49,12 @@ function kindGeometry(kind) {
       ])
     case 'darkSword':
       return buildMerged([
-        [new THREE.BoxGeometry(0.08, 0.7, 0.03), {}],
-        [new THREE.ConeGeometry(0.06, 0.2, 4), { y: 0.44 }],
+        [new RoundedBoxGeometry(0.12, 0.78, 0.055, 2, 0.022), {}],
+        [new THREE.ConeGeometry(0.085, 0.22, 6), { y: 0.49 }],
+        [new RoundedBoxGeometry(0.26, 0.055, 0.065, 2, 0.018), { y: -0.41 }],
       ])
     default:
-      return new THREE.OctahedronGeometry(0.17, 0)
+      return new THREE.OctahedronGeometry(0.17, 1)
   }
 }
 
@@ -149,7 +153,14 @@ export class ProjectileManager {
     this.meshes = PROJECTILE_KINDS.map((kind) => {
       const mesh = new THREE.InstancedMesh(
         kindGeometry(kind),
-        makeToonMaterial({ color: KIND_COLOR[kind], rim: 0.9, rimColor: 0xffffff }),
+        makeToonMaterial({
+          color: KIND_COLOR[kind],
+          rim: 0.9,
+          rimColor: 0xffffff,
+          pbr: true,
+          roughness: kind === 'talisman' ? 0.44 : 0.24,
+          metalness: kind === 'talisman' ? 0.08 : 0.38,
+        }),
         MAX_PROJECTILES,
       )
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)

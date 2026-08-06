@@ -164,11 +164,11 @@ export function buildHeroicSeolryeong(character) {
   // The reference silhouette is a moonlit white-robed swordswoman. Keep the
   // character palette's blue as an accent, but do not let it turn the entire
   // robe into a navy blob under the night grade.
-  // The runtime hero uses the embroidered material pass rather than the flat
-  // weave-only swatch.  At survivor distance the broad floral relief survives
-  // downsampling and separates the robe panels; the img2three structural
-  // factory keeps the original weave map for its own authored channel.
-  const silkWeave = weaveTexture('materials/characters/moon-silk-embroidered-v1.png', [1.35, 1.85])
+  // ImageGen v2 is the production brocade pass: the larger woven motifs and
+  // darker indigo base keep the robe panels separated after survivor-camera
+  // downsampling. The img2threejs normal/roughness channels still provide the
+  // micro-surface response on the same authored 3D cloth.
+  const silkWeave = weaveTexture('materials/characters/moon-silk-brocade-v2.png', [1.15, 1.55])
   const silkNormal = weaveTexture('materials/img2three/seolryeong-silk_normal.png', [2.35, 3.1], THREE.NoColorSpace)
   const silkRoughness = weaveTexture('materials/img2three/seolryeong-silk_roughness.png', [2.35, 3.1], THREE.NoColorSpace)
   const silkMaps = { normalMap: silkNormal, roughnessMap: silkRoughness, bumpMap: silkNormal, bumpScale: 0.018 }

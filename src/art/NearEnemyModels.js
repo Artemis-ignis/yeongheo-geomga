@@ -8,7 +8,7 @@ import { buildEnemyGeometry } from './enemyGeometry.js'
  * The simulation still uses one InstancedMesh per enemy type.  That is the
  * correct representation for the outer horde, but it is a poor presentation
  * model for the few enemies that are close enough to be judged by the player.
- * This library supplies a bounded six-slot near LOD: layered materials,
+ * This library supplies a bounded eight-slot near LOD: layered materials,
  * rounded silhouettes, and readable emissive landmarks replace the primitive
  * pile only where the camera can actually see the difference.
  */
@@ -21,7 +21,9 @@ export const NEAR_DETAIL_ENEMY_IDS = new Set([
   'wisp', 'wolf', 'stoneGhoul', 'talismanGhost', 'bloodScorpion',
   'demonCultivator', 'jadeSerpent', 'glacierWarden', 'magmaBrute', 'ashRaven',
 ])
-export const NEAR_DETAIL_SLOT_COUNT = 6
+// Keep elite silhouettes detailed for the eight closest readable targets while
+// leaving the outer horde on the existing instanced path.
+export const NEAR_DETAIL_SLOT_COUNT = 8
 export const NEAR_DETAIL_MAX_DISTANCE = 12
 
 const BASE_HEIGHT = {
@@ -197,6 +199,20 @@ function buildDetailedStoneVariant(type, color, emissive, emissiveIntensity) {
     clearcoat: 0.42,
   })
   addMesh(motion, new THREE.IcosahedronGeometry(0.12, 1), core, [0, 0.76, 0.64], [1, 1.25, 0.42])
+  // The old stone-family LOD was a single rounded mass at play distance. These
+  // shared, low-cost armour landmarks give the three variants a readable chest,
+  // shoulder and collar silhouette without multiplying the horde draw calls.
+  const plate = physical(0xffffff, {
+    color: new THREE.Color(color).offsetHSL(0, -0.08, -0.14),
+    roughness: 0.38,
+    metalness: 0.48,
+    clearcoat: 0.34,
+  })
+  for (const side of [-1, 1]) {
+    addMesh(motion, new RoundedBoxGeometry(0.24, 0.34, 0.10, 2, 0.035), plate, [side * 0.24, 0.62, 0.28], [1, 1, 0.9], [0, 0, side * -0.14])
+  }
+  const collar = addMesh(motion, new THREE.TorusGeometry(0.23, 0.045, 8, 28), plate, [0, 0.76, 0.02], [1, 1, 1.12], [Math.PI / 2, 0, 0])
+  collar.name = 'near-stone-collar'
   return root
 }
 
@@ -300,7 +316,12 @@ function buildDemonCultivator() {
 function buildJadeSerpent() {
   const root = new THREE.Group()
   root.name = 'near-jade-serpent'
-  const scale = physical(0x2a9c95, { roughness: 0.30, metalness: 0.16, clearcoat: 0.42, map: weaveTexture('materials/guardians/jade-scale-weave-v1.png', [3, 2]) })
+  const scale = physical(0x2a9c95, {
+    roughness: 0.30,
+    metalness: 0.16,
+    clearcoat: 0.42,
+    map: weaveTexture('materials/guardians/jade-void-armor-v1.png', [1.85, 1.35]),
+  })
   const belly = physical(0xa9ded1, { roughness: 0.35, clearcoat: 0.30 })
   const horn = physical(0xc6eee8, { roughness: 0.25, metalness: 0.18, clearcoat: 0.38 })
   const eye = physical(0xffd85b, { color: 0xffd85b, emissive: 0x8f6511, emissiveIntensity: 1.6, roughness: 0.12 })

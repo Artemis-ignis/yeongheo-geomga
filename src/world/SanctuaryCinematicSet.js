@@ -15,6 +15,7 @@ import { buildBossGeometry } from '../art/bossGeometry.js'
 // local development and at `/yeongheo-geomga/` on GitHub Pages.
 const BACKDROP_URL = `${import.meta.env.BASE_URL}assets/environment/jade-sanctuary-environment-v2.png`
 const PAVER_TEXTURE_URL = `${import.meta.env.BASE_URL}assets/materials/environment/jade-pavilion-stone-v1.png`
+const JADE_ARMOR_TEXTURE_URL = `${import.meta.env.BASE_URL}assets/materials/guardians/jade-void-armor-v1.png`
 
 const _dummy = new THREE.Object3D()
 
@@ -359,12 +360,22 @@ export class SanctuaryCinematicSet {
     // The showcase uses authored high-segment Three.js models. They are not
     // scaled enemy blobs: each silhouette has its own construction, PBR
     // material family, layered armour/cloth, and light response.
+    const jadeArmorTexture = new THREE.TextureLoader().load(JADE_ARMOR_TEXTURE_URL)
+    jadeArmorTexture.colorSpace = THREE.SRGBColorSpace
+    jadeArmorTexture.wrapS = THREE.RepeatWrapping
+    jadeArmorTexture.wrapT = THREE.RepeatWrapping
+    jadeArmorTexture.repeat.set(1.25, 1.05)
+    jadeArmorTexture.anisotropy = Math.min(4, this.scene.userData.maxAnisotropy ?? 4)
+    jadeArmorTexture.userData.sharedByYeongheo = true
+    this.textures.push(jadeArmorTexture)
+
     const titanShowcase = new THREE.Group()
     titanShowcase.name = 'heroic-jade-titan'
     titanShowcase.add(new THREE.Mesh(
       buildBossGeometry('jadeVoidWarden'),
       makeToonMaterial({
         color: 0xffffff,
+        map: jadeArmorTexture,
         vertexColors: true,
         rim: 0.38,
         rimColor: 0x9dffe3,

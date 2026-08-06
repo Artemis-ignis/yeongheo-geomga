@@ -6,18 +6,21 @@
 
 - `tools/img2threejs/`는 GitHub `img2threejs/img2threejs` 소스를 프로젝트 안에 vendoring한 실행 도구입니다.
 - `src/art/generated/SeolryeongImg2ThreeBlockout.ts`는 ImageGen 기준 이미지와 ObjectSculptSpec에서 생성된 구조/소켓/재질 메타데이터 팩토리입니다.
-- `src/art/SeolryeongImg2ThreeAdapter.js`가 위 팩토리를 플레이어 런타임 그래프에 연결하고, 보이는 전투 모델은 `src/art/HeroicModels.js`의 3D 프레젠테이션 셸이 담당합니다.
+- `src/art/SeolryeongImg2ThreeAdapter.js`가 위 팩토리를 플레이어 런타임 그래프에 연결하고, 보이는 전투 모델은 `src/art/HeroicModels.js`의 3D 프레젠테이션 셸이 담당합니다. 보이는 셸에도 img2threejs의 normal/roughness 채널을 적용하고, ImageGen v2 brocade를 실제 cloth map으로 연결했습니다.
 - `src/world/SanctuaryCinematicSet.js`의 문루는 `JadeSanctuaryGateFactory.ts`를 구조 기준으로 연결하고, 현재 보이는 문루는 그 기준을 보강한 3D shell입니다. 제단 paver는 ImageGen 재질 `public/assets/materials/environment/jade-pavilion-stone-v1.png`를 실제 Three.js 메시에 사용합니다.
-- ImageGen 재질 `public/assets/materials/characters/moon-silk-embroidered-v1.png`는 설령의 보이는 robe/sleeve/panel 재질에 연결되어 있습니다.
+- ImageGen 재질 `public/assets/materials/characters/moon-silk-brocade-v2.png`는 설령의 보이는 robe/sleeve/panel 및 img2three 구조 모델의 silk material에 연결되어 있습니다.
+- ImageGen 재질 `public/assets/materials/guardians/jade-void-armor-v1.png`는 근접 jade serpent와 sanctuary jade titan의 실제 PBR/toon material map에 연결되어 있습니다.
+- 교체로 끊긴 구형 `moon-silk-weave-v1.png`, `moon-silk-embroidered-v1.png`는 삭제하고 매니페스트를 13개 실제 파일과 일치시켰습니다. 새 파일은 `tools/asset-manifest.json`의 `source: imagegen` 항목으로 추적됩니다.
 
 ## 검수 결과
 
-- 최근 실제 브라우저 전투 프레임: 60~61 FPS, `work` 약 3.0 ms, `sim/draw` 약 0.1/2.9 ms, `dropped 0`, WebGL2.
+- 2026-08-07 현재 패스의 실제 브라우저 전투 프레임: 60 FPS, `work` 2.7~2.9 ms, `sim/draw` 0.0~0.2/2.5~2.7 ms, `dropped 0`, WebGL2. 전투 중 경지 선택을 열고 닫은 뒤에도 동일 범위를 유지했으며, 측정 HUD는 452~517 draws, 595,591~634,841 tris였습니다.
 - 실제 플레이 경로도 확인했습니다: 비경 진입 → 청람비경 → 설령 한빙검파 → 전투/경지 선택 → 일시정지 → 포기 확인 → 좌화 결과 → 다시 도전 → 타이틀 복귀. 결과 화면에서도 60 FPS, `work` 2.9 ms, `dropped 0`을 확인했습니다.
-- `npm test`: 31개 파일/459개 테스트 통과, `npm run build`: 통과, `npm run assets:audit`: 13개 자산/실파일 13개/경고 없음.
+- `npm test`: 31개 파일/459개 테스트 통과, `npm run build`: 통과, `npm run assets:audit`: 13개 자산/실파일 13개/오류 없음. 빌드는 현재 단일 JS 청크 1.47MB 경고가 남아 있어 코드 분할을 다음 성능 패스로 남겼습니다.
 - 테스트/빌드/자산 감사는 별도로 실행해야 하며, 이 수치는 Windows 작업 관리자 전체 CPU 사용률을 보증하지 않습니다.
 - ImageGen 기준 이미지와 게임플레이 프레임의 시각 비교는 현재 약 0.42로 기록되어 있습니다. 따라서 AAA 완료나 구조 패스 통과로 표시하지 않습니다.
 - 캐릭터 img2threejs 파이프라인은 아직 `blockout`에 잠겨 있습니다. 실제 고품질 스키닝 GLB/GLTF가 생긴 것으로 오인하지 않도록 현재 팩토리는 구조 기준과 메타데이터 용도로 명시되어 있습니다.
+- 근접 적 LOD는 8슬롯으로 늘렸고 stone/glacier/magma 계열에 어깨판·흉부 중심·칼라를 추가했습니다. 바깥 군중은 기존 GPU instancing을 유지해 상세도를 필요한 거리에서만 지불합니다.
 
 ## 다음 통과 조건
 

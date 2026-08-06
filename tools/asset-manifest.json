@@ -30,21 +30,12 @@
       "maxBytes": 4000000
     },
     {
-      "id": "material.character.moon-silk.v1",
-      "path": "public/assets/materials/characters/moon-silk-weave-v1.png",
-      "role": "runtime-material-weave",
+      "id": "material.character.moon-silk-brocade.v2",
+      "path": "public/assets/materials/characters/moon-silk-brocade-v2.png",
+      "role": "runtime-material-hero-brocade",
       "tier": "hero",
       "source": "imagegen",
-      "consumers": ["src/art/SeolryeongImg2ThreeAdapter.js"],
-      "maxBytes": 4500000
-    },
-    {
-      "id": "material.character.moon-silk-embroidered.v1",
-      "path": "public/assets/materials/characters/moon-silk-embroidered-v1.png",
-      "role": "runtime-material-embroidered-silk",
-      "tier": "hero",
-      "source": "imagegen",
-      "consumers": ["src/art/HeroicModels.js"],
+      "consumers": ["src/art/HeroicModels.js", "src/art/SeolryeongImg2ThreeAdapter.js"],
       "maxBytes": 4500000
     },
     {
@@ -63,6 +54,15 @@
       "tier": "world",
       "source": "imagegen",
       "consumers": ["src/art/HeroicModels.js"],
+      "maxBytes": 4500000
+    },
+    {
+      "id": "material.guardian.jade-void-armor.v1",
+      "path": "public/assets/materials/guardians/jade-void-armor-v1.png",
+      "role": "runtime-material-jade-void-armor",
+      "tier": "boss",
+      "source": "imagegen",
+      "consumers": ["src/art/NearEnemyModels.js", "src/world/SanctuaryCinematicSet.js"],
       "maxBytes": 4500000
     },
     {

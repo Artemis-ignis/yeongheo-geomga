@@ -43,7 +43,7 @@ function applyTexture(root, texture, materialIds) {
 
 function loadSilkTexture(root) {
   if (!_textureLoader) return
-  const key = 'materials/characters/moon-silk-weave-v1.png'
+  const key = 'materials/characters/moon-silk-brocade-v2.png'
   let texture = _textureCache.get(key)
   if (texture) {
     applyTexture(root, texture, _silkMaterials)
