@@ -1,0 +1,87 @@
+{
+  "ok": true,
+  "verdict": "pass",
+  "confidence": 0.86,
+  "estimatedFidelity": 0.86,
+  "targetThreshold": 0.7,
+  "materialId": "seolryeong-silk",
+  "sourceImage": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\seolryeong-isolated-reference.png",
+  "outDir": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence-isolated",
+  "palette": [
+    "#575C6D",
+    "#9296A9",
+    "#71798C",
+    "#B1B1C0",
+    "#D4D7E1",
+    "#2D2F34"
+  ],
+  "maps": {
+    "albedo": {
+      "path": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence-isolated\\seolryeong-silk_albedo.png",
+      "url": "seolryeong-silk_albedo.png",
+      "channel": "albedo",
+      "source": "reference-pixel-extraction"
+    },
+    "roughness": {
+      "path": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence-isolated\\seolryeong-silk_roughness.png",
+      "url": "seolryeong-silk_roughness.png",
+      "channel": "roughness",
+      "source": "reference-pixel-extraction"
+    },
+    "height": {
+      "path": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence-isolated\\seolryeong-silk_height.png",
+      "url": "seolryeong-silk_height.png",
+      "channel": "height",
+      "source": "reference-pixel-extraction"
+    },
+    "normal": {
+      "path": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence-isolated\\seolryeong-silk_normal.png",
+      "url": "seolryeong-silk_normal.png",
+      "channel": "normal",
+      "source": "reference-pixel-extraction"
+    },
+    "ao": {
+      "path": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence-isolated\\seolryeong-silk_ao.png",
+      "url": "seolryeong-silk_ao.png",
+      "channel": "ao",
+      "source": "reference-pixel-extraction"
+    }
+  },
+  "diagnostics": {
+    "sourceWidth": 1024,
+    "sourceHeight": 1536,
+    "mapSize": 512,
+    "cropBBoxPixels": {
+      "x": 12,
+      "y": 114,
+      "width": 822,
+      "height": 1330
+    },
+    "mask": {
+      "backgroundColor": "#FFFFFF",
+      "backgroundNoise": 0.0,
+      "transparentPixelFraction": 0.7432,
+      "foregroundCoverage": 0.2641
+    },
+    "mapStats": {
+      "valueRange": 0.6047,
+      "heightP90Gradient": 0.11013,
+      "roughnessBase": 0.695,
+      "roughnessVariation": 0.198,
+      "normalStrength": 0.285,
+      "blurRadius": 10
+    },
+    "palette": [
+      "#575C6D",
+      "#9296A9",
+      "#71798C",
+      "#B1B1C0",
+      "#D4D7E1",
+      "#2D2F34"
+    ]
+  },
+  "warnings": [
+    "single-image inverse rendering cannot prove true physical PBR; confidence is capped"
+  ],
+  "limitation": "single-image PBR extraction is an estimate; 70%+ extraction confidence still needs render screenshot review"
+}

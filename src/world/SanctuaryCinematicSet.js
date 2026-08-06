@@ -38,7 +38,6 @@ export class SanctuaryCinematicSet {
     this.materials = []
     this.lights = []
     this.texture = null
-    this.plateTexture = null
     this.previousBackground = scene.background
     this._buildBackdrop()
     this._buildArchitecture()
@@ -64,67 +63,30 @@ export class SanctuaryCinematicSet {
   }
 
   _buildBackdrop() {
-    // Keep this plate behind the real arena. It contributes depth and silhouette
-    // at the horizon while the player and combat remain ordinary 3D objects.
+    // The PNG is a distant environment only. It belongs in scene.background;
+    // a second opaque quad would redraw the entire screen and cover the real
+    // player, guardians and combat geometry.
     const texture = new THREE.TextureLoader().load(
       BACKDROP_URL,
       (loaded) => {
         loaded.colorSpace = THREE.SRGBColorSpace
-        loaded.anisotropy = 4
-        loaded.needsUpdate = true
-
-        // The authored environment is the farthest layer in the actual scene.
-        // Using the renderer background keeps the real terrain, guardians and
-        // combat VFX in front of it without asking a vertical billboard to
-        // compete with the ground depth buffer.
+        loaded.anisotropy = Math.min(4, this.scene.userData.maxAnisotropy ?? 4)
         this.scene.background = loaded
-
-        // Bake the lower fade into a normal RGBA texture. This is more portable
-        // than a one-channel alpha map across WebGL2 drivers and keeps the
-        // backdrop material on the regular MeshBasicMaterial path.
-        const image = loaded.image
-        if (image?.width && image?.height) {
-          const canvas = document.createElement('canvas')
-          canvas.width = image.width
-          canvas.height = image.height
-          const ctx = canvas.getContext('2d')
-          ctx.drawImage(image, 0, 0)
-          ctx.globalCompositeOperation = 'destination-in'
-          const fade = ctx.createLinearGradient(0, 0, 0, canvas.height)
-          fade.addColorStop(0, 'rgba(255,255,255,1)')
-          fade.addColorStop(0.58, 'rgba(255,255,255,1)')
-          fade.addColorStop(1, 'rgba(255,255,255,0)')
-          ctx.fillStyle = fade
-          ctx.fillRect(0, 0, canvas.width, canvas.height)
-          const plate = new THREE.CanvasTexture(canvas)
-          plate.colorSpace = THREE.SRGBColorSpace
-          plate.minFilter = THREE.LinearMipmapLinearFilter
-          plate.magFilter = THREE.LinearFilter
-          plate.anisotropy = 4
-          plate.needsUpdate = true
-          this.plateTexture = plate
-          if (this.backdrop) {
-            this.backdrop.material.map = plate
-            this.backdrop.material.needsUpdate = true
-          }
-        }
       },
       undefined,
       () => {
-        // Keep the real 3D court visible even if the optional plate is missing;
-        // hiding the mesh here also hid later material upgrades during runtime
-        // asset retries and made the scene look like the old placeholder.
-        this.backdrop.visible = false
+        // The real 3D court remains playable if the optional environment fails.
       },
     )
     texture.colorSpace = THREE.SRGBColorSpace
     texture.minFilter = THREE.LinearMipmapLinearFilter
     texture.magFilter = THREE.LinearFilter
     this.texture = texture
-    // Attach the live Texture object immediately; TextureLoader mutates this
-    // instance when the PNG finishes loading, so the renderer never misses the
-    // first usable frame while the callback builds the optional fade copy.
-    this.scene.background = texture
+    // Do not hand an image-less TextureLoader result to the renderer. Three.js
+    // otherwise checks it every frame while the PNG is still pending and emits
+    // a warning on some WebGL drivers. A flat color keeps the first frames
+    // valid; the loaded image replaces it in the callback above.
+    this.scene.background = new THREE.Color(0x0a1320)
     // Sky owns an opaque shader dome. It is created before this set, so hide it
     // here as well as in Sky's stage-aware path; this keeps the backdrop reliable
     // across hot reloads and packaged builds where constructor arguments can be
@@ -138,53 +100,7 @@ export class SanctuaryCinematicSet {
       })
     }
 
-    // The camera is intentionally pitched down for survivor readability. A
-    // small eye-level billboard therefore misses most of the frustum; this
-    // wider lower plate gives the distant cliffs and gate enough vertical room
-    // to occupy the actual screen, while the arena occludes its lower edge.
-    // Match the plate to the camera's horizon scale instead of treating it as
-    // an enormous billboard. At width 120 only the middle third of the artwork
-    // was visible, which cropped out the moon and most of the waterfalls.
-    const geo = this._geometry(new THREE.PlaneGeometry(76, 42.75, 1, 1))
-    const mat = this._material(new THREE.MeshBasicMaterial({
-      map: null,
-      // The map is already the authored blue sanctuary. Multiplying it by a
-      // magenta placeholder turned the whole playable world black and pink.
-      color: 0xffffff,
-      transparent: false,
-      alphaTest: 0.018,
-      opacity: 1,
-      depthTest: true,
-      depthWrite: true,
-      fog: false,
-      side: THREE.DoubleSide,
-    }))
-    this.backdrop = this._mesh(geo, mat)
-    this.backdrop.name = 'sanctuary-backdrop-plate'
-    // The follow camera looks down toward the arena. At this distance the
-    // screen's horizon is several metres below the camera, so centring the
-    // vertical plate at eye height would put it above the frustum entirely.
-    // It sits just beyond the arena's rear rim. A vertical alpha fade at the
-    // bottom lets the real stone floor win in the play area while the upper
-    // cliffs and gate appear through the pitched camera's horizon.
-    // The previous -25 placement pushed the moon, cliff faces and upper gate
-    // above the pitched camera's useful band. Lift the plate into the horizon
-    // so its authored detail survives the real arena's foreground occlusion.
-    this.backdrop.position.set(0, 6, -3)
-    // The sky dome is rendered without depth writes. Rendering this after the
-    // dome but before nearer opaque geometry lets the plate occupy the horizon
-    // while the real arena still wins every overlapping pixel.
-    // Draw after the opaque sky dome but let the real terrain win through depth.
-    // The dome has depthWrite disabled, so a negative order used to let it paint
-    // over this plate a second time. The result looked exactly like the old
-    // placeholder scene even though the new environment texture had loaded.
-    this.backdrop.renderOrder = 100
-    this.backdrop.material.depthTest = false
-    // The environment is already the scene background. Keeping a second,
-    // opaque full-screen plane here doubles fill-rate and hides the actual
-    // Three.js guardians, player and combat geometry. The authored image stays
-    // a distant layer; gameplay remains real 3D in front of it.
-    this.backdrop.visible = false
+    this.backdrop = null
   }
 
   _buildArchitecture() {
@@ -360,10 +276,10 @@ export class SanctuaryCinematicSet {
     this.group.add(this.lord)
 
     for (const [color, intensity, distance, position, phase, speed] of [
-      [0x47d9ff, 18, 15, [-7.0, 2.4, -1.0], 0.2, 1.1],
-      [0x46ffe0, 12, 15, [7.0, 2.2, -1.0], 1.4, 1.35],
-      [0xff6a35, 20, 18, [3.8, 3.0, -5.8], 2.2, 1.8],
-      [0xb16cff, 10, 12, [0, 2.2, -7.0], 3.0, 0.9],
+      [0x47d9ff, 10, 15, [-7.0, 2.4, -1.0], 0.2, 1.1],
+      [0x46ffe0, 7, 15, [7.0, 2.2, -1.0], 1.4, 1.35],
+      [0xff6a35, 12, 18, [3.8, 3.0, -5.8], 2.2, 1.8],
+      [0xb16cff, 6, 12, [0, 2.2, -7.0], 3.0, 0.9],
     ]) {
       const light = new THREE.PointLight(color, intensity, distance, 2)
       light.position.set(...position)
@@ -522,12 +438,11 @@ export class SanctuaryCinematicSet {
 
   dispose() {
     this.scene.remove(this.group)
-    if (this.scene.background === this.texture || this.scene.background === this.plateTexture) {
+    if (this.scene.background === this.texture) {
       this.scene.background = this.previousBackground
     }
     for (const geometry of this.geometries) geometry.dispose()
     for (const material of this.materials) material.dispose()
     this.texture?.dispose()
-    this.plateTexture?.dispose()
   }
 }

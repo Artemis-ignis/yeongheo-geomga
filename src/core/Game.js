@@ -55,6 +55,11 @@ const FORMATION_NAMES = {
 
 const BREAKTHROUGH_RADIUS = 8
 const BREAKTHROUGH_IFRAMES = 1.2
+// The browser may call setAnimationLoop at 120/144/165 Hz. Rendering the same
+// frame that many times does not improve a 3D game this dense; it only keeps
+// the GPU hot. Keep simulation and presentation at a predictable 60 Hz cap.
+export const MAX_RENDER_FPS = 60
+const MIN_RENDER_INTERVAL_MS = 1000 / MAX_RENDER_FPS
 
 /**
  * Owns the state machine, the fixed-step loop, and all subsystem wiring.
@@ -86,6 +91,7 @@ export class Game {
     this.victory = false
     this._radarCacheAt = -Infinity
     this._radarCache = []
+    this._lastPresentedAt = -Infinity
 
     // Meta progression is loaded once and lives for the whole session.
     this.progress = new Progress(Save.load())
@@ -93,7 +99,9 @@ export class Game {
     // Silent until a gesture unlocks it — browsers refuse to start an
     // AudioContext before one, and every call is a no-op while it is silent.
     this.audio = new AudioEngine()
-    this._unlockAudio = () => this.audio.unlock()
+    this._unlockAudio = () => {
+      if (!this.audio.muted) this.audio.unlock()
+    }
     addEventListener('pointerdown', this._unlockAudio)
     addEventListener('keydown', this._unlockAudio)
 
@@ -297,8 +305,10 @@ export class Game {
     this.title.hide()
     this.result.hide?.()
     this.modal.close?.()
-    this.audio.unlock()
-    this.audio.startMusic(this.stage?.id ?? 'jade')
+    if (!this.audio.muted) {
+      this.audio.unlock()
+      this.audio.startMusic(this.stage?.id ?? 'jade')
+    }
 
     this._teardownRun()
 
@@ -856,6 +866,15 @@ export class Game {
 
   _frame(now) {
     try {
+      // setAnimationLoop follows the display refresh rate. On a 165 Hz panel
+      // that used to render 165 full post-process frames per second, even
+      // while a level-up menu was open. Drop surplus callbacks before touching
+      // simulation, HUD, post-processing, or renderer.info.
+      if (Number.isFinite(now)
+        && Number.isFinite(this._lastPresentedAt)
+        && now - this._lastPresentedAt < MIN_RENDER_INTERVAL_MS) return
+      if (Number.isFinite(now)) this._lastPresentedAt = now
+
       const elapsedMs = this._last === undefined ? 16 : now - this._last
       const dt = elapsedMs / 1000
       this._last = now

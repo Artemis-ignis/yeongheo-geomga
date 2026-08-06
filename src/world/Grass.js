@@ -17,7 +17,10 @@ import * as THREE from 'three'
  * square metre is *higher* than before; there is simply no longer a majority of
  * the field being rasterised out of frame.
  */
-const BASE_BLADE_COUNT = 49000
+// The close clearing hides most of the field in the gameplay camera. 28k
+// authored blades (about 20k on the jade stage) keep the silhouette lush while
+// removing roughly a third of the vertex work from integrated GPUs.
+const BASE_BLADE_COUNT = 28000
 
 /**
  * Side of the tile the blades are authored in.

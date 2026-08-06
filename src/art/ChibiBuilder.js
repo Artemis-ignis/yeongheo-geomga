@@ -5,7 +5,7 @@ import { buildMerged } from './geometry.js'
 import { buildColored, gradient, limb, revolve } from './shapeKit.js'
 import { panelSeams, studRing, tassel, trimBand } from './detailKit.js'
 import { faceSet } from './faces.js'
-import { buildHeroicSeolryeong } from './HeroicModels.js'
+import { buildImg2ThreeSeolryeong } from './SeolryeongImg2ThreeAdapter.js'
 
 /** Lighten or darken a hex colour by a factor, for cheap tonal variants. */
 function shade(hex, factor) {
@@ -310,7 +310,7 @@ const SILHOUETTE = {
 const DEFAULT_SILHOUETTE = { skirt: [0.18, 0.44, 0.26], crest: 'pin', back: 'streamers', sideLock: 0.32 }
 
 export function buildChibi(character) {
-  if (character.id === 'seolryeong') return buildHeroicSeolryeong(character)
+  if (character.id === 'seolryeong') return buildImg2ThreeSeolryeong(character)
   const pal = character.palette
   const sil = SILHOUETTE[character.id] ?? DEFAULT_SILHOUETTE
   const root = new THREE.Group()

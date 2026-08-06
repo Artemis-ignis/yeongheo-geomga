@@ -246,6 +246,15 @@ export class TitleScreen {
     if (this._portraitsDone || !this.renderer) return
     this._portraitsDone = true
     for (const c of this.cards) {
+      // The hero card uses the ImageGen-approved character reference. The
+      // portrait is a real authored asset, so opening the roster does not
+      // trigger another render-target bake for the hero.
+      if (c.id === 'seolryeong') {
+        const base = import.meta.env?.BASE_URL ?? '/'
+        c.portrait.style.backgroundImage = `url(${base}assets/seolryeong-character-reference-v1.png)`
+        c.portrait.classList.add('imagegen-reference')
+        continue
+      }
       const url = portraitFor(c.character, this.renderer)
       // No portrait is a card without a picture, not a broken image.
       if (url) c.portrait.style.backgroundImage = `url(${url})`

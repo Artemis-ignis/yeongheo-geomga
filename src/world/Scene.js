@@ -66,7 +66,9 @@ export function createScene(palette = {}) {
   // opinion about where the light comes from. The fill is now well under the
   // key, and the key sits much lower in the sky — at 34 units up it was almost
   // directly overhead, so every shadow hid underneath the thing casting it.
-  const hemi = new THREE.HemisphereLight(0x9fc8e8, 0x3a4a3c, 0.52)
+  // A little more cool fill keeps dark armour and enemy silhouettes readable
+  // after bloom is removed from the safe base tier.
+  const hemi = new THREE.HemisphereLight(0x9fc8e8, 0x3a4a3c, 0.64)
   scene.add(hemi)
 
   // Only lightly warm. At 0xffe9c4 and this intensity a silver-haired character

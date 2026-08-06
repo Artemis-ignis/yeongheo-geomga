@@ -48,13 +48,10 @@ const GradeShader = {
       vec2 toCentre = vUv - 0.5;
       float r2 = dot( toCentre, toCentre );
 
-      // Chromatic aberration, strongest at the corners. Tiny, but it keeps the
-      // edges from looking like clean flat vector art.
-      float shift = uAberration * r2;
-      vec3 col;
-      col.r = texture2D( tDiffuse, vUv + toCentre * shift ).r;
-      col.g = texture2D( tDiffuse, vUv ).g;
-      col.b = texture2D( tDiffuse, vUv - toCentre * shift ).b;
+      // A single sample keeps the grade cheap on integrated GPUs. The old
+      // chromatic-aberration effect sampled the full-resolution frame three
+      // times and made bright combat edges look smeared rather than detailed.
+      vec3 col = texture2D( tDiffuse, vUv ).rgb;
 
       // Lift / gain: cool the shadows, warm the highlights.
       col = uLift + col * ( uGain - uLift );
@@ -154,9 +151,12 @@ export class Post {
     this.enabled = on
   }
 
-  /** Keep grading available, but drop the expensive full-screen bloom first. */
+  /** Keep grading available, but drop expensive bloom at the safe base tier. */
   setQuality(scale) {
-    this.bloom.enabled = scale >= 0.82
+    // Bloom is deliberately an earned high tier. Additive weapon textures and
+    // the grade still provide readable magic without a multi-pass blur on low
+    // and mid-range Mac/Windows GPUs.
+    this.bloom.enabled = scale > 1.05
     this.fxaa.enabled = scale >= 0.68
   }
 

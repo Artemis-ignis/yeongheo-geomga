@@ -1,0 +1,71 @@
+{
+  "sourceImage": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\seolryeong-imagegen-reference.png",
+  "zonesDir": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\detail-inventory",
+  "detailInventory": {
+    "scanMethod": "component-zones",
+    "targetMinDetails": 10,
+    "details": [
+      {
+        "id": "upper",
+        "kind": "",
+        "description": "",
+        "region": {
+          "x": 0.0,
+          "y": 0.0,
+          "width": 1.0,
+          "height": 0.3333333333333333,
+          "units": "normalized"
+        },
+        "scale": "",
+        "affects": "",
+        "mapsTo": {
+          "type": "",
+          "ref": ""
+        },
+        "evidenceRef": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\detail-inventory\\upper.png",
+        "confidence": 0.0
+      },
+      {
+        "id": "middle",
+        "kind": "",
+        "description": "",
+        "region": {
+          "x": 0.0,
+          "y": 0.3333333333333333,
+          "width": 1.0,
+          "height": 0.3333333333333333,
+          "units": "normalized"
+        },
+        "scale": "",
+        "affects": "",
+        "mapsTo": {
+          "type": "",
+          "ref": ""
+        },
+        "evidenceRef": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\detail-inventory\\middle.png",
+        "confidence": 0.0
+      },
+      {
+        "id": "lower",
+        "kind": "",
+        "description": "",
+        "region": {
+          "x": 0.0,
+          "y": 0.6666666666666666,
+          "width": 1.0,
+          "height": 0.3333333333333333,
+          "units": "normalized"
+        },
+        "scale": "",
+        "affects": "",
+        "mapsTo": {
+          "type": "",
+          "ref": ""
+        },
+        "evidenceRef": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\detail-inventory\\lower.png",
+        "confidence": 0.0
+      }
+    ]
+  },
+  "authoringInstruction": "Open each zone crop under zonesDir and replace every detail stub's kind, description, scale, affects, mapsTo, and confidence with what is actually observed. Add more detail entries per zone if a single zone contains multiple distinct marks; do not leave stubs unfilled or unlinked (mapsTo must reference a real component.localFeatures or material.localOverrides entry)."
+}

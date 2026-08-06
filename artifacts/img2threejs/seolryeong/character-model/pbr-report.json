@@ -1,0 +1,89 @@
+{
+  "ok": true,
+  "verdict": "pass",
+  "confidence": 0.86,
+  "estimatedFidelity": 0.86,
+  "targetThreshold": 0.7,
+  "materialId": "seolryeong-silk",
+  "sourceImage": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\seolryeong-imagegen-reference.png",
+  "outDir": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence",
+  "palette": [
+    "#202837",
+    "#2A3547",
+    "#181E2B",
+    "#3A475D",
+    "#A2A5B3",
+    "#696F80"
+  ],
+  "maps": {
+    "albedo": {
+      "path": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence\\seolryeong-silk_albedo.png",
+      "url": "seolryeong-silk_albedo.png",
+      "channel": "albedo",
+      "source": "reference-pixel-extraction"
+    },
+    "roughness": {
+      "path": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence\\seolryeong-silk_roughness.png",
+      "url": "seolryeong-silk_roughness.png",
+      "channel": "roughness",
+      "source": "reference-pixel-extraction"
+    },
+    "height": {
+      "path": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence\\seolryeong-silk_height.png",
+      "url": "seolryeong-silk_height.png",
+      "channel": "height",
+      "source": "reference-pixel-extraction"
+    },
+    "normal": {
+      "path": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence\\seolryeong-silk_normal.png",
+      "url": "seolryeong-silk_normal.png",
+      "channel": "normal",
+      "source": "reference-pixel-extraction"
+    },
+    "ao": {
+      "path": "C:\\Users\\50106\\Desktop\\3D게임\\artifacts\\img2threejs\\seolryeong\\character-model\\pbr-evidence\\seolryeong-silk_ao.png",
+      "url": "seolryeong-silk_ao.png",
+      "channel": "ao",
+      "source": "reference-pixel-extraction"
+    }
+  },
+  "diagnostics": {
+    "sourceWidth": 1024,
+    "sourceHeight": 1536,
+    "mapSize": 512,
+    "cropBBoxPixels": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1536
+    },
+    "mask": {
+      "backgroundColor": "#20293A",
+      "backgroundNoise": 30.594,
+      "transparentPixelFraction": 0.0,
+      "foregroundCoverage": 0.9776
+    },
+    "mapStats": {
+      "valueRange": 0.5154,
+      "heightP90Gradient": 0.10821,
+      "roughnessBase": 0.692,
+      "roughnessVariation": 0.169,
+      "normalStrength": 0.283,
+      "blurRadius": 10
+    },
+    "palette": [
+      "#202837",
+      "#2A3547",
+      "#181E2B",
+      "#3A475D",
+      "#A2A5B3",
+      "#696F80"
+    ]
+  },
+  "warnings": [
+    "image is not clearly isolated from background; using most pixels as material evidence",
+    "object/background separation is weak",
+    "single-image inverse rendering cannot prove true physical PBR; confidence is capped"
+  ],
+  "limitation": "single-image PBR extraction is an estimate; 70%+ extraction confidence still needs render screenshot review"
+}

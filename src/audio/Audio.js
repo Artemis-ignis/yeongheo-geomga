@@ -69,6 +69,7 @@ const PULSE_THRESHOLD = 0.42
  * in intensity is heard within a bar rather than after one.
  */
 const SCHEDULE_AHEAD = 0.35
+const AUDIO_SETTINGS_VERSION = 2
 
 const VOICE_GAP = {
   launch: 0.055,
@@ -92,7 +93,10 @@ export class AudioEngine {
     })
     this.ctx = null
     this.ok = false
-    this.muted = false
+    // A new run is silent until the player explicitly opts into sound. This
+    // prevents an autoplay/unlock gesture from suddenly filling a hot session
+    // with synthesised music and combat effects.
+    this.muted = true
     this.masterVolume = 0.75
     this.musicVolume = 0.5
     this.sfxVolume = 0.9
@@ -216,7 +220,12 @@ export class AudioEngine {
     try {
       const raw = JSON.parse(s.getItem('yeongheo.audio') ?? 'null')
       if (!raw || typeof raw !== 'object') return
-      if (typeof raw.muted === 'boolean') this.muted = raw.muted
+      // Version 1 saved an unmuted default. Treat it as legacy and keep the
+      // first post-upgrade launch quiet; explicit choices made by this version
+      // are restored normally.
+      if (raw.version === AUDIO_SETTINGS_VERSION && typeof raw.muted === 'boolean') {
+        this.muted = raw.muted
+      }
       if (Number.isFinite(raw.master)) this.masterVolume = Math.min(1, Math.max(0, raw.master))
       if (Number.isFinite(raw.music)) this.musicVolume = Math.min(1, Math.max(0, raw.music))
       if (Number.isFinite(raw.sfx)) this.sfxVolume = Math.min(1, Math.max(0, raw.sfx))
@@ -230,6 +239,7 @@ export class AudioEngine {
     if (!s) return
     try {
       s.setItem('yeongheo.audio', JSON.stringify({
+        version: AUDIO_SETTINGS_VERSION,
         muted: this.muted,
         master: this.masterVolume,
         music: this.musicVolume,

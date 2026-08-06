@@ -132,6 +132,19 @@ Three.js WebGL2를 기본 백엔드로 사용합니다. GitHub Pages와 저사�
 그림자·선택적 bloom으로 프레임 비용을 제어합니다. 청람비경의 환경은 먼 배경 텍스처로만
 사용하고, 제단·문루·수호신·플레이어·적·법보는 실제 Three.js 3D 오브젝트로 렌더링합니다.
 
+렌더 콜백은 60 FPS로 제한하고, 전투가 밀릴 때는 해상도만 자동으로 낮춥니다. 오디오는 기본
+음소거로 시작하며 메뉴에서 `소리 켠다`를 눌렀을 때만 해제됩니다. 따라서 120/144/165 Hz
+모니터에서 같은 프레임을 불필요하게 반복해 GPU를 계속 가열하지 않습니다.
+
+### 설령 에셋 파이프라인
+
+설령의 구조 에셋은 [img2threejs](https://github.com/img2threejs/img2threejs)를
+`tools/img2threejs/`에 고정 vendoring하고, 검증된 ObjectSculptSpec과 생성된
+`src/art/generated/SeolryeongImg2ThreeBlockout.ts`를 함께 보관합니다. ImageGen으로 만든
+캐릭터 기준 이미지와 실크·옥 비늘·불꽃 깃털 재질은 `public/assets/`에 들어갑니다. 게임플레이
+카메라에서는 구조용 img2three 모델, 영웅형 3D 프레젠테이션 셸, 투명 기준 이미지 LOD를
+조합해 디테일은 유지하고 전투 중 폴리곤 비용은 줄입니다.
+
 개발용 캡처 엔드포인트는 기본적으로 꺼져 있어 게임 실행 중 파일을 만들지 않습니다.
 시각 QA가 필요할 때만 다음처럼 명시적으로 켤 수 있습니다.
 

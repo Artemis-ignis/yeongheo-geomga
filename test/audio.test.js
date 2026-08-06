@@ -218,8 +218,16 @@ describe('audio settings', () => {
   it('ignores a corrupt settings blob instead of failing to boot', () => {
     const store = memoryStorage({ 'yeongheo.audio': '{not json' })
     const a = new AudioEngine({ contextFactory: () => null, storage: store })
-    expect(a.muted).toBe(false)
+    expect(a.muted).toBe(true)
     expect(a.masterVolume).toBeGreaterThan(0)
+  })
+
+  it('does not restore the old unmuted default after the silent-start upgrade', () => {
+    const store = memoryStorage({
+      'yeongheo.audio': JSON.stringify({ muted: false, master: 0.75 }),
+    })
+    const a = new AudioEngine({ contextFactory: () => null, storage: store })
+    expect(a.muted).toBe(true)
   })
 })
 

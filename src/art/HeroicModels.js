@@ -1,12 +1,34 @@
 import * as THREE from 'three'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { makeFlatMaterial } from './materials.js'
 import { faceSet } from './faces.js'
 
 const _forward = new THREE.Vector3()
 
-function standard(color, { roughness = 0.45, metalness = 0.05, emissive = 0x000000, emissiveIntensity = 0, clearcoat = 0 } = {}) {
+const _heroicTextureLoader = typeof document !== 'undefined' ? new THREE.TextureLoader() : null
+const _heroicTextureCache = new Map()
+
+function weaveTexture(file, repeat = [2, 2]) {
+  if (!_heroicTextureLoader) return null
+  const key = `${file}|${repeat[0]}|${repeat[1]}`
+  const cached = _heroicTextureCache.get(key)
+  if (cached) return cached
+  const base = import.meta.env?.BASE_URL ?? '/'
+  const texture = _heroicTextureLoader.load(`${base}assets/${file}`)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(repeat[0], repeat[1])
+  texture.anisotropy = 2
+  texture.userData.sharedByHeroicModels = true
+  _heroicTextureCache.set(key, texture)
+  return texture
+}
+
+function standard(color, { roughness = 0.45, metalness = 0.05, emissive = 0x000000, emissiveIntensity = 0, clearcoat = 0, map = null } = {}) {
   return new THREE.MeshPhysicalMaterial({
     color,
+    map,
     roughness,
     metalness,
     emissive,
@@ -16,9 +38,10 @@ function standard(color, { roughness = 0.45, metalness = 0.05, emissive = 0x0000
   })
 }
 
-function cloth(color, accent = 0x96dfff) {
+function cloth(color, accent = 0x96dfff, map = null) {
   return new THREE.MeshPhysicalMaterial({
     color,
+    map,
     roughness: 0.58,
     metalness: 0.02,
     sheen: 0.42,
@@ -123,8 +146,9 @@ export function buildHeroicSeolryeong(character) {
   // The reference silhouette is a moonlit white-robed swordswoman. Keep the
   // character palette's blue as an accent, but do not let it turn the entire
   // robe into a navy blob under the night grade.
-  const silk = cloth(0xf0f6ff, pal.accent ?? 0x86d8ff)
-  const silkBlue = cloth(0x5f86b7, 0x7adfff)
+  const silkWeave = weaveTexture('moon-silk-weave-v1.png', [2.35, 3.1])
+  const silk = cloth(0xf0f6ff, pal.accent ?? 0x86d8ff, silkWeave)
+  const silkBlue = cloth(0x5f86b7, 0x7adfff, silkWeave)
   const trim = standard(pal.trim ?? 0xeff7ff, { roughness: 0.32, metalness: 0.3, clearcoat: 0.36 })
   const bladeMat = standard(0xdff7ff, { roughness: 0.18, metalness: 0.88, emissive: 0x6ccfff, emissiveIntensity: 0.22, clearcoat: 0.7 })
   const eyeMat = standard(0x182841, { roughness: 0.2, emissive: 0x58dfff, emissiveIntensity: 0.55 })
@@ -334,11 +358,12 @@ export function buildHeroicSeolryeong(character) {
 export function buildJadeTitan() {
   const root = new THREE.Group()
   root.name = 'heroic-jade-titan'
-  const armor = standard(0x263b4c, { roughness: 0.36, metalness: 0.52, clearcoat: 0.4 })
-  const plate = standard(0x6b9094, { roughness: 0.38, metalness: 0.44 })
-  const jade = standard(0x1c8c79, { roughness: 0.28, metalness: 0.18, emissive: 0x075f52, emissiveIntensity: 0.18, clearcoat: 0.32 })
+  const armor = standard(0x344d61, { roughness: 0.40, metalness: 0.46, clearcoat: 0.28 })
+  const plate = standard(0x7e9da3, { roughness: 0.40, metalness: 0.36 })
+  const jadeWeave = weaveTexture('jade-scale-weave-v1.png', [2.4, 1.8])
+  const jade = standard(0x238b78, { roughness: 0.32, metalness: 0.14, emissive: 0x075f52, emissiveIntensity: 0.10, clearcoat: 0.24, map: jadeWeave })
   const horn = standard(0xb7d8d7, { roughness: 0.3, metalness: 0.18, emissive: 0x255b62, emissiveIntensity: 0.12 })
-  const eye = standard(0xc6fff4, { roughness: 0.12, emissive: 0x39ffe2, emissiveIntensity: 1.5 })
+  const eye = standard(0xc6fff4, { roughness: 0.12, emissive: 0x39ffe2, emissiveIntensity: 0.9 })
 
   const pelvis = new THREE.Mesh(new THREE.CapsuleGeometry(0.52, 0.54, 10, 24), armor)
   pelvis.position.y = 0.70
@@ -348,10 +373,15 @@ export function buildJadeTitan() {
   torso.position.y = 1.55
   torso.scale.set(1.05, 1.08, 0.72)
   root.add(torso)
-  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.46, 24, 18), plate)
-  chest.position.set(0, 1.62, 0.46)
-  chest.scale.set(1.18, 0.72, 0.30)
+  const chest = new THREE.Mesh(new RoundedBoxGeometry(1.05, 0.62, 0.24, 3, 0.08), plate)
+  chest.position.set(0, 1.64, 0.48)
+  chest.rotation.x = -0.06
   root.add(chest)
+  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.055, 8, 32), jade)
+  belt.rotation.x = Math.PI / 2
+  belt.position.y = 1.12
+  belt.scale.z = 0.72
+  root.add(belt)
   const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.26, 2), jade)
   crystal.position.set(0, 1.67, 0.72)
   crystal.rotation.z = Math.PI / 4
@@ -417,10 +447,11 @@ export function buildJadeTitan() {
 export function buildJadeDragon() {
   const root = new THREE.Group()
   root.name = 'heroic-jade-dragon'
-  const scaleMat = standard(0x3ca7a1, { roughness: 0.30, metalness: 0.16, emissive: 0x075f65, emissiveIntensity: 0.12, clearcoat: 0.5 })
+  const scaleWeave = weaveTexture('jade-scale-weave-v1.png', [3.2, 2.0])
+  const scaleMat = standard(0x3b938d, { roughness: 0.34, metalness: 0.14, emissive: 0x075f65, emissiveIntensity: 0.07, clearcoat: 0.36, map: scaleWeave })
   const bellyMat = standard(0xa9ded1, { roughness: 0.36, metalness: 0.06, clearcoat: 0.3 })
   const hornMat = standard(0xc4e9e2, { roughness: 0.27, metalness: 0.16 })
-  const eyeMat = standard(0xcaffc7, { roughness: 0.10, emissive: 0x8dffbd, emissiveIntensity: 1.2 })
+  const eyeMat = standard(0xcaffc7, { roughness: 0.10, emissive: 0x8dffbd, emissiveIntensity: 0.85 })
   const path = [
     [-1.10, 0.14, -0.42], [-0.60, 0.10, -0.95], [0.18, 0.12, -1.04],
     [0.86, 0.17, -0.64], [1.04, 0.24, 0.10], [0.72, 0.42, 0.60],
@@ -445,6 +476,10 @@ export function buildJadeDragon() {
   muzzle.scale.set(0.78, 0.55, 1.15)
   root.add(muzzle)
   addEyePair(root, eyeMat, neck[1] + 0.37, neck[2] + 0.43, 0.16, 0.045)
+  const brow = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.035, 6, 24, Math.PI), hornMat)
+  brow.position.set(neck[0], neck[1] + 0.48, neck[2] + 0.41)
+  brow.rotation.set(Math.PI / 2, 0, Math.PI / 2)
+  root.add(brow)
   for (const side of [-1, 1]) {
     root.add(tube([
       [neck[0] + side * 0.17, neck[1] + 0.55, neck[2] + 0.06],
@@ -481,8 +516,9 @@ function feather(material, length, width) {
 export function buildEmberPhoenix() {
   const root = new THREE.Group()
   root.name = 'heroic-ember-phoenix'
-  const ember = standard(0xd65d35, { roughness: 0.34, metalness: 0.10, emissive: 0xd02b10, emissiveIntensity: 0.22, clearcoat: 0.32 })
-  const gold = standard(0xffb64d, { roughness: 0.28, metalness: 0.20, emissive: 0xff5520, emissiveIntensity: 0.32, clearcoat: 0.4 })
+  const emberWeave = weaveTexture('ember-feather-weave-v1.png', [2.4, 1.8])
+  const ember = standard(0xc95732, { roughness: 0.38, metalness: 0.10, emissive: 0xd02b10, emissiveIntensity: 0.12, clearcoat: 0.24, map: emberWeave })
+  const gold = standard(0xffab4c, { roughness: 0.32, metalness: 0.18, emissive: 0xff5520, emissiveIntensity: 0.18, clearcoat: 0.30, map: emberWeave })
   const dark = standard(0x5a2030, { roughness: 0.36, metalness: 0.14, emissive: 0x861d22, emissiveIntensity: 0.15 })
   const eye = standard(0xffe5a2, { roughness: 0.08, emissive: 0xff6b20, emissiveIntensity: 1.7 })
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.38, 0.82, 10, 24), ember)
@@ -519,7 +555,7 @@ export function buildEmberPhoenix() {
 
 export function buildVoidSage() {
   const root = new THREE.Group()
-  const robe = standard(0x392456, { roughness: 0.46, metalness: 0.24, emissive: 0x24103b, emissiveIntensity: 0.30 })
+  const robe = standard(0x46305f, { roughness: 0.50, metalness: 0.20, emissive: 0x24103b, emissiveIntensity: 0.16 })
   const trim = standard(0xe5bb63, { roughness: 0.28, metalness: 0.58, emissive: 0x9e5a20, emissiveIntensity: 0.22 })
   const mask = standard(0xe8e0ff, { roughness: 0.24, metalness: 0.12 })
   const gown = new THREE.Mesh(new THREE.LatheGeometry([
