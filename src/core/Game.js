@@ -911,10 +911,10 @@ export class Game {
         }
       }
 
+      const frameStart = performance.now()
       const elapsedMs = this._last === undefined ? 16 : now - this._last
       const dt = elapsedMs / 1000
       this._last = now
-      if (this.state === 'playing') this.quality.sample(elapsedMs)
 
       // Pads are polled, not evented: read once a frame before anything asks.
       this.input.poll()
@@ -966,6 +966,7 @@ export class Game {
       else this.hints.hide()
       this.draw(this.clock.alpha, dt)
       this.debug.update(this._debugState(dt))
+      if (this.state === 'playing') this.quality.sample(performance.now() - frameStart)
     } catch (err) {
       this._crash(err)
     }

@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
@@ -81,9 +80,8 @@ const GradeShader = {
 /**
  * Post-processing stack.
  *
- * Bloom is what makes the 법보, 영기 orbs and the 결계 read as *energy* rather
- * than as coloured plastic — the toon materials deliberately push emissive
- * values above 1 so the bloom threshold catches them.
+ * Gameplay keeps the post stack intentionally small: emissive materials and
+ * local additive effects provide energy readability without a global blur.
  */
 export class Post {
   constructor(renderer, scene, camera, palette = {}) {
@@ -93,16 +91,6 @@ export class Post {
     const size = renderer.getSize(new THREE.Vector2())
     this.composer = new EffectComposer(renderer)
     this.composer.addPass(new RenderPass(scene, camera))
-
-    this.bloom = new UnrealBloomPass(
-      new THREE.Vector2(size.x, size.y),
-      // Tuned against captured frames. Anything stronger and the toon rim light
-      // pushes the whole character over threshold, turning her into a white blob.
-      0.24, // strength
-      0.55, // radius
-      0.95, // threshold — only genuinely bright things glow
-    )
-    this.composer.addPass(this.bloom)
 
     this.grade = new ShaderPass(GradeShader)
     // The grade belongs to the stage. Lifting every shadow toward the same navy
@@ -145,29 +133,21 @@ export class Post {
     const w = Math.max(1, Math.floor(width))
     const h = Math.max(1, Math.floor(height))
     this.composer.setSize(w, h)
-    this.bloom.setSize(w, h)
     const pr = this.renderer.getPixelRatio()
     this.fxaa.material.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr))
   }
 
-  /** Dropped entirely at low quality — it is the most expensive thing we draw. */
+  /** Allow the debug harness to bypass post-processing when needed. */
   setEnabled(on) {
     this.enabled = on
   }
 
-  /** Keep grading available, but drop expensive bloom at the safe base tier. */
+  /** Keep grading available at every gameplay quality tier. */
   setQuality(scale) {
-    // A slow machine needs its pixels for the actual 3D scene. At the safe
-    // tier, bypass the two full-screen composer passes entirely; the renderer
-    // still applies ACES/sRGB output and the authored materials keep their
-    // colour separation. The cinematic grade is restored automatically when
-    // the adaptive scaler has headroom again.
-    // Keep the colour grade even on the safe tier. Removing it made the
-    // moonlit palette collapse into raw cyan WebGL output, which looked like a
-    // debug viewport even though the geometry was correct. Bloom stays off;
-    // grade + OutputPass are the cheap presentation path.
+    // Keep the colour grade and output conversion at every quality tier. The
+    // adaptive scaler only changes the backbuffer and FXAA, never the authored
+    // stage palette or gameplay materials.
     this.enabled = true
-    this.bloom.enabled = scale >= 0.96
     this.fxaa.enabled = scale >= 0.82
   }
 

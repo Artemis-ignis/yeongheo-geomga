@@ -6,10 +6,10 @@ import {
   adoptModel,
   buildEmberPhoenix,
   buildJadeDragon,
-  buildJadeTitan,
   buildVoidSage,
 } from '../art/HeroicModels.js'
 import { buildJadeSanctuaryGate } from '../art/JadeSanctuaryGate.js'
+import { buildBossGeometry } from '../art/bossGeometry.js'
 
 // import.meta.env.BASE_URL keeps the public asset reachable both at `/` during
 // local development and at `/yeongheo-geomga/` on GitHub Pages.
@@ -346,11 +346,22 @@ export class SanctuaryCinematicSet {
     // The showcase uses authored high-segment Three.js models. They are not
     // scaled enemy blobs: each silhouette has its own construction, PBR
     // material family, layered armour/cloth, and light response.
-    this.wolf = adoptModel(buildJadeTitan(), this.geometries, this.materials)
+    const titanShowcase = new THREE.Group()
+    titanShowcase.name = 'heroic-jade-titan'
+    titanShowcase.add(new THREE.Mesh(
+      buildBossGeometry('jadeVoidWarden'),
+      makeToonMaterial({
+        color: 0xffffff,
+        vertexColors: true,
+        rim: 0.38,
+        rimColor: 0x9dffe3,
+      }),
+    ))
+    this.wolf = adoptModel(titanShowcase, this.geometries, this.materials)
     this.wolf.name = 'sanctum-jade-titan'
     this.wolf.position.set(-7.8, 0, -3.9)
     this.wolf.rotation.y = -0.32
-    this.wolf.scale.setScalar(1.18)
+    this.wolf.scale.setScalar(0.58)
     this.group.add(this.wolf)
 
     this.serpent = adoptModel(buildJadeDragon(), this.geometries, this.materials)

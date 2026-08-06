@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
-import { makeAdditiveMaterial } from './materials.js'
+import { buildEnemyGeometry } from './enemyGeometry.js'
 
 /**
  * Hero-distance enemy presentation models.
@@ -171,29 +171,37 @@ function buildWolf() {
   return root
 }
 
-function buildStoneGhoul() {
+function buildDetailedStoneVariant(type, color, emissive, emissiveIntensity) {
   const root = new THREE.Group()
-  root.name = 'near-stone-ghoul'
-  const stone = physical(0x566675, { roughness: 0.86, metalness: 0.12 })
-  const edge = physical(0x9bb2bf, { roughness: 0.55, metalness: 0.24, clearcoat: 0.18 })
-  const jade = physical(0x3de3c0, { color: 0x3de3c0, emissive: 0x087f72, emissiveIntensity: 1.25, roughness: 0.20, metalness: 0.18 })
+  root.name = `near-${type}`
+  const material = physical(0xffffff, {
+    color,
+    vertexColors: true,
+    roughness: 0.62,
+    metalness: 0.22,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.26,
+    emissive,
+    emissiveIntensity,
+  })
+  const body = addMesh(root, buildEnemyGeometry(type), material)
+  body.name = 'near-sculpt-body'
   const motion = new THREE.Group()
   motion.name = 'near-motion'
   root.add(motion)
-  addMesh(motion, new RoundedBoxGeometry(0.98, 1.18, 0.74, 5, 0.12), stone, [0, 0.83, 0], [1.0, 1.0, 0.92])
-  addMesh(motion, new RoundedBoxGeometry(0.68, 0.42, 0.18, 4, 0.06), edge, [0, 1.26, 0.38], [1.0, 1.0, 0.65], [-0.10, 0, 0])
-  addMesh(motion, new THREE.SphereGeometry(0.30, 24, 18), stone, [0, 1.43, 0.07], [1.04, 0.92, 0.90])
-  addGlow(motion, [0, 0.93, 0.42], 0.16, 0x2be1c1, 1.8)
-  for (const side of [-1, 1]) {
-    addMesh(motion, new THREE.CapsuleGeometry(0.18, 0.60, 8, 18), edge, [side * 0.64, 0.72, 0.02], [1.0, 1.12, 0.92], [0, 0, side * 0.25])
-    addMesh(motion, new THREE.SphereGeometry(0.22, 20, 14), stone, [side * 0.70, 0.24, 0.08], [1.05, 0.85, 0.95])
-    const shoulder = addMesh(motion, new RoundedBoxGeometry(0.42, 0.28, 0.58, 4, 0.07), edge, [side * 0.58, 1.22, 0], [1, 1, 1], [0, 0, side * -0.2])
-    shoulder.name = 'near-shoulder'
-  }
-  for (const side of [-1, 1]) {
-    motion.add(tube([[side * 0.18, 1.46, 0.16], [side * 0.28, 1.16, 0.34], [side * 0.20, 0.66, 0.40]], 0.026, jade, 18, 8))
-  }
+  const core = physical(color, {
+    roughness: 0.16,
+    metalness: 0.18,
+    emissive,
+    emissiveIntensity: Math.max(0.8, emissiveIntensity + 0.7),
+    clearcoat: 0.42,
+  })
+  addMesh(motion, new THREE.IcosahedronGeometry(0.12, 1), core, [0, 0.76, 0.64], [1, 1.25, 0.42])
   return root
+}
+
+function buildStoneGhoul() {
+  return buildDetailedStoneVariant('stoneGhoul', 0xd1c4af, 0x2a2118, 0.04)
 }
 
 function buildTalismanGhost() {
@@ -319,35 +327,11 @@ function buildJadeSerpent() {
 }
 
 function buildGlacierWarden() {
-  const root = buildStoneGhoul()
-  root.name = 'near-glacier-warden'
-  root.scale.set(1.30, 1.36, 1.30)
-  root.traverse((object) => {
-    if (!object.isMesh || !object.material) return
-    const materials = Array.isArray(object.material) ? object.material : [object.material]
-    for (const material of materials) {
-      if (material.color) material.color.offsetHSL(0.52, 0.08, 0.10)
-      if (material.emissive) material.emissive.setHex(0x54cfff)
-      if ('emissiveIntensity' in material) material.emissiveIntensity = Math.max(material.emissiveIntensity, 1.55)
-    }
-  })
-  return root
+  return buildDetailedStoneVariant('glacierWarden', 0xb9edff, 0x2c9cc8, 0.16)
 }
 
 function buildMagmaBrute() {
-  const root = buildStoneGhoul()
-  root.name = 'near-magma-brute'
-  root.scale.set(1.18, 1.16, 1.18)
-  root.traverse((object) => {
-    if (!object.isMesh || !object.material) return
-    const materials = Array.isArray(object.material) ? object.material : [object.material]
-    for (const material of materials) {
-      if (material.color) material.color.setHex(0x6d3b32)
-      if (material.emissive) material.emissive.setHex(0xe13b18)
-      if ('emissiveIntensity' in material) material.emissiveIntensity = Math.max(material.emissiveIntensity, 1.20)
-    }
-  })
-  return root
+  return buildDetailedStoneVariant('magmaBrute', 0x8b463b, 0xd23e16, 0.22)
 }
 
 function buildAshRaven() {
