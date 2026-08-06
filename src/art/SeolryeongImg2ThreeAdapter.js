@@ -58,7 +58,7 @@ export function buildImg2ThreeSeolryeong(character) {
   const root = new THREE.Group()
   root.name = 'heroic-seolryeong-img2three'
   root.userData.assetPipeline = 'img2threejs'
-  root.userData.referenceAsset = 'assets/characters/seolryeong-character-reference-v1.png'
+  root.userData.referenceAsset = 'assets/characters/seolryeong-character-reference-v2.png'
   root.userData.qualityTier = 'hero'
   root.userData.renderMode = 'full-3d'
 

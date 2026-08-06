@@ -21,6 +21,15 @@ export const BOSSES = {
     hp: 24000, radius: 2.0, damage: 40, speed: 2.6, scale: 1.15,
     color: 0x4a2a70,
   },
+  jadeVoidWarden: {
+    id: 'jadeVoidWarden',
+    name: '옥허진장',
+    // A final boss built from the jade guardian reference: tall enough to own
+    // the frame, but not so large that its weapon and halo leave the arena.
+    hp: 28000, radius: 2.8, damage: 46, speed: 2.5, scale: 0.98,
+    color: 0x3d9e8c,
+    referenceAsset: 'characters/jade-void-warden-boss-reference-v2.png',
+  },
   /**
    * 한천비경's own mid boss. Built at ~4.6 units tall, so barely scaled.
    *
@@ -53,6 +62,7 @@ export const BOSSES = {
 const BOSS_BUILDERS = {
   blueWolfKing(def) { return this._buildWolfKing(def) },
   darkHeavenLord(def) { return this._buildDarkLord(def) },
+  jadeVoidWarden(def) { return this._buildJadeVoidWarden(def) },
   riverMaiden(def) { return this._buildRiverMaiden(def) },
 }
 
@@ -78,6 +88,11 @@ export const BOSS_PATTERNS = {
     ['swordRing', 'gapRing'],
     ['starfall', 'swordRing', 'gapRing'],
     ['voidZone', 'starfall', 'swordRing', 'summon'],
+  ],
+  jadeVoidWarden: [
+    ['jadePulse', 'gapRing'],
+    ['jadePulse', 'swordRing', 'summon'],
+    ['jadePulse', 'swordRing', 'gapRing', 'summon'],
   ],
   /**
    * She never charges. Every move is placed on the ground at range, so the
@@ -203,6 +218,43 @@ export class BossManager {
     return group
   }
 
+  _buildJadeVoidWarden(def) {
+    const group = new THREE.Group()
+    const body = new THREE.Mesh(
+      buildBossGeometry('jadeVoidWarden'),
+      makeToonMaterial({ color: 0xffffff, rim: 0.28, rimColor: 0xb9fff0, vertexColors: true }),
+    )
+    body.scale.setScalar(def.scale)
+    body.castShadow = true
+    group.add(body)
+
+    // The chest core and seal plates are separate so the phase change and the
+    // orbit can communicate state without rebuilding the cached body geometry.
+    this.wardenCore = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(0.33, 2),
+      makeAdditiveMaterial({ color: 0x8cffe7, opacity: 0.92, map: glowTexture() }),
+    )
+    this.wardenCore.position.set(0, 3.48 * def.scale, 1.02 * def.scale)
+    group.add(this.wardenCore)
+
+    this.wardenCoreRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.48, 0.035, 8, 32),
+      makeAdditiveMaterial({ color: 0x52e6c0, opacity: 0.8 }),
+    )
+    this.wardenCoreRing.position.copy(this.wardenCore.position)
+    this.wardenCoreRing.rotation.x = Math.PI / 2
+    group.add(this.wardenCoreRing)
+
+    const sealMaterial = makeToonMaterial({ color: 0x8bbeb2, rim: 0.32, rimColor: 0xd8fff2 })
+    this.wardenSeals = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(0.30, 0.54, 0.08), sealMaterial, 5,
+    )
+    this.wardenSeals.castShadow = false
+    this.wardenSeals.frustumCulled = false
+    group.add(this.wardenSeals)
+    return group
+  }
+
   spawn(bossId, player, runTime) {
     const def = BOSSES[bossId]
     if (!def || this.active) return
@@ -267,6 +319,9 @@ export class BossManager {
       this.world.camera.addTrauma(0.7)
       if (this.onPhase) this.onPhase(wantPhase)
       if (this.mask) this.mask.material.color.setHex(wantPhase === 1 ? 0xff6ad0 : 0xff5a5a)
+      if (this.wardenCore) {
+        this.wardenCore.material.color.setHex(wantPhase === 1 ? 0x70f2d0 : 0xffb36b)
+      }
     }
 
     if (b.hp <= 0) {
@@ -292,6 +347,9 @@ export class BossManager {
     this.active = null
     this.mask = null
     this.blades = null
+    this.wardenCore = null
+    this.wardenCoreRing = null
+    this.wardenSeals = null
   }
 
   /**
@@ -402,6 +460,17 @@ export class BossManager {
           b.x + Math.cos(a) * 6, b.z + Math.sin(a) * 6, 4.6, b.def.damage * 1.5,
           { delay: 2.1, safe: true },
         )
+        break
+      }
+
+      case 'jadePulse': {
+        // The warden's signature move is a delayed pulse: the array flash says
+        // "read the centre", while the telegraph ring gives a clean beat to
+        // leave it before the jade shock resolves.
+        const radius = 4.2 + b.phase * 0.65
+        this.world.vfx.arrayFlash(b.x, b.z, radius)
+        this.world.vfx.telegraph(b.x, b.z, radius, 1.15)
+        this._zone(b.x, b.z, radius, b.def.damage * 0.75, { delay: 1.15 })
         break
       }
 
@@ -565,6 +634,30 @@ export class BossManager {
         this.blades.setMatrixAt(i, _dummy.matrix)
       }
       this.blades.instanceMatrix.needsUpdate = true
+    }
+
+    if (this.wardenSeals) {
+      const t = performance.now() * 0.001
+      const s = b.def.scale
+      for (let i = 0; i < 5; i++) {
+        const a = -Math.PI * 0.72 + i * (Math.PI * 1.44 / 4) + t * 0.22
+        _dummy.position.set(
+          Math.cos(a) * 1.38 * s,
+          (4.52 + Math.sin(a) * 1.38) * s,
+          -0.62 * s,
+        )
+        _dummy.rotation.set(0.08, 0, a + Math.PI / 2)
+        _dummy.scale.setScalar(1 + Math.sin(t * 2.4 + i) * 0.05)
+        _dummy.updateMatrix()
+        this.wardenSeals.setMatrixAt(i, _dummy.matrix)
+      }
+      this.wardenSeals.instanceMatrix.needsUpdate = true
+    }
+    if (this.wardenCore) {
+      const pulse = 1 + Math.sin(performance.now() * 0.005) * 0.08
+      this.wardenCore.scale.setScalar(pulse)
+      this.wardenCore.rotation.y += 0.012
+      if (this.wardenCoreRing) this.wardenCoreRing.rotation.z += 0.018
     }
   }
 

@@ -23,6 +23,13 @@ const LORD_LIGHT = 0xa878e0
 const LORD_GOLD = 0xe8c56a
 const LORD_GLOW = 0xd98cff
 
+const WARDEN_DARK = 0x10252b
+const WARDEN_MID = 0x285c5b
+const WARDEN_PLATE = 0x7d9f9a
+const WARDEN_JADE = 0x4bd1b2
+const WARDEN_GOLD = 0xcda76a
+const WARDEN_GLOW = 0xb4fff0
+
 function wolfKing() {
   const parts = []
 
@@ -290,10 +297,185 @@ function riverMaiden() {
   return buildColored(parts)
 }
 
+/**
+ * 옥허진장 — the jade sanctuary's final guardian.
+ *
+ * The reference is an armoured warden, not a coloured robe with a halo. The
+ * model therefore gets a real front/back break, layered shoulder and waist
+ * plates, a mask, a chest core, a split mantle and a weapon silhouette. It is
+ * still one merged boss geometry, so the detail is paid once rather than by the
+ * horde's instanced path.
+ */
+function jadeVoidWarden() {
+  const parts = []
+
+  const robe = revolve([
+    [0.00, 5.12], [0.42, 5.00], [0.62, 4.28], [0.76, 3.28],
+    [0.98, 2.10], [1.42, 0.78], [1.72, 0.12], [1.58, 0.00], [0.00, 0.00],
+  ], 20)
+  gradient(robe, WARDEN_MID, WARDEN_DARK, 'y')
+  shear(robe, 0.13, { from: 0.9 })
+  parts.push([robe, { z: -0.12 }, undefined])
+
+  // Split front panels and a raised waist guard keep the robe from reading as
+  // one smooth cone when the boss turns toward the player.
+  for (const side of [-1, 1]) {
+    parts.push([
+      new THREE.BoxGeometry(0.54, 2.15, 0.18),
+      { x: side * 0.34, y: 1.35, z: 1.05, rz: side * 0.055 },
+      side < 0 ? WARDEN_DARK : WARDEN_MID,
+    ])
+    parts.push([
+      new THREE.BoxGeometry(0.72, 0.26, 0.24),
+      { x: side * 0.42, y: 2.42, z: 0.96, rz: side * 0.14 },
+      WARDEN_PLATE,
+    ])
+  }
+
+  // Torso, collar and engraved chest plate.
+  parts.push([
+    new THREE.SphereGeometry(0.82, 20, 14),
+    { y: 3.55, z: 0.08, sx: 1.16, sy: 1.04, sz: 0.78 },
+    WARDEN_DARK,
+  ])
+  parts.push([
+    new THREE.CylinderGeometry(0.76, 0.66, 0.28, 14),
+    { y: 3.48, z: 0.72, rx: Math.PI / 2 },
+    WARDEN_PLATE,
+  ])
+  parts.push([
+    new THREE.TorusGeometry(0.42, 0.055, 8, 28),
+    { y: 3.48, z: 0.91, rx: Math.PI / 2 },
+    WARDEN_GOLD,
+  ])
+  parts.push([
+    new THREE.OctahedronGeometry(0.30, 2),
+    { y: 3.48, z: 1.02, rz: Math.PI / 4 },
+    WARDEN_GLOW,
+  ])
+
+  // A layered shoulder line gives the armour an asymmetric, readable mass.
+  for (const side of [-1, 1]) {
+    parts.push([
+      new THREE.SphereGeometry(0.52, 14, 10),
+      { x: side * 0.98, y: 3.77, z: 0.02, sx: 1.34, sy: 0.56, sz: 0.92 },
+      WARDEN_PLATE,
+    ])
+    parts.push([
+      new THREE.BoxGeometry(0.62, 0.30, 0.82),
+      { x: side * 1.03, y: 3.95, z: 0.08, rx: 0.10, ry: side * 0.10, rz: side * -0.22 },
+      WARDEN_MID,
+    ])
+    parts.push([
+      limb([
+        [side * 1.05, 3.42, 0.06],
+        [side * 1.38, 2.78, 0.42],
+        [side * 1.16, 1.88, 0.82],
+      ], [0.28, 0.24, 0.16], 10, 6),
+      {}, WARDEN_DARK,
+    ])
+    for (let i = 0; i < 3; i++) {
+      parts.push([
+        new THREE.BoxGeometry(0.34, 0.20, 0.62),
+        { x: side * (1.25 - i * 0.06), y: 2.74 - i * 0.22, z: 0.45 + i * 0.16, ry: side * 0.18 },
+        i === 1 ? WARDEN_PLATE : WARDEN_MID,
+      ])
+    }
+  }
+
+  // Mask, horn crown and jade eye pair.
+  parts.push([
+    new THREE.SphereGeometry(0.56, 20, 14),
+    { y: 4.72, z: 0.12, sx: 1.02, sy: 1.08, sz: 0.92 },
+    WARDEN_DARK,
+  ])
+  parts.push([
+    new THREE.SphereGeometry(0.40, 16, 10),
+    { y: 4.63, z: 0.56, sx: 1.02, sy: 0.76, sz: 0.34 },
+    WARDEN_PLATE,
+  ])
+  for (const side of [-1, 1]) {
+    parts.push([
+      new THREE.SphereGeometry(0.075, 12, 8),
+      { x: side * 0.17, y: 4.72, z: 0.86 },
+      WARDEN_GLOW,
+    ])
+    parts.push([
+      limb([
+        [side * 0.22, 5.08, 0.02],
+        [side * 0.48, 5.42, -0.02],
+        [side * 0.72, 5.72, -0.28],
+        [side * 0.62, 5.70, -0.58],
+      ], [0.14, 0.12, 0.08, 0.025], 12, 6),
+      {}, WARDEN_GOLD,
+    ])
+  }
+  for (let i = -2; i <= 2; i++) {
+    parts.push([
+      new THREE.ConeGeometry(0.11, 0.58 + Math.abs(i) * 0.06, 8),
+      { x: i * 0.25, y: 5.08 + Math.abs(i) * 0.08, z: -0.18, rx: -0.50 },
+      i === 0 ? WARDEN_JADE : WARDEN_PLATE,
+    ])
+  }
+
+  // The split mantle and the polearm are the side-view anchors from the
+  // reference image; they make the silhouette survive a camera orbit.
+  for (const [side, lift] of [[-1, 0.3], [0, 0.72], [1, 0.42]]) {
+    parts.push([
+      limb([
+        [side * 0.56, 3.68, -0.34],
+        [side * 0.92, 3.08 + lift, -1.16],
+        [side * 1.18, 2.18 + lift, -2.12],
+        [side * 1.34, 0.88, -2.72],
+      ], [0.40, 0.34, 0.22, 0.035], 12, 6),
+      {}, side === 0 ? WARDEN_MID : WARDEN_DARK,
+    ])
+  }
+  parts.push([
+    limb([
+      [-1.65, 0.18, 0.48], [-1.82, 1.42, 0.46], [-1.66, 2.82, 0.36], [-1.50, 3.86, 0.14],
+    ], [0.10, 0.09, 0.07, 0.035], 12, 6),
+    {}, WARDEN_DARK,
+  ])
+  parts.push([
+    new THREE.TorusGeometry(0.72, 0.11, 8, 18, Math.PI * 0.82),
+    { x: -1.66, y: 0.04, z: 0.68, rz: -0.36 },
+    WARDEN_PLATE,
+  ])
+  parts.push([
+    new THREE.ConeGeometry(0.14, 0.42, 7),
+    { x: -1.48, y: 3.99, z: 0.12, rz: -0.35 },
+    WARDEN_GOLD,
+  ])
+
+  // Large jade halo: the animated seal plates are added by BossManager so the
+  // static geometry stays cacheable, but the ring is part of the silhouette.
+  parts.push([
+    new THREE.TorusGeometry(1.38, 0.055, 8, 32),
+    { y: 4.52, z: -0.62, rx: 0.14 },
+    WARDEN_JADE,
+  ])
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI * 0.72 + i * (Math.PI * 1.44 / 4)
+    parts.push([
+      new THREE.BoxGeometry(0.25, 0.48, 0.06),
+      { x: Math.cos(a) * 1.38, y: 4.52 + Math.sin(a) * 1.38, z: -0.62, rz: a + Math.PI / 2 },
+      WARDEN_JADE,
+    ])
+  }
+
+  const geometry = buildColored(parts)
+  // Keep the reference's imposing proportions inside the shared boss-quality
+  // gate; the boss definition supplies the final gameplay scale.
+  geometry.scale(0.94, 0.94, 0.94)
+  return geometry
+}
+
 const BUILDERS = {
   blueWolfKing: wolfKing,
   darkHeavenLord,
   riverMaiden,
+  jadeVoidWarden,
 }
 
 export function buildBossGeometry(bossId) {

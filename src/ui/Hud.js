@@ -10,6 +10,11 @@ function el(tag, cls, parent) {
   return node
 }
 
+function assetUrl(file) {
+  const base = import.meta.env?.BASE_URL ?? '/'
+  return `${base}assets/${file}`
+}
+
 /**
  * The in-run HUD, as real DOM over the canvas.
  *
@@ -59,6 +64,9 @@ export class Hud {
 
     // Boss bar, hidden until a boss is alive.
     this.bossWrap = el('div', 'hud-boss', this.node)
+    this.bossPortrait = el('img', 'hud-boss-portrait', this.bossWrap)
+    this.bossPortrait.alt = ''
+    this.bossPortrait.style.display = 'none'
     this.bossName = el('div', 'hud-boss-name', this.bossWrap)
     const bossTrack = el('div', 'hud-boss-track', this.bossWrap)
     this.bossFill = el('div', 'hud-boss-fill', bossTrack)
@@ -201,9 +209,23 @@ export class Hud {
       this._set(this.bossName, 'bossName', state.boss.name)
       const pct = Math.max(0, Math.round((state.boss.hp / state.boss.maxHp) * 200) / 2)
       this._set(this.bossFill, 'bossWidth', `${pct}%`)
+      const referenceAsset = state.boss.referenceAsset ?? ''
+      if (this._last.bossPortrait !== referenceAsset) {
+        this._last.bossPortrait = referenceAsset
+        if (referenceAsset) {
+          this.bossPortrait.src = assetUrl(referenceAsset)
+          this.bossPortrait.style.display = ''
+        } else {
+          this.bossPortrait.removeAttribute('src')
+          this.bossPortrait.style.display = 'none'
+        }
+      }
     } else if (this._last.bossShown) {
       this._last.bossShown = false
       this.bossWrap.style.display = 'none'
+      this._last.bossPortrait = ''
+      this.bossPortrait.removeAttribute('src')
+      this.bossPortrait.style.display = 'none'
     }
   }
 

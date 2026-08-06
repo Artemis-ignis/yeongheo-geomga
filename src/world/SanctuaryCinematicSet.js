@@ -56,6 +56,10 @@ export class SanctuaryCinematicSet {
     this._buildGuardians()
     this._buildFocus()
     this._buildMist()
+    this.shadowMeshes = []
+    this.group.traverse((object) => {
+      if (object.isMesh && object.castShadow) this.shadowMeshes.push(object)
+    })
   }
 
   _geometry(geometry) {
@@ -168,6 +172,12 @@ export class SanctuaryCinematicSet {
     // bevelled stone pavers supplies the surface scale and broken highlight
     // rhythm seen in the reference without adding one draw call per tile.
     const paverGeometry = this._geometry(new RoundedBoxGeometry(1.72, 0.12, 0.92, 1, 0.045))
+    // The bevel is valuable at native resolution, but the same rounded box
+    // repeated nearly a thousand times becomes a surprisingly large triangle
+    // budget after the adaptive scaler has already dropped the backbuffer.
+    // Keep a crisp box LOD with the same transforms, colours and material so
+    // the court still reads as wet masonry at the emergency gameplay tier.
+    const paverLowGeometry = this._geometry(new THREE.BoxGeometry(1.72, 0.10, 0.92))
     const paverMaterial = this._material(new THREE.MeshPhysicalMaterial({
       color: 0x536878,
       roughness: 0.44,
@@ -191,6 +201,11 @@ export class SanctuaryCinematicSet {
     this.plazaPavers.name = 'sanctuary-wet-stone-pavers'
     this.plazaPavers.castShadow = false
     this.plazaPavers.receiveShadow = true
+    this.plazaPaversLow = new THREE.InstancedMesh(paverLowGeometry, paverMaterial, paverPositions.length)
+    this.plazaPaversLow.name = 'sanctuary-wet-stone-pavers-low-lod'
+    this.plazaPaversLow.castShadow = false
+    this.plazaPaversLow.receiveShadow = true
+    this.plazaPaversLow.visible = false
     const paverColor = new THREE.Color()
     for (let i = 0; i < paverPositions.length; i++) {
       const [x, z, gx, gz] = paverPositions[i]
@@ -200,13 +215,18 @@ export class SanctuaryCinematicSet {
       _dummy.scale.set(0.94 + Math.sin(gx * 3.1 + gz) * 0.035, 1, 0.90 + Math.cos(gz * 2.4 - gx) * 0.04)
       _dummy.updateMatrix()
       this.plazaPavers.setMatrixAt(i, _dummy.matrix)
+      this.plazaPaversLow.setMatrixAt(i, _dummy.matrix)
       const shade = 0.88 + (Math.sin(gx * 6.2 + gz * 3.7) * 0.5 + 0.5) * 0.18
       paverColor.setRGB(0.28 * shade, 0.36 * shade, 0.42 * shade)
       this.plazaPavers.setColorAt(i, paverColor)
+      this.plazaPaversLow.setColorAt(i, paverColor)
     }
     this.plazaPavers.instanceMatrix.needsUpdate = true
     if (this.plazaPavers.instanceColor) this.plazaPavers.instanceColor.needsUpdate = true
+    this.plazaPaversLow.instanceMatrix.needsUpdate = true
+    if (this.plazaPaversLow.instanceColor) this.plazaPaversLow.instanceColor.needsUpdate = true
     this.architecture.add(this.plazaPavers)
+    this.architecture.add(this.plazaPaversLow)
     for (const radius of [4.4, 8.6, 12.8, 17.2, 22.2, 27.8]) {
       const ring = this._mesh(this._geometry(new THREE.TorusGeometry(radius, 0.055, 6, 96)), plazaTrim)
       ring.rotation.x = Math.PI / 2
@@ -458,6 +478,9 @@ export class SanctuaryCinematicSet {
     // Keep them for the high tier and remove them first when the scaler reacts.
     const mistVisible = scale >= 0.78
     for (const card of this.mistCards ?? []) card.visible = mistVisible
+    const detailedPavers = scale >= 0.78
+    if (this.plazaPavers) this.plazaPavers.visible = detailedPavers
+    if (this.plazaPaversLow) this.plazaPaversLow.visible = !detailedPavers
     if (this.motes) this.motes.visible = scale >= 0.70
     if (this.domBackdrop) this.domBackdrop.style.opacity = scale >= 0.78 ? '0.30' : '0.16'
     // On jade, the generated reference is the distant gate/mountain layer. The
@@ -482,6 +505,13 @@ export class SanctuaryCinematicSet {
     for (const item of this.guardianRings ?? []) item.ring.visible = guardianVisible
     if (this.lordHalo) this.lordHalo.visible = guardianVisible
     for (const item of this.lights ?? []) item.light.visible = guardianVisible
+
+    // The hero environment has a real sun shadow pass at native resolution.
+    // At the emergency adaptive tier the contact-shadow instancer still grounds
+    // the player and horde, while dropping decorative sanctuary casters saves
+    // hundreds of shadow-map submissions without changing the silhouettes.
+    const environmentShadows = scale >= 0.78
+    for (const mesh of this.shadowMeshes ?? []) mesh.castShadow = environmentShadows
   }
 
   update(dt, playerX = 0, playerZ = 0) {

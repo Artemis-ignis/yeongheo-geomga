@@ -232,7 +232,14 @@ body {
 /* ---------- Boss bar ---------- */
 .hud-boss {
   position: absolute; top: 96px; left: 50%; transform: translateX(-50%);
-  width: min(620px, 74vw); text-align: center;
+  width: min(620px, 74vw); padding-left: 68px; text-align: center;
+}
+.hud-boss-portrait {
+  position: absolute; left: 0; top: -12px;
+  width: 58px; height: 58px; object-fit: cover; object-position: 50% 35%;
+  border-radius: 10px; border: 1px solid rgba(127, 214, 181, 0.74);
+  box-shadow: 0 0 0 3px rgba(8, 16, 20, 0.78), 0 0 22px rgba(75, 209, 178, 0.36);
+  background: #0a151a;
 }
 .hud-boss-name {
   font-size: 15px; letter-spacing: 0.16em; color: #ffb0b0;

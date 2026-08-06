@@ -514,11 +514,11 @@ function creatureDrawer(build, id) {
 }
 
 for (const e of ENEMIES) DRAWERS[e.id] = creatureDrawer(buildEnemyGeometry, e.id)
-for (const id of ['blueWolfKing', 'darkHeavenLord', 'riverMaiden']) {
+for (const id of ['blueWolfKing', 'darkHeavenLord', 'riverMaiden', 'jadeVoidWarden']) {
   DRAWERS[id] = creatureDrawer(buildBossGeometry, id)
 }
 
-const CREATURE_IDS = new Set([...ENEMIES.map((e) => e.id), 'blueWolfKing', 'darkHeavenLord', 'riverMaiden'])
+const CREATURE_IDS = new Set([...ENEMIES.map((e) => e.id), 'blueWolfKing', 'darkHeavenLord', 'riverMaiden', 'jadeVoidWarden'])
 const CHARACTER_IDS = new Set(CHARACTERS.map((c) => c.id))
 
 function bgFor(id) {

@@ -93,6 +93,12 @@ export class Game {
     this._radarCacheAt = -Infinity
     this._radarCache = []
     this._lastPresentedAt = -Infinity
+    // A strict `now - lastPresentedAt >= 16.67` test is subtly wrong on a
+    // 120/165 Hz panel: two 8.1 ms callbacks total only 16.2 ms, so the game
+    // skips both and renders every third callback (about 42 FPS). Accumulate
+    // the budget instead, which naturally alternates two- and three-callback
+    // gaps to average the intended 60 FPS.
+    this._renderBudgetMs = 0
     this._lastRenderCalls = 0
     this._lastRenderTriangles = 0
 
@@ -881,14 +887,29 @@ export class Game {
 
   _frame(now) {
     try {
-      // setAnimationLoop follows the display refresh rate. On a 165 Hz panel
-      // that used to render 165 full post-process frames per second, even
-      // while a level-up menu was open. Drop surplus callbacks before touching
-      // simulation, HUD, post-processing, or renderer.info.
-      if (Number.isFinite(now)
-        && Number.isFinite(this._lastPresentedAt)
-        && now - this._lastPresentedAt < MIN_RENDER_INTERVAL_MS) return
-      if (Number.isFinite(now)) this._lastPresentedAt = now
+      // setAnimationLoop follows the display refresh rate. Use a fractional
+      // frame budget instead of a strict elapsed-time gate: on 120 Hz, two
+      // callbacks can be 16.2 ms apart and a strict 16.67 ms comparison would
+      // incorrectly skip them both, locking the game to every third callback.
+      // The accumulator preserves the 60 FPS average without allowing a tab
+      // resume hitch to trigger a burst of catch-up renders.
+      if (Number.isFinite(now)) {
+        const previousCallbackAt = this._lastPresentedAt
+        this._lastPresentedAt = now
+        if (!Number.isFinite(previousCallbackAt)) {
+          this._renderBudgetMs = MIN_RENDER_INTERVAL_MS
+        } else {
+          const callbackDelta = Math.max(0, now - previousCallbackAt)
+          if (callbackDelta > 250) {
+            this._renderBudgetMs = MIN_RENDER_INTERVAL_MS
+          } else {
+            this._renderBudgetMs -= callbackDelta
+            if (this._renderBudgetMs > 0) return
+            this._renderBudgetMs += MIN_RENDER_INTERVAL_MS
+            if (this._renderBudgetMs <= 0) this._renderBudgetMs = MIN_RENDER_INTERVAL_MS
+          }
+        }
+      }
 
       const elapsedMs = this._last === undefined ? 16 : now - this._last
       const dt = elapsedMs / 1000
@@ -972,7 +993,10 @@ export class Game {
       radar: this._radarCache,
       weapons: this.weapons.equipped,
       passives: Object.entries(p.loadout.passives).map(([id, level]) => ({ id, level })),
-      boss: b ? { name: b.def.name, hp: b.hp, maxHp: b.maxHp } : null,
+      boss: b ? {
+        name: b.def.name, hp: b.hp, maxHp: b.maxHp,
+        referenceAsset: b.def.referenceAsset ?? null,
+      } : null,
     }
   }
 

@@ -51,7 +51,7 @@ export const STAGES = [
       'wisp', 'wolf', 'stoneGhoul', 'talismanGhost', 'bloodScorpion', 'demonCultivator',
       'jadeSerpent',
     ],
-    bosses: { mid: 'blueWolfKing', final: 'darkHeavenLord' },
+    bosses: { mid: 'blueWolfKing', final: 'jadeVoidWarden' },
     hpScale: 1.0,
     stoneScale: 1.0,
   },

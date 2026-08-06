@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { createJadeSanctuaryGateModel } from './generated/JadeSanctuaryGateFactory.ts'
 
 const _dummy = new THREE.Object3D()
@@ -249,6 +250,120 @@ function collectMaterialTextures(root) {
   return [...textures]
 }
 
+/**
+ * Collapse the gate's authored static pieces into a handful of material-batched
+ * meshes. The img2threejs factory remains in the asset graph and the moving
+ * crest/roof-tile instances stay separate, but 100+ unmoving stone pieces do
+ * not need 100+ WebGL submissions every frame. This is a render optimization,
+ * not a visual simplification: the transformed source geometry is preserved.
+ */
+function batchStaticGateMeshes(root) {
+  root.updateMatrixWorld(true)
+  const inverseRoot = new THREE.Matrix4().copy(root.matrixWorld).invert()
+  const batches = new Map()
+  const sourceGeometries = new Set()
+  const retainedGeometries = new Set()
+
+  const isVisibleThroughParents = (object) => {
+    for (let current = object; current && current !== root; current = current.parent) {
+      if (!current.visible) return false
+    }
+    return true
+  }
+
+  const isDynamicOrInstanced = (object) => {
+    if (object.isInstancedMesh) return true
+    for (let current = object.parent; current && current !== root; current = current.parent) {
+      // The jade crest rotates during the ambient pass. Keep its small pieces
+      // as normal meshes so that animation does not get baked into the batch.
+      if (current.name === 'gate-jade-sun-crest') return true
+    }
+    return false
+  }
+
+  const rootChild = (object) => {
+    let current = object
+    while (current.parent && current.parent !== root) current = current.parent
+    return current.parent === root ? current : root
+  }
+
+  root.traverse((object) => {
+    if (!object.isMesh || !object.geometry || object.isInstancedMesh) {
+      if (object.isMesh && object.geometry) retainedGeometries.add(object.geometry)
+      return
+    }
+    if (!object.material?.isMaterial || isDynamicOrInstanced(object) || !isVisibleThroughParents(object)) {
+      retainedGeometries.add(object.geometry)
+      return
+    }
+
+    const source = rootChild(object)
+    const attributes = Object.keys(object.geometry.attributes).sort().join(',')
+    const indexed = object.geometry.index ? 'indexed' : 'non-indexed'
+    const key = `${source.uuid}:${object.material.uuid}:${attributes}:${indexed}`
+    let batch = batches.get(key)
+    if (!batch) {
+      batch = { source, material: object.material, geometries: [] }
+      batches.set(key, batch)
+    }
+    const geometry = object.geometry.clone()
+    const relativeMatrix = new THREE.Matrix4().multiplyMatrices(inverseRoot, object.matrixWorld)
+    geometry.applyMatrix4(relativeMatrix)
+    batch.geometries.push(geometry)
+    sourceGeometries.add(object.geometry)
+    object.visible = false
+  })
+
+  const batchedGroups = new Map()
+  for (const batch of batches.values()) {
+    const merged = batch.geometries.length === 1
+      ? batch.geometries[0]
+      : mergeGeometries(batch.geometries, false)
+    if (!merged) {
+      // Keep a safe fallback if a future Three.js geometry introduces an
+      // incompatible attribute set. The source pieces were hidden above, so
+      // put the transformed clones back as individual meshes.
+      for (const geometry of batch.geometries) {
+        const mesh = new THREE.Mesh(geometry, batch.material)
+        mesh.castShadow = true
+        mesh.receiveShadow = true
+        let group = batchedGroups.get(batch.source)
+        if (!group) {
+          group = new THREE.Group()
+          group.name = `${batch.source.name || 'gate'}-static-batch`
+          root.add(group)
+          batchedGroups.set(batch.source, group)
+        }
+        group.add(mesh)
+      }
+      continue
+    }
+    for (const geometry of batch.geometries) {
+      if (geometry !== merged) geometry.dispose()
+    }
+    let group = batchedGroups.get(batch.source)
+    if (!group) {
+      group = new THREE.Group()
+      group.name = `${batch.source.name || 'gate'}-static-batch`
+      root.add(group)
+      batchedGroups.set(batch.source, group)
+    }
+    const mesh = new THREE.Mesh(merged, batch.material)
+    mesh.name = `${batch.source.name || 'gate'}-material-batch`
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+    group.add(mesh)
+  }
+
+  // Do not leave duplicate GPU buffers behind. A geometry shared with an
+  // excluded/dynamic mesh is retained, so this remains safe if the asset is
+  // extended with a reused geometry in a later pass.
+  for (const geometry of sourceGeometries) {
+    if (!retainedGeometries.has(geometry)) geometry.dispose()
+  }
+  return batchedGroups
+}
+
 export function buildJadeSanctuaryGate() {
   const root = new THREE.Group()
   root.name = 'img2three-jade-sanctuary-gate'
@@ -396,13 +511,18 @@ export function buildJadeSanctuaryGate() {
   root.userData.tileMeshes = tileMeshes
   root.userData.generatedBlockout = generatedBlockout
   root.userData.heroGroups = [foundation, detailGroup, superstructure, roof]
+  const batchedGroups = batchStaticGateMeshes(root)
+  root.userData.batchedGroups = batchedGroups
   root.userData.setQuality = (scale) => {
     const high = scale >= 0.72
     const medium = scale >= 0.58
     const emergency = scale < 0.48
     generatedBlockout.visible = emergency
     for (const group of root.userData.heroGroups) group.visible = !emergency
+    for (const [source, batch] of batchedGroups) batch.visible = source.visible && !emergency
     detailGroup.visible = medium
+    const detailBatch = batchedGroups.get(detailGroup)
+    if (detailBatch) detailBatch.visible = medium && !emergency
     for (const tile of tileMeshes) tile.visible = high
     farDetails.visible = true
     for (const tile of tileMeshes) tile.count = high ? tile.instanceMatrix.count : Math.max(36, Math.floor(tile.instanceMatrix.count * 0.46))
