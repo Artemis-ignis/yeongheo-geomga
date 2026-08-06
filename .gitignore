@@ -5,3 +5,11 @@ dist/
 .DS_Store
 .shots/
 quality-pass-*.png
+
+# Local asset intake, archive, and resumable img2threejs state are not runtime
+# deliverables. Keep them on the workstation for audit/recovery without
+# allowing unapproved candidates to enter the repository or shipped bundle.
+/.img2threejs/
+/artifacts/asset-intake/
+/artifacts/asset-archive/
+/artifacts/img2threejs/jade-sanctuary-gate/

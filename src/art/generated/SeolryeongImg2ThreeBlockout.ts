@@ -652,7 +652,7 @@ function resolveRuntimeMapUrl(url: string): string {
   if (/^(?:[a-z]+:|\/)/i.test(url)) return url;
   const fileName = url.split(/[\\/]/).pop() ?? url;
   const base = import.meta.env?.BASE_URL ?? '/';
-  return `${base}assets/img2three/${fileName}`;
+  return `${base}assets/materials/img2three/${fileName}`;
 }
 
 function createLoadedMapTexture(

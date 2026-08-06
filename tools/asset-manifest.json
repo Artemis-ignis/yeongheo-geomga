@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "runtimeRoot": "public/assets",
+  "assets": [
+    {
+      "id": "environment.jade-sanctuary.v2",
+      "path": "public/assets/environment/jade-sanctuary-environment-v2.png",
+      "role": "runtime-environment-background",
+      "tier": "scene",
+      "source": "imagegen",
+      "consumers": ["styles/hud.css", "src/world/SanctuaryCinematicSet.js"],
+      "maxBytes": 4000000
+    },
+    {
+      "id": "character.seolryeong.reference.v1",
+      "path": "public/assets/characters/seolryeong-character-reference-v1.png",
+      "role": "runtime-character-reference",
+      "tier": "hero",
+      "source": "imagegen",
+      "consumers": ["src/ui/TitleScreen.js"],
+      "maxBytes": 3500000
+    },
+    {
+      "id": "material.character.moon-silk.v1",
+      "path": "public/assets/materials/characters/moon-silk-weave-v1.png",
+      "role": "runtime-material-weave",
+      "tier": "hero",
+      "source": "imagegen",
+      "consumers": ["src/art/HeroicModels.js", "src/art/SeolryeongImg2ThreeAdapter.js"],
+      "maxBytes": 4500000
+    },
+    {
+      "id": "material.guardian.jade-scale.v1",
+      "path": "public/assets/materials/guardians/jade-scale-weave-v1.png",
+      "role": "runtime-material-weave",
+      "tier": "world",
+      "source": "imagegen",
+      "consumers": ["src/art/HeroicModels.js"],
+      "maxBytes": 4500000
+    },
+    {
+      "id": "material.guardian.ember-feather.v1",
+      "path": "public/assets/materials/guardians/ember-feather-weave-v1.png",
+      "role": "runtime-material-weave",
+      "tier": "world",
+      "source": "imagegen",
+      "consumers": ["src/art/HeroicModels.js"],
+      "maxBytes": 4500000
+    },
+    {
+      "id": "pbr.seolryeong.silk.albedo",
+      "path": "public/assets/materials/img2three/seolryeong-silk_albedo.png",
+      "role": "img2three-pbr-channel",
+      "tier": "hero",
+      "source": "img2threejs",
+      "consumers": ["src/art/generated/SeolryeongImg2ThreeBlockout.ts"],
+      "maxBytes": 1000000
+    },
+    {
+      "id": "pbr.seolryeong.silk.ao",
+      "path": "public/assets/materials/img2three/seolryeong-silk_ao.png",
+      "role": "img2three-pbr-channel",
+      "tier": "hero",
+      "source": "img2threejs",
+      "consumers": ["src/art/generated/SeolryeongImg2ThreeBlockout.ts"],
+      "maxBytes": 1000000
+    },
+    {
+      "id": "pbr.seolryeong.silk.height",
+      "path": "public/assets/materials/img2three/seolryeong-silk_height.png",
+      "role": "img2three-pbr-channel",
+      "tier": "hero",
+      "source": "img2threejs",
+      "consumers": ["src/art/generated/SeolryeongImg2ThreeBlockout.ts"],
+      "maxBytes": 1000000
+    },
+    {
+      "id": "pbr.seolryeong.silk.normal",
+      "path": "public/assets/materials/img2three/seolryeong-silk_normal.png",
+      "role": "img2three-pbr-channel",
+      "tier": "hero",
+      "source": "img2threejs",
+      "consumers": ["src/art/generated/SeolryeongImg2ThreeBlockout.ts", "src/art/HeroicModels.js"],
+      "maxBytes": 1000000
+    },
+    {
+      "id": "pbr.seolryeong.silk.roughness",
+      "path": "public/assets/materials/img2three/seolryeong-silk_roughness.png",
+      "role": "img2three-pbr-channel",
+      "tier": "hero",
+      "source": "img2threejs",
+      "consumers": ["src/art/generated/SeolryeongImg2ThreeBlockout.ts", "src/art/HeroicModels.js"],
+      "maxBytes": 1000000
+    }
+  ]
+}

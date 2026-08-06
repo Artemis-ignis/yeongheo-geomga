@@ -11,7 +11,7 @@ import {
 
 // import.meta.env.BASE_URL keeps the public asset reachable both at `/` during
 // local development and at `/yeongheo-geomga/` on GitHub Pages.
-const BACKDROP_URL = `${import.meta.env.BASE_URL}assets/jade-sanctuary-environment-v2.png`
+const BACKDROP_URL = `${import.meta.env.BASE_URL}assets/environment/jade-sanctuary-environment-v2.png`
 
 const _dummy = new THREE.Object3D()
 
@@ -29,10 +29,19 @@ export class SanctuaryCinematicSet {
     this.scene = scene
     this.palette = palette
     this.stageId = stageId
+    this.domBackdrop = typeof document !== 'undefined'
+      ? document.getElementById('cinematic-backdrop') : null
+    this.domBackdrop?.classList.toggle('active', stageId === 'jade')
     this.time = 0
     this.group = new THREE.Group()
     this.group.name = 'sanctuary-cinematic-set'
     scene.add(this.group)
+    this.architecture = new THREE.Group()
+    this.architecture.name = 'sanctuary-live-architecture'
+    this.horizonArchitecture = new THREE.Group()
+    this.horizonArchitecture.name = 'sanctuary-live-horizon-architecture'
+    this.architecture.add(this.horizonArchitecture)
+    this.group.add(this.architecture)
 
     this.geometries = []
     this.materials = []
@@ -56,7 +65,7 @@ export class SanctuaryCinematicSet {
     return material
   }
 
-  _mesh(geometry, material, parent = this.group) {
+  _mesh(geometry, material, parent = this.architecture ?? this.group) {
     const mesh = new THREE.Mesh(geometry, material)
     parent.add(mesh)
     return mesh
@@ -64,28 +73,36 @@ export class SanctuaryCinematicSet {
 
   _buildBackdrop() {
     // The PNG is a distant environment only. It belongs in scene.background;
-    // a second opaque quad would redraw the entire screen and cover the real
-    // player, guardians and combat geometry.
+    // the playable court and all foreground guardians remain real Three.js
+    // geometry in front of it.
     const texture = new THREE.TextureLoader().load(
       BACKDROP_URL,
       (loaded) => {
         loaded.colorSpace = THREE.SRGBColorSpace
         loaded.anisotropy = Math.min(4, this.scene.userData.maxAnisotropy ?? 4)
+        loaded.needsUpdate = true
+        // ACES compresses the pale moon and distant waterfall heavily. A small
+        // background-only lift keeps the generated environment readable while
+        // leaving the playable 3D materials and light exposure untouched.
+        this.scene.backgroundIntensity = 1.18
         this.scene.background = loaded
       },
       undefined,
       () => {
         // The real 3D court remains playable if the optional environment fails.
+        this.scene.background = new THREE.Color(0x0a1320)
       },
     )
     texture.colorSpace = THREE.SRGBColorSpace
     texture.minFilter = THREE.LinearMipmapLinearFilter
     texture.magFilter = THREE.LinearFilter
     this.texture = texture
+    this.scene.backgroundIntensity = 1
+
     // Do not hand an image-less TextureLoader result to the renderer. Three.js
-    // otherwise checks it every frame while the PNG is still pending and emits
-    // a warning on some WebGL drivers. A flat color keeps the first frames
-    // valid; the loaded image replaces it in the callback above.
+    // otherwise checks it every frame while the PNG is pending and emits a
+    // warning on some WebGL drivers. A flat colour keeps the first frames valid;
+    // the loaded image replaces it in the callback above.
     this.scene.background = new THREE.Color(0x0a1320)
     // Sky owns an opaque shader dome. It is created before this set, so hide it
     // here as well as in Sky's stage-aware path; this keeps the backdrop reliable
@@ -100,7 +117,6 @@ export class SanctuaryCinematicSet {
       })
     }
 
-    this.backdrop = null
   }
 
   _buildArchitecture() {
@@ -125,15 +141,15 @@ export class SanctuaryCinematicSet {
       map: glowTexture(),
     }))
     const plazaMat = this._material(makeToonMaterial({
-      color: 0xffffff,
-      map: shrineTexture(0x263c4b, 0x132130, 0x76dfff),
-      rim: 0.32,
-      rimColor: 0x6d9ab7,
+      color: 0xe4edf2,
+      map: shrineTexture(0x1b2938, 0x0d1724, 0x4c9ab3),
+      rim: 0.24,
+      rimColor: 0x6c92a8,
     }))
     const plazaTrim = this._material(makeToonMaterial({
-      color: 0x6e7f91,
-      rim: 0.48,
-      rimColor: 0xc4e3f2,
+      color: 0x3d5366,
+      rim: 0.28,
+      rimColor: 0x8db4c4,
     }))
 
     // A stone ritual court under the shrine turns the centre of the grass field
@@ -160,7 +176,7 @@ export class SanctuaryCinematicSet {
     const gate = new THREE.Group()
     gate.name = 'closer-sanctuary-gate'
     gate.position.set(0, 0, -13.5)
-    this.group.add(gate)
+    this.horizonArchitecture.add(gate)
 
     for (const side of [-1, 1]) {
       const pillar = new THREE.Group()
@@ -213,7 +229,7 @@ export class SanctuaryCinematicSet {
       const banner = new THREE.Group()
       banner.position.set(side * 10.0, 0, -9.5)
       banner.rotation.y = side * 0.14
-      this.group.add(banner)
+      this.horizonArchitecture.add(banner)
       const pole = this._mesh(this._geometry(new THREE.CylinderGeometry(0.08, 0.12, 7.5, 8)), gold, banner)
       pole.position.y = 3.75
       const flagGeo = this._geometry(new THREE.PlaneGeometry(2.15, 4.3, 5, 7))
@@ -233,7 +249,7 @@ export class SanctuaryCinematicSet {
       const plinth = new THREE.Group()
       plinth.position.set(x, 0, z)
       plinth.scale.setScalar(s)
-      this.group.add(plinth)
+      this.horizonArchitecture.add(plinth)
       this._mesh(this._geometry(new THREE.CylinderGeometry(0.68, 0.95, 0.7, 8)), stone, plinth).position.y = 0.35
       const statue = this._mesh(this._geometry(new THREE.ConeGeometry(0.48, 2.9, 6)), stoneLight, plinth)
       statue.position.y = 2.1
@@ -381,6 +397,28 @@ export class SanctuaryCinematicSet {
     const mistVisible = scale >= 0.78
     for (const card of this.mistCards ?? []) card.visible = mistVisible
     if (this.motes) this.motes.visible = scale >= 0.70
+    if (this.domBackdrop) this.domBackdrop.style.opacity = scale >= 0.78 ? '0.48' : '0.24'
+    // On jade, the generated reference is the distant gate/mountain layer. The
+    // live court, guardians, focus runes, and all combat geometry remain 3D;
+    // only the duplicate low-poly horizon props are removed.
+    if (this.horizonArchitecture) this.horizonArchitecture.visible = this.stageId !== 'jade'
+
+    // The four showcase guardians are made from layered physical meshes. They
+    // are valuable at native resolution, but become dark, noisy silhouettes at
+    // the emergency tier while still costing dozens of draw calls and a shadow
+    // pass. Keep the playable hero and horde intact; drop only this decorative
+    // showcase layer when the scaler is protecting frame time.
+    // The showcase guardians are also the stage's silhouette anchors. Hiding
+    // all four at the minimum tier saved geometry work but left a blank,
+    // generic arena. They stay visible; only mist and motes are sacrificed on
+    // the emergency tier because those do not define the composition.
+    const guardianVisible = true
+    for (const guardian of [this.wolf, this.serpent, this.raven, this.lord]) {
+      if (guardian) guardian.visible = guardianVisible
+    }
+    for (const item of this.guardianRings ?? []) item.ring.visible = guardianVisible
+    if (this.lordHalo) this.lordHalo.visible = guardianVisible
+    for (const item of this.lights ?? []) item.light.visible = guardianVisible
   }
 
   update(dt, playerX = 0, playerZ = 0) {
@@ -388,10 +426,6 @@ export class SanctuaryCinematicSet {
 
     // The horizon has a gentle parallax response instead of being glued to the
     // camera. The set remains anchored to the sanctuary while the player moves.
-    if (this.backdrop) {
-      this.backdrop.position.x = playerX * 0.12
-      this.backdrop.position.z = -10 + playerZ * 0.04
-    }
     this.focus.position.set(playerX, 0, playerZ)
     this.motes.position.set(playerX, 0, playerZ)
 
@@ -438,6 +472,7 @@ export class SanctuaryCinematicSet {
 
   dispose() {
     this.scene.remove(this.group)
+    this.domBackdrop?.classList.remove('active')
     if (this.scene.background === this.texture) {
       this.scene.background = this.previousBackground
     }

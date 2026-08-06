@@ -92,6 +92,8 @@ export class Game {
     this._radarCacheAt = -Infinity
     this._radarCache = []
     this._lastPresentedAt = -Infinity
+    this._lastRenderCalls = 0
+    this._lastRenderTriangles = 0
 
     // Meta progression is loaded once and lives for the whole session.
     this.progress = new Progress(Save.load())
@@ -843,7 +845,18 @@ export class Game {
       this.grass.update(dt, 0, 0)
       this.cinematic?.update(dt, 0, 0)
     }
+    // renderer.info is a diagnostic switch, not part of the normal game loop.
+    // Count the complete composer only while F3 is visible; leaving autoReset
+    // on for ordinary play avoids accumulating counters and avoids allocating a
+    // per-frame measurement object on the hot path.
+    const measureRender = this.debug?.visible === true
+    this.renderer.info.autoReset = !measureRender
+    if (measureRender) this.renderer.info.reset()
     this.post.render(this.scene, this.camera.camera)
+    if (measureRender) {
+      this._lastRenderCalls = this.renderer.info.render.calls
+      this._lastRenderTriangles = this.renderer.info.render.triangles
+    }
     this.overlay.render(dt)
   }
 
@@ -962,12 +975,11 @@ export class Game {
   }
 
   _debugState(dt) {
-    const info = this.renderer.info.render
     return {
       dt,
       state: this.state,
-      drawCalls: info.calls,
-      triangles: info.triangles,
+      drawCalls: this._lastRenderCalls,
+      triangles: this._lastRenderTriangles,
       enemies: this.enemies?.liveCount ?? 0,
       projectiles: this.projectiles?.liveCount ?? 0,
       pickups: this.pickups?.liveCount ?? 0,

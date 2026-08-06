@@ -74,7 +74,10 @@ export function createScene(palette = {}) {
   // Only lightly warm. At 0xffe9c4 and this intensity a silver-haired character
   // came out cream, and white cloth came out tan — the tint was reading as the
   // material's own colour rather than as sunlight on it.
-  const sun = new THREE.DirectionalLight(0xfff4e2, 2.05)
+  // Moonlit jade and frost stay cool so white silk does not turn beige. A stage
+  // may opt into a warmer key for the ember realm without changing the shared
+  // renderer or material palette.
+  const sun = new THREE.DirectionalLight(palette.keyLight ?? 0xd7e9ff, 2.05)
   sun.position.set(20, 17, 13)
   sun.castShadow = true
   // A 1024 shadow atlas is enough for the tight follow frustum and avoids

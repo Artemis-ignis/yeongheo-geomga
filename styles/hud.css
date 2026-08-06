@@ -20,9 +20,21 @@ body {
 }
 
 #scene, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-#overlay { pointer-events: none; }
+#scene { z-index: 0; }
+#cinematic-backdrop {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  display: none;
+  background: center top / cover no-repeat url('/assets/environment/jade-sanctuary-environment-v2.png');
+  opacity: 0.48;
+  /* Only the horizon receives the generated plate. The lower fade preserves
+   * the live arena, character silhouettes, pickups, and combat readability. */
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 12%, rgba(0,0,0,0.55) 24%, transparent 36%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 12%, rgba(0,0,0,0.55) 24%, transparent 36%);
+}
+#cinematic-backdrop.active { display: block; }
+#overlay { z-index: 2; pointer-events: none; }
 
-#hud { position: absolute; inset: 0; pointer-events: none; }
+#hud { position: absolute; inset: 0; z-index: 12; pointer-events: none; }
 #hud .clickable { pointer-events: auto; }
 
 /* ---------- WebGL fallback ---------- */
@@ -369,7 +381,9 @@ body {
 .screen {
   position: absolute; inset: 0; z-index: 12;
   display: grid; place-items: center;
-  background: radial-gradient(120% 90% at 50% 10%, rgba(24, 34, 52, 0.86), rgba(6, 9, 14, 0.96));
+  background:
+    linear-gradient(180deg, rgba(8, 15, 30, 0.56), rgba(6, 9, 14, 0.94)),
+    center / cover no-repeat url('/assets/environment/jade-sanctuary-environment-v2.png');
   pointer-events: auto;
 }
 .screen-inner { width: min(1040px, 94vw); text-align: center; }
@@ -426,6 +440,19 @@ body {
 .char-portrait {
   width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; display: block;
   background: rgba(0, 0, 0, 0.35);
+}
+.char-portrait.locked-placeholder {
+  position: relative;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(181, 201, 221, 0.20) 0 13%, transparent 14%),
+    linear-gradient(180deg, rgba(88, 111, 137, 0.20), rgba(7, 12, 18, 0.72));
+  overflow: hidden;
+}
+.char-portrait.locked-placeholder::after {
+  content: '？';
+  position: absolute; inset: 0; display: grid; place-items: center;
+  padding-top: 16%; font-size: clamp(34px, 4vw, 54px); font-weight: 700;
+  color: rgba(210, 224, 238, 0.60); text-shadow: 0 3px 14px rgba(0,0,0,0.85);
 }
 .char-name { margin-top: 10px; font-size: 21px; font-weight: 700; }
 .char-name span { font-size: 13px; opacity: 0.55; margin-left: 7px; }

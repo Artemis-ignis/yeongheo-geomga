@@ -8,14 +8,14 @@ const _forward = new THREE.Vector3()
 const _heroicTextureLoader = typeof document !== 'undefined' ? new THREE.TextureLoader() : null
 const _heroicTextureCache = new Map()
 
-function weaveTexture(file, repeat = [2, 2]) {
+function weaveTexture(file, repeat = [2, 2], colorSpace = THREE.SRGBColorSpace) {
   if (!_heroicTextureLoader) return null
   const key = `${file}|${repeat[0]}|${repeat[1]}`
   const cached = _heroicTextureCache.get(key)
   if (cached) return cached
   const base = import.meta.env?.BASE_URL ?? '/'
   const texture = _heroicTextureLoader.load(`${base}assets/${file}`)
-  texture.colorSpace = THREE.SRGBColorSpace
+  texture.colorSpace = colorSpace
   texture.wrapS = THREE.RepeatWrapping
   texture.wrapT = THREE.RepeatWrapping
   texture.repeat.set(repeat[0], repeat[1])
@@ -39,9 +39,14 @@ function standard(color, { roughness = 0.45, metalness = 0.05, emissive = 0x0000
 }
 
 function cloth(color, accent = 0x96dfff, map = null) {
+  const options = arguments[3] ?? {}
   return new THREE.MeshPhysicalMaterial({
     color,
     map,
+    normalMap: options.normalMap ?? null,
+    roughnessMap: options.roughnessMap ?? null,
+    bumpMap: options.bumpMap ?? null,
+    bumpScale: options.bumpScale ?? 0.035,
     roughness: 0.58,
     metalness: 0.02,
     sheen: 0.42,
@@ -73,13 +78,13 @@ function panel(width, height, material, bend = 0.18) {
   return new THREE.Mesh(geo, material)
 }
 
-function blade(material) {
+function blade(material, length = 0.90) {
   const shape = new THREE.Shape()
   shape.moveTo(-0.035, 0)
   shape.lineTo(0.035, 0)
-  shape.lineTo(0.105, 0.55)
-  shape.lineTo(0.0, 0.90)
-  shape.lineTo(-0.105, 0.55)
+  shape.lineTo(0.105, length * 0.61)
+  shape.lineTo(0.0, length)
+  shape.lineTo(-0.105, length * 0.61)
   shape.closePath()
   const geo = new THREE.ExtrudeGeometry(shape, {
     depth: 0.035,
@@ -142,13 +147,20 @@ export function buildHeroicSeolryeong(character) {
   root.scale.setScalar(1.32)
 
   const skin = standard(pal.skin ?? 0xf4c9ae, { roughness: 0.62 })
-  const hair = standard(pal.hair ?? 0x263958, { roughness: 0.3, metalness: 0.08, clearcoat: 0.28 })
+  // The reference has a dark blue-black hair mass with a silver-blue edge. The
+  // old shell used the palette's light highlight for the whole cap, which made
+  // hair and robe collapse into one beige silhouette under the stage sun.
+  const hair = standard(pal.hairRoot ?? 0x1b2944, { roughness: 0.3, metalness: 0.08, clearcoat: 0.28 })
+  const hairHighlight = standard(pal.hair ?? 0x9fb8d6, { roughness: 0.28, metalness: 0.12, clearcoat: 0.42 })
   // The reference silhouette is a moonlit white-robed swordswoman. Keep the
   // character palette's blue as an accent, but do not let it turn the entire
   // robe into a navy blob under the night grade.
-  const silkWeave = weaveTexture('moon-silk-weave-v1.png', [2.35, 3.1])
-  const silk = cloth(0xf0f6ff, pal.accent ?? 0x86d8ff, silkWeave)
-  const silkBlue = cloth(0x5f86b7, 0x7adfff, silkWeave)
+  const silkWeave = weaveTexture('materials/characters/moon-silk-weave-v1.png', [2.35, 3.1])
+  const silkNormal = weaveTexture('materials/img2three/seolryeong-silk_normal.png', [2.35, 3.1], THREE.NoColorSpace)
+  const silkRoughness = weaveTexture('materials/img2three/seolryeong-silk_roughness.png', [2.35, 3.1], THREE.NoColorSpace)
+  const silkMaps = { normalMap: silkNormal, roughnessMap: silkRoughness, bumpMap: silkNormal, bumpScale: 0.018 }
+  const silk = cloth(0xf0f6ff, pal.accent ?? 0x86d8ff, silkWeave, silkMaps)
+  const silkBlue = cloth(0x5f86b7, 0x7adfff, silkWeave, silkMaps)
   const trim = standard(pal.trim ?? 0xeff7ff, { roughness: 0.32, metalness: 0.3, clearcoat: 0.36 })
   const bladeMat = standard(0xdff7ff, { roughness: 0.18, metalness: 0.88, emissive: 0x6ccfff, emissiveIntensity: 0.22, clearcoat: 0.7 })
   const eyeMat = standard(0x182841, { roughness: 0.2, emissive: 0x58dfff, emissiveIntensity: 0.55 })
@@ -222,6 +234,28 @@ export function buildHeroicSeolryeong(character) {
   face.renderOrder = 2
   head.add(face)
 
+  // The reference reads as a face in three-quarter light, not as a blue patch
+  // on a sphere. Keep the authored expression texture for blush and mouth, but
+  // give the eyes a real spherical surface so the gameplay camera catches a
+  // specular point and a rim when the head turns.
+  const eyeWhite = standard(0xf7fbff, { roughness: 0.24, clearcoat: 0.2 })
+  const iris = standard(pal.eye ?? 0x2f9bdd, {
+    roughness: 0.16,
+    emissive: pal.eye ?? 0x2f9bdd,
+    emissiveIntensity: 0.18,
+    clearcoat: 0.32,
+  })
+  for (const side of [-1, 1]) {
+    const eyeBall = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), eyeWhite)
+    eyeBall.position.set(side * 0.135, 0.31, 0.286)
+    eyeBall.scale.z = 0.34
+    headRig.add(eyeBall)
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.043, 14, 10), iris)
+    pupil.position.set(side * 0.135, 0.31, 0.314)
+    pupil.scale.z = 0.26
+    headRig.add(pupil)
+  }
+
   const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.62), hair)
   hairCap.position.set(0, 0.37, -0.04)
   hairCap.scale.set(1.02, 0.90, 0.96)
@@ -247,6 +281,16 @@ export function buildHeroicSeolryeong(character) {
       [x + lean, 0.19, 0.23],
     ], 0.055, hair, 14, 10)
     headRig.add(fringe)
+  }
+  // Silver-blue edge locks catch the rim light and make the hair read as a
+  // designed layered asset rather than a single sphere with tubes attached.
+  for (const [side, sweep, length] of [[-1, -0.14, 0.86], [1, 0.14, 0.80], [-1, -0.24, 0.62], [1, 0.24, 0.58]]) {
+    const lock = tube([
+      [side * 0.18, 0.43, 0.08], [side * 0.28 + sweep * 0.18, 0.24, -0.01],
+      [side * 0.36 + sweep, 0.06 - length * 0.42, -0.10],
+      [side * 0.28 + sweep * 1.1, -0.02 - length, -0.14],
+    ], 0.052, hairHighlight, 16, 8)
+    headRig.add(lock)
   }
   for (const [side, sweep, length] of [[-1, -0.10, 0.48], [1, 0.10, 0.40], [-1, -0.18, 0.30], [1, 0.18, 0.27]]) {
     const lock = tube([
@@ -286,12 +330,49 @@ export function buildHeroicSeolryeong(character) {
   clasp.rotation.z = Math.PI / 4
   root.add(clasp)
 
+  // Layered brocade panels and tassels give the robe a readable silhouette from
+  // the steep gameplay camera. They are curved meshes, not flat billboard cards,
+  // so the folds still catch the key light as the player turns.
+  const panelSpecs = [
+    [-0.30, 0.84, 0.42, 1.18, -0.16], [0.30, 0.84, 0.42, 1.18, 0.16],
+    [-0.18, 0.72, 0.30, 0.94, -0.08], [0.18, 0.72, 0.30, 0.94, 0.08],
+  ]
+  for (const [x, y, width, height, yaw] of panelSpecs) {
+    const robePanel = panel(width, height, silk, 0.24)
+    robePanel.position.set(x, y, 0.22)
+    robePanel.rotation.y = yaw
+    robePanel.castShadow = true
+    root.add(robePanel)
+    const seam = new THREE.Mesh(new THREE.TorusGeometry(width * 0.44, 0.012, 6, 28, Math.PI), trim)
+    seam.rotation.set(Math.PI / 2, yaw, 0)
+    seam.position.set(x, y - height * 0.37, 0.27)
+    root.add(seam)
+  }
+  const sashPlate = new THREE.Mesh(new RoundedBoxGeometry(0.46, 0.20, 0.075, 3, 0.03), trim)
+  sashPlate.position.set(0, 1.22, 0.37)
+  sashPlate.rotation.z = 0.05
+  root.add(sashPlate)
+  const sashGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 2), bladeMat)
+  sashGem.position.set(0, 1.20, 0.43)
+  sashGem.scale.set(0.85, 1.25, 0.42)
+  root.add(sashGem)
+  for (const side of [-1, 1]) {
+    const tassel = tube([
+      [side * 0.22, 1.20, 0.36], [side * 0.25, 0.86, 0.34],
+      [side * 0.30, 0.62, 0.30],
+    ], 0.025, hairHighlight, 12, 6)
+    root.add(tassel)
+    const bead = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 8), bladeMat)
+    bead.position.set(side * 0.30, 0.59, 0.30)
+    root.add(bead)
+  }
+
   const heldSword = new THREE.Group()
   heldSword.name = 'held-frost-sword'
-  heldSword.position.set(0.48, 1.03, 0.30)
-  heldSword.rotation.z = -0.55
-  const heldBlade = blade(bladeMat)
-  heldBlade.position.y = 0.40
+  heldSword.position.set(-0.50, 1.05, 0.30)
+  heldSword.rotation.z = 0.52
+  const heldBlade = blade(bladeMat, 1.36)
+  heldBlade.position.y = 0.64
   heldSword.add(heldBlade)
   const guard = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.22, 12), trim)
   guard.rotation.z = Math.PI / 2
@@ -360,7 +441,7 @@ export function buildJadeTitan() {
   root.name = 'heroic-jade-titan'
   const armor = standard(0x344d61, { roughness: 0.40, metalness: 0.46, clearcoat: 0.28 })
   const plate = standard(0x7e9da3, { roughness: 0.40, metalness: 0.36 })
-  const jadeWeave = weaveTexture('jade-scale-weave-v1.png', [2.4, 1.8])
+  const jadeWeave = weaveTexture('materials/guardians/jade-scale-weave-v1.png', [2.4, 1.8])
   const jade = standard(0x238b78, { roughness: 0.32, metalness: 0.14, emissive: 0x075f52, emissiveIntensity: 0.10, clearcoat: 0.24, map: jadeWeave })
   const horn = standard(0xb7d8d7, { roughness: 0.3, metalness: 0.18, emissive: 0x255b62, emissiveIntensity: 0.12 })
   const eye = standard(0xc6fff4, { roughness: 0.12, emissive: 0x39ffe2, emissiveIntensity: 0.9 })
@@ -447,7 +528,7 @@ export function buildJadeTitan() {
 export function buildJadeDragon() {
   const root = new THREE.Group()
   root.name = 'heroic-jade-dragon'
-  const scaleWeave = weaveTexture('jade-scale-weave-v1.png', [3.2, 2.0])
+  const scaleWeave = weaveTexture('materials/guardians/jade-scale-weave-v1.png', [3.2, 2.0])
   const scaleMat = standard(0x3b938d, { roughness: 0.34, metalness: 0.14, emissive: 0x075f65, emissiveIntensity: 0.07, clearcoat: 0.36, map: scaleWeave })
   const bellyMat = standard(0xa9ded1, { roughness: 0.36, metalness: 0.06, clearcoat: 0.3 })
   const hornMat = standard(0xc4e9e2, { roughness: 0.27, metalness: 0.16 })
@@ -516,7 +597,7 @@ function feather(material, length, width) {
 export function buildEmberPhoenix() {
   const root = new THREE.Group()
   root.name = 'heroic-ember-phoenix'
-  const emberWeave = weaveTexture('ember-feather-weave-v1.png', [2.4, 1.8])
+  const emberWeave = weaveTexture('materials/guardians/ember-feather-weave-v1.png', [2.4, 1.8])
   const ember = standard(0xc95732, { roughness: 0.38, metalness: 0.10, emissive: 0xd02b10, emissiveIntensity: 0.12, clearcoat: 0.24, map: emberWeave })
   const gold = standard(0xffab4c, { roughness: 0.32, metalness: 0.18, emissive: 0xff5520, emissiveIntensity: 0.18, clearcoat: 0.30, map: emberWeave })
   const dark = standard(0x5a2030, { roughness: 0.36, metalness: 0.14, emissive: 0x861d22, emissiveIntensity: 0.15 })

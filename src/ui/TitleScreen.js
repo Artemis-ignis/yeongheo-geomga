@@ -22,6 +22,7 @@ export class TitleScreen {
     this.focus = 0
     this.view = 'menu'
     this.handlers = {}
+    this._bakedPortraitIds = new Set()
 
     this.node = document.createElement('div')
     this.node.className = 'screen'
@@ -243,15 +244,22 @@ export class TitleScreen {
    * this is free on every later visit.
    */
   _bakePortraits() {
-    if (this._portraitsDone || !this.renderer) return
-    this._portraitsDone = true
+    if (!this.renderer) return
     for (const c of this.cards) {
+      const unlocked = this.progress.isUnlocked('characters', c.id)
+      if (!unlocked) {
+        c.portrait.classList.add('locked-placeholder')
+        continue
+      }
+      if (this._bakedPortraitIds.has(c.id)) continue
+      this._bakedPortraitIds.add(c.id)
+      c.portrait.classList.remove('locked-placeholder')
       // The hero card uses the ImageGen-approved character reference. The
       // portrait is a real authored asset, so opening the roster does not
       // trigger another render-target bake for the hero.
       if (c.id === 'seolryeong') {
         const base = import.meta.env?.BASE_URL ?? '/'
-        c.portrait.style.backgroundImage = `url(${base}assets/seolryeong-character-reference-v1.png)`
+        c.portrait.style.backgroundImage = `url(${base}assets/characters/seolryeong-character-reference-v1.png)`
         c.portrait.classList.add('imagegen-reference')
         continue
       }

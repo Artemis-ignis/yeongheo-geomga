@@ -7,6 +7,7 @@
     "start": "vite build && vite preview --open",
     "dev": "vite",
     "build": "vite build",
+    "assets:audit": "node tools/asset-audit.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

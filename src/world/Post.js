@@ -117,7 +117,9 @@ export class Post {
     // the frame to compare against.
     const lift = palette.gradeLift ?? palette.abyss
     if (lift !== undefined) this.grade.uniforms.uLift.value.setHex(lift).multiplyScalar(0.55)
-    if (palette.skyBottom !== undefined) this.grade.uniforms.uGain.value.setHex(palette.skyBottom)
+    // The horizon can be warm while the whole frame remains moonlit. Using
+    // skyBottom as a global gain was tinting pale silk and jade armour cream.
+    if (palette.gradeGain !== undefined) this.grade.uniforms.uGain.value.setHex(palette.gradeGain)
     this.composer.addPass(this.grade)
 
     this.fxaa = new ShaderPass(FXAAShader)
@@ -153,11 +155,18 @@ export class Post {
 
   /** Keep grading available, but drop expensive bloom at the safe base tier. */
   setQuality(scale) {
-    // Bloom is deliberately an earned high tier. Additive weapon textures and
-    // the grade still provide readable magic without a multi-pass blur on low
-    // and mid-range Mac/Windows GPUs.
-    this.bloom.enabled = scale > 1.05
-    this.fxaa.enabled = scale >= 0.68
+    // A slow machine needs its pixels for the actual 3D scene. At the safe
+    // tier, bypass the two full-screen composer passes entirely; the renderer
+    // still applies ACES/sRGB output and the authored materials keep their
+    // colour separation. The cinematic grade is restored automatically when
+    // the adaptive scaler has headroom again.
+    // Keep the colour grade even on the safe tier. Removing it made the
+    // moonlit palette collapse into raw cyan WebGL output, which looked like a
+    // debug viewport even though the geometry was correct. Bloom stays off;
+    // grade + OutputPass are the cheap presentation path.
+    this.enabled = true
+    this.bloom.enabled = scale >= 0.96
+    this.fxaa.enabled = scale >= 0.82
   }
 
   render(scene, camera) {

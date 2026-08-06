@@ -11,7 +11,7 @@ const _center = new THREE.Vector3()
 const _textureLoader = typeof document !== 'undefined' ? new THREE.TextureLoader() : null
 const _textureCache = new Map()
 const _silkMaterials = new Set(['base', 'shirt', 'pants'])
-const HERO_HEIGHT = 3.05
+const HERO_HEIGHT = 3.35
 
 function assetUrl(file) {
   const base = import.meta.env?.BASE_URL ?? '/'
@@ -36,7 +36,7 @@ function applyTexture(root, texture, materialIds) {
 
 function loadSilkTexture(root) {
   if (!_textureLoader) return
-  const key = 'moon-silk-weave-v1.png'
+  const key = 'materials/characters/moon-silk-weave-v1.png'
   let texture = _textureCache.get(key)
   if (texture) {
     applyTexture(root, texture, _silkMaterials)
@@ -54,54 +54,13 @@ function loadSilkTexture(root) {
   })
 }
 
-function addReferenceImpostor(root, fallbackStage) {
-  if (!_textureLoader) return null
-  const material = new THREE.SpriteMaterial({
-    color: 0xffffff,
-    transparent: true,
-    alphaTest: 0.045,
-    depthTest: true,
-    depthWrite: false,
-    toneMapped: false,
-  })
-  const sprite = new THREE.Sprite(material)
-  sprite.name = 'seolryeong-imagegen-reference-lod'
-  sprite.visible = false
-  sprite.userData.assetPipeline = 'imagegen-reference-lod'
-  sprite.center.set(0.5, 0.0)
-  const imageHeight = 3.35
-  sprite.scale.set(imageHeight * (1024 / 1536), imageHeight, 1)
-  sprite.position.y = -0.22
-  const key = 'seolryeong-isolated-reference-v1.png'
-  const cached = _textureCache.get(key)
-  const apply = (texture) => {
-    texture.colorSpace = THREE.SRGBColorSpace
-    texture.anisotropy = 2
-    texture.userData.sharedByImg2Three = true
-    material.map = texture
-    material.needsUpdate = true
-    sprite.visible = true
-    fallbackStage.visible = false
-  }
-  if (cached?.image) {
-    apply(cached)
-  } else {
-    const texture = _textureLoader.load(assetUrl(key), (loaded) => {
-      _textureCache.set(key, loaded)
-      apply(loaded)
-    })
-    _textureCache.set(key, texture)
-  }
-  root.add(sprite)
-  return sprite
-}
-
 export function buildImg2ThreeSeolryeong(character) {
   const root = new THREE.Group()
   root.name = 'heroic-seolryeong-img2three'
   root.userData.assetPipeline = 'img2threejs'
-  root.userData.referenceAsset = 'seolryeong-imagegen-reference.png'
+  root.userData.referenceAsset = 'assets/characters/seolryeong-character-reference-v1.png'
   root.userData.qualityTier = 'hero'
+  root.userData.renderMode = 'full-3d'
 
   const model = createSeolryeongFrostSilkSwordswomanModel({
     qualityPriority: 'balanced',
@@ -144,7 +103,6 @@ export function buildImg2ThreeSeolryeong(character) {
   root.add(presentationStage)
 
   let time = 0
-  const referenceImpostor = addReferenceImpostor(root, presentationStage)
   return {
     root,
     height: HERO_HEIGHT,
@@ -157,9 +115,6 @@ export function buildImg2ThreeSeolryeong(character) {
     update(dt, speed01, facingAngle) {
       time += dt
       presentation.update(dt, speed01, facingAngle)
-      if (referenceImpostor?.visible) {
-        referenceImpostor.position.y = -0.22 + Math.abs(Math.sin(time * 9)) * 0.022 * speed01
-      }
     },
     dispose() {
       const geometries = new Set()

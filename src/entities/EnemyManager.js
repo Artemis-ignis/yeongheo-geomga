@@ -20,6 +20,9 @@ const ENEMY_BY_ID = Object.fromEntries(ENEMIES.map((e) => [e.id, e]))
 const CELL_SIZE = 4
 const SEPARATION_STRENGTH = 14
 const MAX_NEIGHBOURS = 12
+// Exact spacing is only readable near the player. The outer ring keeps its
+// steering but skips the neighbour query that causes late-wave CPU spikes.
+const SEPARATION_RANGE = 18
 const KNOCKBACK_DECAY = 6
 const CONTACT_COOLDOWN = 0.5
 const BURN_TICK = 0.5
@@ -677,20 +680,22 @@ export class EnemyManager {
       this.vz[i] *= decay
 
       // Separation — without this the horde collapses into one overlapping blob.
-      const sepR = def.radius * 1.6
-      const n = this.grid.query(this.px[i], this.pz[i], sepR, this._neighbours)
-      const limit = Math.min(n, MAX_NEIGHBOURS)
-      for (let k = 0; k < limit; k++) {
-        const j = this._neighbours[k]
-        if (j === i || !this.pool.isAlive(j)) continue
-        const ox = this.px[i] - this.px[j]
-        const oz = this.pz[i] - this.pz[j]
-        const d2 = ox * ox + oz * oz
-        if (d2 >= sepR * sepR || d2 < 1e-6) continue
-        const d = Math.sqrt(d2)
-        const push = ((sepR - d) / sepR) * SEPARATION_STRENGTH * dt
-        this.px[i] += (ox / d) * push
-        this.pz[i] += (oz / d) * push
+      if (dist < SEPARATION_RANGE) {
+        const sepR = def.radius * 1.6
+        const n = this.grid.query(this.px[i], this.pz[i], sepR, this._neighbours)
+        const limit = Math.min(n, MAX_NEIGHBOURS)
+        for (let k = 0; k < limit; k++) {
+          const j = this._neighbours[k]
+          if (j === i || !this.pool.isAlive(j)) continue
+          const ox = this.px[i] - this.px[j]
+          const oz = this.pz[i] - this.pz[j]
+          const d2 = ox * ox + oz * oz
+          if (d2 >= sepR * sepR || d2 < 1e-6) continue
+          const d = Math.sqrt(d2)
+          const push = ((sepR - d) / sepR) * SEPARATION_STRENGTH * dt
+          this.px[i] += (ox / d) * push
+          this.pz[i] += (oz / d) * push
+        }
       }
 
       // Contact damage.
