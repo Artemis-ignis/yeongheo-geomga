@@ -259,7 +259,7 @@ export class TitleScreen {
       // trigger another render-target bake for the hero.
       if (c.id === 'seolryeong') {
         const base = import.meta.env?.BASE_URL ?? '/'
-        c.portrait.style.backgroundImage = `url(${base}assets/characters/seolryeong-character-reference-v1.png)`
+        c.portrait.style.backgroundImage = `url(${base}assets/characters/seolryeong-character-reference-v2.png)`
         c.portrait.classList.add('imagegen-reference')
         continue
       }

@@ -150,8 +150,11 @@ export function buildHeroicSeolryeong(character) {
   // The reference has a dark blue-black hair mass with a silver-blue edge. The
   // old shell used the palette's light highlight for the whole cap, which made
   // hair and robe collapse into one beige silhouette under the stage sun.
-  const hair = standard(pal.hairRoot ?? 0x1b2944, { roughness: 0.3, metalness: 0.08, clearcoat: 0.28 })
-  const hairHighlight = standard(pal.hair ?? 0x9fb8d6, { roughness: 0.28, metalness: 0.12, clearcoat: 0.42 })
+  // The reference's hair is a dark navy mass with silver-blue edge locks. Using
+  // the character palette's light highlight for the cap made the head merge
+  // into the white robe under the moon grade, so keep the value split explicit.
+  const hair = standard(0x172842, { roughness: 0.30, metalness: 0.08, clearcoat: 0.32 })
+  const hairHighlight = standard(0x9fb8d6, { roughness: 0.28, metalness: 0.12, clearcoat: 0.46 })
   // The reference silhouette is a moonlit white-robed swordswoman. Keep the
   // character palette's blue as an accent, but do not let it turn the entire
   // robe into a navy blob under the night grade.
@@ -177,6 +180,15 @@ export function buildHeroicSeolryeong(character) {
   sash.rotation.x = Math.PI / 2
   sash.position.y = 1.28
   root.add(sash)
+  const underSash = new THREE.Mesh(new THREE.TorusGeometry(0.345, 0.032, 8, 40), hair)
+  underSash.rotation.x = Math.PI / 2
+  underSash.position.y = 1.25
+  root.add(underSash)
+  const waistJade = new THREE.Mesh(new THREE.OctahedronGeometry(0.075, 1), bladeMat)
+  waistJade.material = standard(0x38c9b1, { roughness: 0.20, metalness: 0.16, emissive: 0x0c8f7b, emissiveIntensity: 0.45, clearcoat: 0.42 })
+  waistJade.position.set(0, 1.24, 0.36)
+  waistJade.scale.set(0.75, 1.30, 0.42)
+  root.add(waistJade)
 
   const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.30, 0.54, 10, 24), silkBlue)
   torso.position.y = 1.35
@@ -315,6 +327,12 @@ export function buildHeroicSeolryeong(character) {
   cloak.rotation.x = 0.08
   root.add(cloak)
   for (const side of [-1, 1]) {
+    const underCloak = panel(0.40, 1.06, silkBlue, 0.24)
+    underCloak.position.set(side * 0.26, 0.82, -0.22)
+    underCloak.rotation.y = side * 0.20
+    root.add(underCloak)
+  }
+  for (const side of [-1, 1]) {
     const panelMesh = panel(0.34, 1.05, silk, 0.22)
     panelMesh.position.set(side * 0.28, 0.82, 0.17)
     panelMesh.rotation.y = side * 0.14
@@ -439,10 +457,14 @@ export function buildHeroicSeolryeong(character) {
 export function buildJadeTitan() {
   const root = new THREE.Group()
   root.name = 'heroic-jade-titan'
-  const armor = standard(0x344d61, { roughness: 0.40, metalness: 0.46, clearcoat: 0.28 })
-  const plate = standard(0x7e9da3, { roughness: 0.40, metalness: 0.36 })
+  // The first guardian palette was too close to the sanctuary floor: under the
+  // cool key it became a single blue Michelin-man silhouette.  Darker armour,
+  // pale raised plates, and small jade landmarks give the reference's warden
+  // hierarchy somewhere to live without increasing the playable horde cost.
+  const armor = standard(0x182b3d, { roughness: 0.38, metalness: 0.56, clearcoat: 0.34 })
+  const plate = standard(0x718c94, { roughness: 0.34, metalness: 0.42, clearcoat: 0.24 })
   const jadeWeave = weaveTexture('materials/guardians/jade-scale-weave-v1.png', [2.4, 1.8])
-  const jade = standard(0x238b78, { roughness: 0.32, metalness: 0.14, emissive: 0x075f52, emissiveIntensity: 0.10, clearcoat: 0.24, map: jadeWeave })
+  const jade = standard(0x2bb7a0, { roughness: 0.28, metalness: 0.16, emissive: 0x087d70, emissiveIntensity: 0.18, clearcoat: 0.36, map: jadeWeave })
   const horn = standard(0xb7d8d7, { roughness: 0.3, metalness: 0.18, emissive: 0x255b62, emissiveIntensity: 0.12 })
   const eye = standard(0xc6fff4, { roughness: 0.12, emissive: 0x39ffe2, emissiveIntensity: 0.9 })
 
@@ -458,6 +480,10 @@ export function buildJadeTitan() {
   chest.position.set(0, 1.64, 0.48)
   chest.rotation.x = -0.06
   root.add(chest)
+  const chestInlay = new THREE.Mesh(new RoundedBoxGeometry(0.20, 0.36, 0.08, 3, 0.025), jade)
+  chestInlay.position.set(0, 1.66, 0.625)
+  chestInlay.rotation.z = Math.PI / 4
+  root.add(chestInlay)
   const belt = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.055, 8, 32), jade)
   belt.rotation.x = Math.PI / 2
   belt.position.y = 1.12
@@ -477,6 +503,10 @@ export function buildJadeTitan() {
     shoulder.position.set(side * 0.83, 1.92, 0)
     shoulder.scale.set(1.18, 0.62, 0.86)
     root.add(shoulder)
+    const shoulderCap = new THREE.Mesh(new RoundedBoxGeometry(0.52, 0.28, 0.68, 4, 0.07), plate)
+    shoulderCap.position.set(side * 0.84, 2.05, 0.08)
+    shoulderCap.rotation.set(0.08, side * 0.10, side * -0.22)
+    root.add(shoulderCap)
     const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.78, 8, 18), armor)
     arm.position.set(side * 0.98, 1.28, 0.02)
     arm.rotation.z = side * 0.18
@@ -486,6 +516,26 @@ export function buildJadeTitan() {
     fist.scale.z = 0.8
     root.add(fist)
   }
+
+  // Layered waist guards and a split back mantle are the visual break between
+  // an armoured person and a stack of capsules.  They are static, shared by
+  // the single showcase guardian, and therefore do not enter the horde path.
+  for (const [side, y, z, sx, sy, sz, rz] of [
+    [-1, 0.82, 0.42, 0.44, 0.58, 0.10, -0.16],
+    [1, 0.82, 0.42, 0.44, 0.58, 0.10, 0.16],
+    [-1, 0.58, 0.20, 0.34, 0.48, 0.09, -0.08],
+    [1, 0.58, 0.20, 0.34, 0.48, 0.09, 0.08],
+  ]) {
+    const skirtPlate = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.72, 0.16, 3, 0.045), plate)
+    skirtPlate.position.set(side * sx, y, z)
+    skirtPlate.scale.set(1, sy, sz)
+    skirtPlate.rotation.z = rz
+    root.add(skirtPlate)
+  }
+  const mantle = new THREE.Mesh(new RoundedBoxGeometry(1.32, 1.18, 0.10, 4, 0.05), armor)
+  mantle.position.set(0, 1.16, -0.47)
+  mantle.rotation.x = 0.10
+  root.add(mantle)
 
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.49, 28, 22), armor)
   head.position.set(0, 2.72, 0.10)
@@ -506,6 +556,19 @@ export function buildJadeTitan() {
     spike.position.set(i * 0.25, 2.97 + Math.abs(i) * 0.08, -0.16)
     spike.rotation.x = -0.50
     root.add(spike)
+  }
+  const crownRing = new THREE.Mesh(new THREE.TorusGeometry(0.76, 0.038, 8, 56), jade)
+  crownRing.position.set(0, 2.67, -0.26)
+  crownRing.rotation.x = Math.PI / 2
+  crownRing.scale.set(1, 1.22, 1)
+  root.add(crownRing)
+  for (let i = 0; i < 5; i++) {
+    const a = -0.84 + i * 0.42
+    const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.085, 1), jade)
+    shard.position.set(Math.sin(a) * 0.70, 2.70 + Math.cos(a) * 0.18, -0.24 + Math.cos(a) * 0.10)
+    shard.scale.set(0.72, 1.45, 0.40)
+    shard.rotation.z = a * 0.30
+    root.add(shard)
   }
 
   const hammer = new THREE.Group()

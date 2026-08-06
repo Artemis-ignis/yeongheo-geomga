@@ -10,6 +10,14 @@ import { TRIAL } from '../data/trials.js'
 import { buildEnemyGeometry } from '../art/enemyGeometry.js'
 import { makeToonMaterial } from '../art/materials.js'
 import { uploadInstances } from '../art/instancing.js'
+import {
+  createNearEnemyModel,
+  disposeNearEnemyModelLibrary,
+  NEAR_DETAIL_ENEMY_IDS,
+  NEAR_DETAIL_MAX_DISTANCE,
+  NEAR_DETAIL_SLOT_COUNT,
+  updateNearEnemyModel,
+} from '../art/NearEnemyModels.js'
 import { ARENA_RADIUS } from '../world/Terrain.js'
 
 export const MAX_ENEMIES = 900
@@ -101,6 +109,21 @@ export class EnemyManager {
     // The boss is a single detailed object, not a pooled entity, so area damage
     // has to consider it separately. Set by Game; null when no boss is alive.
     this.boss = null
+    this.playerX = 0
+    this.playerZ = 0
+    this.nearDetailBudget = NEAR_DETAIL_SLOT_COUNT
+    this._detailCandidateIndices = new Int32Array(MAX_ENEMIES)
+    this._detailCandidateDistances = new Float32Array(MAX_ENEMIES)
+    this._detailSelectedIndices = new Int32Array(NEAR_DETAIL_SLOT_COUNT)
+    this._detailMask = new Uint8Array(MAX_ENEMIES)
+    this.nearDetailRoot = new THREE.Group()
+    this.nearDetailRoot.name = 'near-enemy-detail-lod'
+    scene.add(this.nearDetailRoot)
+    this.nearDetailSlots = Array.from({ length: NEAR_DETAIL_SLOT_COUNT }, () => ({
+      index: -1,
+      type: null,
+      model: null,
+    }))
 
     this.px = new Float32Array(MAX_ENEMIES)
     this.pz = new Float32Array(MAX_ENEMIES)
@@ -200,6 +223,15 @@ export class EnemyManager {
 
   get liveCount() {
     return this.pool.count
+  }
+
+  /**
+   * Keep the hero-grade near LOD visible, but make its budget follow the same
+   * adaptive tier as the backbuffer. This protects the CPU/GPU frame budget
+   * after the scaler has already lowered resolution for a dense wave.
+   */
+  setQuality(scale = 1) {
+    this.nearDetailBudget = scale <= 0.65 ? 4 : scale <= 0.8 ? 5 : NEAR_DETAIL_SLOT_COUNT
   }
 
   /** Compact tactical readout for the DOM radar. The full horde stays in GPU
@@ -521,6 +553,8 @@ export class EnemyManager {
 
   update(dt, runTime, player, camera) {
     this.runTime = runTime
+    this.playerX = player.x
+    this.playerZ = player.z
     this._spawnWave(dt, runTime, player, camera)
     this._spawnFormations(runTime, player)
 
@@ -710,9 +744,84 @@ export class EnemyManager {
    * position is already in hand here, so grounding the horde costs one extra
    * matrix write per creature rather than a second walk over the pool.
    */
+  _selectNearDetailEntities() {
+    this._detailMask.fill(0)
+    const maxDistance2 = NEAR_DETAIL_MAX_DISTANCE * NEAR_DETAIL_MAX_DISTANCE
+    let candidateCount = 0
+    for (let i = 0; i < this.pool.count; i++) {
+      const def = ENEMIES[this.type[i]]
+      if (!NEAR_DETAIL_ENEMY_IDS.has(def.id)) continue
+      const dx = this.px[i] - this.playerX
+      const dz = this.pz[i] - this.playerZ
+      const distance2 = dx * dx + dz * dz
+      if (distance2 > maxDistance2) continue
+      this._detailCandidateIndices[candidateCount] = i
+      this._detailCandidateDistances[candidateCount] = distance2
+      candidateCount++
+    }
+    const targetCount = Math.min(this.nearDetailBudget, candidateCount)
+    let selectedCount = 0
+    // The budget is at most six, so a short nearest-selection pass is cheaper
+    // than allocating and sorting a transient object list every render tick.
+    while (selectedCount < targetCount) {
+      let bestIndex = -1
+      let bestDistance = Infinity
+      for (let candidate = 0; candidate < candidateCount; candidate++) {
+        const index = this._detailCandidateIndices[candidate]
+        if (this._detailMask[index]) continue
+        const distance = this._detailCandidateDistances[candidate]
+        if (distance < bestDistance) {
+          bestDistance = distance
+          bestIndex = index
+        }
+      }
+      if (bestIndex < 0) break
+      this._detailMask[bestIndex] = 1
+      this._detailSelectedIndices[selectedCount++] = bestIndex
+    }
+    return selectedCount
+  }
+
+  _renderNearDetails(alpha, shadows, count) {
+    for (let slotIndex = 0; slotIndex < this.nearDetailSlots.length; slotIndex++) {
+      const slot = this.nearDetailSlots[slotIndex]
+      if (slotIndex >= count) {
+        slot.index = -1
+        if (slot.model) slot.model.visible = false
+        continue
+      }
+
+      const index = this._detailSelectedIndices[slotIndex]
+      const def = ENEMIES[this.type[index]]
+      if (!slot.model || slot.type !== def.id) {
+        slot.model?.removeFromParent()
+        slot.model = createNearEnemyModel(def.id, this.scale[index])
+        slot.type = def.id
+        if (slot.model) this.nearDetailRoot.add(slot.model)
+      }
+      slot.index = index
+      if (!slot.model) continue
+
+      const x = this.prevX[index] + (this.px[index] - this.prevX[index]) * alpha
+      const z = this.prevZ[index] + (this.pz[index] - this.prevZ[index]) * alpha
+      slot.model.visible = true
+      slot.model.position.set(x, 0, z)
+      slot.model.rotation.set(0, this.facing[index], 0)
+      updateNearEnemyModel(
+        slot.model,
+        this.runTime,
+        Math.min(1, Math.hypot(this.vx[index], this.vz[index]) / 4),
+        this.animPhase[index],
+      )
+      if (shadows !== null) shadows.add(x, z, this.typeRadius[this.type[index]] * 1.12)
+    }
+  }
+
   render(alpha, shadows = null) {
+    const nearCount = this._selectNearDetailEntities()
     this.typeCounts.fill(0)
     for (let i = 0; i < this.pool.count; i++) {
+      if (this._detailMask[i]) continue
       const t = this.type[i]
       this.typeLists[t][this.typeCounts[t]++] = i
     }
@@ -774,6 +883,8 @@ export class EnemyManager {
       if (count > 0) animAttr.addUpdateRange(0, count * 2)
       animAttr.needsUpdate = count > 0
     }
+
+    this._renderNearDetails(alpha, shadows, nearCount)
   }
 
   /** Advances the crowd's idle and stride motion. Real time, not sim time. */
@@ -788,9 +899,16 @@ export class EnemyManager {
     this.spawnTimer = 0
     this._nextFormation = 0
     for (const m of this.meshes) m.count = 0
+    for (const slot of this.nearDetailSlots) {
+      slot.index = -1
+      if (slot.model) slot.model.visible = false
+    }
   }
 
   dispose() {
+    this.nearDetailRoot.removeFromParent()
+    for (const slot of this.nearDetailSlots) slot.model?.removeFromParent()
+    disposeNearEnemyModelLibrary()
     for (const m of this.meshes) {
       m.geometry.dispose()
       m.material.dispose()

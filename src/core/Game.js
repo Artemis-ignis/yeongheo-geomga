@@ -78,10 +78,11 @@ export class Game {
     this.quality = new Quality(this.renderer)
     // Thin the field whenever the quality tier moves, not only on resize —
     // the whole point of the adaptive scaler is that it reacts mid-run.
-    this.quality.onScale = (scale, density) => {
-      this.grass?.setDensityScale(density)
-      this.post?.setQuality(scale)
-      this.cinematic?.setQuality(scale)
+      this.quality.onScale = (scale, density) => {
+        this.grass?.setDensityScale(density)
+        this.post?.setQuality(scale)
+        this.cinematic?.setQuality(scale)
+        this.enemies?.setQuality(scale)
     }
     this.impact = new Impact()
     this.input = new Input(window)
@@ -344,6 +345,7 @@ export class Game {
       reviveCharges: this.progress.reviveCharges,
     })
     this.enemies = new EnemyManager(this.scene, this.rng)
+    this.enemies.setQuality(this.quality.scale)
     this.enemies.stage = this.stage
     this.projectiles = new ProjectileManager(this.scene)
     this.pickups = new PickupManager(this.scene)

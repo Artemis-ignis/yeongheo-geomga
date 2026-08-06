@@ -19,8 +19,8 @@ const GradeShader = {
     tDiffuse: { value: null },
     uLift: { value: new THREE.Color(0x121a2a) },
     uGain: { value: new THREE.Color(0xfff2dd) },
-    uSaturation: { value: 1.3 },
-    uContrast: { value: 1.16 },
+    uSaturation: { value: 1.12 },
+    uContrast: { value: 1.10 },
     uVignette: { value: 0.42 },
     uAberration: { value: 0.0016 },
     uFlash: { value: 0 },
@@ -120,6 +120,8 @@ export class Post {
     // The horizon can be warm while the whole frame remains moonlit. Using
     // skyBottom as a global gain was tinting pale silk and jade armour cream.
     if (palette.gradeGain !== undefined) this.grade.uniforms.uGain.value.setHex(palette.gradeGain)
+    if (palette.gradeSaturation !== undefined) this.grade.uniforms.uSaturation.value = palette.gradeSaturation
+    if (palette.gradeContrast !== undefined) this.grade.uniforms.uContrast.value = palette.gradeContrast
     this.composer.addPass(this.grade)
 
     this.fxaa = new ShaderPass(FXAAShader)

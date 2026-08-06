@@ -24,7 +24,13 @@ export const STAGES = [
       skyHaze: 0xbfd8e2,
       skyBottom: 0xf2dcb8,
       keyLight: 0xd7e9ff,
-      gradeGain: 0xe4efff,
+      // Keep the moonlit blue in the sky and jade accents, but do not apply a
+      // blue multiplier to every foreground material. A neutral highlight grade
+      // is what lets white silk, silver trim, and stone relief separate again.
+      gradeGain: 0xeeeae2,
+      gradeLift: 0x111923,
+      gradeSaturation: 1.08,
+      gradeContrast: 1.08,
       abyss: 0x2c3f57,
       barrier: 0x6eb7d1,
       mote: 'petal',

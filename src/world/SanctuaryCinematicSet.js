@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { makeAdditiveMaterial, makeToonMaterial } from '../art/materials.js'
 import { glowTexture, mistTexture, shrineTexture } from '../art/textures.js'
 import {
@@ -161,6 +162,51 @@ export class SanctuaryCinematicSet {
     plaza.position.y = 0.025
     plaza.receiveShadow = true
     plaza.renderOrder = 2
+
+    // The rings establish the ritual layout, but rings alone make the whole
+    // floor read like a debug diagram.  A single instanced field of damp,
+    // bevelled stone pavers supplies the surface scale and broken highlight
+    // rhythm seen in the reference without adding one draw call per tile.
+    const paverGeometry = this._geometry(new RoundedBoxGeometry(1.72, 0.12, 0.92, 1, 0.045))
+    const paverMaterial = this._material(new THREE.MeshPhysicalMaterial({
+      color: 0x536878,
+      roughness: 0.44,
+      metalness: 0.10,
+      clearcoat: 0.34,
+      clearcoatRoughness: 0.22,
+      vertexColors: true,
+    }))
+    const paverPositions = []
+    for (let gz = -14; gz <= 14; gz++) {
+      for (let gx = -16; gx <= 16; gx++) {
+        const jitterX = Math.sin(gx * 4.3 + gz * 6.1) * 0.10
+        const jitterZ = Math.cos(gx * 5.7 - gz * 3.2) * 0.055
+        const x = gx * 1.72 + (Math.abs(gz) % 2 ? 0.84 : 0) + jitterX
+        const z = gz * 0.92 + jitterZ
+        if (Math.hypot(x, z) > 29.0) continue
+        paverPositions.push([x, z, gx, gz])
+      }
+    }
+    this.plazaPavers = new THREE.InstancedMesh(paverGeometry, paverMaterial, paverPositions.length)
+    this.plazaPavers.name = 'sanctuary-wet-stone-pavers'
+    this.plazaPavers.castShadow = false
+    this.plazaPavers.receiveShadow = true
+    const paverColor = new THREE.Color()
+    for (let i = 0; i < paverPositions.length; i++) {
+      const [x, z, gx, gz] = paverPositions[i]
+      const wobble = Math.sin(gx * 12.7 + gz * 4.1) * 0.025
+      _dummy.position.set(x, 0.055 + wobble, z)
+      _dummy.rotation.set(0, Math.sin(gx * 2.3 + gz * 1.7) * 0.07, 0)
+      _dummy.scale.set(0.94 + Math.sin(gx * 3.1 + gz) * 0.035, 1, 0.90 + Math.cos(gz * 2.4 - gx) * 0.04)
+      _dummy.updateMatrix()
+      this.plazaPavers.setMatrixAt(i, _dummy.matrix)
+      const shade = 0.88 + (Math.sin(gx * 6.2 + gz * 3.7) * 0.5 + 0.5) * 0.18
+      paverColor.setRGB(0.28 * shade, 0.36 * shade, 0.42 * shade)
+      this.plazaPavers.setColorAt(i, paverColor)
+    }
+    this.plazaPavers.instanceMatrix.needsUpdate = true
+    if (this.plazaPavers.instanceColor) this.plazaPavers.instanceColor.needsUpdate = true
+    this.architecture.add(this.plazaPavers)
     for (const radius of [4.4, 8.6, 12.8, 17.2, 22.2, 27.8]) {
       const ring = this._mesh(this._geometry(new THREE.TorusGeometry(radius, 0.055, 6, 96)), plazaTrim)
       ring.rotation.x = Math.PI / 2
@@ -413,7 +459,7 @@ export class SanctuaryCinematicSet {
     const mistVisible = scale >= 0.78
     for (const card of this.mistCards ?? []) card.visible = mistVisible
     if (this.motes) this.motes.visible = scale >= 0.70
-    if (this.domBackdrop) this.domBackdrop.style.opacity = scale >= 0.78 ? '0.48' : '0.24'
+    if (this.domBackdrop) this.domBackdrop.style.opacity = scale >= 0.78 ? '0.30' : '0.16'
     // On jade, the generated reference is the distant gate/mountain layer. The
     // live court, guardians, focus runes, and all combat geometry remain 3D;
     // only the duplicate low-poly horizon props are removed.
