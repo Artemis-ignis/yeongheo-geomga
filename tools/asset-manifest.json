@@ -35,7 +35,25 @@
       "role": "runtime-material-weave",
       "tier": "hero",
       "source": "imagegen",
-      "consumers": ["src/art/HeroicModels.js", "src/art/SeolryeongImg2ThreeAdapter.js"],
+      "consumers": ["src/art/SeolryeongImg2ThreeAdapter.js"],
+      "maxBytes": 4500000
+    },
+    {
+      "id": "material.character.moon-silk-embroidered.v1",
+      "path": "public/assets/materials/characters/moon-silk-embroidered-v1.png",
+      "role": "runtime-material-embroidered-silk",
+      "tier": "hero",
+      "source": "imagegen",
+      "consumers": ["src/art/HeroicModels.js"],
+      "maxBytes": 4500000
+    },
+    {
+      "id": "material.environment.jade-pavilion-stone.v1",
+      "path": "public/assets/materials/environment/jade-pavilion-stone-v1.png",
+      "role": "runtime-material-wet-moonstone-pavers",
+      "tier": "scene",
+      "source": "imagegen",
+      "consumers": ["src/world/SanctuaryCinematicSet.js"],
       "maxBytes": 4500000
     },
     {

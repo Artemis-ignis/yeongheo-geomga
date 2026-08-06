@@ -772,13 +772,13 @@
     "currentPass": "blockout",
     "completedPasses": [],
     "lastCompletedPass": "",
-    "blockedReason": "blockout requires a browser screenshot and self-correction review before structural-pass unlocks",
+    "blockedReason": "",
     "nextRequiredEvidence": [
-      "blockout browser render screenshot from your agent's browser/screenshot tool",
-      "side-by-side reference/render comparison sheet",
-      "AI vision score >= 0.7 with layer scores and mismatch critique",
-      "critical semantic feature scores from the same image pair meeting their individual thresholds",
-      "reviewHistory entry for blockout with action=continue"
+      "Full silhouette is readable at gameplay distance.",
+      "browser render screenshot from your agent's browser/screenshot tool",
+      "single side-by-side full reference/render comparison sheet",
+      "all critical semantic feature scores at or above their thresholds",
+      "self-correction review appended with action=continue before the next pass"
     ]
   },
   "lookDevTargets": {
@@ -14513,8 +14513,125 @@
       ]
     }
   ],
-  "visualEvidence": [],
-  "reviewHistory": [],
+  "visualEvidence": [
+    {
+      "timestamp": "2026-08-06T20:33:39.318747+00:00",
+      "passId": "blockout",
+      "estimatedFidelity": 0.42,
+      "aiVisionScore": 0.42,
+      "visualAcceptanceThreshold": 0.7,
+      "layerScores": {
+        "silhouette": 0.34,
+        "structure": 0.42,
+        "material": 0.48,
+        "lighting": 0.56,
+        "gameplay-readability": 0.62
+      },
+      "featureReviews": [
+        {
+          "id": "overall-silhouette",
+          "score": 0.34,
+          "note": "Readable but cone-like and too compact versus reference."
+        },
+        {
+          "id": "robe-panels",
+          "score": 0.38,
+          "note": "Some layered panels exist, but they merge at gameplay distance."
+        },
+        {
+          "id": "sword",
+          "score": 0.5,
+          "note": "Ice sword landmark is present but not reference-shaped."
+        },
+        {
+          "id": "hair-face",
+          "score": 0.3,
+          "note": "Face and hair still read as simplified game stylization."
+        }
+      ],
+      "referenceScreenshot": "artifacts\\img2threejs\\seolryeong\\character-model\\seolryeong-isolated-reference.png",
+      "renderScreenshot": "artifacts\\img2threejs\\seolryeong\\character-model\\review\\blockout-runtime-playing-2026-08-07b.png",
+      "comparisonImage": "artifacts\\img2threejs\\seolryeong\\character-model\\review\\blockout-comparison-playing-2026-08-07.png",
+      "cameraView": "gameplay-front",
+      "notes": "Do not unlock structural pass yet. Fix the visible shell first, then recapture a clean playing frame without the level-up overlay.",
+      "aiVisionNotes": "Agent visual review of the side-by-side sheet: the reference is a high-detail adult swordswoman while the runtime remains a stylized blockout shell. Record refinement instead of crediting the pass."
+    }
+  ],
+  "reviewHistory": [
+    {
+      "timestamp": "2026-08-06T20:33:39.318747+00:00",
+      "passId": "blockout",
+      "estimatedFidelity": 0.42,
+      "aiVisionScore": 0.42,
+      "visualAcceptanceThreshold": 0.7,
+      "layerScores": {
+        "silhouette": 0.34,
+        "structure": 0.42,
+        "material": 0.48,
+        "lighting": 0.56,
+        "gameplay-readability": 0.62
+      },
+      "featureReviews": [
+        {
+          "id": "overall-silhouette",
+          "score": 0.34,
+          "note": "Readable but cone-like and too compact versus reference."
+        },
+        {
+          "id": "robe-panels",
+          "score": 0.38,
+          "note": "Some layered panels exist, but they merge at gameplay distance."
+        },
+        {
+          "id": "sword",
+          "score": 0.5,
+          "note": "Ice sword landmark is present but not reference-shaped."
+        },
+        {
+          "id": "hair-face",
+          "score": 0.3,
+          "note": "Face and hair still read as simplified game stylization."
+        }
+      ],
+      "action": "refine-code",
+      "summary": "Runtime comparison confirms the img2three structure is wired but the visible hero still needs a substantial form pass.",
+      "matched": [
+        "white frost-silk palette is present",
+        "sword and robe envelope read at gameplay distance",
+        "runtime model is animated and 3D"
+      ],
+      "mismatches": [
+        "head-to-body ratio remains too small-model/chibi",
+        "robe silhouette collapses into a cone",
+        "sleeves and long layered panels do not match the reference",
+        "gameplay screenshot contains no reference-level face, hair, or ornament detail"
+      ],
+      "specFixes": [],
+      "codeFixes": [
+        "replace the blockout-like visible shell with a more elongated adult silhouette",
+        "add layered sleeve and lower-panel geometry",
+        "deepen material value separation without increasing per-frame work"
+      ],
+      "evidence": [
+        "img2threejs factory generated from object-sculpt-spec.json",
+        "ImageGen embroidered silk texture is bound by HeroicModels.js",
+        "embedded runtime F3 measured 61 FPS and 3.5 ms work"
+      ],
+      "reviewViewpoints": [
+        "front",
+        "thickness-axis",
+        "long-axis"
+      ],
+      "visualEvidence": {
+        "referenceScreenshot": "artifacts\\img2threejs\\seolryeong\\character-model\\seolryeong-isolated-reference.png",
+        "renderScreenshot": "artifacts\\img2threejs\\seolryeong\\character-model\\review\\blockout-runtime-playing-2026-08-07b.png",
+        "comparisonImage": "artifacts\\img2threejs\\seolryeong\\character-model\\review\\blockout-comparison-playing-2026-08-07.png",
+        "cameraView": "gameplay-front",
+        "notes": "Do not unlock structural pass yet. Fix the visible shell first, then recapture a clean playing frame without the level-up overlay.",
+        "aiVisionNotes": "Agent visual review of the side-by-side sheet: the reference is a high-detail adult swordswoman while the runtime remains a stylized blockout shell. Record refinement instead of crediting the pass."
+      }
+    }
+  ],
   "lodPlan": [
     {
       "tier": "near",

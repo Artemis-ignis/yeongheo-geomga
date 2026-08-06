@@ -101,6 +101,9 @@ export class Game {
     this._renderBudgetMs = 0
     this._lastRenderCalls = 0
     this._lastRenderTriangles = 0
+    // F3-only timing probes. They are intentionally kept as scalar fields so
+    // normal gameplay does not allocate a profiler object every frame.
+    this._perf = { workMs: 0, simMs: 0, drawMs: 0 }
 
     // Meta progression is loaded once and lives for the whole session.
     this.progress = new Progress(Save.load())
@@ -944,6 +947,7 @@ export class Game {
       this.camera.setPunch(this.impact.zoom)
       this.post.setFlash(this.impact.flash, this.impact.flashColor)
 
+      const simStart = performance.now()
       if (this.state === 'playing' && !this.impact.frozen) {
         const ticks = this.clock.step(dt)
         for (let i = 0; i < ticks; i++) {
@@ -958,13 +962,17 @@ export class Game {
           this._ambient(dt, this.player.x, this.player.z)
         }
       }
+      this._perf.simMs = performance.now() - simStart
 
       if (this.state === 'playing' || this.state === 'levelUp' || this.state === 'paused') {
         this.hud.update(this._hudState(), dt)
       }
       if (this.state === 'playing') this.hints.update(dt, this._hintState())
       else this.hints.hide()
+      const drawStart = performance.now()
       this.draw(this.clock.alpha, dt)
+      this._perf.drawMs = performance.now() - drawStart
+      this._perf.workMs = performance.now() - frameStart
       this.debug.update(this._debugState(dt))
       if (this.state === 'playing') this.quality.sample(performance.now() - frameStart)
     } catch (err) {
@@ -1016,6 +1024,9 @@ export class Game {
       scale: this.quality.scale,
       backend: this.renderer.backendLabel ?? (this.renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL'),
       seed: this.seed ?? 0,
+      workMs: this._perf.workMs,
+      simMs: this._perf.simMs,
+      drawMs: this._perf.drawMs,
     }
   }
 

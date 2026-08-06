@@ -14,6 +14,7 @@ import { buildBossGeometry } from '../art/bossGeometry.js'
 // import.meta.env.BASE_URL keeps the public asset reachable both at `/` during
 // local development and at `/yeongheo-geomga/` on GitHub Pages.
 const BACKDROP_URL = `${import.meta.env.BASE_URL}assets/environment/jade-sanctuary-environment-v2.png`
+const PAVER_TEXTURE_URL = `${import.meta.env.BASE_URL}assets/materials/environment/jade-pavilion-stone-v1.png`
 
 const _dummy = new THREE.Object3D()
 
@@ -178,8 +179,20 @@ export class SanctuaryCinematicSet {
     // Keep a crisp box LOD with the same transforms, colours and material so
     // the court still reads as wet masonry at the emergency gameplay tier.
     const paverLowGeometry = this._geometry(new THREE.BoxGeometry(1.72, 0.10, 0.92))
+    // ImageGen's tileable moonstone is used on the actual instanced 3D pavers,
+    // not as a backdrop plate. Keep the texture shared so the court gains stone
+    // micro-detail without allocating a material or texture per instance.
+    const paverTexture = new THREE.TextureLoader().load(PAVER_TEXTURE_URL)
+    paverTexture.colorSpace = THREE.SRGBColorSpace
+    paverTexture.wrapS = THREE.RepeatWrapping
+    paverTexture.wrapT = THREE.RepeatWrapping
+    paverTexture.repeat.set(0.42, 0.42)
+    paverTexture.anisotropy = Math.min(4, this.scene.userData.maxAnisotropy ?? 4)
+    paverTexture.userData.sharedByYeongheo = true
+    this.textures.push(paverTexture)
     const paverMaterial = this._material(new THREE.MeshPhysicalMaterial({
-      color: 0x536878,
+      color: 0xffffff,
+      map: paverTexture,
       roughness: 0.44,
       metalness: 0.10,
       clearcoat: 0.34,
@@ -217,7 +230,7 @@ export class SanctuaryCinematicSet {
       this.plazaPavers.setMatrixAt(i, _dummy.matrix)
       this.plazaPaversLow.setMatrixAt(i, _dummy.matrix)
       const shade = 0.88 + (Math.sin(gx * 6.2 + gz * 3.7) * 0.5 + 0.5) * 0.18
-      paverColor.setRGB(0.28 * shade, 0.36 * shade, 0.42 * shade)
+      paverColor.setRGB(0.62 * shade, 0.72 * shade, 0.82 * shade)
       this.plazaPavers.setColorAt(i, paverColor)
       this.plazaPaversLow.setColorAt(i, paverColor)
     }
@@ -355,6 +368,9 @@ export class SanctuaryCinematicSet {
         vertexColors: true,
         rim: 0.38,
         rimColor: 0x9dffe3,
+        pbr: true,
+        roughness: 0.46,
+        metalness: 0.24,
       }),
     ))
     this.wolf = adoptModel(titanShowcase, this.geometries, this.materials)
@@ -385,10 +401,13 @@ export class SanctuaryCinematicSet {
     this.group.add(this.lord)
 
     for (const [color, intensity, distance, position, phase, speed] of [
-      [0x47d9ff, 10, 15, [-7.0, 2.4, -1.0], 0.2, 1.1],
-      [0x46ffe0, 7, 15, [7.0, 2.2, -1.0], 1.4, 1.35],
-      [0xff6a35, 12, 18, [3.8, 3.0, -5.8], 2.2, 1.8],
-      [0xb16cff, 6, 12, [0, 2.2, -7.0], 3.0, 0.9],
+      // Emissive materials carry the landmarks; these local lights only shape
+      // the nearby planes. Keeping them restrained avoids five full-screen
+      // point-light evaluations on every PBR surface.
+      [0x47d9ff, 5.5, 13, [-7.0, 2.4, -1.0], 0.2, 1.1],
+      [0x46ffe0, 4.0, 13, [7.0, 2.2, -1.0], 1.4, 1.35],
+      [0xff6a35, 6.0, 15, [3.8, 3.0, -5.8], 2.2, 1.8],
+      [0xb16cff, 3.5, 11, [0, 2.2, -7.0], 3.0, 0.9],
     ]) {
       const light = new THREE.PointLight(color, intensity, distance, 2)
       light.position.set(...position)

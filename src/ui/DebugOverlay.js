@@ -31,6 +31,8 @@ export class DebugOverlay {
 
     this.node.textContent = [
       `fps      ${(1 / Math.max(avg, 1e-6)).toFixed(0)}  (${(avg * 1000).toFixed(1)} ms)`,
+      `work     ${(s.workMs ?? 0).toFixed(1)} ms`,
+      `sim/draw ${(s.simMs ?? 0).toFixed(1)} / ${(s.drawMs ?? 0).toFixed(1)} ms`,
       `state    ${s.state}`,
       `draws    ${s.drawCalls}`,
       `tris     ${s.triangles}`,

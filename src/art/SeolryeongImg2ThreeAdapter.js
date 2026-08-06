@@ -11,7 +11,14 @@ const _center = new THREE.Vector3()
 const _textureLoader = typeof document !== 'undefined' ? new THREE.TextureLoader() : null
 const _textureCache = new Map()
 const _silkMaterials = new Set(['base', 'shirt', 'pants'])
-const HERO_HEIGHT = 3.35
+// The reference hero is the focal point of the survivor arena.  The old 3.35
+// unit shell was technically present but read as a small white marker once the
+// horde and shrine filled the frame.  Keep the hitbox unchanged and give only
+// the presentation rig a little more vertical authority.
+// Give the authored silhouette enough screen area for its material and layered
+// costume work to survive the survivor camera. This changes presentation only;
+// Player's combat collider and movement scale remain untouched.
+const HERO_HEIGHT = 4.05
 
 function assetUrl(file) {
   const base = import.meta.env?.BASE_URL ?? '/'

@@ -142,8 +142,8 @@ Three.js WebGL2를 기본 백엔드로 사용합니다. GitHub Pages와 저사�
 `tools/img2threejs/`에 고정 vendoring하고, 검증된 ObjectSculptSpec과 생성된
 `src/art/generated/SeolryeongImg2ThreeBlockout.ts`를 함께 보관합니다. ImageGen으로 만든
 캐릭터 기준 이미지와 실크·옥 비늘·불꽃 깃털 재질은 `public/assets/`에 들어갑니다. 게임플레이
-카메라에서는 구조용 img2three 모델, 영웅형 3D 프레젠테이션 셸, 투명 기준 이미지 LOD를
-조합해 디테일은 유지하고 전투 중 폴리곤 비용은 줄입니다.
+카메라에서는 구조용 img2three 모델의 소켓·메타데이터와 영웅형 3D 프레젠테이션 셸을 조합합니다.
+기준 이미지는 타이틀/도감과 자산 검수용으로만 사용하며, 전투 화면을 2D 빌보드로 속이지 않습니다.
 
 개발용 캡처 엔드포인트는 기본적으로 꺼져 있어 게임 실행 중 파일을 만들지 않습니다.
 시각 QA가 필요할 때만 다음처럼 명시적으로 켤 수 있습니다.

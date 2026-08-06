@@ -7,7 +7,7 @@ import * as THREE from 'three'
  */
 // A slightly lower three-quarter angle gives the hero a readable torso and
 // weapon silhouette while keeping enough ground visible for a survivor horde.
-export const OFFSET = new THREE.Vector3(0, 9.2, 14.5)
+export const OFFSET = new THREE.Vector3(0, 8.0, 14.5)
 const FOLLOW_LAMBDA = 8
 const TRAUMA_DECAY = 1.6
 const MAX_SHAKE = 0.9

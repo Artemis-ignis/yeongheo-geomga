@@ -60,6 +60,14 @@ export class Player {
     this.chibi = buildChibi(character)
     scene.add(this.chibi.root)
 
+    // A small, shadowless cool fill keeps the face, robe layers, and jade
+    // hardware readable against the moonlit court. It follows the hero rather
+    // than illuminating the whole arena, so the scene keeps its contrast and
+    // the light cost stays bounded to one additional light.
+    this.heroFill = new THREE.PointLight(0x76c9ff, 1.15, 7.5, 2)
+    this.heroFill.position.set(0, 2.5, 2.2)
+    scene.add(this.heroFill)
+
     // Dash trail: a fixed pool of translucent copies, never allocated mid-run.
     this.afterimages = []
     const trailMat = new THREE.MeshBasicMaterial({
@@ -214,11 +222,19 @@ export class Player {
     const t = this.teleported ? 1 : alpha
     this.chibi.root.position.x = this.prevX + (this.x - this.prevX) * t
     this.chibi.root.position.z = this.prevZ + (this.z - this.prevZ) * t
+    const fx = Math.sin(this.facing)
+    const fz = Math.cos(this.facing)
+    this.heroFill.position.set(
+      this.chibi.root.position.x + fx * 2.1,
+      2.4,
+      this.chibi.root.position.z + fz * 2.1,
+    )
     this.chibi.update(dt, this.speed01, this.facing)
   }
 
   dispose() {
     this.chibi.dispose()
+    this.heroFill.removeFromParent()
     for (const g of this.afterimages) {
       g.mesh.geometry.dispose()
       g.mesh.material.dispose()

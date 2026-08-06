@@ -196,8 +196,12 @@ export class EnemyManager {
         geo,
         // Rim is deliberately weak and neutral: it is added on top of the shaded
         // colour, so a strong tinted rim washes every creature toward that tint.
+        // The instanced horde uses standard lighting rather than a flat toon ramp:
+        // the geometry is already detailed enough to benefit from real curvature,
+        // and the single material per type keeps the draw-call budget unchanged.
         makeToonMaterial({
-          color: 0xffffff, rim: 0.16, rimColor: 0xdce8ff,
+          color: 0xffffff, rim: 0.20, rimColor: 0xdce8ff,
+          pbr: true, roughness: 0.58, metalness: 0.12,
           vertexColors: true, creatureAnim: true,
         }),
         MAX_ENEMIES,

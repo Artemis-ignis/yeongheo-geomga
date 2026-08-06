@@ -79,13 +79,20 @@ const CREATURE_ANIM = `
 `
 
 export function makeToonMaterial({
-  color, rim = 0.35, rimColor = 0xffffff, creatureAnim = false, ...opts
+  color, rim = 0.35, rimColor = 0xffffff, creatureAnim = false, pbr = false, ...opts
 } = {}) {
-  const material = new THREE.MeshToonMaterial({
-    color,
-    gradientMap: toonRamp(),
-    ...opts,
-  })
+  const material = pbr
+    ? new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.56,
+      metalness: 0.12,
+      ...opts,
+    })
+    : new THREE.MeshToonMaterial({
+      color,
+      gradientMap: toonRamp(),
+      ...opts,
+    })
 
   material.userData.rim = { value: rim }
   material.userData.rimColor = { value: new THREE.Color(rimColor) }
@@ -132,7 +139,7 @@ export function makeToonMaterial({
   }
 
   // Toon materials compile to one of two programs, so they share cache entries.
-  material.customProgramCacheKey = () => (creatureAnim ? 'toonRimAnim' : 'toonRim')
+  material.customProgramCacheKey = () => `${pbr ? 'pbr' : 'toon'}Rim${creatureAnim ? 'Anim' : ''}`
   return material
 }
 
