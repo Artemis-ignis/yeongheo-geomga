@@ -283,8 +283,12 @@ function buildBloodScorpion() {
 function buildDemonCultivator() {
   const root = new THREE.Group()
   root.name = 'near-demon-cultivator'
-  const robe = cloth(0x4e3279, { sheenColor: 0xc29cf0 })
-  const robeDark = cloth(0x211735, { sheenColor: 0x7353b2, roughness: 0.60 })
+  // ImageGen v1 supplies the authored obsidian scale / jade-metal breakup for
+  // the few readable demon-family models. The outer horde remains vertex-colour
+  // instanced; only near detail pays for this high-frequency surface map.
+  const voidIronScale = weaveTexture('materials/guardians/void-iron-scale-armor-v1.png', [1.35, 1.85])
+  const robe = cloth(0xffffff, { map: voidIronScale, sheenColor: 0x9ccfe1, roughness: 0.54 })
+  const robeDark = cloth(0xffffff, { map: voidIronScale, sheenColor: 0x5b8ea8, roughness: 0.62 })
   const mask = physical(0xd8d5ed, { roughness: 0.28, metalness: 0.16, clearcoat: 0.30 })
   const gold = physical(0xd8b45a, { roughness: 0.28, metalness: 0.68, clearcoat: 0.35 })
   const voidGlow = physical(0xd38cff, { color: 0xd38cff, emissive: 0x7e35c5, emissiveIntensity: 1.45, roughness: 0.18 })

@@ -765,7 +765,7 @@ export class EnemyManager {
     }
     const targetCount = Math.min(this.nearDetailBudget, candidateCount)
     let selectedCount = 0
-    // The budget is at most six, so a short nearest-selection pass is cheaper
+    // The budget is at most eight, so a short nearest-selection pass is cheaper
     // than allocating and sorting a transient object list every render tick.
     while (selectedCount < targetCount) {
       let bestIndex = -1
@@ -784,6 +784,30 @@ export class EnemyManager {
       this._detailSelectedIndices[selectedCount++] = bestIndex
     }
     return selectedCount
+  }
+
+  /**
+   * Build every supported near-detail family while the run transition is still
+   * covered by the title screen. The horde itself stays instanced; these hidden
+   * roots only make the first close encounter pay no geometry/material setup.
+   */
+  prewarmNearDetailModels() {
+    if (this.nearDetailWarmups) return
+    this.nearDetailWarmups = []
+    for (const type of NEAR_DETAIL_ENEMY_IDS) {
+      const model = createNearEnemyModel(type)
+      if (!model) continue
+      model.visible = false
+      this.nearDetailRoot.add(model)
+      this.nearDetailWarmups.push(model)
+    }
+  }
+
+  /** Remove the temporary roots but keep the shared template cache alive. */
+  releaseNearDetailWarmups() {
+    if (!this.nearDetailWarmups) return
+    for (const model of this.nearDetailWarmups) model.removeFromParent()
+    this.nearDetailWarmups = null
   }
 
   _renderNearDetails(alpha, shadows, count) {
@@ -910,6 +934,7 @@ export class EnemyManager {
   }
 
   dispose() {
+    this.releaseNearDetailWarmups()
     this.nearDetailRoot.removeFromParent()
     for (const slot of this.nearDetailSlots) slot.model?.removeFromParent()
     disposeNearEnemyModelLibrary()

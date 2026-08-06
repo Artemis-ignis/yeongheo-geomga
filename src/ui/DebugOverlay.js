@@ -42,6 +42,7 @@ export class DebugOverlay {
       `dropped  ${s.dropped}`,
       `res      ${(s.scale ?? 1).toFixed(2)}x`,
       `backend  ${s.backend ?? 'unknown'}`,
+      `warmup   ${(s.shaderWarmupMs ?? 0).toFixed(1)} ms`,
       `seed     ${s.seed}`,
     ].join('\n')
   }

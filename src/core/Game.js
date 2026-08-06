@@ -101,6 +101,7 @@ export class Game {
     this._renderBudgetMs = 0
     this._lastRenderCalls = 0
     this._lastRenderTriangles = 0
+    this._shaderWarmupMs = 0
     // F3-only timing probes. They are intentionally kept as scalar fields so
     // normal gameplay does not allocate a profiler object every frame.
     this._perf = { workMs: 0, simMs: 0, drawMs: 0 }
@@ -314,7 +315,6 @@ export class Game {
     // on these — but "a run is starting" is exactly the statement that should
     // guarantee no menu is left on screen, and every other entry point into
     // here would otherwise have to remember separately.
-    this.title.hide()
     this.result.hide?.()
     this.modal.close?.()
     if (!this.audio.muted) {
@@ -378,9 +378,33 @@ export class Game {
     this._wireCallbacks()
 
     this.camera.snapTo(this.player.x, this.player.z)
+    this._prewarmRunRendering()
+    this.title.hide()
     this.hud.show()
     this.overlay.clear()
     this.state = 'playing'
+  }
+
+  /**
+   * Compile the run's scene and post stack behind the still-visible title screen.
+   * Without this, the first gameplay frame competes with WebGL program creation,
+   * postprocess initialization, and the first close-enemy model clone.
+   */
+  _prewarmRunRendering() {
+    const startedAt = performance.now()
+    this.enemies?.prewarmNearDetailModels?.()
+    try {
+      this.renderer.compile?.(this.scene, this.camera.camera)
+      this.post.render(this.scene, this.camera.camera)
+    } catch (err) {
+      // Shader compilation remains lazy on older WebGL implementations. A failed
+      // warm pass must never prevent a playable run; the normal renderer will
+      // compile the missing program on demand.
+      console.warn('Run render prewarm skipped', err)
+    } finally {
+      this.enemies?.releaseNearDetailWarmups?.()
+      this._shaderWarmupMs = performance.now() - startedAt
+    }
   }
 
   _wireCallbacks() {
@@ -1024,6 +1048,7 @@ export class Game {
       scale: this.quality.scale,
       backend: this.renderer.backendLabel ?? (this.renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL'),
       seed: this.seed ?? 0,
+      shaderWarmupMs: this._shaderWarmupMs,
       workMs: this._perf.workMs,
       simMs: this._perf.simMs,
       drawMs: this._perf.drawMs,

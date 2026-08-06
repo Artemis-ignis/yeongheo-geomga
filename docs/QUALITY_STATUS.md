@@ -10,13 +10,16 @@
 - `src/world/SanctuaryCinematicSet.js`의 문루는 `JadeSanctuaryGateFactory.ts`를 구조 기준으로 연결하고, 현재 보이는 문루는 그 기준을 보강한 3D shell입니다. 제단 paver는 ImageGen 재질 `public/assets/materials/environment/jade-pavilion-stone-v1.png`를 실제 Three.js 메시에 사용합니다.
 - ImageGen 재질 `public/assets/materials/characters/moon-silk-brocade-v2.png`는 설령의 보이는 robe/sleeve/panel 및 img2three 구조 모델의 silk material에 연결되어 있습니다.
 - ImageGen 재질 `public/assets/materials/guardians/jade-void-armor-v1.png`는 근접 jade serpent와 sanctuary jade titan의 실제 PBR/toon material map에 연결되어 있습니다.
+- 이번 패스에서 ImageGen 재질 `public/assets/materials/guardians/void-iron-scale-armor-v1.png`를 추가해 demon/ash raven 근접 모델의 robe/armor 표면에 실제 map으로 연결했습니다. 단순 참조 이미지가 아니라 `NearEnemyModels.js`의 near-detail material에서 로드됩니다.
 - 교체로 끊긴 구형 `moon-silk-weave-v1.png`, `moon-silk-embroidered-v1.png`는 삭제하고 매니페스트를 13개 실제 파일과 일치시켰습니다. 새 파일은 `tools/asset-manifest.json`의 `source: imagegen` 항목으로 추적됩니다.
 
 ## 검수 결과
 
 - 2026-08-07 현재 패스의 실제 브라우저 전투 프레임: 60 FPS, `work` 2.7~2.9 ms, `sim/draw` 0.0~0.2/2.5~2.7 ms, `dropped 0`, WebGL2. 전투 중 경지 선택을 열고 닫은 뒤에도 동일 범위를 유지했으며, 측정 HUD는 452~517 draws, 595,591~634,841 tris였습니다.
+- 최신 실전 재검수는 `artifacts/img2threejs/seolryeong/character-model/review/refinement-runtime-playing-2026-08-07g.png`에 보존했습니다. 동적 로드 후 비경 진입 직전 근접 모델·장면·postprocess 셰이더를 타이틀 화면 아래에서 선컴파일해 워밍업 180.7 ms를 한 번 지불했고, 전투 진입 후 `60 FPS`, `work 2.9~3.3 ms`, `sim/draw 0.0~0.2/2.7~3.0 ms`, `dropped 0`, `warmup 180.7 ms`, WebGL2를 확인했습니다.
+- `EnemyManager.prewarmNearDetailModels()`는 10개 근접 적 계열의 숨은 모델 루트를 전투 전 만들고, 렌더러 선컴파일 뒤 제거합니다. 실제 군중은 기존 InstancedMesh를 유지하고, 근접 8슬롯만 상세 모델을 사용하므로 매 프레임 모델 생성 비용을 추가하지 않습니다.
 - 실제 플레이 경로도 확인했습니다: 비경 진입 → 청람비경 → 설령 한빙검파 → 전투/경지 선택 → 일시정지 → 포기 확인 → 좌화 결과 → 다시 도전 → 타이틀 복귀. 결과 화면에서도 60 FPS, `work` 2.9 ms, `dropped 0`을 확인했습니다.
-- `npm test`: 31개 파일/459개 테스트 통과, `npm run build`: 통과, `npm run assets:audit`: 13개 자산/실파일 13개/오류 없음. 빌드는 현재 단일 JS 청크 1.47MB 경고가 남아 있어 코드 분할을 다음 성능 패스로 남겼습니다.
+- `npm test`: 31개 파일/459개 테스트 통과, `npm run build`: 통과. 초기 엔트리 청크는 3.12KB, 게임 본체는 `Game` 866KB로 지연 로드되며, `three-examples`는 21/237/344KB로 분리됐습니다. 초기 엔트리는 500KB 경고가 없지만 Game 청크 자체는 아직 경고가 남아 있으므로 번들 최적화는 미완료입니다. `npm run assets:audit`: 14개 자산/실파일 14개/오류 없음.
 - 테스트/빌드/자산 감사는 별도로 실행해야 하며, 이 수치는 Windows 작업 관리자 전체 CPU 사용률을 보증하지 않습니다.
 - ImageGen 기준 이미지와 게임플레이 프레임의 시각 비교는 현재 약 0.42로 기록되어 있습니다. 따라서 AAA 완료나 구조 패스 통과로 표시하지 않습니다.
 - 캐릭터 img2threejs 파이프라인은 아직 `blockout`에 잠겨 있습니다. 실제 고품질 스키닝 GLB/GLTF가 생긴 것으로 오인하지 않도록 현재 팩토리는 구조 기준과 메타데이터 용도로 명시되어 있습니다.

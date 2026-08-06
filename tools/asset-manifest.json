@@ -66,6 +66,15 @@
       "maxBytes": 4500000
     },
     {
+      "id": "material.guardian.void-iron-scale-armor.v1",
+      "path": "public/assets/materials/guardians/void-iron-scale-armor-v1.png",
+      "role": "runtime-material-near-demon-armor",
+      "tier": "near-detail",
+      "source": "imagegen",
+      "consumers": ["src/art/NearEnemyModels.js"],
+      "maxBytes": 4500000
+    },
+    {
       "id": "material.guardian.ember-feather.v1",
       "path": "public/assets/materials/guardians/ember-feather-weave-v1.png",
       "role": "runtime-material-weave",

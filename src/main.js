@@ -1,10 +1,4 @@
-import { isWebGL2Available, showFallback } from './world/Scene.js'
-import { Game } from './core/Game.js'
-import { installCapture, installStepper, installUICapture } from './dev/capture.js'
-import { installBalanceProbe } from './dev/balanceProbe.js'
-import {
-  installToneCheck, installModelTone, installSalience, checkTone, MODEL_TONE_LIMITS,
-} from './dev/toneCheck.js'
+import { isWebGL2Available, showFallback } from './world/webglSupport.js'
 
 const canvas = document.getElementById('scene')
 const overlayCanvas = document.getElementById('overlay')
@@ -13,6 +7,10 @@ const hudRoot = document.getElementById('hud')
 if (!isWebGL2Available()) {
   showFallback('WebGL2 컨텍스트를 생성할 수 없습니다')
 } else {
+  // Keep the document/bootstrap chunk free of Three.js and postprocessing. The
+  // game is still loaded immediately after the cheap capability check, but the
+  // browser can paint the shell before parsing the renderer-heavy graph.
+  const { Game } = await import('./core/Game.js')
   const game = new Game({ canvas, overlayCanvas, hudRoot })
   game.start()
 
@@ -23,6 +21,12 @@ if (!isWebGL2Available()) {
     // Capture and diagnostic probes are opt-in. A normal dev session should
     // never write quality-pass PNGs or spend frames on readback-only probes.
     if (import.meta.env.VITE_ENABLE_CAPTURE === '1') {
+      const { installCapture, installStepper, installUICapture } = await import('./dev/capture.js')
+      const { installBalanceProbe } = await import('./dev/balanceProbe.js')
+      const {
+        installToneCheck, installModelTone, installSalience, checkTone, MODEL_TONE_LIMITS,
+      } = await import('./dev/toneCheck.js')
+
       installStepper((dt) => game.stepFrame(dt), 1 / 60)
       const drawAt = (w, h) => {
         game.camera.setAspect(w / h)

@@ -50,7 +50,34 @@ export default defineConfig({
   // restarted a lot during work, and each restart would pop a new window.
   // Open http://localhost:5173 yourself, or use `npm run dev -- --open`.
   server: { open: false },
-  build: { target: 'es2022', outDir: 'dist' },
+  build: {
+    target: 'es2022',
+    outDir: 'dist',
+    // Three.js core plus examples/postprocessing used to land in the entry
+    // chunk (~1.47 MB). Keep the initial document/runtime chunk small so the
+    // browser parses the game shell before the renderer vendor code arrives.
+    // This is a delivery optimization only; the runtime still uses one shared
+    // Three.js instance and does not duplicate geometry or materials.
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          minSize: 20000,
+          groups: [
+            {
+              name: 'three-examples',
+              test: /[\\/]node_modules[\\/]three[\\/]examples[\\/]/,
+              maxSize: 420000,
+            },
+            {
+              name: 'three-core',
+              test: /[\\/]node_modules[\\/]three[\\/](?!examples[\\/])/,
+              maxSize: 420000,
+            },
+          ],
+        },
+      },
+    },
+  },
   // The filesystem sink is only needed during an explicit visual-QA session.
   plugins: CAPTURE_ENABLED ? [screenshotSink()] : [],
   test: {
