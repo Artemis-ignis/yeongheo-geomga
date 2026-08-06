@@ -141,6 +141,9 @@ export function buildHeroicSeolryeong(character) {
   const pal = character.palette
   const root = new THREE.Group()
   root.name = 'heroic-seolryeong'
+  root.userData.referenceAsset = 'assets/characters/seolryeong-character-reference-v3.png'
+  root.userData.presentationReferenceAsset = 'assets/characters/seolryeong-character-reference-v3.png'
+  root.userData.referencePipeline = 'imagegen-plus-artifact-template-yeongheo-aaa-asset-brief'
   // The gameplay camera sits high above the court. A slightly taller silhouette
   // keeps the layered robe, shoulders and sword readable instead of reducing her
   // to the old thumbnail-sized chibi marker.
@@ -150,9 +153,11 @@ export function buildHeroicSeolryeong(character) {
   // The reference has an adult swordswoman proportion. Keep the same gameplay
   // height, but spend more of the silhouette on the torso, sleeves, and robe
   // length instead of the old mascot-like width/head mass.
-  root.scale.set(1.06, 1.62, 1.06)
+  root.scale.set(1.16, 1.62, 1.12)
 
   const skin = standard(pal.skin ?? 0xf4c9ae, { roughness: 0.62 })
+  const underSilk = standard(0x1d2f49, { roughness: 0.48, metalness: 0.08, clearcoat: 0.16 })
+  const bootLeather = standard(0x263b58, { roughness: 0.38, metalness: 0.18, clearcoat: 0.24 })
   // The reference has a dark blue-black hair mass with a silver-blue edge. The
   // old shell used the palette's light highlight for the whole cap, which made
   // hair and robe collapse into one beige silhouette under the stage sun.
@@ -173,7 +178,7 @@ export function buildHeroicSeolryeong(character) {
   const silkRoughness = weaveTexture('materials/img2three/seolryeong-silk_roughness.png', [2.35, 3.1], THREE.NoColorSpace)
   const silkMaps = { normalMap: silkNormal, roughnessMap: silkRoughness, bumpMap: silkNormal, bumpScale: 0.018 }
   const silk = cloth(0xd7e5f4, pal.accent ?? 0x86d8ff, silkWeave, silkMaps)
-  const silkBlue = cloth(0x335e8e, 0x70cfff, silkWeave, silkMaps)
+  const silkBlue = cloth(0x4778ad, 0x70cfff, silkWeave, silkMaps)
   const trim = standard(pal.trim ?? 0xeff7ff, { roughness: 0.32, metalness: 0.3, clearcoat: 0.36 })
   const bladeMat = standard(0xdff7ff, { roughness: 0.18, metalness: 0.88, emissive: 0x6ccfff, emissiveIntensity: 0.22, clearcoat: 0.7 })
   const eyeMat = standard(0x182841, { roughness: 0.2, emissive: 0x58dfff, emissiveIntensity: 0.55 })
@@ -224,12 +229,65 @@ export function buildHeroicSeolryeong(character) {
     root.add(cuff)
   }
 
+  // The previous shell had sleeves but no readable arm/hand break at the
+  // survivor camera, so the whole upper body collapsed into a robe column.
+  // Keep the broad silk sleeves for silhouette, then place a restrained arm
+  // rig in front of them. It is still static geometry (the Player owns motion),
+  // but the shoulder -> forearm -> hand chain now reads as a swordswoman.
+  const swordArm = tube([
+    [-0.29, 1.52, 0.30], [-0.39, 1.40, 0.38], [-0.50, 1.22, 0.44],
+  ], 0.072, underSilk, 14, 10)
+  swordArm.name = 'sword-arm-sleeve'
+  root.add(swordArm)
+  const swordForearm = tube([
+    [-0.46, 1.29, 0.45], [-0.58, 1.18, 0.48], [-0.65, 1.12, 0.49],
+  ], 0.058, skin, 12, 8)
+  swordForearm.name = 'sword-arm-forearm'
+  root.add(swordForearm)
+  const swordHand = new THREE.Mesh(new THREE.SphereGeometry(0.082, 16, 12), skin)
+  swordHand.name = 'sword-hand'
+  swordHand.position.set(-0.66, 1.10, 0.50)
+  swordHand.scale.set(0.82, 1.08, 0.72)
+  root.add(swordHand)
+
+  const freeArm = tube([
+    [0.29, 1.52, 0.24], [0.42, 1.38, 0.34], [0.48, 1.19, 0.40],
+  ], 0.068, underSilk, 14, 10)
+  freeArm.name = 'free-arm-sleeve'
+  root.add(freeArm)
+  const freeForearm = tube([
+    [0.48, 1.20, 0.41], [0.53, 1.04, 0.44], [0.51, 0.94, 0.43],
+  ], 0.054, skin, 12, 8)
+  freeForearm.name = 'free-arm-forearm'
+  root.add(freeForearm)
+  const freeHand = new THREE.Mesh(new THREE.SphereGeometry(0.078, 16, 12), skin)
+  freeHand.name = 'free-hand'
+  freeHand.position.set(0.51, 0.91, 0.43)
+  freeHand.scale.set(0.80, 1.10, 0.70)
+  root.add(freeHand)
+
+  // Split-grounding details are deliberately pushed toward the camera so the
+  // two boots survive the layered skirt instead of reading as one floating
+  // cylinder. Their darker leather and silver cuff create a second material
+  // band that remains visible at gameplay distance.
   for (const side of [-1, 1]) {
-    const boot = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.30, 8, 16), silkBlue)
-    boot.position.set(side * 0.16, 0.21, 0.12)
-    boot.scale.set(0.88, 1, 1.2)
-    boot.castShadow = true
-    root.add(boot)
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.42, 8, 14), underSilk)
+    leg.name = `${side < 0 ? 'left' : 'right'}-lower-leg`
+    leg.position.set(side * 0.16, 0.40, 0.38)
+    leg.scale.set(0.92, 1.0, 0.72)
+    root.add(leg)
+    const bootShell = new THREE.Mesh(new RoundedBoxGeometry(0.24, 0.40, 0.34, 3, 0.055), bootLeather)
+    bootShell.name = `${side < 0 ? 'left' : 'right'}-frost-boot`
+    bootShell.position.set(side * 0.16, 0.16, 0.42)
+    bootShell.rotation.x = -0.10
+    bootShell.scale.x = 0.92
+    root.add(bootShell)
+    const bootCuff = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.018, 6, 20), trim)
+    bootCuff.name = `${side < 0 ? 'left' : 'right'}-boot-cuff`
+    bootCuff.rotation.x = Math.PI / 2
+    bootCuff.position.set(side * 0.16, 0.35, 0.42)
+    bootCuff.scale.z = 0.78
+    root.add(bootCuff)
   }
 
   // The gameplay camera is deliberately pitched down. Tip the head toward the
@@ -237,7 +295,7 @@ export function buildHeroicSeolryeong(character) {
   const headRig = new THREE.Group()
   headRig.position.y = 1.94
   headRig.rotation.x = -0.38
-  headRig.scale.setScalar(0.72)
+  headRig.scale.setScalar(0.78)
   root.add(headRig)
 
   const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.12, 8, 14), skin)
@@ -349,8 +407,8 @@ export function buildHeroicSeolryeong(character) {
 
   const shoulderLeft = new THREE.Mesh(new RoundedBoxGeometry(0.38, 0.20, 0.48, 3, 0.055), trim)
   const shoulderRight = shoulderLeft.clone()
-  shoulderLeft.position.set(-0.37, 1.58, 0)
-  shoulderRight.position.set(0.37, 1.58, 0)
+  shoulderLeft.position.set(-0.37, 1.58, 0.20)
+  shoulderRight.position.set(0.37, 1.58, 0.20)
   shoulderLeft.rotation.z = -0.16
   shoulderRight.rotation.z = 0.16
   shoulderLeft.scale.set(1.10, 1.0, 0.92)
@@ -382,14 +440,14 @@ export function buildHeroicSeolryeong(character) {
   // Long outer sleeve veils and side robe tails preserve volume in motion and
   // stop the body from collapsing into one conical primitive at survivor view.
   for (const side of [-1, 1]) {
-    const sleeveVeil = panel(0.30, 1.04, silkBlue, 0.30)
-    sleeveVeil.position.set(side * 0.48, 1.06, 0.10)
+    const sleeveVeil = panel(0.34, 1.04, silkBlue, 0.30)
+    sleeveVeil.position.set(side * 0.56, 1.06, 0.10)
     sleeveVeil.rotation.set(0.08, side * 0.30, side * -0.10)
     sleeveVeil.castShadow = true
     root.add(sleeveVeil)
 
-    const robeTail = panel(0.22, 1.44, silkBlue, 0.34)
-    robeTail.position.set(side * 0.42, 0.72, -0.02)
+    const robeTail = panel(0.25, 1.44, silkBlue, 0.34)
+    robeTail.position.set(side * 0.52, 0.72, -0.02)
     robeTail.rotation.set(0.04, side * 0.24, side * -0.06)
     robeTail.castShadow = true
     root.add(robeTail)
@@ -456,10 +514,10 @@ export function buildHeroicSeolryeong(character) {
 
   const heldSword = new THREE.Group()
   heldSword.name = 'held-frost-sword'
-  heldSword.position.set(-0.54, 1.12, 0.30)
-  heldSword.rotation.z = 0.34
+  heldSword.position.set(-0.48, 1.25, 0.56)
+  heldSword.rotation.z = -1.40
   const heldBlade = blade(bladeMat, 1.64)
-  heldBlade.position.y = 0.78
+  heldBlade.position.y = 0.82
   heldSword.add(heldBlade)
   const guard = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.22, 12), trim)
   guard.rotation.z = Math.PI / 2

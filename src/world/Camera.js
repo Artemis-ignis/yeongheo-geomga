@@ -30,6 +30,10 @@ const ZOOM_LAMBDA = 12
 
 const _target = new THREE.Vector3()
 const _corner = new THREE.Vector3()
+// The run HUD occupies the upper centre of the screen. Aim a little above the
+// ground origin so the player's face and weapon settle below that DOM layer
+// instead of being hidden behind the timer at the default survivor framing.
+const LOOK_TARGET_Y = 0.34
 
 /**
  * Top-down 3/4 follow camera.
@@ -128,7 +132,7 @@ export class FollowCamera {
       OFFSET.y * k + sy,
       this.z + OFFSET.z * k,
     )
-    _target.set(this.x + sx * 0.4, 0, this.z)
+    _target.set(this.x + sx * 0.4, LOOK_TARGET_Y, this.z)
     this.camera.lookAt(_target)
   }
 
@@ -142,7 +146,7 @@ export class FollowCamera {
     // camera currently is.
     const probe = this.camera.clone()
     probe.position.set(OFFSET.x, OFFSET.y, OFFSET.z)
-    probe.lookAt(0, 0, 0)
+    probe.lookAt(0, LOOK_TARGET_Y, 0)
     probe.updateMatrixWorld(true)
 
     let maxDist = 0

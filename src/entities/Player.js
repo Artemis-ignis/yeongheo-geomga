@@ -64,8 +64,8 @@ export class Player {
     // hardware readable against the moonlit court. It follows the hero rather
     // than illuminating the whole arena, so the scene keeps its contrast and
     // the light cost stays bounded to one additional light.
-    this.heroFill = new THREE.PointLight(0x76c9ff, 1.15, 7.5, 2)
-    this.heroFill.position.set(0, 2.5, 2.2)
+    this.heroFill = new THREE.PointLight(0x76c9ff, 1.25, 7.5, 2)
+    this.heroFill.position.set(0, 3.05, 2.2)
     scene.add(this.heroFill)
 
     // Dash trail: a fixed pool of translucent copies, never allocated mid-run.
@@ -226,7 +226,7 @@ export class Player {
     const fz = Math.cos(this.facing)
     this.heroFill.position.set(
       this.chibi.root.position.x + fx * 2.1,
-      2.4,
+      3.05,
       this.chibi.root.position.z + fz * 2.1,
     )
     this.chibi.update(dt, this.speed01, this.facing)

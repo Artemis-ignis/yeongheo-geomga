@@ -21,6 +21,15 @@
       "maxBytes": 3500000
     },
     {
+      "id": "character.seolryeong.reference.v3",
+      "path": "public/assets/characters/seolryeong-character-reference-v3.png",
+      "role": "runtime-character-reference-latest",
+      "tier": "hero",
+      "source": "imagegen-plus-artifact-template-yeongheo-aaa-asset-brief",
+      "consumers": ["src/ui/TitleScreen.js", "src/art/HeroicModels.js"],
+      "maxBytes": 3500000
+    },
+    {
       "id": "character.jade-void-warden.boss-reference.v2",
       "path": "public/assets/characters/jade-void-warden-boss-reference-v2.png",
       "role": "runtime-boss-reference",

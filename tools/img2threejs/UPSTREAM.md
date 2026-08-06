@@ -33,4 +33,14 @@ player's browser.
 The generated source is committed so a player who downloads the game does not
 need Python or the upstream repository at runtime.
 
+The current Seolryeong v3 ImageGen reference is recorded under
+`artifacts/img2threejs/seolryeong/character-model-v3/`. Its isolated reference
+and PBR evidence are admitted for authoring, but the v3 spec is intentionally
+kept as a draft until the upstream structural/material checks pass. The runtime
+therefore uses the pinned official factory for structure and sockets, applies
+the verified img2three PBR channels to the visible authored cloth, and uses the
+v3 reference to drive the visible presentation shell. This is a deliberate
+quality boundary, not a claim that the upstream tool magically produced a
+skinned AAA GLB.
+
 The upstream project is Apache-2.0 licensed. See `LICENSE` in this directory.

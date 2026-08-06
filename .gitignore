@@ -13,3 +13,9 @@ quality-pass-*.png
 /artifacts/asset-intake/
 /artifacts/asset-archive/
 /artifacts/img2threejs/jade-sanctuary-gate/
+
+# Keep the v3 reference brief and admitted outputs reviewable, but do not
+# accumulate generated crops or failed probe copies in the repository.
+/artifacts/img2threejs/seolryeong/character-model-v3/detail-inventory/
+/artifacts/img2threejs/seolryeong/character-model-v3/material-evidence/
+/artifacts/img2threejs/seolryeong/character-model-v3/seolryeong-chroma.png

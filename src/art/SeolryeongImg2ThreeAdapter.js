@@ -18,7 +18,7 @@ const _silkMaterials = new Set(['base', 'shirt', 'pants'])
 // Give the authored silhouette enough screen area for its material and layered
 // costume work to survive the survivor camera. This changes presentation only;
 // Player's combat collider and movement scale remain untouched.
-const HERO_HEIGHT = 4.05
+const HERO_HEIGHT = 4.55
 
 function assetUrl(file) {
   const base = import.meta.env?.BASE_URL ?? '/'
@@ -65,7 +65,11 @@ export function buildImg2ThreeSeolryeong(character) {
   const root = new THREE.Group()
   root.name = 'heroic-seolryeong-img2three'
   root.userData.assetPipeline = 'img2threejs'
-  root.userData.referenceAsset = 'assets/characters/seolryeong-character-reference-v2.png'
+  root.userData.referenceAsset = 'assets/characters/seolryeong-character-reference-v3.png'
+  root.userData.presentationReferenceAsset = 'assets/characters/seolryeong-character-reference-v3.png'
+  root.userData.generatedStructureReference = 'artifacts/img2threejs/seolryeong/character-model/object-sculpt-spec.json'
+  root.userData.presentationBrief = 'artifacts/img2threejs/seolryeong/character-model-v3/assessment.json'
+  root.userData.generatedModelStatus = 'official-structure-plus-authored-presentation-shell'
   root.userData.qualityTier = 'hero'
   root.userData.renderMode = 'full-3d'
 

@@ -254,12 +254,16 @@ export class TitleScreen {
       if (this._bakedPortraitIds.has(c.id)) continue
       this._bakedPortraitIds.add(c.id)
       c.portrait.classList.remove('locked-placeholder')
-      // The hero card uses the ImageGen-approved character reference. The
+      // The hero card uses the latest ImageGen character reference. The
       // portrait is a real authored asset, so opening the roster does not
       // trigger another render-target bake for the hero.
       if (c.id === 'seolryeong') {
         const base = import.meta.env?.BASE_URL ?? '/'
-        c.portrait.style.backgroundImage = `url(${base}assets/characters/seolryeong-character-reference-v2.png)`
+        const latest = `${base}assets/characters/seolryeong-character-reference-v3.png`
+        const legacy = `${base}assets/characters/seolryeong-character-reference-v2.png`
+        // Keep the previous approved portrait as a real CSS fallback while the
+        // new v3 reference is being fetched on a cold cache.
+        c.portrait.style.backgroundImage = `url(${latest}), url(${legacy})`
         c.portrait.classList.add('imagegen-reference')
         continue
       }
