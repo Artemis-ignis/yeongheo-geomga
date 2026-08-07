@@ -12,16 +12,22 @@
 - ImageGen 재질 `public/assets/materials/characters/moon-silk-brocade-v2.png`는 설령의 보이는 robe/sleeve/panel 및 img2three 구조 모델의 silk material에 연결되어 있습니다.
 - ImageGen 재질 `public/assets/materials/guardians/jade-void-armor-v1.png`는 근접 jade serpent와 sanctuary jade titan의 실제 PBR/toon material map에 연결되어 있습니다.
 - 이번 패스에서 ImageGen 재질 `public/assets/materials/guardians/void-iron-scale-armor-v1.png`를 추가해 demon/ash raven 근접 모델의 robe/armor 표면에 실제 map으로 연결했습니다. 단순 참조 이미지가 아니라 `NearEnemyModels.js`의 near-detail material에서 로드됩니다.
-- 교체로 끊긴 구형 `moon-silk-weave-v1.png`, `moon-silk-embroidered-v1.png`는 삭제하고 매니페스트를 13개 실제 파일과 일치시켰습니다. 새 파일은 `tools/asset-manifest.json`의 `source: imagegen` 항목으로 추적됩니다.
+- ImageGen으로 만든 `public/assets/characters/void-iron-scale-sentinel-reference-v2.png`는 `artifacts/img2threejs/void-iron-scale-sentinel-v2/isolated-reference.png`와 별도로 보존하고, 공식 img2threejs admission·PBR 추출을 거쳤습니다. 원본의 검은 배경은 admission이 거부했기 때문에 성공으로 처리하지 않았고, 분리된 기준만 파이프라인에 넣었습니다.
+- 공식 img2threejs PBR 결과의 AO·height·normal·roughness 채널을 `public/assets/materials/img2three/void-iron-scale_*.png`로 복사해 `NearEnemyModels.js`의 근접 갑주 material에 연결했습니다. extracted portrait albedo는 얼굴을 갑주에 투영하지 않고 audit evidence로 남겼으며, ImageGen의 반복 가능한 armor tile을 albedo로 사용합니다.
+- `buildDemonCultivator()`는 위 기준을 참조하는 실제 근접 3D hierarchy로 교체됐습니다. 각진 helm, cyan eye slit/chest core, layered shoulder/waist plates, cloth mantle, hooked polearm을 분리하고, 바깥 군중은 기존 instancing을 유지합니다. `near-sheet.html`은 이 런타임 factory를 직접 띄우는 개발 검수 화면입니다.
+- strict img2threejs sculpt gate는 아직 통과하지 않았습니다. 공식 non-strict factory는 시험 fixture로만 실행했고 게임에는 넣지 않았습니다. 현재 적 모델은 `near-detail refinement`이며 AAA/고품질 skinned GLB로 표시하지 않습니다.
+- 교체로 끊긴 구형 `moon-silk-weave-v1.png`, `moon-silk-embroidered-v1.png`는 정리했고, 새 기준 자산은 `tools/asset-manifest.json`의 `source: imagegen` 또는 `source: img2threejs` 항목으로 추적합니다. 최종 실파일 수는 별도 `assets:audit` 결과로 확인합니다.
 
 ## 검수 결과
 
 - 2026-08-07 현재 패스의 실제 브라우저 전투 프레임: 60~61 FPS, `work` 3.6~4.0 ms, `sim/draw` 0.0~0.1/3.6~3.7 ms, `dropped 0`, WebGL2. 최신 영웅 shell과 HUD 프레이밍 변경 뒤 level-up에서 621,435 tris, 일반 전투 676,131 tris, 48~70 enemies를 확인했습니다. 이는 게임 내부 렌더 계측이며 Windows 작업 관리자 전체 CPU 사용률을 대신하지 않습니다.
+- v2 근접 적 변경 후 실제 전투도 다시 통과했습니다: 00:12~00:19 구간에서 `59~60 FPS`, `work 2.7~3.1 ms`, `sim/draw 0.0~0.1/2.7~3.1 ms`, `dropped 0`, `WebGL2`, `611,251~641,399 tris`, `48~54 enemies`, `warmup 239.7 ms`를 확인했습니다. 이는 게임 내부 계측이며 Chrome/Windows 작업 관리자 전체 CPU 사용률의 증명이 아닙니다.
+- Void-Iron v2 개발 검수 화면에서 실제 `buildDemonCultivator()`를 정면·회전 프레임으로 확인했습니다. 새 geometry와 AO/height/normal/roughness 연결 뒤 화면 오류는 없었지만, 기준 이미지보다 갑주가 단순하고 일부 판금이 장난감처럼 읽히는 시각 차이가 남아 있어 AAA 통과로 기록하지 않습니다.
 - 이전 기준선은 `artifacts/img2threejs/seolryeong/character-model/review/refinement-runtime-playing-2026-08-07g.png`에 보존했습니다. 이번 영웅 shell 보강 전에는 워밍업 180.7 ms, `work 2.9~3.3 ms`였습니다.
 - 이번 v3 reference/shell/framing 패스의 실제 캡처는 로컬 QA 세션에서 전투 00:19, `60~61 FPS`, `work 4.0~4.4 ms`, `dropped 0`, `warmup 248.2 ms`, WebGL2로 확인했습니다. 새 geometry 때문에 워밍업과 draw 비용이 늘었으므로, 다음 패스에서 근접 상세 슬롯과 쉐이더 비용을 다시 줄여야 합니다.
 - `EnemyManager.prewarmNearDetailModels()`는 10개 근접 적 계열의 숨은 모델 루트를 전투 전 만들고, 렌더러 선컴파일 뒤 제거합니다. 실제 군중은 기존 InstancedMesh를 유지하고, 근접 8슬롯만 상세 모델을 사용하므로 매 프레임 모델 생성 비용을 추가하지 않습니다.
 - 실제 플레이 경로도 확인했습니다: 비경 진입 → 청람비경 → 설령 한빙검파 → 전투/경지 선택 → 일시정지 → 포기 확인 → 좌화 결과 → 다시 도전 → 타이틀 복귀. 결과 화면에서도 60 FPS, `work` 2.9 ms, `dropped 0`을 확인했습니다.
-- `npm test`: 31개 파일/459개 테스트 통과, `npm run build`: 통과. 초기 엔트리 청크는 3.12KB, 게임 본체는 약 867KB로 지연 로드되며, `three-examples`는 21/237/344KB로 분리됐습니다. 초기 엔트리는 500KB 경고가 없지만 Game 청크 자체는 아직 경고가 남아 있으므로 번들 최적화는 미완료입니다. `npm run assets:audit`: 15개 자산/실파일 15개/오류 없음.
+- `npm test`: 31개 파일/459개 테스트 통과, `npm run build`: 통과. 초기 엔트리 청크는 3.12KB, 게임 본체는 약 873KB로 지연 로드되며, `three-examples`는 21/237/344KB로 분리됐습니다. 초기 엔트리는 500KB 경고가 없지만 Game 청크 자체는 아직 경고가 남아 있으므로 번들 최적화는 미완료입니다. 최신 `npm run assets:audit`: manifest 20개/실파일 20개/오류 없음.
 - 테스트/빌드/자산 감사는 별도로 실행해야 하며, 이 수치는 Windows 작업 관리자 전체 CPU 사용률을 보증하지 않습니다.
 - ImageGen 기준 이미지와 게임플레이 프레임의 시각 비교는 현재 약 0.42로 기록되어 있습니다. 따라서 AAA 완료나 구조 패스 통과로 표시하지 않습니다.
 - 캐릭터 img2threejs 파이프라인은 아직 `blockout`에 잠겨 있습니다. 실제 고품질 스키닝 GLB/GLTF가 생긴 것으로 오인하지 않도록 현재 팩토리는 구조 기준과 메타데이터 용도로 명시되어 있습니다.
@@ -32,6 +38,7 @@
 1. 설령 실루엣을 성인형으로 유지하면서 얼굴·머리 장식·소매·검·하단 패널의 비교 점수를 올립니다.
 2. 최신 카메라 프레이밍으로 얼굴과 HUD가 겹치지 않는 실제 플레이 프레임을 유지하며 다시 검수합니다.
 3. 캐릭터·적·제단의 각 보이는 자산을 실제 3D 렌더로 확인하고, F3의 draw/tri/work와 콘솔 오류를 함께 기록합니다.
-4. 기준 이미지 비교가 임계값을 넘기기 전에는 `structural-pass`나 AAA 완료를 선언하지 않습니다.
+4. Void-Iron 근접 적은 얼굴·어깨판·허리 스케일·폴암의 형태 차이를 줄이고, 회전 프레임에서 평면·부유·관절 틈을 다시 검사합니다.
+5. 기준 이미지 비교가 임계값을 넘기기 전에는 `structural-pass`나 AAA 완료를 선언하지 않습니다.
 
 개발용 캡처 환경 변수가 없는 일반 실행은 quality-pass PNG를 생성하지 않습니다. 캡처가 필요할 때만 명시적으로 켜고, 끝나면 서버를 하나만 남깁니다.

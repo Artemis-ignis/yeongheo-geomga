@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>영허검가 — 근접 에셋 검수</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #08111b; }
+      canvas { display: block; position: fixed; inset: 0; }
+      #hud {
+        position: fixed; left: 24px; top: 22px; pointer-events: none;
+        font: 14px/1.55 "Malgun Gothic", system-ui, sans-serif;
+        color: #c9dceb; text-shadow: 0 2px 10px #000;
+      }
+      #hud b { display: block; color: #7ff5e2; font-size: 20px; letter-spacing: .04em; }
+      #hud span { color: #90a9bb; }
+      #status { position: fixed; right: 24px; bottom: 20px; color: #86a6b8; font: 12px system-ui, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <canvas id="near-sheet"></canvas>
+    <div id="hud"><b>Void-Iron Scale Sentinel v2</b><span>ImageGen reference + official img2threejs PBR channels + authored near-detail hierarchy</span></div>
+    <div id="status">회전 중 · S: 실루엣 · Space: 정지</div>
+    <script type="module" src="/src/dev/nearModelSheet.js"></script>
+  </body>
+</html>

@@ -59,6 +59,22 @@ function weaveTexture(file, repeat = [2, 2]) {
   return texture
 }
 
+function channelTexture(file, repeat = [2, 2]) {
+  if (!_loader) return null
+  const key = `channel:${file}`
+  let texture = _textureCache.get(key)
+  if (texture) return texture
+  texture = _loader.load(assetUrl(file))
+  texture.colorSpace = THREE.NoColorSpace
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(...repeat)
+  texture.anisotropy = 2
+  texture.userData.sharedByNearEnemyModels = true
+  _textureCache.set(key, texture)
+  return texture
+}
+
 function physical(color, options = {}) {
   return new THREE.MeshPhysicalMaterial({
     color,
@@ -68,6 +84,20 @@ function physical(color, options = {}) {
     clearcoatRoughness: 0.32,
     ...options,
   })
+}
+
+function liftReferenceMap(material, strength = 1.45) {
+  // The ImageGen tile is intentionally moody. Lift only its sampled albedo so
+  // the authored plate colour and extracted normal/roughness remain readable
+  // under the gameplay key light instead of collapsing into black patches.
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <map_fragment>',
+      `#include <map_fragment>\n diffuseColor.rgb = min(diffuseColor.rgb * ${strength.toFixed(2)} + vec3(0.018), vec3(1.0));`,
+    )
+  }
+  material.customProgramCacheKey = () => `reference-map-lift-${strength}`
+  return material
 }
 
 function cloth(color, options = {}) {
@@ -88,7 +118,72 @@ function tube(points, radius, material, tubularSegments = 20, radialSegments = 1
   return mesh
 }
 
+function shieldGeometry(width, height, depth, bevel = 0.028) {
+  const shape = new THREE.Shape()
+  shape.moveTo(0, height * 0.50)
+  shape.quadraticCurveTo(width * 0.44, height * 0.47, width * 0.50, height * 0.12)
+  shape.lineTo(width * 0.38, -height * 0.22)
+  shape.quadraticCurveTo(0, -height * 0.50, -width * 0.38, -height * 0.22)
+  shape.lineTo(-width * 0.50, height * 0.12)
+  shape.quadraticCurveTo(-width * 0.44, height * 0.47, 0, height * 0.50)
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: bevel,
+    bevelSize: bevel * 0.72,
+    bevelSegments: 2,
+    curveSegments: 5,
+    steps: 1,
+  })
+  geometry.translate(0, 0, -depth * 0.5)
+  return geometry
+}
+
+function hookedBladeGeometry(width, height, depth, bevel = 0.024) {
+  const shape = new THREE.Shape()
+  shape.moveTo(-width * 0.18, -height * 0.50)
+  shape.quadraticCurveTo(width * 0.36, -height * 0.30, width * 0.50, height * 0.02)
+  shape.quadraticCurveTo(width * 0.46, height * 0.36, width * 0.04, height * 0.50)
+  shape.lineTo(-width * 0.06, height * 0.35)
+  shape.quadraticCurveTo(width * 0.22, height * 0.15, width * 0.20, -height * 0.02)
+  shape.quadraticCurveTo(width * 0.15, -height * 0.22, -width * 0.18, -height * 0.50)
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: bevel,
+    bevelSize: bevel * 0.78,
+    bevelSegments: 2,
+    curveSegments: 6,
+    steps: 1,
+  })
+  geometry.translate(0, 0, -depth * 0.5)
+  return geometry
+}
+
+function taperedPanelGeometry(topWidth, bottomWidth, height, depth, bevel = 0.018) {
+  const shape = new THREE.Shape()
+  shape.moveTo(-topWidth * 0.5, height * 0.5)
+  shape.lineTo(topWidth * 0.5, height * 0.5)
+  shape.lineTo(bottomWidth * 0.5, -height * 0.5)
+  shape.quadraticCurveTo(0, -height * 0.56, -bottomWidth * 0.5, -height * 0.5)
+  shape.closePath()
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: bevel,
+    bevelSize: bevel * 0.72,
+    bevelSegments: 2,
+    curveSegments: 4,
+    steps: 1,
+  })
+  geometry.translate(0, 0, -depth * 0.5)
+  return geometry
+}
+
 function addMesh(root, geometry, material, position = null, scale = null, rotation = null) {
+  if (material?.aoMap && geometry.getAttribute('uv') && !geometry.getAttribute('uv2')) {
+    geometry.setAttribute('uv2', geometry.getAttribute('uv').clone())
+  }
   const mesh = new THREE.Mesh(geometry, material)
   if (position) mesh.position.set(...position)
   if (scale) mesh.scale.set(...scale)
@@ -283,37 +378,190 @@ function buildBloodScorpion() {
 function buildDemonCultivator() {
   const root = new THREE.Group()
   root.name = 'near-demon-cultivator'
-  // ImageGen v1 supplies the authored obsidian scale / jade-metal breakup for
-  // the few readable demon-family models. The outer horde remains vertex-colour
-  // instanced; only near detail pays for this high-frequency surface map.
-  const voidIronScale = weaveTexture('materials/guardians/void-iron-scale-armor-v1.png', [1.35, 1.85])
-  const robe = cloth(0xffffff, { map: voidIronScale, sheenColor: 0x9ccfe1, roughness: 0.54 })
-  const robeDark = cloth(0xffffff, { map: voidIronScale, sheenColor: 0x5b8ea8, roughness: 0.62 })
-  const mask = physical(0xd8d5ed, { roughness: 0.28, metalness: 0.16, clearcoat: 0.30 })
-  const gold = physical(0xd8b45a, { roughness: 0.28, metalness: 0.68, clearcoat: 0.35 })
-  const voidGlow = physical(0xd38cff, { color: 0xd38cff, emissive: 0x7e35c5, emissiveIntensity: 1.45, roughness: 0.18 })
+  // ImageGen supplies the Void-Iron reference and the scale material. The
+  // previous near model was still a lathed robe with a mask and floating
+  // rectangles, so it collapsed into the same black blob as the outer horde.
+  // This bounded near-only pass is authored as an actual armour hierarchy:
+  // torso, chest core, shoulders, articulated arms, waist guards, legs, boots,
+  // horns and a grounded polearm. The outer horde remains instanced.
+  root.userData.referenceAsset = 'assets/characters/void-iron-scale-sentinel-reference-v2.png'
+  root.userData.referencePipeline = 'imagegen-to-authored-near-3d'
+  const voidIronScale = weaveTexture('materials/guardians/void-iron-scale-armor-v1.png', [1.55, 2.05])
+  // Official img2threejs extraction from the admitted sentinel reference. The
+  // albedo remains the authored tile because it preserves the scale pattern;
+  // extracted normal/roughness channels add the reference-derived surface
+  // response without mapping a portrait onto the mesh.
+  const voidIronAo = channelTexture('materials/img2three/void-iron-scale_ao.png', [1.55, 2.05])
+  const voidIronHeight = channelTexture('materials/img2three/void-iron-scale_height.png', [1.55, 2.05])
+  const voidIronNormal = channelTexture('materials/img2three/void-iron-scale_normal.png', [1.55, 2.05])
+  const voidIronRoughness = channelTexture('materials/img2three/void-iron-scale_roughness.png', [1.55, 2.05])
+  const voidIronPbr = {
+    aoMap: voidIronAo,
+    aoMapIntensity: 0.62,
+    normalMap: voidIronNormal,
+    roughnessMap: voidIronRoughness,
+    bumpMap: voidIronHeight,
+    bumpScale: 0.010,
+  }
+  // Keep the extracted ImageGen albedo on the identity plates where the
+  // pattern can be read. Broad surfaces use the official normal/roughness
+  // channels without multiplying the whole character into a black silhouette.
+  const armor = physical(0x3d6672, {
+    ...voidIronPbr,
+    roughness: 0.52,
+    metalness: 0.38,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.24,
+  })
+  const armorDetail = liftReferenceMap(physical(0x597f87, {
+    map: voidIronScale,
+    ...voidIronPbr,
+    roughness: 0.50,
+    metalness: 0.44,
+    clearcoat: 0.24,
+    clearcoatRoughness: 0.24,
+  }), 1.55)
+  const armorDark = physical(0x203d4a, {
+    ...voidIronPbr,
+    roughness: 0.54,
+    metalness: 0.34,
+    clearcoat: 0.14,
+  })
+  const armorEdge = physical(0x3f747d, {
+    roughness: 0.30,
+    metalness: 0.70,
+    clearcoat: 0.42,
+    emissive: 0x062c35,
+    emissiveIntensity: 0.22,
+  })
+  const under = cloth(0x1d1728, { sheenColor: 0x684e86, roughness: 0.74 })
+  const leather = physical(0x111923, { roughness: 0.66, metalness: 0.22, clearcoat: 0.12 })
+  const horn = physical(0x8b6b5f, { roughness: 0.34, metalness: 0.20, clearcoat: 0.24 })
+  const gold = physical(0xc7a66b, { roughness: 0.28, metalness: 0.72, clearcoat: 0.40 })
+  const voidGlow = physical(0x36dfcf, {
+    color: 0x36dfcf,
+    emissive: 0x087d79,
+    emissiveIntensity: 1.25,
+    roughness: 0.14,
+    metalness: 0.10,
+    clearcoat: 0.52,
+  })
+  const weaponMetal = physical(0x202d3a, { roughness: 0.24, metalness: 0.84, clearcoat: 0.52 })
   const motion = new THREE.Group()
   motion.name = 'near-motion'
   root.add(motion)
-  addMesh(motion, new THREE.LatheGeometry([
-    new THREE.Vector2(0.02, 0), new THREE.Vector2(0.30, 0.07),
-    new THREE.Vector2(0.50, 0.42), new THREE.Vector2(0.42, 0.98),
-    new THREE.Vector2(0.30, 1.52), new THREE.Vector2(0.25, 1.80),
-    new THREE.Vector2(0.02, 1.90),
-  ], 36), robe)
-  addMesh(motion, new THREE.SphereGeometry(0.25, 28, 20), robeDark, [0, 1.86, 0.10], [1, 0.96, 0.82])
-  addMesh(motion, new THREE.SphereGeometry(0.23, 28, 20), mask, [0, 1.92, 0.29], [1.0, 0.92, 0.28])
+
+  const torso = addMesh(motion, new THREE.CapsuleGeometry(0.34, 0.44, 8, 20), armorDark, [0, 1.42, 0.02], [1.10, 0.80, 0.86])
+  torso.name = 'void-iron-torso'
+  const abdomen = addMesh(motion, new THREE.CapsuleGeometry(0.27, 0.18, 6, 16), armor, [0, 1.02, 0.20], [1.10, 0.72, 0.82])
+  abdomen.name = 'void-iron-abdomen'
+  const chest = addMesh(motion, shieldGeometry(0.78, 0.62, 0.15, 0.032), armorDetail, [0, 1.54, 0.42], null, [-0.08, 0, 0])
+  chest.name = 'void-iron-chest-plate'
+  const lowerChest = addMesh(motion, shieldGeometry(0.60, 0.30, 0.11, 0.024), armorDetail, [0, 1.24, 0.35], null, [-0.04, 0, 0])
+  lowerChest.name = 'void-iron-lower-chest-plate'
+  addMesh(motion, new THREE.TorusGeometry(0.26, 0.018, 6, 28), armorEdge, [0, 1.31, 0.42], [1.28, 0.62, 0.46], [Math.PI / 2, 0, 0])
+  const chestInlay = addMesh(motion, new THREE.OctahedronGeometry(0.18, 1), voidGlow, [0, 1.52, 0.51], [0.78, 1.22, 0.38], [0, 0, Math.PI / 4])
+  chestInlay.name = 'void-core'
+  const coreFrame = addMesh(motion, new THREE.TorusGeometry(0.17, 0.026, 7, 28), armorEdge, [0, 1.52, 0.54], [1, 1.2, 0.56], [Math.PI / 2, 0, 0])
+  coreFrame.name = 'void-core-frame'
+
+  // Paired shoulder shells, collar and raised chest trim establish a readable
+  // hard/soft material break before the arm silhouette begins.
+  const collar = addMesh(motion, new THREE.TorusGeometry(0.30, 0.045, 8, 32), armorEdge, [0, 1.78, 0.04], [1, 1, 0.86], [Math.PI / 2, 0, 0])
+  collar.name = 'void-iron-collar'
   for (const side of [-1, 1]) {
-    motion.add(tube([[side * 0.15, 2.06, 0.14], [side * 0.32, 2.32, -0.04], [side * 0.40, 2.50, -0.30]], 0.052, gold, 18, 10))
-    addMesh(motion, new THREE.SphereGeometry(0.045, 16, 12), voidGlow, [side * 0.09, 1.96, 0.36], [1, 1, 0.34])
+    const shoulder = addMesh(motion, shieldGeometry(0.62, 0.44, 0.18, 0.028), armor, [side * 0.55, 1.72, 0.10], null, [0.05, side * 0.14, side * -0.12])
+    shoulder.name = `${side < 0 ? 'left' : 'right'}-void-shoulder-shell`
+    addMesh(motion, shieldGeometry(0.32, 0.34, 0.07, 0.018), armor, [side * 0.55, 1.82, 0.28], null, [0.08, side * 0.12, side * -0.18])
+    motion.add(tube([
+      [side * 0.72, 1.82, 0.04], [side * 0.90, 2.00, -0.02], [side * 0.98, 2.17, -0.12],
+    ], 0.060, armorEdge, 14, 8))
+
+    const upperArm = addMesh(motion, new THREE.CapsuleGeometry(0.17, 0.42, 7, 14), armorDark, [side * 0.68, 1.38, 0.04], [1, 1, 0.86], [0, 0, side * 0.20])
+    upperArm.name = `${side < 0 ? 'left' : 'right'}-void-upper-arm`
+    const forearm = addMesh(motion, new THREE.CapsuleGeometry(0.13, 0.30, 7, 16), armor, [side * 0.74, 1.05, 0.23], [1.0, 1.0, 0.86], [0.08, side * 0.10, side * 0.10])
+    forearm.name = `${side < 0 ? 'left' : 'right'}-void-forearm-guard`
+    addMesh(motion, shieldGeometry(0.24, 0.38, 0.09, 0.018), armor, [side * 0.74, 1.08, 0.36], null, [0.08, side * 0.10, side * 0.10])
+    addMesh(motion, new THREE.TorusGeometry(0.16, 0.022, 6, 20), armorEdge, [side * 0.74, 1.20, 0.24], [1, 1, 0.76], [Math.PI / 2, 0, 0])
+    addMesh(motion, new THREE.SphereGeometry(0.13, 16, 12), leather, [side * 0.72, 0.78, 0.28], [1, 1.08, 0.82])
+    for (const claw of [-1, 1]) {
+      addMesh(motion, new THREE.ConeGeometry(0.035, 0.18, 7), horn, [side * (0.72 + claw * 0.07), 0.70, 0.39], [1, 1, 0.65], [Math.PI / 2, 0, claw * 0.18])
+    }
+
+    // Three overlapping skirt plates per side turn the waist into armour rather
+    // than a single robe cone, while retaining enough spacing for the cloth to
+    // breathe in the silhouette.
+    for (let row = 0; row < 3; row++) {
+      const y = 0.91 - row * 0.22
+      const x = side * (0.37 + row * 0.035)
+      const guard = addMesh(motion, shieldGeometry(0.36 - row * 0.035, 0.30, 0.12, 0.022), armorDetail, [x, y, 0.27], null, [0.10, side * 0.12, side * -0.10])
+      guard.name = `${side < 0 ? 'left' : 'right'}-waist-scale-${row}`
+    }
+
+    const thigh = addMesh(motion, new THREE.CapsuleGeometry(0.22, 0.40, 7, 14), under, [side * 0.24, 0.52, 0.02], [1.06, 1, 0.82], [0, 0, side * 0.05])
+    thigh.name = `${side < 0 ? 'left' : 'right'}-void-thigh`
+    addMesh(motion, shieldGeometry(0.28, 0.42, 0.11, 0.018), armorDark, [side * 0.25, 0.20, 0.24], null, [0.05, side * 0.08, side * 0.04])
+    addMesh(motion, new RoundedBoxGeometry(0.34, 0.22, 0.46, 3, 0.08), armorDetail, [side * 0.25, 0.08, 0.30], null, [-0.08, side * 0.05, 0])
+    addMesh(motion, new THREE.TorusGeometry(0.13, 0.019, 6, 20), armorEdge, [side * 0.25, 0.35, 0.25], [1, 1, 0.72], [Math.PI / 2, 0, 0])
   }
-  const halo = addMesh(motion, new THREE.TorusGeometry(0.64, 0.036, 10, 64), gold, [0, 1.95, -0.22], [1, 1.18, 1], [Math.PI / 2, 0, 0])
+
+  const head = addMesh(motion, new THREE.DodecahedronGeometry(0.30, 1), armorDark, [0, 2.14, 0.04], [1.0, 1.10, 0.88])
+  head.name = 'void-iron-helm'
+  const facePlate = addMesh(motion, shieldGeometry(0.38, 0.40, 0.14, 0.022), armorDetail, [0, 2.09, 0.33], null, [0.12, 0, 0])
+  facePlate.name = 'void-iron-mask'
+  const jaw = addMesh(motion, shieldGeometry(0.30, 0.16, 0.08, 0.014), armor, [0, 1.94, 0.32], null, [0.04, 0, 0])
+  jaw.name = 'void-iron-jaw-guard'
+  const brow = addMesh(motion, shieldGeometry(0.42, 0.12, 0.06, 0.014), armorEdge, [0, 2.24, 0.39], null, [0.10, 0, 0])
+  brow.name = 'void-iron-brow-ridge'
+  const helmCrest = addMesh(motion, new THREE.ConeGeometry(0.085, 0.30, 7), armorDetail, [0, 2.48, -0.02], [1, 1, 0.72], [0, 0, 0])
+  helmCrest.name = 'void-iron-helm-crest'
+  for (const side of [-1, 1]) {
+    addMesh(motion, new THREE.SphereGeometry(0.045, 14, 10), voidGlow, [side * 0.095, 2.13, 0.40], [1, 1, 0.30])
+    const eyeSlit = addMesh(motion, new RoundedBoxGeometry(0.11, 0.032, 0.024, 2, 0.010), voidGlow, [side * 0.095, 2.13, 0.475], null, [0.08, side * -0.18, side * 0.10])
+    eyeSlit.name = `${side < 0 ? 'left' : 'right'}-cyan-eye-slit`
+    motion.add(tube([
+      [side * 0.15, 2.32, 0.02], [side * 0.29, 2.54, -0.06], [side * 0.26, 2.74, -0.22],
+    ], 0.065, horn, 16, 8))
+    addMesh(motion, new THREE.ConeGeometry(0.085, 0.22, 7), armorEdge, [side * 0.17, 2.35, 0.02], [1, 1, 0.72], [0, 0, side * 0.18])
+  }
+
+  const mantle = addMesh(motion, taperedPanelGeometry(0.76, 1.22, 1.56, 0.12, 0.026), under, [0, 0.86, -0.38], null, [0.12, 0, 0])
+  mantle.name = 'void-iron-back-mantle'
+  for (const side of [-1, 1]) {
+    const panel = addMesh(
+      motion,
+      taperedPanelGeometry(0.20, 0.34, 0.96, 0.08, 0.018),
+      cloth(0x392747, { sheenColor: 0x8f6ca8, roughness: 0.66 }),
+      [side * 0.20, 0.70, 0.36],
+      null,
+      [1, 1, 1],
+    )
+    panel.name = `${side < 0 ? 'left' : 'right'}-violet-front-panel`
+  }
+  for (const side of [-1, 1]) {
+    const tassel = cloth(0x312442, { sheenColor: 0x9873ac, roughness: 0.68 })
+    motion.add(tube([[side * 0.42, 1.32, -0.34], [side * 0.49, 0.78, -0.38], [side * 0.45, 0.34, -0.28]], 0.055, tassel, 18, 8))
+    addMesh(motion, new THREE.OctahedronGeometry(0.07, 1), gold, [side * 0.45, 0.34, -0.27], [0.7, 1.25, 0.58])
+  }
+
+  // The diagonal polearm is a separate authored prop so it remains readable
+  // when the enemy is selected as a near target. It is deliberately one shaft
+  // plus one beveled head instead of the old symmetrical floating blade ring.
+  const weapon = new THREE.Group()
+  weapon.name = 'void-iron-polearm'
+  weapon.rotation.z = 0.34
+  weapon.position.set(-0.42, 0.92, 0.42)
+  const shaft = addMesh(weapon, new THREE.CylinderGeometry(0.032, 0.052, 1.90, 10), weaponMetal, [0, 0.74, 0])
+  shaft.rotation.z = 0.08
+  const pommel = addMesh(weapon, new THREE.OctahedronGeometry(0.07, 1), gold, [0, 1.74, 0], [0.72, 1.1, 0.72])
+  pommel.name = 'polearm-pommel'
+  const axeHead = addMesh(weapon, hookedBladeGeometry(0.64, 0.82, 0.12, 0.026), weaponMetal, [0, -0.10, 0], null, [0, 0, -0.24])
+  axeHead.name = 'polearm-hooked-head'
+  addMesh(weapon, new THREE.OctahedronGeometry(0.10, 1), voidGlow, [0.02, -0.04, 0.06], [1.0, 1.28, 0.38])
+  motion.add(weapon)
+
+  const halo = addMesh(motion, new THREE.TorusGeometry(0.39, 0.018, 7, 36), voidGlow, [0, 1.53, -0.20], [1, 1.18, 0.72], [Math.PI / 2, 0, 0])
   halo.name = 'near-halo'
-  for (let i = 0; i < 5; i++) {
-    const a = -0.90 + i * 0.45
-    const blade = addMesh(motion, new RoundedBoxGeometry(0.06, 0.56 + Math.cos(a) * 0.16, 0.035, 3, 0.012), voidGlow, [Math.sin(a) * 0.72, 1.74 + Math.cos(a) * 0.28, -0.36], [1, 1, 1], [0, 0, a * 0.35])
-    blade.name = 'near-floating-blade'
-  }
   return root
 }
 

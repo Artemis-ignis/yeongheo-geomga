@@ -39,6 +39,15 @@
       "maxBytes": 4000000
     },
     {
+      "id": "character.void-iron-scale-sentinel.reference.v2",
+      "path": "public/assets/characters/void-iron-scale-sentinel-reference-v2.png",
+      "role": "runtime-near-enemy-reference",
+      "tier": "near-detail",
+      "source": "imagegen",
+      "consumers": ["src/art/NearEnemyModels.js"],
+      "maxBytes": 3500000
+    },
+    {
       "id": "material.character.moon-silk-brocade.v2",
       "path": "public/assets/materials/characters/moon-silk-brocade-v2.png",
       "role": "runtime-material-hero-brocade",
@@ -99,6 +108,42 @@
       "tier": "hero",
       "source": "img2threejs",
       "consumers": ["src/art/generated/SeolryeongImg2ThreeBlockout.ts"],
+      "maxBytes": 1000000
+    },
+    {
+      "id": "pbr.void-iron-scale.ao",
+      "path": "public/assets/materials/img2three/void-iron-scale_ao.png",
+      "role": "img2three-pbr-channel",
+      "tier": "near-detail",
+      "source": "img2threejs",
+      "consumers": ["src/art/NearEnemyModels.js"],
+      "maxBytes": 1000000
+    },
+    {
+      "id": "pbr.void-iron-scale.height",
+      "path": "public/assets/materials/img2three/void-iron-scale_height.png",
+      "role": "img2three-pbr-channel",
+      "tier": "near-detail",
+      "source": "img2threejs",
+      "consumers": ["src/art/NearEnemyModels.js"],
+      "maxBytes": 1000000
+    },
+    {
+      "id": "pbr.void-iron-scale.normal",
+      "path": "public/assets/materials/img2three/void-iron-scale_normal.png",
+      "role": "img2three-pbr-channel",
+      "tier": "near-detail",
+      "source": "img2threejs",
+      "consumers": ["src/art/NearEnemyModels.js"],
+      "maxBytes": 1000000
+    },
+    {
+      "id": "pbr.void-iron-scale.roughness",
+      "path": "public/assets/materials/img2three/void-iron-scale_roughness.png",
+      "role": "img2three-pbr-channel",
+      "tier": "near-detail",
+      "source": "img2threejs",
+      "consumers": ["src/art/NearEnemyModels.js"],
       "maxBytes": 1000000
     },
     {
