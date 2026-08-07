@@ -22,3 +22,9 @@ quality-pass-*.png
 /artifacts/img2threejs/void-iron-scale-sentinel-v2/detail-inventory/
 /artifacts/img2threejs/void-iron-scale-sentinel-v2/chroma.png
 /artifacts/img2threejs/void-iron-scale-sentinel-v2/reference.png
+
+# The canonical runtime GLB is copied to public/assets/models. Keep the
+# converter's local OBJ/GLB intermediates available for audit without
+# committing duplicate binary payloads.
+/artifacts/img2threejs/seolryeong/character-model-v4/trellis-mesh/reference.glb
+/artifacts/img2threejs/seolryeong/character-model-v4/trellis-mesh/reference.obj

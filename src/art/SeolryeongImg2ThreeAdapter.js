@@ -10,6 +10,8 @@ const _size = new THREE.Vector3()
 const _center = new THREE.Vector3()
 const _textureLoader = typeof document !== 'undefined' ? new THREE.TextureLoader() : null
 const _textureCache = new Map()
+let _trellisLoaderPromise = null
+let _trellisHeroPromise = null
 const _silkMaterials = new Set(['base', 'shirt', 'pants'])
 // The reference hero is the focal point of the survivor arena.  The old 3.35
 // unit shell was technically present but read as a small white marker once the
@@ -23,6 +25,98 @@ const HERO_HEIGHT = 4.55
 function assetUrl(file) {
   const base = import.meta.env?.BASE_URL ?? '/'
   return `${base}assets/${file}`
+}
+
+function loadTrellisHeroSource() {
+  if (typeof document === 'undefined') return Promise.resolve(null)
+  if (!_trellisHeroPromise) {
+    _trellisLoaderPromise ??= import('three/examples/jsm/loaders/GLTFLoader.js')
+      .then(({ GLTFLoader }) => new GLTFLoader())
+    _trellisHeroPromise = _trellisLoaderPromise
+      .then((loader) => loader.loadAsync(assetUrl('models/characters/seolryeong-trellis-v4.glb')))
+      .then((gltf) => gltf.scene)
+      .catch((error) => {
+        console.warn('[yeongheo] Seolryeong TRELLIS GLB unavailable; keeping authored fallback', error)
+        return null
+      })
+  }
+  return _trellisHeroPromise.then((source) => source?.clone(true) ?? null)
+}
+
+function prepareTrellisHeroVisual(source) {
+  if (!source) return null
+  const bounds = new THREE.Box3().setFromObject(source)
+  const size = new THREE.Vector3()
+  const center = new THREE.Vector3()
+  bounds.getSize(size)
+  bounds.getCenter(center)
+  const normalizedScale = HERO_HEIGHT / Math.max(0.001, size.y)
+  source.scale.setScalar(normalizedScale)
+  source.position.set(-center.x * normalizedScale, -bounds.min.y * normalizedScale, -center.z * normalizedScale)
+  source.name = 'seolryeong-trellis-v4-runtime-mesh'
+  source.userData.assetPipeline = 'github-img2threejs-trellis'
+  source.userData.referenceAsset = 'assets/characters/seolryeong-turnaround-v4.png'
+  source.userData.generatedModelStatus = 'multi-view-generative-proxy-reviewed-runtime'
+  source.traverse((object) => {
+    if (!object.isMesh) return
+    object.castShadow = true
+    object.receiveShadow = true
+    object.frustumCulled = true
+    if (object.geometry) object.geometry.userData.sharedByImg2Three = true
+    const materials = Array.isArray(object.material) ? object.material : [object.material]
+    materials.forEach((material) => {
+      if (!material) return
+      material.userData.sharedByImg2Three = true
+      material.envMapIntensity = 1.15
+      material.needsUpdate = true
+      for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'bumpMap', 'displacementMap', 'emissiveMap']) {
+        const texture = material[key]
+        if (texture) texture.userData.sharedByImg2Three = true
+      }
+    })
+  })
+  return source
+}
+
+function addAuthoredEquipment(stage, presentation) {
+  const sourceWeapon = presentation.root.getObjectByName('held-frost-sword')
+  const orbit = []
+  if (sourceWeapon) {
+    const weapon = sourceWeapon.clone(true)
+    weapon.name = 'trellis-hero-held-frost-sword'
+    weapon.scale.copy(presentation.root.scale)
+    stage.add(weapon)
+  }
+
+  // The multiview mesh carries the adult face/hair silhouette, while the
+  // authored hairpin is a small identity landmark from the ImageGen brief.
+  // Keep only that child of the fallback head rig; cloning the entire head
+  // would reintroduce the old procedural body on top of the promoted GLB.
+  const sourceHairpin = presentation.root.getObjectByName('jade-hairpin')
+  if (sourceHairpin?.parent) {
+    const hairRig = sourceHairpin.parent.clone(true)
+    hairRig.name = 'trellis-hero-authored-jade-hairpin-rig'
+    hairRig.traverse((object) => { if (object.isMesh) object.visible = false })
+    const hairpin = hairRig.getObjectByName('jade-hairpin')
+    hairpin?.traverse((object) => { object.visible = true })
+    hairRig.scale.copy(presentation.root.scale)
+    stage.add(hairRig)
+  }
+
+  presentation.root.traverse((object) => {
+    // HeroicModels keeps its three orbit blades hidden until a skill grants
+    // them. Reuse those authored blade geometries as equipment on top of the
+    // higher quality GLB, so the gameplay skill contract does not disappear
+    // when the body presentation is promoted.
+    if (!object.isMesh || object.visible || orbit.length >= 3) return
+    const blade = object.clone(true)
+    blade.name = `trellis-hero-orbit-sword-${orbit.length + 1}`
+    blade.scale.copy(presentation.root.scale)
+    blade.visible = false
+    stage.add(blade)
+    orbit.push(blade)
+  })
+  return { orbit }
 }
 
 function applyTexture(root, texture, materialIds) {
@@ -65,11 +159,11 @@ export function buildImg2ThreeSeolryeong(character) {
   const root = new THREE.Group()
   root.name = 'heroic-seolryeong-img2three'
   root.userData.assetPipeline = 'img2threejs'
-  root.userData.referenceAsset = 'assets/characters/seolryeong-character-reference-v3.png'
-  root.userData.presentationReferenceAsset = 'assets/characters/seolryeong-character-reference-v3.png'
+  root.userData.referenceAsset = 'assets/characters/seolryeong-turnaround-v4.png'
+  root.userData.presentationReferenceAsset = 'assets/characters/seolryeong-turnaround-v4.png'
   root.userData.generatedStructureReference = 'artifacts/img2threejs/seolryeong/character-model/object-sculpt-spec.json'
   root.userData.presentationBrief = 'artifacts/img2threejs/seolryeong/character-model-v3/assessment.json'
-  root.userData.generatedModelStatus = 'official-structure-plus-authored-presentation-shell'
+  root.userData.generatedModelStatus = 'official-structure-plus-trellis-v4-runtime-mesh-with-authored-fallback'
   root.userData.qualityTier = 'hero'
   root.userData.renderMode = 'full-3d'
 
@@ -113,6 +207,31 @@ export function buildImg2ThreeSeolryeong(character) {
   presentationStage.position.set(-_center.x * presentationScale, -_bounds.min.y * presentationScale, -_center.z * presentationScale)
   root.add(presentationStage)
 
+  const trellisStage = new THREE.Group()
+  trellisStage.name = 'seolryeong-trellis-v4-presentation-stage'
+  trellisStage.visible = false
+  root.add(trellisStage)
+  const trellisEquipmentStage = new THREE.Group()
+  trellisEquipmentStage.name = 'seolryeong-trellis-authored-equipment-stage'
+  trellisEquipmentStage.visible = false
+  trellisEquipmentStage.scale.copy(presentationStage.scale)
+  trellisEquipmentStage.position.copy(presentationStage.position)
+  root.add(trellisEquipmentStage)
+  const trellisEquipment = addAuthoredEquipment(trellisEquipmentStage, presentation)
+
+  let usingTrellis = false
+  let swordCount = 0
+  loadTrellisHeroSource().then((source) => {
+    const visual = prepareTrellisHeroVisual(source)
+    if (!visual || !root.parent) return
+    trellisStage.add(visual)
+    trellisStage.visible = true
+    trellisEquipmentStage.visible = true
+    presentationStage.visible = false
+    usingTrellis = true
+    trellisEquipment.orbit.forEach((sword, index) => { sword.visible = index < swordCount })
+  })
+
   let time = 0
   return {
     root,
@@ -121,11 +240,26 @@ export function buildImg2ThreeSeolryeong(character) {
       presentation.setExpression(name, holdSeconds)
     },
     setOrbitSwords(count) {
-      presentation.setOrbitSwords(count)
+      swordCount = Math.max(0, Math.min(3, count))
+      presentation.setOrbitSwords(swordCount)
+      trellisEquipment.orbit.forEach((sword, index) => { sword.visible = usingTrellis && index < swordCount })
     },
     update(dt, speed01, facingAngle) {
       time += dt
-      presentation.update(dt, speed01, facingAngle)
+      if (!usingTrellis) {
+        presentation.update(dt, speed01, facingAngle)
+        return
+      }
+      trellisStage.rotation.y = facingAngle
+      trellisEquipmentStage.rotation.y = facingAngle
+      const bob = Math.abs(Math.sin(time * 9.0)) * 0.028 * speed01
+      trellisStage.position.y = bob
+      trellisEquipmentStage.position.y = presentationStage.position.y + bob
+      for (let index = 0; index < swordCount; index++) {
+        const a = time * 1.25 + index * (Math.PI * 2 / swordCount)
+        trellisEquipment.orbit[index].position.set(Math.cos(a) * 0.78, 1.0 + Math.sin(a * 2) * 0.06, Math.sin(a) * 0.78)
+        trellisEquipment.orbit[index].rotation.set(Math.PI * 0.92, -a, 0)
+      }
     },
     dispose() {
       const geometries = new Set()
@@ -142,9 +276,13 @@ export function buildImg2ThreeSeolryeong(character) {
           }
         }
       })
-      geometries.forEach((geometry) => geometry.dispose())
+      geometries.forEach((geometry) => {
+        if (!geometry.userData?.sharedByImg2Three) geometry.dispose()
+      })
       textures.forEach((texture) => texture.dispose())
-      materials.forEach((material) => material.dispose())
+      materials.forEach((material) => {
+        if (!material.userData?.sharedByImg2Three) material.dispose()
+      })
       root.removeFromParent()
     },
   }

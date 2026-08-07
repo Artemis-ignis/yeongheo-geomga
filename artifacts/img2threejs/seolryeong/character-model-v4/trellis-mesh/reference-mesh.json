@@ -1,0 +1,26 @@
+{
+  "glb": "artifacts\\img2threejs\\seolryeong\\character-model-v4\\trellis-mesh\\reference.glb",
+  "obj": "artifacts\\img2threejs\\seolryeong\\character-model-v4\\trellis-mesh\\reference.obj",
+  "extensionsRequired": [],
+  "compressed": false,
+  "meshes": 1,
+  "materials": 1,
+  "vertices": 47723,
+  "triangles": 66087,
+  "bbox_min": [
+    -0.5,
+    -0.5001,
+    -0.4774
+  ],
+  "bbox_max": [
+    0.4997,
+    0.4996,
+    0.4783
+  ],
+  "size": [
+    0.9997,
+    0.9996,
+    0.9558
+  ],
+  "watertight": false
+}

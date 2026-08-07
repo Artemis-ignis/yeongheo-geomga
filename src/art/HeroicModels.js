@@ -266,8 +266,8 @@ export function buildHeroicSeolryeong(character) {
   const pal = character.palette
   const root = new THREE.Group()
   root.name = 'heroic-seolryeong'
-  root.userData.referenceAsset = 'assets/characters/seolryeong-character-reference-v3.png'
-  root.userData.presentationReferenceAsset = 'assets/characters/seolryeong-character-reference-v3.png'
+  root.userData.referenceAsset = 'assets/characters/seolryeong-turnaround-v4.png'
+  root.userData.presentationReferenceAsset = 'assets/characters/seolryeong-turnaround-v4.png'
   root.userData.referencePipeline = 'imagegen-plus-artifact-template-yeongheo-aaa-asset-brief'
   // The gameplay camera sits high above the court. A slightly taller silhouette
   // keeps the layered robe, shoulders and sword readable instead of reducing her

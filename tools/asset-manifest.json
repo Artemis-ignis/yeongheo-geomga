@@ -26,8 +26,26 @@
       "role": "runtime-character-reference-latest",
       "tier": "hero",
       "source": "imagegen-plus-artifact-template-yeongheo-aaa-asset-brief",
-      "consumers": ["src/ui/TitleScreen.js", "src/art/HeroicModels.js"],
+      "consumers": ["src/ui/TitleScreen.js"],
       "maxBytes": 3500000
+    },
+    {
+      "id": "character.seolryeong.turnaround.v4",
+      "path": "public/assets/characters/seolryeong-turnaround-v4.png",
+      "role": "runtime-character-turnaround-reference",
+      "tier": "hero",
+      "source": "imagegen-plus-img2threejs-multiview",
+      "consumers": ["src/art/SeolryeongImg2ThreeAdapter.js"],
+      "maxBytes": 3500000
+    },
+    {
+      "id": "model.seolryeong.trellis.v4",
+      "path": "public/assets/models/characters/seolryeong-trellis-v4.glb",
+      "role": "runtime-character-mesh-hero",
+      "tier": "hero",
+      "source": "github-img2threejs-trellis-from-imagegen-turnaround",
+      "consumers": ["src/art/SeolryeongImg2ThreeAdapter.js"],
+      "maxBytes": 4000000
     },
     {
       "id": "character.jade-void-warden.boss-reference.v2",
