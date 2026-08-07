@@ -21,6 +21,7 @@ const _silkMaterials = new Set(['base', 'shirt', 'pants'])
 // costume work to survive the survivor camera. This changes presentation only;
 // Player's combat collider and movement scale remain untouched.
 const HERO_HEIGHT = 4.55
+const HERO_READABILITY_LIFT = 1.18
 
 function assetUrl(file) {
   const base = import.meta.env?.BASE_URL ?? '/'
@@ -67,7 +68,20 @@ function prepareTrellisHeroVisual(source) {
     materials.forEach((material) => {
       if (!material) return
       material.userData.sharedByImg2Three = true
-      material.envMapIntensity = 1.15
+      // The generative GLB arrives with a very low-value navy albedo.  Under
+      // the moon court grade that collapses the adult face, collar, and robe
+      // layers into one silhouette.  A bounded material lift restores plane
+      // separation without adding another post-process pass or changing the
+      // combat hitbox.
+      if (material.color) material.color.multiplyScalar(HERO_READABILITY_LIFT)
+      if ('roughness' in material && Number.isFinite(material.roughness)) {
+        material.roughness = Math.max(0.30, material.roughness * 0.92)
+      }
+      if (material.emissive) {
+        material.emissive.set(0x0b1b34)
+        material.emissiveIntensity = Math.min(0.16, Math.max(0.06, material.emissiveIntensity ?? 0.06))
+      }
+      material.envMapIntensity = 1.35
       material.needsUpdate = true
       for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'bumpMap', 'displacementMap', 'emissiveMap']) {
         const texture = material[key]

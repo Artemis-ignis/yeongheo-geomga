@@ -57,11 +57,11 @@
       "maxBytes": 4000000
     },
     {
-      "id": "character.void-iron-scale-sentinel.reference.v2",
-      "path": "public/assets/characters/void-iron-scale-sentinel-reference-v2.png",
-      "role": "runtime-near-enemy-reference",
+      "id": "character.void-iron-scale-sentinel.reference.v3",
+      "path": "public/assets/characters/void-iron-scale-sentinel-reference-v3.png",
+      "role": "runtime-near-enemy-reference-latest",
       "tier": "near-detail",
-      "source": "imagegen",
+      "source": "imagegen-plus-img2threejs-forge-authoring",
       "consumers": ["src/art/NearEnemyModels.js"],
       "maxBytes": 3500000
     },
@@ -129,38 +129,38 @@
       "maxBytes": 1000000
     },
     {
-      "id": "pbr.void-iron-scale.ao",
-      "path": "public/assets/materials/img2three/void-iron-scale_ao.png",
-      "role": "img2three-pbr-channel",
+      "id": "pbr.void-iron-scale-sentinel-v3.ao",
+      "path": "public/assets/materials/img2three/void-iron-scale-sentinel-v3_ao.webp",
+      "role": "img2three-pbr-channel-v3",
       "tier": "near-detail",
-      "source": "img2threejs",
+      "source": "imagegen-plus-img2threejs-forge",
       "consumers": ["src/art/NearEnemyModels.js"],
       "maxBytes": 1000000
     },
     {
-      "id": "pbr.void-iron-scale.height",
-      "path": "public/assets/materials/img2three/void-iron-scale_height.png",
-      "role": "img2three-pbr-channel",
+      "id": "pbr.void-iron-scale-sentinel-v3.height",
+      "path": "public/assets/materials/img2three/void-iron-scale-sentinel-v3_height.webp",
+      "role": "img2three-pbr-channel-v3",
       "tier": "near-detail",
-      "source": "img2threejs",
+      "source": "imagegen-plus-img2threejs-forge",
       "consumers": ["src/art/NearEnemyModels.js"],
       "maxBytes": 1000000
     },
     {
-      "id": "pbr.void-iron-scale.normal",
-      "path": "public/assets/materials/img2three/void-iron-scale_normal.png",
-      "role": "img2three-pbr-channel",
+      "id": "pbr.void-iron-scale-sentinel-v3.normal",
+      "path": "public/assets/materials/img2three/void-iron-scale-sentinel-v3_normal.webp",
+      "role": "img2three-pbr-channel-v3",
       "tier": "near-detail",
-      "source": "img2threejs",
+      "source": "imagegen-plus-img2threejs-forge",
       "consumers": ["src/art/NearEnemyModels.js"],
       "maxBytes": 1000000
     },
     {
-      "id": "pbr.void-iron-scale.roughness",
-      "path": "public/assets/materials/img2three/void-iron-scale_roughness.png",
-      "role": "img2three-pbr-channel",
+      "id": "pbr.void-iron-scale-sentinel-v3.roughness",
+      "path": "public/assets/materials/img2three/void-iron-scale-sentinel-v3_roughness.webp",
+      "role": "img2three-pbr-channel-v3",
       "tier": "near-detail",
-      "source": "img2threejs",
+      "source": "imagegen-plus-img2threejs-forge",
       "consumers": ["src/art/NearEnemyModels.js"],
       "maxBytes": 1000000
     },

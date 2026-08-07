@@ -64,7 +64,7 @@ export class Player {
     // hardware readable against the moonlit court. It follows the hero rather
     // than illuminating the whole arena, so the scene keeps its contrast and
     // the light cost stays bounded to one additional light.
-    this.heroFill = new THREE.PointLight(0x76c9ff, 1.25, 7.5, 2)
+    this.heroFill = new THREE.PointLight(0x76c9ff, 1.65, 7.5, 2)
     this.heroFill.position.set(0, 3.05, 2.2)
     scene.add(this.heroFill)
 

@@ -384,17 +384,19 @@ function buildDemonCultivator() {
   // This bounded near-only pass is authored as an actual armour hierarchy:
   // torso, chest core, shoulders, articulated arms, waist guards, legs, boots,
   // horns and a grounded polearm. The outer horde remains instanced.
-  root.userData.referenceAsset = 'assets/characters/void-iron-scale-sentinel-reference-v2.png'
-  root.userData.referencePipeline = 'imagegen-to-authored-near-3d'
+  root.userData.referenceAsset = 'assets/characters/void-iron-scale-sentinel-reference-v3.png'
+  root.userData.referencePipeline = 'imagegen-v3-plus-img2threejs-forge-authoring-plus-authored-near-3d'
+  root.userData.referenceSpec = 'artifacts/img2threejs/void-iron-scale-sentinel-v3/object-sculpt-spec.json'
+  root.userData.referencePbrEvidence = 'artifacts/img2threejs/void-iron-scale-sentinel-v3/pbr-report.json'
   const voidIronScale = weaveTexture('materials/guardians/void-iron-scale-armor-v1.png', [1.55, 2.05])
-  // Official img2threejs extraction from the admitted sentinel reference. The
-  // albedo remains the authored tile because it preserves the scale pattern;
-  // extracted normal/roughness channels add the reference-derived surface
-  // response without mapping a portrait onto the mesh.
-  const voidIronAo = channelTexture('materials/img2three/void-iron-scale_ao.png', [1.55, 2.05])
-  const voidIronHeight = channelTexture('materials/img2three/void-iron-scale_height.png', [1.55, 2.05])
-  const voidIronNormal = channelTexture('materials/img2three/void-iron-scale_normal.png', [1.55, 2.05])
-  const voidIronRoughness = channelTexture('materials/img2three/void-iron-scale_roughness.png', [1.55, 2.05])
+  // Official img2threejs Forge evidence from the admitted v3 turnaround is
+  // copied into the public runtime bundle. The albedo remains the authored
+  // ImageGen tile because it preserves the scale pattern; these canonical
+  // normal/roughness/height/AO channels supply the actual v3 surface response.
+  const voidIronAo = channelTexture('materials/img2three/void-iron-scale-sentinel-v3_ao.webp', [1.55, 2.05])
+  const voidIronHeight = channelTexture('materials/img2three/void-iron-scale-sentinel-v3_height.webp', [1.55, 2.05])
+  const voidIronNormal = channelTexture('materials/img2three/void-iron-scale-sentinel-v3_normal.webp', [1.55, 2.05])
+  const voidIronRoughness = channelTexture('materials/img2three/void-iron-scale-sentinel-v3_roughness.webp', [1.55, 2.05])
   const voidIronPbr = {
     aoMap: voidIronAo,
     aoMapIntensity: 0.62,
@@ -406,12 +408,14 @@ function buildDemonCultivator() {
   // Keep the extracted ImageGen albedo on the identity plates where the
   // pattern can be read. Broad surfaces use the official normal/roughness
   // channels without multiplying the whole character into a black silhouette.
-  const armor = physical(0x3d6672, {
+  const armor = physical(0x4a7a86, {
     ...voidIronPbr,
-    roughness: 0.52,
-    metalness: 0.38,
+    roughness: 0.48,
+    metalness: 0.36,
     clearcoat: 0.22,
     clearcoatRoughness: 0.24,
+    emissive: 0x062631,
+    emissiveIntensity: 0.12,
   })
   const armorDetail = liftReferenceMap(physical(0x597f87, {
     map: voidIronScale,
@@ -421,11 +425,13 @@ function buildDemonCultivator() {
     clearcoat: 0.24,
     clearcoatRoughness: 0.24,
   }), 1.55)
-  const armorDark = physical(0x203d4a, {
+  const armorDark = physical(0x2d5361, {
     ...voidIronPbr,
-    roughness: 0.54,
+    roughness: 0.52,
     metalness: 0.34,
     clearcoat: 0.14,
+    emissive: 0x041720,
+    emissiveIntensity: 0.08,
   })
   const armorEdge = physical(0x3f747d, {
     roughness: 0.30,
@@ -446,7 +452,7 @@ function buildDemonCultivator() {
     metalness: 0.10,
     clearcoat: 0.52,
   })
-  const weaponMetal = physical(0x202d3a, { roughness: 0.24, metalness: 0.84, clearcoat: 0.52 })
+  const weaponMetal = physical(0x3a5260, { roughness: 0.24, metalness: 0.84, clearcoat: 0.52 })
   const motion = new THREE.Group()
   motion.name = 'near-motion'
   root.add(motion)

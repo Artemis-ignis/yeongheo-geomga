@@ -28,3 +28,10 @@ quality-pass-*.png
 # committing duplicate binary payloads.
 /artifacts/img2threejs/seolryeong/character-model-v4/trellis-mesh/reference.glb
 /artifacts/img2threejs/seolryeong/character-model-v4/trellis-mesh/reference.obj
+
+# A failed preflight used the non-existent material id `void-iron`; keep those
+# local probes out of the canonical v3 evidence set. The named material maps
+# (base/skin/hair/shirt/pants/shoes/eye) remain reviewable and reproducible.
+/artifacts/img2threejs/void-iron-scale-sentinel-v3/pbr-evidence/void-iron_*.png
+/artifacts/img2threejs/void-iron-scale-sentinel-v3/blockout-blocked.json
+/artifacts/img2threejs/void-iron-scale-sentinel-v2/legacy-public-reference-v2.png
