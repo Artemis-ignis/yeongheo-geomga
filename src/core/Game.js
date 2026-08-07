@@ -60,6 +60,10 @@ const BREAKTHROUGH_IFRAMES = 1.2
 // the GPU hot. Keep simulation and presentation at a predictable 60 Hz cap.
 export const MAX_RENDER_FPS = 60
 const MIN_RENDER_INTERVAL_MS = 1000 / MAX_RENDER_FPS
+// Menus and level-up overlays keep a little cinematic motion behind the UI,
+// but they do not need the full combat presentation rate. Rendering them at
+// 30 Hz prevents a paused run from continuing to heat the GPU like gameplay.
+const PRESENTATION_RENDER_INTERVAL_MS = 1000 / 30
 
 /**
  * Owns the state machine, the fixed-step loop, and all subsystem wiring.
@@ -914,6 +918,14 @@ export class Game {
 
   _frame(now) {
     try {
+      // A hidden tab cannot be seen, so rendering it is pure GPU/CPU heat. The
+      // visibility handler pauses simulation; this early return also prevents
+      // the 30 Hz presentation loop from keeping stale game tabs alive.
+      if (document.hidden) {
+        this._lastPresentedAt = now
+        this._renderBudgetMs = 0
+        return
+      }
       // setAnimationLoop follows the display refresh rate. Use a fractional
       // frame budget instead of a strict elapsed-time gate: on 120 Hz, two
       // callbacks can be 16.2 ms apart and a strict 16.67 ms comparison would
@@ -921,19 +933,22 @@ export class Game {
       // The accumulator preserves the 60 FPS average without allowing a tab
       // resume hitch to trigger a burst of catch-up renders.
       if (Number.isFinite(now)) {
+        const renderIntervalMs = this.state === 'playing'
+          ? MIN_RENDER_INTERVAL_MS
+          : PRESENTATION_RENDER_INTERVAL_MS
         const previousCallbackAt = this._lastPresentedAt
         this._lastPresentedAt = now
         if (!Number.isFinite(previousCallbackAt)) {
-          this._renderBudgetMs = MIN_RENDER_INTERVAL_MS
+          this._renderBudgetMs = renderIntervalMs
         } else {
           const callbackDelta = Math.max(0, now - previousCallbackAt)
           if (callbackDelta > 250) {
-            this._renderBudgetMs = MIN_RENDER_INTERVAL_MS
+            this._renderBudgetMs = renderIntervalMs
           } else {
             this._renderBudgetMs -= callbackDelta
             if (this._renderBudgetMs > 0) return
-            this._renderBudgetMs += MIN_RENDER_INTERVAL_MS
-            if (this._renderBudgetMs <= 0) this._renderBudgetMs = MIN_RENDER_INTERVAL_MS
+            this._renderBudgetMs += renderIntervalMs
+            if (this._renderBudgetMs <= 0) this._renderBudgetMs = renderIntervalMs
           }
         }
       }

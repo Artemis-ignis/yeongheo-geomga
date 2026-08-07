@@ -63,7 +63,7 @@ function tube(points, radius, material, tubularSegments = 18, radialSegments = 1
   return new THREE.Mesh(new THREE.TubeGeometry(curve, tubularSegments, radius, radialSegments, false), material)
 }
 
-function panel(width, height, material, bend = 0.18) {
+function panel(width, height, material, bend = 0.18, flare = 0.20) {
   const geo = new THREE.PlaneGeometry(width, height, 5, 8)
   const pos = geo.attributes.position
   for (let i = 0; i < pos.count; i++) {
@@ -71,11 +71,136 @@ function panel(width, height, material, bend = 0.18) {
     const y = pos.getY(i)
     const t = (y + height * 0.5) / height
     pos.setZ(i, -bend * (1 - t) * (1 - t) + Math.sin(t * Math.PI) * 0.035 * Math.sign(x || 1))
-    pos.setX(i, x * (0.76 + t * 0.24))
+    // Robe panels should open toward the hem. The old inverse taper made every
+    // layer read like a vertical card and visually collapsed the lower body.
+    pos.setX(i, x * (1.0 + (1 - t) * flare))
   }
   pos.needsUpdate = true
   geo.computeVertexNormals()
   return new THREE.Mesh(geo, material)
+}
+
+function ornatePlateGeometry(width, height, depth, bevel = 0.018) {
+  const shape = new THREE.Shape()
+  shape.moveTo(0, height * 0.50)
+  shape.quadraticCurveTo(width * 0.42, height * 0.44, width * 0.50, height * 0.10)
+  shape.lineTo(width * 0.34, -height * 0.32)
+  shape.quadraticCurveTo(0, -height * 0.52, -width * 0.34, -height * 0.32)
+  shape.lineTo(-width * 0.50, height * 0.10)
+  shape.quadraticCurveTo(-width * 0.42, height * 0.44, 0, height * 0.50)
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: bevel,
+    bevelSize: bevel * 0.72,
+    bevelSegments: 2,
+    curveSegments: 6,
+    steps: 1,
+  })
+  geo.translate(0, 0, -depth * 0.5)
+  return geo
+}
+
+function foldedRobeGeometry(profile, radialSegments = 48, foldCount = 10, foldDepth = 0.022) {
+  const vertices = []
+  const uvs = []
+  const indices = []
+  const bottom = profile[profile.length - 1][1]
+  const top = profile[0][1]
+  for (let ring = 0; ring < profile.length; ring++) {
+    const [baseRadius, y] = profile[ring]
+    const v = (y - bottom) / Math.max(0.001, top - bottom)
+    for (let segment = 0; segment < radialSegments; segment++) {
+      const angle = (segment / radialSegments) * Math.PI * 2
+      const fold = Math.sin(angle * foldCount + y * 2.8) * foldDepth * (0.45 + (1 - v) * 0.55)
+      const radius = Math.max(0.01, baseRadius + fold)
+      vertices.push(Math.cos(angle) * radius, y, Math.sin(angle) * radius)
+      uvs.push(segment / radialSegments, v)
+    }
+  }
+  for (let ring = 0; ring < profile.length - 1; ring++) {
+    for (let segment = 0; segment < radialSegments; segment++) {
+      const next = (segment + 1) % radialSegments
+      const a = ring * radialSegments + segment
+      const b = ring * radialSegments + next
+      const c = (ring + 1) * radialSegments + next
+      const d = (ring + 1) * radialSegments + segment
+      indices.push(a, b, d, b, c, d)
+    }
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+  geo.setIndex(indices)
+  geo.computeVertexNormals()
+  return geo
+}
+
+function taperedPanelGeometry(topWidth, bottomWidth, height, depth, bevel = 0.012) {
+  const shape = new THREE.Shape()
+  shape.moveTo(-topWidth * 0.5, height * 0.5)
+  shape.lineTo(topWidth * 0.5, height * 0.5)
+  shape.lineTo(bottomWidth * 0.5, -height * 0.5)
+  shape.quadraticCurveTo(0, -height * 0.56, -bottomWidth * 0.5, -height * 0.5)
+  shape.closePath()
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: bevel,
+    bevelSize: bevel * 0.72,
+    bevelSegments: 2,
+    curveSegments: 5,
+    steps: 1,
+  })
+  geometry.translate(0, 0, -depth * 0.5)
+  return geometry
+}
+
+function drapedRibbonGeometry(points, widths, depth = 0.028) {
+  const vertices = []
+  const uvs = []
+  const indices = []
+  const rowCount = Math.min(points.length, widths.length)
+  for (let row = 0; row < rowCount; row++) {
+    const [x, y, z] = points[row]
+    const halfWidth = widths[row] * 0.5
+    const v = row / Math.max(1, rowCount - 1)
+    // Four vertices per row keep the ribbon closed at the hem. This is a real
+    // shallow cloth volume, not a billboard: the ImageGen brocade can catch
+    // the key light on the face and the rim on the folded edge.
+    vertices.push(
+      x - halfWidth, y, z + depth * 0.5,
+      x + halfWidth, y, z + depth * 0.5,
+      x + halfWidth, y, z - depth * 0.5,
+      x - halfWidth, y, z - depth * 0.5,
+    )
+    uvs.push(0, v, 1, v, 1, v, 0, v)
+  }
+  for (let row = 0; row < rowCount - 1; row++) {
+    const a = row * 4
+    const b = a + 1
+    const c = a + 2
+    const d = a + 3
+    const nextA = a + 4
+    const nextB = a + 5
+    const nextC = a + 6
+    const nextD = a + 7
+    // Front (+Z), back (-Z), and the two folded side edges.
+    indices.push(a, nextA, nextB, a, nextB, b)
+    indices.push(c, nextC, nextD, c, nextD, d)
+    indices.push(a, d, nextD, a, nextD, nextA)
+    indices.push(b, nextB, nextC, b, nextC, c)
+  }
+  const first = 0
+  const last = Math.max(0, (rowCount - 1) * 4)
+  indices.push(first, first + 1, first + 2, first, first + 2, first + 3)
+  indices.push(last + 3, last + 2, last + 1, last + 3, last + 1, last)
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+  geometry.setIndex(indices)
+  geometry.computeVertexNormals()
+  return geometry
 }
 
 function blade(material, length = 0.90) {
@@ -155,9 +280,12 @@ export function buildHeroicSeolryeong(character) {
   // length instead of the old mascot-like width/head mass.
   root.scale.set(1.16, 1.62, 1.12)
 
-  const skin = standard(pal.skin ?? 0xf4c9ae, { roughness: 0.62 })
-  const underSilk = standard(0x1d2f49, { roughness: 0.48, metalness: 0.08, clearcoat: 0.16 })
-  const bootLeather = standard(0x263b58, { roughness: 0.38, metalness: 0.18, clearcoat: 0.24 })
+  // Keep skin visibly warmer than the moon-silk. The old palette value was
+  // blown nearly white by the hero-sheet key light, which erased the face,
+  // hands, and sleeve openings into one material block.
+  const skin = standard(0xe7b6a8, { roughness: 0.62, clearcoat: 0.08 })
+  const underSilk = standard(0x4d7198, { roughness: 0.48, metalness: 0.08, clearcoat: 0.16 })
+  const bootLeather = standard(0x213958, { roughness: 0.42, metalness: 0.34, clearcoat: 0.34 })
   // The reference has a dark blue-black hair mass with a silver-blue edge. The
   // old shell used the palette's light highlight for the whole cap, which made
   // hair and robe collapse into one beige silhouette under the stage sun.
@@ -176,26 +304,28 @@ export function buildHeroicSeolryeong(character) {
   const silkWeave = weaveTexture('materials/characters/moon-silk-brocade-v2.png', [1.15, 1.55])
   const silkNormal = weaveTexture('materials/img2three/seolryeong-silk_normal.png', [2.35, 3.1], THREE.NoColorSpace)
   const silkRoughness = weaveTexture('materials/img2three/seolryeong-silk_roughness.png', [2.35, 3.1], THREE.NoColorSpace)
-  const silkMaps = { normalMap: silkNormal, roughnessMap: silkRoughness, bumpMap: silkNormal, bumpScale: 0.018 }
+  const silkHeight = weaveTexture('materials/img2three/seolryeong-silk_height.png', [2.35, 3.1], THREE.NoColorSpace)
+  const silkMaps = { normalMap: silkNormal, roughnessMap: silkRoughness, bumpMap: silkHeight, bumpScale: 0.012 }
   const silk = cloth(0xd7e5f4, pal.accent ?? 0x86d8ff, silkWeave, silkMaps)
   const silkBlue = cloth(0x4778ad, 0x70cfff, silkWeave, silkMaps)
   const trim = standard(pal.trim ?? 0xeff7ff, { roughness: 0.32, metalness: 0.3, clearcoat: 0.36 })
+  const shoulderMetal = standard(0x8aa8c4, { roughness: 0.38, metalness: 0.52, clearcoat: 0.42 })
   const bladeMat = standard(0xdff7ff, { roughness: 0.18, metalness: 0.88, emissive: 0x6ccfff, emissiveIntensity: 0.22, clearcoat: 0.7 })
+  const bladeCoreMat = standard(0xb9f3ff, { roughness: 0.12, metalness: 0.82, emissive: 0x4bcfff, emissiveIntensity: 0.42, clearcoat: 0.82 })
   const eyeMat = standard(0x182841, { roughness: 0.2, emissive: 0x58dfff, emissiveIntensity: 0.55 })
 
-  const skirt = new THREE.Mesh(new THREE.LatheGeometry([
-    new THREE.Vector2(0.12, 1.32), new THREE.Vector2(0.31, 1.20),
-    new THREE.Vector2(0.42, 0.84), new THREE.Vector2(0.52, 0.28),
-    new THREE.Vector2(0.44, 0.06), new THREE.Vector2(0.0, 0.0),
-  ], 32), silk)
+  const skirt = new THREE.Mesh(foldedRobeGeometry([
+    [0.10, 1.32], [0.25, 1.20], [0.33, 0.92], [0.40, 0.54],
+    [0.44, 0.18], [0.37, 0.05],
+  ], 48, 12, 0.026), silk)
   skirt.castShadow = true
   root.add(skirt)
 
-  const sash = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.055, 10, 40), trim)
+  const sash = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.040, 10, 40), trim)
   sash.rotation.x = Math.PI / 2
   sash.position.y = 1.28
   root.add(sash)
-  const underSash = new THREE.Mesh(new THREE.TorusGeometry(0.345, 0.032, 8, 40), hair)
+  const underSash = new THREE.Mesh(new THREE.TorusGeometry(0.295, 0.024, 8, 40), hair)
   underSash.rotation.x = Math.PI / 2
   underSash.position.y = 1.25
   root.add(underSash)
@@ -205,22 +335,42 @@ export function buildHeroicSeolryeong(character) {
   waistJade.scale.set(0.75, 1.30, 0.42)
   root.add(waistJade)
 
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.30, 0.54, 10, 24), silkBlue)
-  torso.position.y = 1.35
-  torso.scale.set(0.84, 1.0, 0.60)
+  const torso = new THREE.Mesh(new THREE.LatheGeometry([
+    new THREE.Vector2(0.10, 1.06), new THREE.Vector2(0.21, 1.08),
+    new THREE.Vector2(0.25, 1.22), new THREE.Vector2(0.24, 1.45),
+    new THREE.Vector2(0.19, 1.64), new THREE.Vector2(0.12, 1.72),
+    new THREE.Vector2(0.0, 1.72),
+  ], 40), silk)
   torso.castShadow = true
   root.add(torso)
 
-  const bib = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.42, 8, 18), silk)
-  bib.position.set(0, 1.43, 0.245)
-  bib.scale.set(0.85, 1, 0.18)
+  const bib = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.46, 8, 18), silk)
+  bib.position.set(0, 1.43, 0.225)
+  bib.scale.set(0.78, 1, 0.14)
   root.add(bib)
+  const chestFrame = new THREE.Mesh(ornatePlateGeometry(0.26, 0.26, 0.050, 0.010), shoulderMetal)
+  chestFrame.name = 'frost-silk-chest-frame'
+  chestFrame.position.set(0, 1.45, 0.272)
+  chestFrame.scale.set(0.78, 0.84, 0.42)
+  chestFrame.rotation.x = -0.06
+  root.add(chestFrame)
+  const chestGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.045, 1), standard(0x44d6bd, {
+    roughness: 0.18,
+    metalness: 0.22,
+    emissive: 0x0b8e78,
+    emissiveIntensity: 0.35,
+    clearcoat: 0.5,
+  }))
+  chestGem.name = 'frost-chest-gem'
+  chestGem.position.set(0, 1.48, 0.305)
+  chestGem.scale.set(0.56, 0.98, 0.28)
+  root.add(chestGem)
 
   for (const side of [-1, 1]) {
     const sleeve = tube([
       [side * 0.22, 1.57, 0], [side * 0.43, 1.42, 0.05],
       [side * 0.56, 1.10, 0.16], [side * 0.48, 0.84, 0.26],
-    ], 0.14, silk, 16, 12)
+    ], 0.105, silk, 16, 12)
     sleeve.castShadow = true
     root.add(sleeve)
     const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.035, 8, 24), trim)
@@ -273,37 +423,43 @@ export function buildHeroicSeolryeong(character) {
   for (const side of [-1, 1]) {
     const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.42, 8, 14), underSilk)
     leg.name = `${side < 0 ? 'left' : 'right'}-lower-leg`
-    leg.position.set(side * 0.16, 0.40, 0.38)
+    leg.position.set(side * 0.15, 0.36, 0.10)
     leg.scale.set(0.92, 1.0, 0.72)
     root.add(leg)
-    const bootShell = new THREE.Mesh(new RoundedBoxGeometry(0.24, 0.40, 0.34, 3, 0.055), bootLeather)
+    const bootShell = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.22, 8, 16), bootLeather)
     bootShell.name = `${side < 0 ? 'left' : 'right'}-frost-boot`
-    bootShell.position.set(side * 0.16, 0.16, 0.42)
+    bootShell.position.set(side * 0.15, 0.14, 0.12)
     bootShell.rotation.x = -0.10
-    bootShell.scale.x = 0.92
+    bootShell.scale.set(0.88, 0.96, 1.08)
     root.add(bootShell)
     const bootCuff = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.018, 6, 20), trim)
     bootCuff.name = `${side < 0 ? 'left' : 'right'}-boot-cuff`
     bootCuff.rotation.x = Math.PI / 2
-    bootCuff.position.set(side * 0.16, 0.35, 0.42)
+    bootCuff.position.set(side * 0.15, 0.27, 0.12)
     bootCuff.scale.z = 0.78
     root.add(bootCuff)
+    const bootPlate = new THREE.Mesh(ornatePlateGeometry(0.18, 0.18, 0.045, 0.010), shoulderMetal)
+    bootPlate.name = `${side < 0 ? 'left' : 'right'}-boot-front-plate`
+    bootPlate.position.set(side * 0.15, 0.18, 0.24)
+    bootPlate.rotation.x = -0.16
+    bootPlate.scale.set(0.72, 0.82, 0.58)
+    root.add(bootPlate)
   }
 
   // The gameplay camera is deliberately pitched down. Tip the head toward the
   // lens so the face, not the scalp, is the first read at survivor distance.
   const headRig = new THREE.Group()
   headRig.position.y = 1.94
-  headRig.rotation.x = -0.38
-  headRig.scale.setScalar(0.78)
+  headRig.rotation.x = -0.46
+  headRig.scale.setScalar(0.90)
   root.add(headRig)
 
-  const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.12, 8, 14), skin)
-  neck.position.y = 0.03
+  const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.092, 0.13, 10, 16), skin)
+  neck.position.y = 0.025
   headRig.add(neck)
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.31, 32, 24), skin)
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 36, 26), skin)
   head.position.set(0, 0.30, 0.02)
-  head.scale.set(0.92, 1.08, 0.86)
+  head.scale.set(0.94, 1.06, 0.92)
   head.castShadow = true
   headRig.add(head)
 
@@ -311,7 +467,9 @@ export function buildHeroicSeolryeong(character) {
   faceMaterial.transparent = true
   faceMaterial.depthWrite = false
   faceMaterial.side = THREE.DoubleSide
-  const face = new THREE.Mesh(faceShellGeometry(0.322), faceMaterial)
+  faceMaterial.depthTest = false
+  faceMaterial.opacity = 0.82
+  const face = new THREE.Mesh(faceShellGeometry(0.352), faceMaterial)
   face.renderOrder = 2
   head.add(face)
 
@@ -327,15 +485,35 @@ export function buildHeroicSeolryeong(character) {
     clearcoat: 0.32,
   })
   for (const side of [-1, 1]) {
-    const eyeBall = new THREE.Mesh(new THREE.SphereGeometry(0.061, 16, 12), eyeWhite)
-    eyeBall.position.set(side * 0.116, 0.31, 0.278)
-    eyeBall.scale.z = 0.34
+    const eyeBall = new THREE.Mesh(new THREE.SphereGeometry(0.072, 20, 14), eyeWhite)
+    eyeBall.position.set(side * 0.128, 0.355, 0.305)
+    eyeBall.scale.set(1.0, 1.14, 0.30)
     headRig.add(eyeBall)
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.034, 14, 10), iris)
-    pupil.position.set(side * 0.116, 0.31, 0.305)
-    pupil.scale.z = 0.26
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.040, 16, 12), iris)
+    pupil.position.set(side * 0.128, 0.355, 0.337)
+    pupil.scale.set(0.88, 1.08, 0.22)
     headRig.add(pupil)
   }
+
+  // Small relief features stop the face from falling back to a flat painted
+  // mask when the canvas expression is downsampled in the gameplay camera.
+  const faceLine = standard(0x2b1a2c, { roughness: 0.42, metalness: 0.02 })
+  const lip = standard(0x9a4658, { roughness: 0.36, metalness: 0.02, clearcoat: 0.12 })
+  for (const side of [-1, 1]) {
+    const brow = tube([
+      [side * 0.188, 0.445, 0.304], [side * 0.128, 0.468, 0.319],
+      [side * 0.054, 0.448, 0.315],
+    ], 0.012, faceLine, 10, 6)
+    brow.name = 'seolryeong-brow'
+    headRig.add(brow)
+  }
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 8), skin)
+  nose.position.set(0, 0.252, 0.342)
+  nose.scale.set(0.72, 1.18, 0.62)
+  headRig.add(nose)
+  const mouth = tube([[-0.042, 0.176, 0.329], [0, 0.162, 0.340], [0.042, 0.176, 0.329]], 0.010, lip, 10, 6)
+  mouth.name = 'seolryeong-mouth'
+  headRig.add(mouth)
 
   const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.62), hair)
   hairCap.position.set(0, 0.37, -0.04)
@@ -365,22 +543,43 @@ export function buildHeroicSeolryeong(character) {
   }
   // Silver-blue edge locks catch the rim light and make the hair read as a
   // designed layered asset rather than a single sphere with tubes attached.
-  for (const [side, sweep, length] of [[-1, -0.14, 0.86], [1, 0.14, 0.80], [-1, -0.24, 0.62], [1, 0.24, 0.58]]) {
+  for (const [side, sweep, length] of [[-1, -0.14, 0.54], [1, 0.14, 0.50], [-1, -0.24, 0.40], [1, 0.24, 0.36]]) {
     const lock = tube([
       [side * 0.18, 0.43, 0.08], [side * 0.28 + sweep * 0.18, 0.24, -0.01],
       [side * 0.36 + sweep, 0.06 - length * 0.42, -0.10],
       [side * 0.28 + sweep * 1.1, -0.02 - length, -0.14],
-    ], 0.052, hairHighlight, 16, 8)
+    ], 0.040, hairHighlight, 16, 8)
     headRig.add(lock)
   }
-  for (const [side, sweep, length] of [[-1, -0.10, 0.48], [1, 0.10, 0.40], [-1, -0.18, 0.30], [1, 0.18, 0.27]]) {
+  for (const [side, sweep, length] of [[-1, -0.10, 0.32], [1, 0.10, 0.28], [-1, -0.18, 0.22], [1, 0.18, 0.20]]) {
     const lock = tube([
       [side * 0.16, 0.41, 0.18], [side * 0.24 + sweep * 0.3, 0.24, 0.16],
       [side * 0.31 + sweep, 0.10 - length * 0.30, 0.05],
       [side * 0.26 + sweep * 1.2, 0.03 - length, -0.04],
-    ], 0.075, hair, 14, 10)
+    ], 0.060, hair, 14, 10)
     lock.scale.x = 0.72
     headRig.add(lock)
+  }
+
+  // Broad, layered back-hair ribbons follow the ImageGen silhouette. The old
+  // narrow tubes were technically 3D but read as two ropes; these shallow
+  // closed volumes preserve the real depth while giving the hair a designed
+  // curtain and a clean silhouette behind the shoulders.
+  for (const side of [-1, 1]) {
+    const hairCurtain = new THREE.Mesh(drapedRibbonGeometry([
+      [side * 0.25, 0.48, -0.12], [side * 0.38, 0.22, -0.20],
+      [side * 0.46, -0.10, -0.24], [side * 0.40, -0.42, -0.20],
+      [side * 0.28, -0.70, -0.10],
+    ], [0.22, 0.28, 0.30, 0.24, 0.10], 0.042), hair)
+    hairCurtain.name = `${side < 0 ? 'left' : 'right'}-flowing-hair-curtain`
+    hairCurtain.castShadow = true
+    headRig.add(hairCurtain)
+    const hairEdge = new THREE.Mesh(drapedRibbonGeometry([
+      [side * 0.33, 0.42, -0.075], [side * 0.48, 0.10, -0.15],
+      [side * 0.51, -0.24, -0.16], [side * 0.39, -0.56, -0.08],
+    ], [0.035, 0.045, 0.040, 0.020], 0.050), hairHighlight)
+    hairEdge.name = `${side < 0 ? 'left' : 'right'}-hair-rim-lock`
+    headRig.add(hairEdge)
   }
 
   // A compact jade hairpin and two silver prongs are geometry landmarks from
@@ -405,56 +604,54 @@ export function buildHeroicSeolryeong(character) {
   }
   headRig.add(hairpin)
 
-  const shoulderLeft = new THREE.Mesh(new RoundedBoxGeometry(0.38, 0.20, 0.48, 3, 0.055), trim)
-  const shoulderRight = shoulderLeft.clone()
-  shoulderLeft.position.set(-0.37, 1.58, 0.20)
-  shoulderRight.position.set(0.37, 1.58, 0.20)
-  shoulderLeft.rotation.z = -0.16
-  shoulderRight.rotation.z = 0.16
-  shoulderLeft.scale.set(1.10, 1.0, 0.92)
-  shoulderRight.scale.copy(shoulderLeft.scale)
-  root.add(shoulderLeft, shoulderRight)
+  const shoulderPlateGeometry = ornatePlateGeometry(0.25, 0.20, 0.060, 0.011)
+  const shoulderInsetGeometry = ornatePlateGeometry(0.13, 0.090, 0.028, 0.006)
+  for (const side of [-1, 1]) {
+    const shoulder = new THREE.Mesh(shoulderPlateGeometry, shoulderMetal)
+    shoulder.name = `${side < 0 ? 'left' : 'right'}-frost-shoulder-plate`
+    shoulder.position.set(side * 0.35, 1.60, 0.145)
+    shoulder.rotation.z = side * 0.16
+    shoulder.rotation.x = -0.12
+    shoulder.scale.set(0.92, 0.94, 0.68)
+    shoulder.castShadow = true
+    root.add(shoulder)
+    const inset = new THREE.Mesh(shoulderInsetGeometry, jade)
+    inset.name = `${side < 0 ? 'left' : 'right'}-shoulder-jade-inset`
+    inset.position.set(side * 0.35, 1.60, 0.188)
+    inset.rotation.z = side * 0.16
+    inset.rotation.x = -0.12
+    inset.scale.set(0.64, 0.62, 0.42)
+    root.add(inset)
+  }
   const collar = new THREE.Mesh(new THREE.TorusGeometry(0.235, 0.026, 8, 36), hairHighlight)
   collar.rotation.x = Math.PI / 2
   collar.position.set(0, 1.58, 0.01)
   collar.scale.z = 0.78
   root.add(collar)
 
-  const cloak = panel(0.78, 1.22, silk, 0.30)
+  const cloak = new THREE.Mesh(taperedPanelGeometry(0.44, 0.70, 1.28, 0.042), silk)
   cloak.position.set(0, 0.86, -0.15)
   cloak.rotation.x = 0.08
   root.add(cloak)
   for (const side of [-1, 1]) {
-    const underCloak = panel(0.40, 1.06, silkBlue, 0.24)
+    const underCloak = new THREE.Mesh(taperedPanelGeometry(0.18, 0.30, 1.08, 0.032), silkBlue)
     underCloak.position.set(side * 0.26, 0.82, -0.22)
     underCloak.rotation.y = side * 0.20
     root.add(underCloak)
   }
   for (const side of [-1, 1]) {
-    const panelMesh = panel(0.34, 1.05, silk, 0.22)
+    const panelMesh = new THREE.Mesh(taperedPanelGeometry(0.12, 0.24, 1.08, 0.030), silk)
     panelMesh.position.set(side * 0.28, 0.82, 0.17)
     panelMesh.rotation.y = side * 0.14
     root.add(panelMesh)
   }
 
-  // Long outer sleeve veils and side robe tails preserve volume in motion and
-  // stop the body from collapsing into one conical primitive at survivor view.
-  for (const side of [-1, 1]) {
-    const sleeveVeil = panel(0.34, 1.04, silkBlue, 0.30)
-    sleeveVeil.position.set(side * 0.56, 1.06, 0.10)
-    sleeveVeil.rotation.set(0.08, side * 0.30, side * -0.10)
-    sleeveVeil.castShadow = true
-    root.add(sleeveVeil)
+  // Keep the silhouette on the continuous folded robe shell. Detached tall
+  // cards at the hips read as props rather than cloth, so sleeve volume comes
+  // from the curved tube sleeves and the layered shell above instead.
 
-    const robeTail = panel(0.25, 1.44, silkBlue, 0.34)
-    robeTail.position.set(side * 0.52, 0.72, -0.02)
-    robeTail.rotation.set(0.04, side * 0.24, side * -0.06)
-    robeTail.castShadow = true
-    root.add(robeTail)
-  }
-
-  const frontPanel = panel(0.26, 0.86, trim, 0.06)
-  frontPanel.position.set(0, 1.00, 0.38)
+  const frontPanel = panel(0.16, 0.78, silk, 0.08, 0.12)
+  frontPanel.position.set(0, 0.98, 0.39)
   frontPanel.rotation.x = -0.05
   root.add(frontPanel)
   const clasp = new THREE.Mesh(new THREE.OctahedronGeometry(0.075, 1), bladeMat)
@@ -466,24 +663,28 @@ export function buildHeroicSeolryeong(character) {
   // the steep gameplay camera. They are curved meshes, not flat billboard cards,
   // so the folds still catch the key light as the player turns.
   const panelSpecs = [
-    [-0.30, 0.84, 0.42, 1.18, -0.16, silkBlue], [0.30, 0.84, 0.42, 1.18, 0.16, silkBlue],
-    [-0.18, 0.72, 0.30, 0.94, -0.08, silk], [0.18, 0.72, 0.30, 0.94, 0.08, silk],
+    [-0.24, -0.13, 0.30, silk], [0.24, 0.13, 0.30, silk],
+    [-0.12, -0.07, 0.22, silkBlue], [0.12, 0.07, 0.22, silkBlue],
   ]
-  for (const [x, y, width, height, yaw, material] of panelSpecs) {
-    const robePanel = panel(width, height, material, 0.24)
-    robePanel.position.set(x, y, 0.22)
-    robePanel.rotation.y = yaw
+  for (const [x, yaw, width, material] of panelSpecs) {
+    const robePanel = new THREE.Mesh(drapedRibbonGeometry([
+      [x, 1.20, 0.30], [x + yaw * 0.30, 0.94, 0.36],
+      [x + yaw * 0.62, 0.56, 0.32], [x + yaw * 0.44, 0.13, 0.25],
+    ], [width * 0.62, width * 0.94, width * 1.18, width * 0.86], 0.036), material)
+    robePanel.name = 'layered-front-brocade-panel'
     robePanel.castShadow = true
     root.add(robePanel)
     const seam = new THREE.Mesh(new THREE.TorusGeometry(width * 0.44, 0.012, 6, 28, Math.PI), trim)
     seam.rotation.set(Math.PI / 2, yaw, 0)
-    seam.position.set(x, y - height * 0.37, 0.27)
+    seam.position.set(x + yaw * 0.62, 0.16, 0.29)
     root.add(seam)
   }
   for (const x of [-0.10, 0.10]) {
-    const pleat = panel(0.11, 1.12, silkBlue, 0.16)
-    pleat.position.set(x, 0.68, 0.34)
-    pleat.rotation.y = x * 0.18
+    const pleat = new THREE.Mesh(drapedRibbonGeometry([
+      [x, 1.18, 0.38], [x * 1.04, 0.82, 0.40], [x * 1.18, 0.42, 0.34],
+      [x * 1.10, 0.08, 0.28],
+    ], [0.09, 0.12, 0.16, 0.10], 0.030), silk)
+    pleat.name = 'central-robe-pleat'
     root.add(pleat)
   }
   // A raised, cool hem catches the key light and gives the lower silhouette a
@@ -493,12 +694,12 @@ export function buildHeroicSeolryeong(character) {
   hem.position.y = 0.055
   hem.scale.z = 0.78
   root.add(hem)
-  const sashPlate = new THREE.Mesh(new RoundedBoxGeometry(0.46, 0.20, 0.075, 3, 0.03), trim)
-  sashPlate.position.set(0, 1.22, 0.37)
+  const sashPlate = new THREE.Mesh(ornatePlateGeometry(0.34, 0.11, 0.040, 0.008), standard(0x496f8d, { roughness: 0.34, metalness: 0.42, clearcoat: 0.34 }))
+  sashPlate.position.set(0, 1.22, 0.33)
   sashPlate.rotation.z = 0.05
   root.add(sashPlate)
-  const sashGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 2), bladeMat)
-  sashGem.position.set(0, 1.20, 0.43)
+  const sashGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.065, 2), bladeMat)
+  sashGem.position.set(0, 1.20, 0.38)
   sashGem.scale.set(0.85, 1.25, 0.42)
   root.add(sashGem)
   for (const side of [-1, 1]) {
@@ -514,11 +715,17 @@ export function buildHeroicSeolryeong(character) {
 
   const heldSword = new THREE.Group()
   heldSword.name = 'held-frost-sword'
-  heldSword.position.set(-0.48, 1.25, 0.56)
-  heldSword.rotation.z = -1.40
+  heldSword.position.set(-0.64, 1.10, 0.52)
+  heldSword.rotation.z = -0.92
   const heldBlade = blade(bladeMat, 1.64)
   heldBlade.position.y = 0.82
+  heldBlade.scale.set(0.36, 1.0, 0.32)
   heldSword.add(heldBlade)
+  const bladeCore = blade(bladeCoreMat, 1.48)
+  bladeCore.name = 'frost-sword-central-inlay'
+  bladeCore.position.set(0, 0.82, 0.024)
+  bladeCore.scale.set(0.12, 1.0, 0.14)
+  heldSword.add(bladeCore)
   const guard = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.22, 12), trim)
   guard.rotation.z = Math.PI / 2
   guard.position.y = -0.03
@@ -526,6 +733,18 @@ export function buildHeroicSeolryeong(character) {
   const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.20, 12), hair)
   grip.position.y = -0.14
   heldSword.add(grip)
+  for (const y of [-0.08, -0.14, -0.20]) {
+    const wrap = new THREE.Mesh(new THREE.TorusGeometry(0.034, 0.008, 5, 16), hairHighlight)
+    wrap.name = 'frost-sword-grip-wrap'
+    wrap.rotation.x = Math.PI / 2
+    wrap.position.y = y
+    heldSword.add(wrap)
+  }
+  const pommel = new THREE.Mesh(new THREE.OctahedronGeometry(0.052, 1), jade)
+  pommel.name = 'frost-sword-pommel'
+  pommel.position.y = -0.27
+  pommel.scale.set(0.70, 1.18, 0.48)
+  heldSword.add(pommel)
   root.add(heldSword)
 
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.018, 8, 64), new THREE.MeshBasicMaterial({ color: pal.accent ?? 0x83e8ff, transparent: true, opacity: 0.72 }))
@@ -548,7 +767,7 @@ export function buildHeroicSeolryeong(character) {
   // sticker.  The same technique is used by the chibi fallback, but this pass
   // is intentionally thinner and darker so the authored model keeps its PBR
   // highlights.
-  const outline = makeOutlineMaterial(0.018, 0x081422)
+  const outline = makeOutlineMaterial(0.010, 0x081422)
   for (const source of [skirt, torso, hairCap, hairBack]) {
     const shell = new THREE.Mesh(source.geometry, outline)
     shell.position.copy(source.position)

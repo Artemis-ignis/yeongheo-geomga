@@ -33,7 +33,12 @@ const _corner = new THREE.Vector3()
 // The run HUD occupies the upper centre of the screen. Aim a little above the
 // ground origin so the player's face and weapon settle below that DOM layer
 // instead of being hidden behind the timer at the default survivor framing.
-const LOOK_TARGET_Y = 0.34
+// The authored Seolryeong presentation shell is 4.55 units tall. A low target
+// made her face and crown disappear behind the run timer, leaving only a white
+// robe column in the survivor view. Aim through the upper torso so the face,
+// sword hand and shoulder layers settle below the HUD without shrinking the
+// hero or changing the combat collider.
+const LOOK_TARGET_Y = 0.86
 
 /**
  * Top-down 3/4 follow camera.
