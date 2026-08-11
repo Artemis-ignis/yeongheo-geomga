@@ -50,11 +50,11 @@
 
 2026-08-11 품질 패스에서 인계된 검증 사실입니다.
 
-- npm test: 67개 테스트 파일, 752개 테스트 통과
+- npm test: 67개 테스트 파일, 774개 테스트 통과
 - npm audit: 알려진 취약점 0
 - npm run build: 통과. Game2D bundle은 약 548.17 kB, gzip은 약 162.68 kB입니다.
-- npm run assets:audit: 통과. 매니페스트 117개와 실제 파일 117개가 일치합니다.
-- npm run assets:build-audit: 런타임 73/73, 누락 0입니다.
+- npm run assets:audit: 통과. 매니페스트 125개와 실제 파일 125개가 일치합니다.
+- npm run assets:build-audit: 런타임 77/77, 누락 0입니다.
 - `YEONGHEO_NO_BROWSER=1` launcher의 실제 smoke를 통과했습니다.
 - 420초 pacing, DaoVows2D, BossPatterns2D, FormationDirector2D, WorldInteractions2D의 구조·로직 계약이 현재 테스트 묶음에 포함되어 통과합니다.
 - 최종 실행 청크 `Game2D-CfY6A-CR.js`(SHA-256 `4e9f58de…add29b0a`)를 담은 새 Web ZIP에서 일반 피해 조건, 실제 이동·축지법·선택으로 정확히 07:00 승천(레벨 33·2,394처치·보스 2·도가 3/3)을 확인했습니다. 같은 최신 패키지의 결과 화면→재도전 UI 회귀와, 동일 실행 청크의 별도 실플레이에서 일시정지·재개까지 확인했습니다.
@@ -63,9 +63,9 @@
 - v5.3 Web ZIP을 다시 실제 플레이해 타이틀·첫 10초·중간보스·완성 도가·최종보스·07:00 승천을 담은 166.468초 1920×1080 영상 `output/releases/yeongheo-geomga-submission-video-v5.3-1080p-audio-166s-20260810.webm`을 봉인했습니다. 실제 WebAudio만 사용했고 콘솔·페이지·디코드·인코더 타임스탬프 오류는 0입니다. 이전 v5 176.01초 영상은 역사 후보일 뿐 v5.3 제출본이 아닙니다.
 - 자동 테스트·빌드·자산 감사와 격리 자동 완주는 외부 일반 사용자 테스트나 대표자의 권리 승인을 대신하지 않습니다.
 - 반복 지속 장판의 겹침·화면 공간 기울기와 보스 전조 공존 focused 결함은 `c9ce389`에서 1920×1080·2560×1600 실제 Chrome 화면으로 닫았습니다. 전체 commercial visual gate는 **strict FAIL**입니다. 후반 적 군집이 같은 색·크기·방향으로 뭉쳐 반복적으로 보이는 문제가 남습니다.
-- rights audit는 **BLOCKED**이며 법적 증거는 0/76입니다. 3D 모델·ImageGen·TRELLIS 산출물은 개발/자산 QA 증거이며, contest용 AAA 최종 모델이나 권리 clearance로 홍보하지 않습니다.
+- rights audit는 **BLOCKED**이며 법적 증거는 0/77입니다. 3D 모델·ImageGen·TRELLIS 산출물은 개발/자산 QA 증거이며, contest용 AAA 최종 모델이나 권리 clearance로 홍보하지 않습니다.
 
-따라서 지금의 정확한 상태는 **PixiJS 2D production 경로의 구조·빌드·자산·런처와 현재 전체 런 기준 무치트 7분 루프, 반복 지면 장판 focused 수정은 확인됐지만, 후반 적 군집 반복 때문에 전체 commercial visual은 strict FAIL이고 법적 권리 증거·번들 경고 정리가 남은 로컬 QA 후보**입니다. release approval, A-grade, rights clearance, 공식 제출 승인은 선언하지 않습니다.
+따라서 지금의 정확한 상태는 **PixiJS 2D production 경로의 구조·빌드·자산·런처와 현재 전체 런 기준 무치트 7분 루프, 반복 지면 장판·악귀 수사 군집 focused 수정은 확인됐지만, 늑대 단일 아틀라스와 후반 전체 군집 반복 때문에 commercial visual은 strict FAIL이고 법적 권리 증거·번들 경고 정리가 남은 로컬 QA 후보**입니다. release approval, A-grade, rights clearance, 공식 제출 승인은 선언하지 않습니다.
 
 ## 실행
 
@@ -192,7 +192,7 @@ public/assets/             production 2D 스프라이트·환경·재질·마케
 3. 실제 런타임 PASS: Windows Chromium에서 입력·상태·프레임·화면을 확인
 4. contest 출품 PASS: 천겁의 맹세 Gate 1–6과 제출 자료를 모두 확인
 
-현재 구조/로직·빌드·자산·런처와 무치트 7분 전체 루프는 확인됐지만, 전체 commercial visual은 strict FAIL입니다. contest 출품 PASS, release approval, A-grade를 선언하지 않으며, rights audit는 법적 증거 0/76으로 BLOCKED이고 공개 URL·마스터의 시청각 승인·공식 제출도 남아 있습니다.
+현재 구조/로직·빌드·자산·런처와 무치트 7분 전체 루프는 확인됐지만, 전체 commercial visual은 strict FAIL입니다. contest 출품 PASS, release approval, A-grade를 선언하지 않으며, rights audit는 법적 증거 0/77로 BLOCKED이고 공개 URL·마스터의 시청각 승인·공식 제출도 남아 있습니다.
 
 오류가 나면 boot fallback 패널과 콘솔 로그를 먼저 확인하십시오. F3에서 renderer, FPS, frame/simulation/draw 시간, 엔티티 수, 품질 배율을 볼 수 있지만, 실제 성능 보고서에는 p95 실측과 브라우저·해상도·build ID를 함께 기록해야 합니다.
 

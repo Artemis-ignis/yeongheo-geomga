@@ -13,22 +13,29 @@
 
 | 영역 | 현재 판정 |
 |---|---|
-| build | PASS; Game2D 562.71 kB, gzip 167.27 kB |
-| tests | 67개 파일 / 773개 PASS |
-| runtime assets | 76/76, source/output 누락 0, unexpected 0 |
+| build | PASS; Game2D 563.84 kB, gzip 167.50 kB |
+| tests | 67개 파일 / 774개 PASS |
+| runtime assets | 77/77, source/output 누락 0, unexpected 0 |
 | npm audit | 알려진 취약점 0 |
 | launcher | 브라우저를 열지 않는 실제 smoke PASS |
 | 7분 Windows Chrome E2E | 현재 `6516321`에서 1920×1080 무치트 전체 루프와 2560×1600 결과·재시작 PASS |
 | 2560×1600 확인 | 현재 `6516321` 결과 화면·재시작에서 overflow 0, console/page error 0 |
-| 시각 확인 | 결과 화면·`화염부`·영체 반복·영기 과밀·뇌령주·자소신뢰 과밀·석괴·부적 원혼 반복·공전 구슬·타격 섬광·지속 장판 겹침/기울기·보스 전조 공존 focused 결함 PASS; 전체 commercial visual gate는 계속 FAIL |
+| 시각 확인 | 결과 화면·`화염부`·영체 반복·영기 과밀·뇌령주·자소신뢰 과밀·석괴·부적 원혼·악귀 수사 반복·공전 구슬·타격 섬광·지속 장판 겹침/기울기·보스 전조 공존 focused 결함 PASS; 늑대 단일 아틀라스와 전체 commercial visual gate는 계속 FAIL |
 
 ## 아직 닫히지 않은 게이트
 
-- 전체 commercial visual gate는 **strict FAIL**입니다. 지속 장판 겹침·기울기와 보스 전조 공존 focused 결함은 닫혔지만, 후반 적 군집의 반복·실루엣 분리가 아직 상용 후보 수준에 못 미칩니다.
-- rights audit는 **BLOCKED**입니다. 법적 증거가 확인된 runtime asset은 0/76입니다.
+- 전체 commercial visual gate는 **strict FAIL**입니다. 지속 장판과 악귀 수사 반복 focused 결함은 닫혔지만, 늑대 단일 아틀라스와 후반 전체 군집의 반복·실루엣 분리가 아직 상용 후보 수준에 못 미칩니다.
+- rights audit는 **BLOCKED**입니다. 법적 증거가 확인된 runtime asset은 0/77입니다.
 - 따라서 release approval, A-grade, rights clearance, 공식 제출 승인을 선언하지 않습니다.
 
 ## 2026-08-12 직접 확인한 최신 품질 패스
+
+- commit `7eae4df`은 악귀 수사 계열의 장병기 `voidSentinel` 하나만 반복되던 군집에, 비대칭 어깨 망토·쌍 갈고리 도를 가진 원본 4×2 이동/공격 아틀라스 `shadowSealDuelist`를 추가했습니다. 기존 AI·충돌·체력·피해·스폰 수는 보존하고 표현 아틀라스만 나눴습니다.
+- 최초 일반 UID 해시는 실제 후반 로스터의 UID stride에서 9:1로 편향됐습니다. 루트가 이를 합격 처리하지 않고 동일 로스터를 직접 계측한 뒤, 저불일치 Weyl 순열로 바꿔 common stride 2~7과 실제 roster에서 안정적인 5:5 분배를 확인했습니다.
+- 루트가 production build의 72마리 혼합 후반 군집을 1920×1080·2560×1600에서 직접 확인했습니다. 두 해상도 모두 화면 내 72/72, overflow x/y 0, console/page error 0이었고 장병기와 쌍단도 실루엣·발 접지·영웅 가시성이 분리되어 악귀 수사 반복 focused 결함만 PASS로 판정했습니다.
+- 유효 캡처는 `output/playwright/mixed-late-root-20260812/07-mixed-balanced-1920.png`, `output/playwright/mixed-late-root-20260812/08-mixed-balanced-2560.png`입니다. 이 제어 장면은 실루엣 결함 검증용이며 기존 `6516321` 무치트 7분 전체 런을 대체하거나 섞지 않습니다.
+- 현재 production build는 `assets/Game2D-B6Z5wGxx.js` 563.84 kB / gzip 167.50 kB, SHA-256 `78a76ca20c31b20bf32bf5d281a209e5e4e520836ad7ac0637b80b6fec9491ae`입니다. 전체 67개 파일 / 774개 테스트, runtime allowlist 77개 / source·output 누락 0 / unexpected 0, 자산 매니페스트 125/125가 순차 확인됐습니다. 500 kB 초과 번들 경고와 권리 감사 `0/77 BLOCKED`는 계속 남습니다.
+- 루트의 직접 판정에서 악귀 수사 focused 결함은 닫혔지만, 같은 프레임의 푸른 늑대는 여전히 하나의 아틀라스를 반복합니다. 새 build의 무치트 7분 전체 회귀도 아직 수행하지 않았으므로 전체 commercial visual gate와 release 승인은 계속 FAIL입니다.
 
 - commit `c9ce389`은 같은 법보의 깊게 겹친 지속 장판만 표현 단계에서 하나의 외곽으로 묶고, 실제 충돌·피해 틱을 담당하는 모든 시뮬레이션 장판은 보존합니다. 서로 다른 법보, 떨어진 장판, 도벽 segment는 합치지 않습니다. 이미 원근이 적용된 지면 타원은 화면 공간 회전을 제거해 방패처럼 기울지 않게 했습니다.
 - 루트가 production build를 Windows Chrome 한 창·한 탭에서 직접 열어 12개의 실제 장판 판정체를 배치한 focused QA를 수행했습니다. 1920×1080·2560×1600 모두 simulation 12 / visual 1 / rotation 0, overflow x/y 0, console/page error 0이었습니다. 별도 공존 장면에서는 옥허진장의 radial 전조·보스 의도 표시와 장판이 동시에 활성화됐고, 큰 백색 외곽/회색 채움 위험 구역이 얇은 옥색 플레이어 장판보다 우선해서 읽혔습니다.

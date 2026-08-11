@@ -1,18 +1,18 @@
 # 영허검가 품질 기준선
 
-> **현재 경계 (2026-08-11):** production 출품 경로는 PixiJS 2D입니다. 아래 Three.js/GLB/TRELLIS 수치와 캡처는 legacy 3D 개발·자산 QA 이력이며 현재 production 전투가 사용하는 active 3D 경로나 최신 테스트 수치가 아닙니다.
+> **현재 경계 (2026-08-12):** production 출품 경로는 PixiJS 2D입니다. 아래 Three.js/GLB/TRELLIS 수치와 캡처는 legacy 3D 개발·자산 QA 이력이며 현재 production 전투가 사용하는 active 3D 경로나 최신 테스트 수치가 아닙니다.
 
 이 문서는 자산을 계속 쌓기 전에 무엇이 실제 런타임에 연결됐고, 무엇이 아직 부족한지 기록하는 기준선입니다.
 
 ## 현재 production 2D 검증 스냅샷
 
-- build PASS: Game2D 약 548.17 kB, gzip 약 162.68 kB. 번들 warning 정리는 아직 남아 있습니다.
-- tests PASS: 67개 파일/752개 테스트. assets PASS: 117/117. runtime PASS: 73/73. `npm audit` 알려진 취약점 0.
+- build PASS: Game2D 약 563.84 kB, gzip 약 167.50 kB. 번들 warning 정리는 아직 남아 있습니다.
+- tests PASS: 67개 파일/774개 테스트. assets PASS: 125/125. runtime PASS: 77/77. `npm audit` 알려진 취약점 0.
 - `YEONGHEO_NO_BROWSER=1` launcher 실제 smoke PASS.
 - Windows Chromium 정확한 1920×1080·2560×1600 title/combat·level-up DOM 확인, console error 0. title visual PASS와 최신 enemy contact PASS를 별도로 기록했습니다.
-- 전체 commercial visual은 **strict FAIL**입니다. 평평하고 반복적인 지면과 약한 초반 threat/action feedback이 남아 있습니다.
+- 전체 commercial visual은 **strict FAIL**입니다. 반복 지면 장판과 악귀 수사 군집의 focused 결함은 닫았지만, 늑대 단일 아틀라스와 후반 전체 군집 가독성은 아직 상용 후보 수준에 못 미칩니다.
 - WorldClaw는 지역/공유 레이아웃/접점 QA에만 선택적으로 적용했습니다. 전체 3D 포트나 파노라마 전환은 하지 않았습니다.
-- rights audit는 **BLOCKED**이며 법적 증거는 0/73입니다. release approval, A-grade, rights clearance를 선언하지 않습니다.
+- rights audit는 **BLOCKED**이며 법적 증거는 0/77입니다. release approval, A-grade, rights clearance를 선언하지 않습니다.
 
 ## legacy 3D 개발·자산 QA 연결 상태
 
