@@ -39,6 +39,34 @@ async function boot() {
       game.world.player.takeDamage = () => false
       game.stress({ enemies: 900, projectiles: 1200, pickups: 1500 })
       game.debug.toggle()
+    } else if (qaMode === 'wolf-crowd') {
+      await game._startRun('seolryeong', 'jade')
+      game.world.onLevels = () => {}
+      game.world.player.takeDamage = () => false
+      game.world.weaponCache = []
+      game.world.enemies.spawnTimer = 999
+      const roster = [
+        'wolf', 'stoneGhoul', 'wolf', 'talismanGhost',
+        'bloodScorpion', 'demonCultivator', 'jadeSerpent',
+      ]
+      const player = game.world.player
+      for (let index = 0; index < 72; index++) {
+        const angle = index * 2.399963
+        const radius = 5.4 + (index % 12) * 0.78
+        game.world.enemies.spawn(
+          roster[index % roster.length],
+          player.x + Math.cos(angle) * radius,
+          player.z + Math.sin(angle) * radius,
+          game.world.runTime,
+          100,
+        )
+      }
+      for (let index = 0; index < game.world.enemies.count; index++) {
+        game.world.enemies.speed[index] = 0
+        game.world.enemies.damage[index] = 0
+        game.world.enemies.hitCd[index] = 999
+        game.world.enemies.shotCd[index] = 999
+      }
     } else if (qaMode === 'boss') {
       await game._startRun('seolryeong', 'jade')
       game.world.player.takeDamage = () => false

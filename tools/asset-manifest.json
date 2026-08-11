@@ -579,6 +579,15 @@
       "maxBytes": 1000000
     },
     {
+      "id": "sprite2d.jade-ridge-hound.motion.v1",
+      "path": "public/assets/sprites2d/jade-ridge-hound-motion-v1.png",
+      "role": "runtime-2d-alternate-wolf-motion-atlas",
+      "tier": "world",
+      "source": "imagegen-built-in-chroma-key-alpha-despill-atlas-normalize-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 1000000
+    },
+    {
       "id": "sprite2d.magi-remnant.motion.v2",
       "path": "public/assets/sprites2d/magi-remnant-motion-v2.png",
       "role": "runtime-2d-common-enemy-motion-atlas",
@@ -778,6 +787,15 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
+      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-ridge-hound.motion-sheet.v1",
+      "path": "public/assets/sprites2d/source/jade-ridge-hound-motion-sheet-v1.png",
+      "role": "2d-motion-sheet-chroma-source",
+      "tier": "authoring",
+      "source": "imagegen-built-in",
       "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
       "maxBytes": 2500000
     },

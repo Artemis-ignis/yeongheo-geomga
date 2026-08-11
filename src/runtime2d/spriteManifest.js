@@ -43,6 +43,13 @@ export const SPRITE_MANIFEST = Object.freeze({
       animations: Object.freeze({ walk: [0, 1, 2, 3], attack: [4, 5, 6, 7] }),
       animationMode: 'authored-frames', ...pending,
     }),
+    jadeRidgeHound: Object.freeze({
+      url: `${base}assets/sprites2d/jade-ridge-hound-motion-v1.png`,
+      cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.86], runtimeHeight: 92,
+      directions: ['sw'], mirrorWest: true,
+      animations: Object.freeze({ walk: [0, 1, 2, 3], attack: [4, 5, 6, 7] }),
+      animationMode: 'authored-frames', ...pending,
+    }),
     wisp: Object.freeze({
       url: `${base}assets/sprites2d/magi-remnant-motion-v2.png`,
       cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.9], runtimeHeight: 80,

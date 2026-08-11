@@ -31,13 +31,13 @@ afterEach(() => {
 })
 
 describe('runtime asset rights audit CLI', () => {
-  it('reports the current 0/77 gate as BLOCKED with a nonzero exit', () => {
+  it('reports the current 0/78 gate as BLOCKED with a nonzero exit', () => {
     const result = runCli()
 
     expect(result.status).toBe(1)
     expect(result.stdout).toContain('RIGHTS AUDIT: BLOCKED')
-    expect(result.stdout).toContain('rights cleared: 0/77')
-    expect(result.stdout).toContain('blocked: 77/77')
+    expect(result.stdout).toContain('rights cleared: 0/78')
+    expect(result.stdout).toContain('blocked: 78/78')
     expect(result.stdout).toContain('technical provenance does not clear legal rights: ENFORCED')
     expect(result.stderr).toBe('')
   })
@@ -61,10 +61,10 @@ describe('runtime asset rights audit CLI', () => {
 
     const report = JSON.parse(fs.readFileSync(outputPath, 'utf8'))
     expect(report.status).toBe('BLOCKED')
-    expect(report.counts).toMatchObject({ total: 77, cleared: 0, blocked: 77 })
+    expect(report.counts).toMatchObject({ total: 78, cleared: 0, blocked: 78 })
     expect(report.requirements.eachRuntimeAssetHasRightsStatus).toBe(false)
     expect(report.requirements.eachRuntimeAssetHasEvidence).toBe(false)
-    expect(report.assets).toHaveLength(77)
+    expect(report.assets).toHaveLength(78)
     for (const asset of report.assets) {
       expect(asset.rightsStatus).toBe('BLOCKED')
       expect(asset.evidence.length).toBeGreaterThan(0)
@@ -72,10 +72,10 @@ describe('runtime asset rights audit CLI', () => {
     }
   })
 
-  it('uses the current 77-row ledger section instead of historical fingerprint tables', () => {
+  it('uses the current 78-row ledger section instead of historical fingerprint tables', () => {
     const report = buildRightsReport()
 
-    expect(report.inputs.ledgerRowCount).toBe(77)
+    expect(report.inputs.ledgerRowCount).toBe(78)
     expect(report.inputs.ledgerDuplicatePaths).toEqual([])
   })
 

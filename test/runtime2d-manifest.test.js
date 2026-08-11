@@ -58,7 +58,8 @@ describe('runtime2d sprite contract', () => {
     expect(SPRITE_MANIFEST.actors.seolryeong.runtimeHeight).toBeLessThanOrEqual(140)
     expect(SPRITE_MANIFEST.actors.jadeVoidWarden.runtimeHeight).toBeLessThanOrEqual(220)
     for (const id of [
-      'yorang', 'jadeSerpent', 'bloodScorpion', 'talismanRevenant', 'maskedSealRevenant',
+      'yorang', 'jadeRidgeHound', 'jadeSerpent', 'bloodScorpion',
+      'talismanRevenant', 'maskedSealRevenant',
     ]) {
       expect(SPRITE_MANIFEST.actors[id].runtimeHeight).toBeGreaterThanOrEqual(55)
       expect(SPRITE_MANIFEST.actors[id].runtimeHeight).toBeLessThanOrEqual(95)

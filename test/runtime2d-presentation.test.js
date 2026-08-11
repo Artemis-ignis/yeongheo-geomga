@@ -117,6 +117,27 @@ describe('PixiPresentation combat bindings', () => {
     expect(enemyTextureKey2D('glacierWarden', 31)).toBe('voidSentinel')
   })
 
+  it('deterministically divides ordinary wolves between two authored silhouettes', () => {
+    const variants = Array.from({ length: 64 }, (_, index) => (
+      enemyTextureKey2D('wolf', index + 1)
+    ))
+    const ridgeCount = variants.filter((key) => key === 'jadeRidgeHound').length
+
+    expect(new Set(variants)).toEqual(new Set(['yorang', 'jadeRidgeHound']))
+    expect(ridgeCount).toBeGreaterThanOrEqual(24)
+    expect(ridgeCount).toBeLessThanOrEqual(40)
+    for (const stride of [2, 3, 4, 5, 6, 7]) {
+      const local = Array.from({ length: 10 }, (_, index) => (
+        enemyTextureKey2D('wolf', 3 + index * stride)
+      ))
+      const localRidgeHounds = local.filter((key) => key === 'jadeRidgeHound').length
+      expect(localRidgeHounds, `stride ${stride}`).toBeGreaterThanOrEqual(4)
+      expect(localRidgeHounds, `stride ${stride}`).toBeLessThanOrEqual(6)
+    }
+    expect(enemyTextureKey2D('frostWolf', 23)).toBe('yorang')
+    expect(enemyTextureKey2D('ashRaven', 23)).toBe('yorang')
+  })
+
   it('keeps atlas-sharing enemy species visually distinct without blackening authored art', () => {
     const wolf = enemyActorTint2D(0x5f7fa8, 'yorang')
     const frostWolf = enemyActorTint2D(0xa8d8ea, 'yorang')

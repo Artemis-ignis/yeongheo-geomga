@@ -155,6 +155,7 @@ export function wispThreatRotation2D(time, uid = 0) {
 const ENEMY_MOTION_KEY_SALTS_2D = Object.freeze({
   wisp: 0x13a5f271,
   yorang: 0x2c6d3b87,
+  jadeRidgeHound: 0x694bc2f1,
   jadeSerpent: 0x35f19ac3,
   jadeStoneGhoul: 0x47b2e56d,
   jadeShardGuardian: 0x8fb31e4d,
@@ -805,6 +806,10 @@ const ACTOR_FOOT_PIVOTS_2D = Object.freeze({
   seolryeongNe: Object.freeze(Array(8).fill(244 / 256)),
   seolryeongS: Object.freeze([0.961, 0.961, 0.961, 0.961, 0.914, 0.953, 0.953, 0.953]),
   yorang: Object.freeze([0.797, 0.797, 0.781, 0.75, 0.734, 0.727, 0.727, 0.75]),
+  jadeRidgeHound: Object.freeze([
+    206 / 256, 206 / 256, 206 / 256, 206 / 256,
+    194 / 256, 186 / 256, 201 / 256, 198 / 256,
+  ]),
   jadeSerpent: Object.freeze([0.953, 0.953, 0.953, 0.945, 0.953, 0.953, 0.953, 0.953]),
   jadeStoneGhoul: Object.freeze([0.953, 0.953, 0.953, 0.953, 0.953, 0.953, 0.953, 0.953]),
   jadeShardGuardian: Object.freeze([
@@ -856,6 +861,7 @@ const ACTOR_GROUNDING_PROFILES_2D = Object.freeze({
   // low-alpha blue bounce at the paws: the former wide bright ellipse moved
   // with every wolf like a luminous platform and hid the real soft shadow.
   yorang: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.84, shadowHeight: 0.105, shadowAlpha: 0.87, contactWidth: 0.82, contactHeight: 0.14, contactLift: 0.01, contactAlpha: 0.2, contactTint: 0x8ccfff, visualScale: 1.55 }),
+  jadeRidgeHound: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.82, shadowHeight: 0.105, shadowAlpha: 0.87, contactWidth: 0.8, contactHeight: 0.14, contactLift: 0.01, contactAlpha: 0.2, contactTint: 0x80d5a8, visualScale: 1.55 }),
   jadeSerpent: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.105, shadowAlpha: 0.84, contactWidth: 1, contactHeight: 0.24, contactLift: 0.015, contactAlpha: 0.4, contactTint: 0x7df4cf, visualScale: 1.38 }),
   jadeStoneGhoul: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.11, shadowAlpha: 0.87, contactWidth: 0.98, contactHeight: 0.24, contactLift: 0.01, contactAlpha: 0.4, contactTint: 0x7bd9b7, visualScale: 1.35 }),
   jadeShardGuardian: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.57, shadowHeight: 0.105, shadowAlpha: 0.87, contactWidth: 0.88, contactHeight: 0.22, contactLift: 0.01, contactAlpha: 0.38, contactTint: 0x72d7b7, visualScale: 1.35 }),
@@ -2904,7 +2910,12 @@ export function enemyTextureKey2D(id, uid = 0) {
       : 'jadeShardGuardian'
   }
   if (id === 'bloodScorpion') return 'bloodScorpion'
-  if (id === 'wolf' || id === 'frostWolf' || id === 'ashRaven') return 'yorang'
+  if (id === 'wolf') {
+    return enemySilhouetteVariant2D(uid, 0x9e3779b9) < 0.5
+      ? 'yorang'
+      : 'jadeRidgeHound'
+  }
+  if (id === 'frostWolf' || id === 'ashRaven') return 'yorang'
   if (id === 'demonCultivator') {
     return enemySilhouetteVariant2D(uid, 0x7451c2e9) < 0.5
       ? 'voidSentinel'
@@ -2912,6 +2923,10 @@ export function enemyTextureKey2D(id, uid = 0) {
   }
   if (id === 'magmaBrute' || id === 'glacierWarden') return 'voidSentinel'
   return 'wisp'
+}
+
+function isWolfActorKey2D(key) {
+  return key === 'yorang' || key === 'jadeRidgeHound'
 }
 
 /**
@@ -3280,6 +3295,7 @@ export class PixiPresentation {
       seolryeongPortrait: Texture.from(SPRITE_MANIFEST.actors.seolryeong.portraitUrl),
       seolryeong: Texture.WHITE,
       yorang: Texture.WHITE,
+      jadeRidgeHound: Texture.WHITE,
       jadeSerpent: Texture.WHITE,
       jadeStoneGhoul: Texture.WHITE,
       jadeShardGuardian: Texture.WHITE,
@@ -3433,6 +3449,7 @@ export class PixiPresentation {
         SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.south.url,
         SPRITE_MANIFEST.actors.wisp.url,
         SPRITE_MANIFEST.actors.yorang.url,
+        SPRITE_MANIFEST.actors.jadeRidgeHound.url,
         SPRITE_MANIFEST.actors.jadeSerpent.url,
         SPRITE_MANIFEST.actors.jadeStoneGhoul.url,
         SPRITE_MANIFEST.actors.jadeShardGuardian.url,
@@ -3453,6 +3470,7 @@ export class PixiPresentation {
       this._replaceGroundTextures(stageId)
       this.textures.wisp = Texture.from(SPRITE_MANIFEST.actors.wisp.url)
       this.textures.yorang = Texture.from(SPRITE_MANIFEST.actors.yorang.url)
+      this.textures.jadeRidgeHound = Texture.from(SPRITE_MANIFEST.actors.jadeRidgeHound.url)
       this.textures.jadeSerpent = Texture.from(SPRITE_MANIFEST.actors.jadeSerpent.url)
       this.textures.jadeStoneGhoul = Texture.from(SPRITE_MANIFEST.actors.jadeStoneGhoul.url)
       this.textures.jadeShardGuardian = Texture.from(SPRITE_MANIFEST.actors.jadeShardGuardian.url)
@@ -3475,6 +3493,9 @@ export class PixiPresentation {
       this.frames.seolryeongS = sliceFrames(this.textures.seolryeongS, SPRITE_MANIFEST.actors.seolryeong)
       this.frames.wisp = sliceFrames(this.textures.wisp, SPRITE_MANIFEST.actors.wisp)
       this.frames.yorang = sliceFrames(this.textures.yorang, SPRITE_MANIFEST.actors.yorang)
+      this.frames.jadeRidgeHound = sliceFrames(
+        this.textures.jadeRidgeHound, SPRITE_MANIFEST.actors.jadeRidgeHound,
+      )
       this.frames.jadeSerpent = sliceFrames(this.textures.jadeSerpent, SPRITE_MANIFEST.actors.jadeSerpent)
       this.frames.jadeStoneGhoul = sliceFrames(
         this.textures.jadeStoneGhoul, SPRITE_MANIFEST.actors.jadeStoneGhoul,
@@ -4095,18 +4116,19 @@ export class PixiPresentation {
       }
       const motion = entry.motion
       const actor = SPRITE_MANIFEST.actors[key]
+      const wolfActor = isWolfActorKey2D(key)
       const attacking = intentPresentation.visible
       const locomotion = actor.animations.walk ?? actor.animations.hover ?? actor.animations.idle
       const attack = actor.animations.attack ?? actor.animations.cast ?? locomotion
       entry.frame = attacking
         ? oneShotFrameIndex(attack, intentPresentation.remaining, intentPresentation.duration)
-        : enemyLocomotionFrame2D(locomotion, this.time, key === 'yorang' ? 9 : 7, motion)
+        : enemyLocomotionFrame2D(locomotion, this.time, wolfActor ? 9 : 7, motion)
       entry.sprite.texture = this.frames[key][entry.frame]
       entry.sprite.anchor.set(0.5, actorFootPivot2D(key, entry.frame))
       const x = field.prevX[i] + (field.x[i] - field.prevX[i]) * alpha
       const z = field.prevZ[i] + (field.z[i] - field.prevZ[i]) * alpha
       const baseHeight = key === 'wisp' ? WISP_THREAT_PRESENTATION_2D.baseHeight
-        : key === 'yorang' ? SPRITE_MANIFEST.actors.yorang.runtimeHeight * (field.elite[i] ? 1.18 : 1)
+        : wolfActor ? actor.runtimeHeight * (field.elite[i] ? 1.18 : 1)
           : key === 'jadeSerpent' ? SPRITE_MANIFEST.actors.jadeSerpent.runtimeHeight
           : key === 'jadeStoneGhoul' ? SPRITE_MANIFEST.actors.jadeStoneGhoul.runtimeHeight
           : key === 'jadeShardGuardian' ? SPRITE_MANIFEST.actors.jadeShardGuardian.runtimeHeight
@@ -4116,8 +4138,8 @@ export class PixiPresentation {
           : key === 'shadowSealDuelist' ? SPRITE_MANIFEST.actors.shadowSealDuelist.runtimeHeight * (field.elite[i] ? 1.06 : 0.9)
           : SPRITE_MANIFEST.actors.voidSentinel.runtimeHeight * (field.elite[i] ? 1.06 : 0.9)
       const motionPhase = motion.phase * Math.PI * 2
-      const stride = Math.sin(this.time * (key === 'yorang' ? 12 : 8.5) * motion.tempo + motionPhase)
-      const locomotionBob = key === 'yorang' ? -Math.abs(stride) * 2.4
+      const stride = Math.sin(this.time * (wolfActor ? 12 : 8.5) * motion.tempo + motionPhase)
+      const locomotionBob = wolfActor ? -Math.abs(stride) * 2.4
         : key === 'voidSentinel' || key === 'shadowSealDuelist' ? -Math.abs(stride) * 1.2 : 0
       const pulse = key === 'wisp'
         ? Math.sin(this.time * 5 * motion.tempo + motionPhase) * 4 * motion.bobScale
@@ -4181,9 +4203,9 @@ export class PixiPresentation {
         const attackKick = field.attackTimer[i] > 0
           ? Math.sin((field.attackTimer[i] / attackDuration) * Math.PI) * 0.055
           : 0
-        entry.sprite.rotation = stride * (key === 'yorang' ? 0.018 : 0.01) + attackKick + motion.lean
-        entry.sprite.scale.x *= (1 + stride * (key === 'yorang' ? 0.026 : 0.012)) * motion.aspect
-        entry.sprite.scale.y *= 1 - stride * (key === 'yorang' ? 0.018 : 0.008)
+        entry.sprite.rotation = stride * (wolfActor ? 0.018 : 0.01) + attackKick + motion.lean
+        entry.sprite.scale.x *= (1 + stride * (wolfActor ? 0.026 : 0.012)) * motion.aspect
+        entry.sprite.scale.y *= 1 - stride * (wolfActor ? 0.018 : 0.008)
         if (field.flash[i] > 0) {
           entry.sprite.scale.x *= 1.055
           entry.sprite.scale.y *= 1.055
