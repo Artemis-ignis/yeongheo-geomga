@@ -11,7 +11,7 @@ export const EFFECT_KIND_2D = Object.freeze({
 })
 
 export const EFFECT_RENDER_BUDGETS_2D = Object.freeze({
-  [EFFECT_KIND_2D.hit]: Object.freeze({ minimum: 12, maximum: 32 }),
+  [EFFECT_KIND_2D.hit]: Object.freeze({ minimum: 6, maximum: 14 }),
   [EFFECT_KIND_2D.ring]: Object.freeze({ minimum: 6, maximum: 16 }),
   [EFFECT_KIND_2D.dash]: Object.freeze({ minimum: 4, maximum: 10 }),
   [EFFECT_KIND_2D.lightning]: Object.freeze({ minimum: 5, maximum: 14 }),
@@ -20,7 +20,7 @@ export const EFFECT_RENDER_BUDGETS_2D = Object.freeze({
 
 export const HIT_PRESENTATION_BUDGET_2D = Object.freeze({
   damageNumbers: 20,
-  hitEffects: 32,
+  hitEffects: 14,
   audioVoices: 4,
 })
 

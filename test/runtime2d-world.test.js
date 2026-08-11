@@ -6,7 +6,8 @@ import { getStage } from '../src/data/stages.js'
 import { DaoVows2D } from '../src/runtime2d/DaoVows2D.js'
 import {
   CombatWorld2D, FINAL_BOSS_PHASE_GATE_SECONDS_2D, FINAL_BOSS_WAVE_DENSITY_2D,
-  MAX_ENEMIES_2D, MAX_PICKUPS_2D, MAX_PROJECTILES_2D, PICKUP_MERGE_RADIUS_2D,
+  HIT_EFFECT_MERGE_RADIUS_2D, MAX_ENEMIES_2D, MAX_PICKUPS_2D, MAX_PROJECTILES_2D,
+  PICKUP_MERGE_RADIUS_2D,
 } from '../src/runtime2d/CombatWorld2D.js'
 import { MIN_TELEGRAPH_SECONDS_2D } from '../src/runtime2d/BossPatterns2D.js'
 import { getWeapon } from '../src/data/weapons.js'
@@ -33,6 +34,23 @@ function pickupTotals(pickups) {
 }
 
 describe('CombatWorld2D', () => {
+  it('coalesces only nearby same-element hit flashes without extending their fade', () => {
+    const world = makeWorld()
+    world.effects.spawn(1, 0, 0, 0.18, 1.1, 0xb98cff)
+    world.effects.update(0.08)
+    const remainingLife = world.effects.life[0]
+
+    world.effects.spawn(1, HIT_EFFECT_MERGE_RADIUS_2D * 0.5, 0, 0.18, 1.7, 0xb98cff)
+    expect(world.effects.count).toBe(1)
+    expect(world.effects.life[0]).toBeCloseTo(remainingLife)
+    expect(world.effects.radius[0]).toBeCloseTo(1.7)
+
+    world.effects.spawn(1, HIT_EFFECT_MERGE_RADIUS_2D + 0.01, 0, 0.18, 1.1, 0xb98cff)
+    world.effects.spawn(1, 0.1, 0, 0.18, 1.1, 0xff7a43)
+    world.effects.spawn(2, 0.1, 0, 0.18, 1.1, 0xb98cff)
+    expect(world.effects.count).toBe(4)
+  })
+
   it('exposes borrowed typed-array render views and preserves the start weapon', () => {
     const world = makeWorld()
     expect(Object.isFrozen(world.snapshot)).toBe(true)

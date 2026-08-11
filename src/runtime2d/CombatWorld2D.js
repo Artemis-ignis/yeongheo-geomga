@@ -86,6 +86,11 @@ const ARCHETYPE_INDEX_2D = new Map(ENEMY_ARCHETYPE_IDS_2D.map((id, index) => [id
 
 const EFFECT_KIND = Object.freeze({ hit: 1, ring: 2, dash: 3, lightning: 4, death: 5 })
 const PROJECTILE_KIND = Object.freeze({ sword: 1, fire: 2, ice: 3, thunder: 4, hostile: 5, needle: 6, wind: 7 })
+// Ordinary impact flashes are presentation accents, not simulation bodies.
+// Dense chain/orbit builds can legitimately land dozens of same-element hits
+// in one small pack during a single 0.18 s flash. Keep one transient accent in
+// that local cell instead of painting an opaque stack over the combatants.
+export const HIT_EFFECT_MERGE_RADIUS_2D = 2.6
 
 const DAO_ACTION_COLORS_2D = Object.freeze({
   sword: 0xeaf6ff,
@@ -457,6 +462,20 @@ class EffectField2D {
   }
 
   spawn(kind, x, z, life = 0.28, radius = 1, color = 0xffffff) {
+    if (kind === EFFECT_KIND.hit) {
+      const mergeRadiusSquared = HIT_EFFECT_MERGE_RADIUS_2D * HIT_EFFECT_MERGE_RADIUS_2D
+      for (let i = this.count - 1; i >= 0; i--) {
+        if (this.kind[i] !== EFFECT_KIND.hit || this.color[i] !== color) continue
+        const dx = this.x[i] - x
+        const dz = this.z[i] - z
+        if (dx * dx + dz * dz > mergeRadiusSquared) continue
+        // Preserve the original fade clock so a continuous barrage still
+        // pulses instead of becoming a permanently opaque orb. A critical hit
+        // may only strengthen the current flash's silhouette.
+        this.radius[i] = Math.max(this.radius[i], radius)
+        return
+      }
+    }
     if (this.count >= MAX_EFFECTS_2D) return
     const i = this.count++
     this.kind[i] = kind

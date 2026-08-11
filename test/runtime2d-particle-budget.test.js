@@ -17,18 +17,18 @@ describe('ParticleBudget2D', () => {
     const first = planEffectRenderSamples(kind, kind.length, { density: 1, frameId: 17 })
     const second = planEffectRenderSamples(kind, kind.length, { density: 1, frameId: 17 })
 
-    expect(first.byKind[EFFECT_KIND_2D.hit].activeCount).toBe(32)
+    expect(first.byKind[EFFECT_KIND_2D.hit].activeCount).toBe(14)
     expect(first.byKind[EFFECT_KIND_2D.ring].activeCount).toBe(16)
     expect(first.byKind[EFFECT_KIND_2D.death].activeCount).toBe(24)
     expect([...first.indices]).toEqual([...second.indices])
-    expect(first.activeCount).toBe(72)
+    expect(first.activeCount).toBe(54)
   })
 
   it('keeps low-density effects above the readability floor', () => {
     const kind = new Uint8Array(100).fill(EFFECT_KIND_2D.hit)
     const plan = planEffectRenderSamples(kind, kind.length, { density: 0 })
-    expect(plan.activeCount).toBe(12)
-    expect(plan.droppedCount).toBe(88)
+    expect(plan.activeCount).toBe(6)
+    expect(plan.droppedCount).toBe(94)
   })
 
   it('separates allocated storage from active ParticleContainer children', () => {
