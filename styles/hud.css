@@ -2303,11 +2303,16 @@ img.stage-art {
 
 /* ---------- 경지 돌파 ---------- */
 .modal-backdrop {
+  --modal-live-context-dim: 0.26;
   padding: clamp(18px, 3vw, 44px);
   background:
-    radial-gradient(circle at 50% 48%, rgba(46, 111, 97, 0.13), transparent 42%),
-    rgba(2, 7, 11, 0.46);
-  backdrop-filter: blur(1px) saturate(0.88);
+    radial-gradient(circle at 50% 48%, rgba(46, 111, 97, 0.09), transparent 42%),
+    rgba(2, 7, 11, var(--modal-live-context-dim));
+  /* The simulation is paused, but the battlefield still matters: the player
+   * should retain a readable memory of nearby enemies and danger zones while
+   * choosing.  A heavy desaturated wash made the modal feel like a separate
+   * menu and erased the survivor-game context. */
+  backdrop-filter: blur(0.45px) saturate(1.02);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -2497,7 +2502,7 @@ img.stage-art {
   justify-content: center;
   gap: 8px;
   margin-top: 7px;
-  font-size: 12px;
+  font-size: clamp(13px, 0.68vw, 15px);
 }
 
 .modal-kind {
@@ -2519,7 +2524,7 @@ img.stage-art {
   padding-top: 9px;
   border-top: 1px solid rgba(227, 197, 111, 0.16);
   color: #b9c7c7;
-  font-size: 13.5px;
+  font-size: clamp(14px, 0.74vw, 16px);
   line-height: 1.65;
 }
 
@@ -2533,9 +2538,9 @@ img.stage-art {
   letter-spacing: 0.2em;
 }
 
-.modal-desc { color: #b9c7c7; font-size: 13.5px; line-height: 1.65; }
+.modal-desc { color: #d1ddda; font-size: clamp(14px, 0.74vw, 16px); line-height: 1.6; }
 .modal-effect .modal-desc { min-height: 0; margin-top: 2px; }
-.modal-hint { color: #99aaa8; }
+.modal-hint { color: #bac9c6; font-size: clamp(13px, 0.68vw, 15px); }
 
 .modal-card.choice-artifact { --card-accent: #78cfee; }
 .modal-card.choice-technique { --card-accent: #c49ae9; }
@@ -2552,6 +2557,7 @@ img.stage-art {
   color: #d9e4df;
   background: linear-gradient(180deg, rgba(25, 50, 48, 0.96), rgba(6, 16, 21, 0.98));
   box-shadow: inset 0 0 0 2px rgba(3, 9, 12, 0.5), 0 6px 14px rgba(0, 0, 0, 0.3);
+  font-size: clamp(13px, 0.7vw, 15px);
 }
 
 .modal-action:hover:not(:disabled),
