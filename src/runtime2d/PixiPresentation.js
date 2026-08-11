@@ -523,10 +523,10 @@ const DEFAULT_GROUNDING_PROFILE_2D = Object.freeze({
 const ACTOR_GROUNDING_PROFILES_2D = Object.freeze({
   hero: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.46, shadowHeight: 0.105, shadowAlpha: 0.8, minShadowWidth: 44, minShadowHeight: 12, contactAlpha: 0.08 }),
   wisp: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.38, shadowHeight: 0.085, shadowAlpha: 0.52, minShadowWidth: 20, minShadowHeight: 7, contactWidth: 0.8, contactHeight: 0.44, contactLift: 0.14, contactAlpha: 0.3, contactTint: 0xb08cff, visualScale: 1.18 }),
-  // Grounded enemies keep their separation light on the contact row. Lifting
-  // it into the torso made the glow disappear behind the opaque sprite and
-  // left the actor reading as a floating cut-out on the dark jade floor.
-  yorang: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.84, shadowHeight: 0.105, shadowAlpha: 0.87, contactWidth: 1.12, contactHeight: 0.22, contactLift: 0.01, contactAlpha: 0.46, contactTint: 0x8ccfff, visualScale: 1.55 }),
+  // The authored shadow is the primary ground contact. Keep only a tight,
+  // low-alpha blue bounce at the paws: the former wide bright ellipse moved
+  // with every wolf like a luminous platform and hid the real soft shadow.
+  yorang: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.84, shadowHeight: 0.105, shadowAlpha: 0.87, contactWidth: 0.82, contactHeight: 0.14, contactLift: 0.01, contactAlpha: 0.2, contactTint: 0x8ccfff, visualScale: 1.55 }),
   jadeSerpent: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.105, shadowAlpha: 0.84, contactWidth: 1, contactHeight: 0.24, contactLift: 0.015, contactAlpha: 0.4, contactTint: 0x7df4cf, visualScale: 1.38 }),
   jadeStoneGhoul: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.11, shadowAlpha: 0.87, contactWidth: 0.98, contactHeight: 0.24, contactLift: 0.01, contactAlpha: 0.4, contactTint: 0x7bd9b7, visualScale: 1.35 }),
   bloodScorpion: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.86, shadowHeight: 0.095, shadowAlpha: 0.86, contactWidth: 1.12, contactHeight: 0.2, contactLift: 0, contactAlpha: 0.44, contactTint: 0xffa078, visualScale: 1.42 }),
