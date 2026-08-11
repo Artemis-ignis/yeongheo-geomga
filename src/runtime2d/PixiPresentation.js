@@ -70,10 +70,12 @@ export const JADE_GROUND_COMPOSITION_2D = Object.freeze({
   synthesisSize: 1536,
   authoredCropMode: 'multi-crop-rotated-soft-islands',
   landmarkMotifs: 'seed-specific-procedural',
-  // A slightly tighter field keeps the generated material's paving/moss
-  // detail readable at 1920px without turning the viewport into one giant
-  // photograph. The world projection ratio remains 0.4.
-  floorTileScale: Object.freeze({ x: 1.55, y: 0.62 }),
+  // Keep the material below actor scale. At the previous 1.55 scale a single
+  // synthesized period was wider than a 1920px viewport, so the arena still
+  // read as one large ground image even though the source crops were blended.
+  // A 0.4 Y/X ratio preserves the world's oblique projection while showing
+  // enough independent material structure during camera travel.
+  floorTileScale: Object.freeze({ x: 0.9, y: 0.36 }),
   decalAlpha: 0.96,
   decalOverlap: 1.1,
   decalEdgeFeather: 78,
@@ -339,6 +341,24 @@ export function weaponFieldPulse2D(life, maxLife, time, slot = 0, amplitude = 0.
 
 export const COMBAT_HORIZON_RATIO_2D = COMBAT_HORIZON_RATIO
 
+// The combat floor remains present all the way to the top of the viewport so
+// actors never detach from the arena. Only its distant value is reduced,
+// allowing the procedural mountain and mist bands to supply depth behind it.
+export const COMBAT_HORIZON_PRESENTATION_2D = Object.freeze({
+  maskChannel: 'alpha',
+  topFloorAlpha: 0.12,
+  horizonVeilAlpha: 0.12,
+  farMountainAlpha: 0.38,
+  nearMountainAlpha: 0.44,
+  farMountainHeightRatio: 0.38,
+  nearMountainHeightRatio: 0.42,
+})
+
+export function attachCombatGroundMasks2D(floor, floorMask, decalLayer, decalMask) {
+  floor?.setMask?.({ mask: floorMask, channel: COMBAT_HORIZON_PRESENTATION_2D.maskChannel })
+  decalLayer?.setMask?.({ mask: decalMask, channel: COMBAT_HORIZON_PRESENTATION_2D.maskChannel })
+}
+
 export function combatRenderBands2D(width, height) {
   const safeWidth = Math.max(1, width)
   const safeHeight = Math.max(1, height)
@@ -431,11 +451,14 @@ export function heroSlashPresentation2D(
   return {
     visible: remaining > 0,
     rotation: Math.atan2(ny, nx),
-    offsetX: nx * height * 0.25,
-    offsetY: -height * 0.42 + ny * height * 0.18,
-    width: height * 1.18,
-    height: height * 0.78,
-    alpha: Math.max(0, Math.sin(progress * Math.PI)) * 0.82,
+    // Keep the full stroke in front of the heroine. The previous centered
+    // crescent was technically directional, but its dim rear half still read
+    // as a large halo around the body in real 1920px combat captures.
+    offsetX: nx * height * 0.46,
+    offsetY: -height * 0.46 + ny * height * 0.18,
+    width: height * 0.92,
+    height: height * 0.46,
+    alpha: Math.max(0, Math.sin(progress * Math.PI)) * 0.9,
   }
 }
 
@@ -455,7 +478,9 @@ const ACTOR_FOOT_PIVOTS_2D = Object.freeze({
   seolryeong: Object.freeze([0.945, 0.945, 0.945, 0.945, 0.945, 0.945, 0.945, 0.945]),
   seolryeongE: Object.freeze([0.945, 0.938, 0.938, 0.938, 0.945, 0.93, 0.93, 0.93]),
   seolryeongN: Object.freeze([0.922, 0.898, 0.914, 0.922, 0.883, 0.875, 0.875, 0.875]),
-  seolryeongNe: Object.freeze([0.898, 0.891, 0.891, 0.914, 0.875, 0.867, 0.852, 0.867]),
+  // The northeast atlas has the same opaque contact row in all eight cells.
+  // Per-frame guesses made the heroine's feet hop by up to 18px at 1080p.
+  seolryeongNe: Object.freeze(Array(8).fill(244 / 256)),
   seolryeongS: Object.freeze([0.961, 0.961, 0.961, 0.961, 0.914, 0.953, 0.953, 0.953]),
   yorang: Object.freeze([0.797, 0.797, 0.781, 0.75, 0.734, 0.727, 0.727, 0.75]),
   jadeSerpent: Object.freeze([0.953, 0.953, 0.953, 0.945, 0.953, 0.953, 0.953, 0.953]),
@@ -543,11 +568,18 @@ export function actorGroundingProfile2D(key = 'default', frame = 0) {
 }
 
 export const HERO_GROUND_MARKER_2D = Object.freeze({
-  widthRatio: 0.62,
-  heightRatio: 0.17,
+  widthRatio: 0.46,
+  heightRatio: 0.11,
   offsetY: 2,
-  alpha: 0.2,
+  alpha: 0.12,
   rotation: 0,
+})
+
+export const HERO_AURA_PRESENTATION_2D = Object.freeze({
+  widthRatio: 0.66,
+  heightRatio: 0.18,
+  alpha: 0.1,
+  invulnerableAlpha: 0.26,
 })
 
 /**
@@ -841,10 +873,11 @@ function floorBlendMaskTexture() {
         // below it. Varying the denominator per column retains the soft,
         // irregular atmospheric contour without introducing a new edge.
         const feather = smoothstep((normalizedY + 0.03) / (horizon + 0.265))
-        // The floor is always present as a translucent aerial plane. Keeping
-        // a 68% base removes any possible first-visible contour while the
-        // remaining 32% feather preserves distant atmospheric depth.
-        const alpha = Math.round((0.68 + feather * 0.32) * 255)
+        // The floor is always present as a translucent aerial plane. A low
+        // top value reveals the procedural skyline without creating a hard
+        // seam; the irregular feather reaches a fully opaque play surface.
+        const baseAlpha = COMBAT_HORIZON_PRESENTATION_2D.topFloorAlpha
+        const alpha = Math.round((baseAlpha + feather * (1 - baseAlpha)) * 255)
         const offset = (y * width + x) * 4
         pixels[offset] = 255
         pixels[offset + 1] = 255
@@ -886,22 +919,31 @@ function wispTexture() {
 }
 
 function slashTexture() {
-  return canvasTexture(192, 128, (ctx) => {
-    const glow = ctx.createLinearGradient(24, 64, 174, 64)
+  return canvasTexture(192, 104, (ctx) => {
+    const glow = ctx.createLinearGradient(12, 88, 184, 34)
     glow.addColorStop(0, 'rgba(105,204,255,0)')
-    glow.addColorStop(0.38, 'rgba(109,220,255,.52)')
-    glow.addColorStop(0.72, 'rgba(235,252,255,.96)')
+    glow.addColorStop(0.24, 'rgba(89,207,255,.34)')
+    glow.addColorStop(0.68, 'rgba(186,243,255,.9)')
+    glow.addColorStop(0.9, 'rgba(255,255,255,.98)')
     glow.addColorStop(1, 'rgba(255,255,255,0)')
     ctx.strokeStyle = glow
     ctx.lineCap = 'round'
     ctx.lineWidth = 18
     ctx.beginPath()
-    ctx.arc(76, 64, 64, -0.78, 0.78)
+    ctx.moveTo(12, 88)
+    ctx.bezierCurveTo(58, 70, 112, 10, 184, 34)
     ctx.stroke()
-    ctx.strokeStyle = 'rgba(239,253,255,.95)'
-    ctx.lineWidth = 3
+    ctx.strokeStyle = 'rgba(244,254,255,.98)'
+    ctx.lineWidth = 3.5
     ctx.beginPath()
-    ctx.arc(76, 64, 67, -0.72, 0.72)
+    ctx.moveTo(30, 79)
+    ctx.bezierCurveTo(78, 54, 123, 19, 178, 34)
+    ctx.stroke()
+    ctx.strokeStyle = 'rgba(117,224,255,.48)'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(52, 86)
+    ctx.quadraticCurveTo(116, 44, 168, 43)
     ctx.stroke()
   })
 }
@@ -2231,25 +2273,49 @@ function stoneFallbackTexture() {
 function mountainTexture(color, mist, phase = 0) {
   return canvasTexture(1800, 520, (ctx, width, height) => {
     ctx.clearRect(0, 0, width, height)
-    ctx.beginPath()
-    ctx.moveTo(0, height)
-    const points = 18
-    for (let i = 0; i <= points; i++) {
-      const x = (i / points) * width
-      const ridge = Math.sin(i * 1.73 + phase) * 34 + Math.sin(i * 0.61 + phase * 2) * 48
-      const y = height * 0.55 - ridge - (i % 3 === 0 ? 68 : 0)
-      ctx.lineTo(x, y)
+    const drawRidge = (baseRatio, amplitude, alpha, offset) => {
+      const count = 24
+      const points = []
+      for (let i = 0; i <= count; i++) {
+        const x = (i / count) * width
+        const ridge = Math.sin(i * 1.31 + offset) * amplitude * 0.32
+          + Math.sin(i * 0.47 + offset * 1.7) * amplitude * 0.46
+          + Math.sin(i * 2.17 + offset * 0.6) * amplitude * 0.12
+        points.push({ x, y: height * baseRatio - ridge })
+      }
+      ctx.save()
+      ctx.globalAlpha = alpha
+      ctx.filter = phase < 1 ? 'blur(4px)' : 'blur(2px)'
+      ctx.beginPath()
+      ctx.moveTo(0, height)
+      ctx.lineTo(points[0].x, points[0].y)
+      for (let i = 1; i < points.length; i++) {
+        const previous = points[i - 1]
+        const current = points[i]
+        ctx.quadraticCurveTo(
+          previous.x,
+          previous.y,
+          (previous.x + current.x) * 0.5,
+          (previous.y + current.y) * 0.5,
+        )
+      }
+      const last = points[points.length - 1]
+      ctx.quadraticCurveTo(last.x, last.y, width, last.y)
+      ctx.lineTo(width, height)
+      ctx.closePath()
+      const gradient = ctx.createLinearGradient(0, height * 0.26, 0, height)
+      gradient.addColorStop(0, color)
+      gradient.addColorStop(0.7, '#0d2027')
+      gradient.addColorStop(1, '#071016')
+      ctx.fillStyle = gradient
+      ctx.fill()
+      ctx.restore()
     }
-    ctx.lineTo(width, height)
-    ctx.closePath()
-    const gradient = ctx.createLinearGradient(0, height * 0.3, 0, height)
-    gradient.addColorStop(0, color)
-    gradient.addColorStop(1, '#071016')
-    ctx.fillStyle = gradient
-    ctx.fill()
+    drawRidge(0.64, 72, 0.42, phase + 1.3)
+    drawRidge(0.53, 112, 0.88, phase)
     const haze = ctx.createLinearGradient(0, height * 0.25, 0, height)
     haze.addColorStop(0, 'rgba(120,182,177,0)')
-    haze.addColorStop(0.62, mist)
+    haze.addColorStop(0.58, mist)
     haze.addColorStop(1, 'rgba(6,13,18,0)')
     ctx.fillStyle = haze
     ctx.fillRect(0, 0, width, height)
@@ -2283,6 +2349,15 @@ function loopingFrame(frames, indices, time, fps, phase = 0) {
 function oneShotFrameIndex(indices, remaining, duration) {
   const progress = Math.max(0, Math.min(0.999, 1 - remaining / duration))
   return indices[Math.floor(progress * indices.length)]
+}
+
+export function enemyAttackPresentationDuration2D(def, behavior = 0) {
+  if (behavior === 5) {
+    return Math.max(0.34, (def?.chargeWindup ?? 0.24) + (def?.chargeTime ?? 0.42))
+  }
+  if (behavior === 7) return 0.2
+  if (behavior === 1) return 0.34
+  return 0.3
 }
 
 function oneShotFrame(frames, indices, remaining, duration) {
@@ -2539,10 +2614,10 @@ export class PixiPresentation {
     this.combatVista.tint = 0xc7d9e2
     stage.addChild(this.combatVista)
 
-    this.farMountains = new Sprite(mountainTexture('#17313a', 'rgba(97,155,154,.16)', 0.8))
-    this.nearMountains = new Sprite(mountainTexture('#0d2028', 'rgba(68,128,127,.12)', 2.3))
-    this.farMountains.alpha = 0.2
-    this.nearMountains.alpha = 0.26
+    this.farMountains = new Sprite(mountainTexture('#274952', 'rgba(107,177,170,.2)', 0.8))
+    this.nearMountains = new Sprite(mountainTexture('#19333d', 'rgba(79,151,148,.16)', 2.3))
+    this.farMountains.alpha = COMBAT_HORIZON_PRESENTATION_2D.farMountainAlpha
+    this.nearMountains.alpha = COMBAT_HORIZON_PRESENTATION_2D.nearMountainAlpha
     stage.addChild(this.farMountains, this.nearMountains)
 
     this.farMist = new TilingSprite({ texture: mistRibbonTexture(), width: 1, height: 1 })
@@ -2565,6 +2640,12 @@ export class PixiPresentation {
     this.mapDecalBlendMask = new Sprite(this.floorBlendMask.texture)
     this.mapDecalBlendMask.renderable = false
     stage.addChild(this.mapDecalBlendMask)
+    attachCombatGroundMasks2D(
+      this.floor,
+      this.floorBlendMask,
+      this.mapDecalLayer,
+      this.mapDecalBlendMask,
+    )
     this.terrainMask = new Graphics()
     this.terrainMask.visible = false
     stage.addChild(this.terrainMask)
@@ -2602,7 +2683,7 @@ export class PixiPresentation {
     // Low-alpha atmospheric support over the actual alpha-composited terrain
     // edge. Actors and telegraphs are added later, so this remains terrain-only.
     this.horizonVeil = new Sprite(horizonBlendTexture())
-    this.horizonVeil.alpha = 0
+    this.horizonVeil.alpha = COMBAT_HORIZON_PRESENTATION_2D.horizonVeilAlpha
     this.horizonVeil.blendMode = 'normal'
     stage.addChild(this.horizonVeil)
 
@@ -2972,9 +3053,9 @@ export class PixiPresentation {
     this.titleHero.visible = !running
     this.combatSky.visible = running
     this.combatVista.visible = false
-    this.farMountains.visible = false
-    this.nearMountains.visible = false
-    this.farMist.visible = false
+    this.farMountains.visible = running
+    this.nearMountains.visible = running
+    this.farMist.visible = running
     this.floor.visible = running
     this.mapDecalLayer.visible = running
     this.floorRunes.visible = false
@@ -3149,16 +3230,16 @@ export class PixiPresentation {
     this.combatVistaBaseX = this.combatVista.position.x
     this.combatVistaBaseY = this.combatVista.position.y
     this.farMountains.width = width * 1.24
-    this.farMountains.height = height * 0.58
+    this.farMountains.height = height * COMBAT_HORIZON_PRESENTATION_2D.farMountainHeightRatio
     this.farMountainsBaseX = -width * 0.12
-    this.farMountains.position.set(this.farMountainsBaseX, height * 0.02)
+    this.farMountains.position.set(this.farMountainsBaseX, -height * 0.03)
     this.nearMountains.width = width * 1.3
-    this.nearMountains.height = height * 0.62
+    this.nearMountains.height = height * COMBAT_HORIZON_PRESENTATION_2D.nearMountainHeightRatio
     this.nearMountainsBaseX = -width * 0.15
-    this.nearMountains.position.set(this.nearMountainsBaseX, height * 0.1)
+    this.nearMountains.position.set(this.nearMountainsBaseX, -height * 0.015)
     this.farMist.width = width * 1.35
-    this.farMist.height = Math.max(120, height * 0.26)
-    this.farMist.position.set(-width * 0.15, height * 0.23)
+    this.farMist.height = Math.max(100, height * 0.18)
+    this.farMist.position.set(-width * 0.15, height * 0.13)
     this._combatHorizonY = Math.round(height * COMBAT_HORIZON_RATIO)
     // The floor is viewport-sized; the alpha mask below determines where it
     // enters the scene. This avoids a second sprite edge when the camera pans.
@@ -3429,6 +3510,7 @@ export class PixiPresentation {
       const entry = this.enemyPool[i]
       const def = ENEMIES[field.type[i]] ?? ENEMIES[0]
       const key = enemyTextureKey(def.id)
+      const attackDuration = enemyAttackPresentationDuration2D(def, field.behavior[i])
       if (entry.key !== key) entry.key = key
       if (key !== 'wisp') {
         const actor = SPRITE_MANIFEST.actors[key]
@@ -3436,7 +3518,7 @@ export class PixiPresentation {
         const locomotion = actor.animations.walk ?? actor.animations.hover ?? actor.animations.idle
         const attack = actor.animations.attack ?? actor.animations.cast ?? locomotion
         entry.frame = attacking
-          ? oneShotFrameIndex(attack, field.attackTimer[i], 0.34)
+          ? oneShotFrameIndex(attack, field.attackTimer[i], attackDuration)
           : loopingFrameIndex(locomotion, this.time, key === 'yorang' ? 9 : 7, field.uid[i] * 0.37)
         entry.sprite.texture = this.frames[key][entry.frame]
       } else {
@@ -3510,7 +3592,9 @@ export class PixiPresentation {
         entry.sprite.alpha *= 0.82 + Math.sin(this.time * 4.4 + field.uid[i]) * 0.1
       } else {
         entry.sprite.blendMode = 'normal'
-        const attackKick = field.attackTimer[i] > 0 ? Math.sin((field.attackTimer[i] / 0.34) * Math.PI) * 0.055 : 0
+        const attackKick = field.attackTimer[i] > 0
+          ? Math.sin((field.attackTimer[i] / attackDuration) * Math.PI) * 0.055
+          : 0
         entry.sprite.rotation = stride * (key === 'yorang' ? 0.018 : 0.01) + attackKick
         entry.sprite.scale.x *= 1 + stride * (key === 'yorang' ? 0.026 : 0.012)
         entry.sprite.scale.y *= 1 - stride * (key === 'yorang' ? 0.018 : 0.008)
@@ -3523,7 +3607,7 @@ export class PixiPresentation {
       const intent = entry.intent
       intent.visible = field.attackTimer[i] > 0 && entry.sprite.visible
       if (intent.visible) {
-        const intentProgress = 1 - field.attackTimer[i] / 0.34
+        const intentProgress = Math.max(0, Math.min(1, 1 - field.attackTimer[i] / attackDuration))
         const intentScale = Math.max(0.28, baseHeight * this._presentationScale / 360)
         intent.position.set(_screen.x, _screen.y + 4)
         intent.scale.set(intentScale * (1.12 + intentProgress * 0.18), intentScale * 0.48)
@@ -3581,9 +3665,11 @@ export class PixiPresentation {
     this.heroShadow.alpha = grounding.shadowAlpha
     this.heroAura.position.set(_screen.x, _screen.y + 1)
     const auraPulse = 0.96 + Math.sin(this.time * 2.4) * 0.04
-    this.heroAura.width = heroHeight * 0.9 * auraPulse
-    this.heroAura.height = heroHeight * 0.28 * auraPulse
-    this.heroAura.alpha = player.invulnTimer > 0 ? 0.36 : 0.22
+    this.heroAura.width = heroHeight * HERO_AURA_PRESENTATION_2D.widthRatio * auraPulse
+    this.heroAura.height = heroHeight * HERO_AURA_PRESENTATION_2D.heightRatio * auraPulse
+    this.heroAura.alpha = player.invulnTimer > 0
+      ? HERO_AURA_PRESENTATION_2D.invulnerableAlpha
+      : HERO_AURA_PRESENTATION_2D.alpha
     this.heroAura.visible = this.hero.visible
     this.heroMarker.position.set(_screen.x, _screen.y + HERO_GROUND_MARKER_2D.offsetY)
     this.heroMarker.width = heroHeight * HERO_GROUND_MARKER_2D.widthRatio * auraPulse

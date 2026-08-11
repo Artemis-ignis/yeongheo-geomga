@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   PixiPresentation,
+  COMBAT_HORIZON_PRESENTATION_2D,
   HOSTILE_PROJECTILE_PRESENTATION,
   PROJECTILE_PRESENTATION,
   RUNTIME2D_POOL_LIMITS,
@@ -25,6 +26,8 @@ import {
   weaponFieldVisualForBehavior,
   weaponFieldPulse2D,
   enemyActorTint2D,
+  attachCombatGroundMasks2D,
+  enemyAttackPresentationDuration2D,
 } from '../src/runtime2d/PixiPresentation.js'
 import {
   MAX_PICKUPS_2D,
@@ -155,9 +158,11 @@ describe('PixiPresentation combat bindings', () => {
     const east = heroSlashPresentation2D(Math.PI / 2, 0.16, 176, 32, 12)
     const north = heroSlashPresentation2D(Math.PI, 0.16, 176, 32, 12)
     expect(east.visible).toBe(true)
-    expect(east.alpha).toBeGreaterThan(0.8)
+    expect(east.alpha).toBeGreaterThan(0.85)
     expect(east.offsetX).toBeGreaterThan(0)
-    expect(Math.abs(east.offsetY + 176 * 0.42)).toBeLessThan(1)
+    expect(Math.abs(east.offsetY + 176 * 0.46)).toBeLessThan(1)
+    expect(east.width).toBeLessThanOrEqual(176 * 0.92)
+    expect(east.height).toBeLessThanOrEqual(176 * 0.46)
     expect(north.offsetY).toBeLessThan(east.offsetY)
     expect(north.rotation).toBeLessThan(0)
     expect(heroSlashPresentation2D(0, 0, 176, 32, 12).visible).toBe(false)
@@ -178,7 +183,7 @@ describe('PixiPresentation combat bindings', () => {
     expect(enemyBossFocusAlpha2D(0, true, true)).toBe(1)
   })
 
-  it('keeps the static vista and fake horizon layers out of live combat', () => {
+  it('uses a masked procedural horizon without restoring the pasted static vista', () => {
     const presentation = Object.create(PixiPresentation.prototype)
     const layer = () => ({ visible: true })
     Object.assign(presentation, {
@@ -194,9 +199,38 @@ describe('PixiPresentation combat bindings', () => {
     expect(presentation.floor.visible).toBe(true)
     expect(presentation.mapDecalLayer.visible).toBe(true)
     expect(presentation.combatVista.visible).toBe(false)
-    expect(presentation.farMountains.visible).toBe(false)
-    expect(presentation.nearMountains.visible).toBe(false)
-    expect(presentation.farMist.visible).toBe(false)
+    expect(presentation.farMountains.visible).toBe(true)
+    expect(presentation.nearMountains.visible).toBe(true)
+    expect(presentation.farMist.visible).toBe(true)
+    expect(COMBAT_HORIZON_PRESENTATION_2D.topFloorAlpha).toBeGreaterThanOrEqual(0.12)
+    expect(COMBAT_HORIZON_PRESENTATION_2D.topFloorAlpha).toBeLessThanOrEqual(0.22)
+    expect(COMBAT_HORIZON_PRESENTATION_2D.horizonVeilAlpha).toBeLessThanOrEqual(0.16)
+    expect(COMBAT_HORIZON_PRESENTATION_2D.farMountainHeightRatio).toBeLessThan(0.4)
+    expect(COMBAT_HORIZON_PRESENTATION_2D.nearMountainHeightRatio).toBeLessThanOrEqual(0.42)
+    expect(COMBAT_HORIZON_PRESENTATION_2D.nearMountainAlpha).toBeGreaterThan(
+      COMBAT_HORIZON_PRESENTATION_2D.farMountainAlpha,
+    )
+    expect(COMBAT_HORIZON_PRESENTATION_2D.nearMountainAlpha).toBeLessThanOrEqual(0.6)
+  })
+
+  it('reads the alpha channel for both combat ground masks', () => {
+    const floor = { setMask: vi.fn() }
+    const decals = { setMask: vi.fn() }
+    const floorMask = { id: 'floor-mask' }
+    const decalMask = { id: 'decal-mask' }
+
+    attachCombatGroundMasks2D(floor, floorMask, decals, decalMask)
+
+    expect(floor.setMask).toHaveBeenCalledWith({ mask: floorMask, channel: 'alpha' })
+    expect(decals.setMask).toHaveBeenCalledWith({ mask: decalMask, channel: 'alpha' })
+  })
+
+  it('keeps attack animation and intent timing aligned with simulation behavior', () => {
+    expect(enemyAttackPresentationDuration2D({ chargeWindup: 0.5, chargeTime: 0.55 }, 5)).toBeCloseTo(1.05)
+    expect(enemyAttackPresentationDuration2D({}, 5)).toBeCloseTo(0.66)
+    expect(enemyAttackPresentationDuration2D({}, 7)).toBeCloseTo(0.2)
+    expect(enemyAttackPresentationDuration2D({}, 1)).toBeCloseTo(0.34)
+    expect(enemyAttackPresentationDuration2D({}, 0)).toBeCloseTo(0.3)
   })
 
   it('maps boss cast intent and separates the wolf telegraph palette', () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   HERO_GROUND_MARKER_2D,
+  HERO_AURA_PRESENTATION_2D,
   HERO_READABILITY_RIM_2D,
   BOSS_MIN_SCREEN_HEIGHT_RATIO_2D,
   JADE_GROUND_COMPOSITION_2D,
@@ -31,6 +32,7 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(JADE_GROUND_COMPOSITION_2D.decalOverlap).toBeGreaterThanOrEqual(1.1)
     expect(JADE_GROUND_COMPOSITION_2D.decalEdgeFeather).toBeGreaterThanOrEqual(72)
     expect(JADE_GROUND_COMPOSITION_2D.decalAlpha).toBeGreaterThanOrEqual(0.9)
+    expect(JADE_GROUND_COMPOSITION_2D.floorTileScale.x).toBeLessThanOrEqual(1)
     expect(JADE_GROUND_COMPOSITION_2D.floorTileScale.y / JADE_GROUND_COMPOSITION_2D.floorTileScale.x)
       .toBeCloseTo(0.4, 2)
   })
@@ -57,6 +59,11 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(actorFootPivot2D('yorang', 5)).toBeCloseTo(0.727)
     expect(actorFootPivot2D('jadeStoneGhoul', 0)).toBeCloseTo(0.953)
     expect(actorFootPivot2D('prop', 15)).toBe(actorFootPivot2D('prop', 7))
+  })
+
+  it('keeps all northeast heroine frames on the measured opaque contact row', () => {
+    const pivots = Array.from({ length: 8 }, (_, frame) => heroFootPivot2D('ne', frame))
+    expect(pivots).toEqual(Array(8).fill(244 / 256))
   })
 
   it('uses silhouette-specific contact shadows and restrained separation light', () => {
@@ -89,8 +96,12 @@ describe('runtime 2D grounding and terrain integration', () => {
   it('keeps the heroine marker flat, compact and non-rotating', () => {
     expect(HERO_GROUND_MARKER_2D.rotation).toBe(0)
     expect(HERO_GROUND_MARKER_2D.heightRatio / HERO_GROUND_MARKER_2D.widthRatio).toBeLessThan(0.3)
-    expect(HERO_GROUND_MARKER_2D.alpha).toBeLessThanOrEqual(0.24)
+    expect(HERO_GROUND_MARKER_2D.widthRatio).toBeLessThanOrEqual(0.48)
+    expect(HERO_GROUND_MARKER_2D.alpha).toBeLessThanOrEqual(0.14)
     expect(HERO_GROUND_MARKER_2D.offsetY).toBeLessThanOrEqual(2)
+    expect(HERO_AURA_PRESENTATION_2D.widthRatio).toBeLessThanOrEqual(0.68)
+    expect(HERO_AURA_PRESENTATION_2D.alpha).toBeLessThanOrEqual(0.12)
+    expect(HERO_AURA_PRESENTATION_2D.invulnerableAlpha).toBeGreaterThan(HERO_AURA_PRESENTATION_2D.alpha)
   })
 
   it('meets the authored heroine occupancy targets at both release viewports', () => {
