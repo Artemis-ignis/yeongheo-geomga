@@ -6,13 +6,15 @@
 
 ## 현재 production 2D 검증 스냅샷
 
-- build PASS: Game2D 약 563.84 kB, gzip 약 167.50 kB. 번들 warning 정리는 아직 남아 있습니다.
-- tests PASS: 67개 파일/774개 테스트. assets PASS: 125/125. runtime PASS: 77/77. `npm audit` 알려진 취약점 0.
+- build PASS: Game2D 564.65 kB, gzip 167.64 kB. 번들 warning 정리는 아직 남아 있습니다.
+- tests PASS: 67개 파일/775개 테스트. assets PASS: 127/127. runtime PASS: 78/78. `npm audit` 알려진 취약점 0.
 - `YEONGHEO_NO_BROWSER=1` launcher 실제 smoke PASS.
 - Windows Chromium 정확한 1920×1080·2560×1600 title/combat·level-up DOM 확인, console error 0. title visual PASS와 최신 enemy contact PASS를 별도로 기록했습니다.
-- 전체 commercial visual은 **strict FAIL**입니다. 반복 지면 장판과 악귀 수사 군집의 focused 결함은 닫았지만, 늑대 단일 아틀라스와 후반 전체 군집 가독성은 아직 상용 후보 수준에 못 미칩니다.
+- 전체 commercial visual은 **strict FAIL**입니다. 반복 지면 장판·악귀 수사·일반 늑대 군집의 focused 결함은 닫았지만, `ashRaven`의 늑대 실루엣 재사용과 새 build의 후반 전체 군집 회귀가 남았습니다.
 - WorldClaw는 지역/공유 레이아웃/접점 QA에만 선택적으로 적용했습니다. 전체 3D 포트나 파노라마 전환은 하지 않았습니다.
-- rights audit는 **BLOCKED**이며 법적 증거는 0/77입니다. release approval, A-grade, rights clearance를 선언하지 않습니다.
+- rights audit는 **BLOCKED**이며 법적 증거는 0/78입니다. release approval, A-grade, rights clearance를 선언하지 않습니다.
+
+- `4be14c6`에서 일반 늑대에 기존 푸른 장꼬리 룬 늑대와 구분되는 숯빛 짧은 꼬리·비취 등마루 4×2 이동/공격 아틀라스를 추가했습니다. 루트가 실제 Chrome과 정확한 1920×1080·2560×1600 집중 프레임에서 분배·접지·그림자·주인공 가시성·크로마 경계를 직접 확인해 이 focused 결함만 PASS로 판정했습니다.
 
 ## legacy 3D 개발·자산 QA 연결 상태
 
