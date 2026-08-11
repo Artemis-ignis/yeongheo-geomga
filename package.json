@@ -3,21 +3,29 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "start": "vite build && vite preview --open",
     "dev": "vite",
     "build": "vite build",
     "assets:audit": "node tools/asset-audit.mjs",
+    "assets:build-audit": "node tools/audit-submission-build.mjs",
     "assets:img2three-gate": "node tools/img2threejs/prepare-gate-factory.mjs artifacts/img2threejs/jade-sanctuary-gate/generated/JadeSanctuaryGateFactory.ts src/art/generated/JadeSanctuaryGateFactory.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "three": "^0.185.1"
+    "pixi.js": "^8.19.0"
   },
   "devDependencies": {
+    "three": "^0.185.1",
     "vite": "^8.1.5",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "nanoid": "^3.3.17"
   }
 }

@@ -40,31 +40,31 @@
 export const ENEMIES = [
   {
     // Drifts in on a weave. It is a leftover of 마기, not a hunter.
-    id: 'wisp', name: '마기 잔영',
+    id: 'wisp', name: '마기 잔영', desc: '느린 곡선을 그리며 떠도는 마기의 잔영이다.',
     hp: 16, speed: 2.4, damage: 3, radius: 0.45, kbResist: 0.0, xp: 2,
     behavior: 'drifter', color: 0x8b6fd6, scale: 0.7,
     driftArc: 0.85, driftRate: 1.3,
   },
   {
-    id: 'wolf', name: '요랑',
+    id: 'wolf', name: '요랑', desc: '거리를 좁힌 뒤 순간적으로 뛰어드는 요랑이다.',
     hp: 32, speed: 4.2, damage: 5, radius: 0.55, kbResist: 0.1, xp: 4,
     behavior: 'dasher', color: 0x5f7fa8, scale: 0.85, dashInterval: 4.0,
   },
   {
     // Slow to start, hard to shake once it is moving.
-    id: 'stoneGhoul', name: '석귀',
+    id: 'stoneGhoul', name: '석귀', desc: '느리지만 단단한 몸으로 끝까지 다가오는 석귀다.',
     hp: 180, speed: 1.5, damage: 9, radius: 0.95, kbResist: 0.7, xp: 10,
     behavior: 'lumberer', color: 0x7d7466, scale: 1.05,
     rampTime: 8, rampTo: 1.2, loseSight: 24,
   },
   {
-    id: 'talismanGhost', name: '부적귀',
+    id: 'talismanGhost', name: '부적귀', desc: '거리를 유지하며 부적을 날리는 원거리 요괴다.',
     hp: 44, speed: 2.0, damage: 4, radius: 0.55, kbResist: 0.2, xp: 6,
     behavior: 'ranged', color: 0xc7b56a, scale: 0.85,
     shootInterval: 2.5, keepDistance: 10, shotSpeed: 9, shotDamage: 8,
   },
   {
-    id: 'bloodScorpion', name: '혈갈',
+    id: 'bloodScorpion', name: '혈갈', desc: '상처를 남기고 쓰러질 때 작은 혈갈로 갈라지는 요괴다.',
     hp: 68, speed: 3.0, damage: 6, radius: 0.7, kbResist: 0.3, xp: 8,
     behavior: 'splitter', color: 0xa3324a, scale: 0.95, splitInto: 2,
   },
@@ -72,7 +72,7 @@ export const ENEMIES = [
     // Reads noticeably larger than the rank and file. An elite that is the same
     // size as the trash around it is an elite the player does not notice until
     // it has already hit them.
-    id: 'demonCultivator', name: '마수사',
+    id: 'demonCultivator', name: '마수사', desc: '측면으로 파고들어 틈을 노리는 정예 마수사다.',
     hp: 320, speed: 3.4, damage: 11, radius: 0.95, kbResist: 0.5, xp: 30,
     behavior: 'flanker', color: 0x6b3fa0, scale: 1.22, elite: true,
     flankArc: 0.95, flankClose: 5, flankSpread: 14,
@@ -84,7 +84,7 @@ export const ENEMIES = [
     // for its cost, but it dies to a single solid hit. Kill it on approach.
     // Coils, then strikes in a straight line. The wind-up is the counterplay:
     // it hits harder than anything else this early and is dodgeable on sight.
-    id: 'jadeSerpent', name: '청사',
+    id: 'jadeSerpent', name: '청사', desc: '몸을 웅크렸다가 곧장 돌진하는 청사다.',
     hp: 40, speed: 4.2, damage: 8, radius: 0.5, kbResist: 0.1, xp: 6,
     behavior: 'charger', color: 0x4fbf8a, scale: 0.9,
     chargeInterval: 2.9, chargeWindup: 0.5, chargeTime: 0.55, chargeSpeed: 3.6,
@@ -93,12 +93,12 @@ export const ENEMIES = [
   // ---- 적염비경 ----------------------------------------------------------
   {
     // Darts and stalls. Faster than she is, but only in bursts.
-    id: 'emberSprite', name: '화정',
+    id: 'emberSprite', name: '화정', desc: '깜빡이며 접근과 이탈을 반복하는 화정이다.',
     hp: 28, speed: 3.6, damage: 5, radius: 0.5, kbResist: 0.05, xp: 4,
     behavior: 'flicker', color: 0xff8a3c, scale: 0.75, flickerRate: 5.2,
   },
   {
-    id: 'magmaBrute', name: '용암귀',
+    id: 'magmaBrute', name: '용암귀', desc: '느리지만 거대한 몸으로 꾸준히 압박하는 용암귀다.',
     hp: 420, speed: 1.7, damage: 13, radius: 1.0, kbResist: 0.75, xp: 18,
     behavior: 'lumberer', color: 0xd0442a, scale: 1.15,
     rampTime: 7, rampTo: 1.35, loseSight: 26,
@@ -106,7 +106,7 @@ export const ENEMIES = [
   {
     // Dives and peels away rather than pressing, so it is a nuisance that
     // interrupts rather than a body in the wall.
-    id: 'ashRaven', name: '재까마귀',
+    id: 'ashRaven', name: '재까마귀', desc: '짧게 급습한 뒤 다시 물러나는 재까마귀다.',
     hp: 40, speed: 5.4, damage: 6, radius: 0.5, kbResist: 0.0, xp: 6,
     behavior: 'skirmisher', color: 0x8a5a4a, scale: 0.85,
     skirmishRange: 2.4, skirmishBack: 0.6,
@@ -116,20 +116,20 @@ export const ENEMIES = [
   {
     // Hunts as a pack: curves wide on the approach so a group arrives from
     // several sides at once instead of stacking into one line.
-    id: 'frostWolf', name: '설랑',
+    id: 'frostWolf', name: '설랑', desc: '무리를 이루어 옆을 돌아 포위하는 설랑이다.',
     hp: 52, speed: 4.4, damage: 6, radius: 0.55, kbResist: 0.15, xp: 6,
     behavior: 'flanker', color: 0xa8d8ea, scale: 0.9,
     flankArc: 1.25, flankClose: 3.5, flankSpread: 11,
   },
   {
-    id: 'snowWraith', name: '설귀',
+    id: 'snowWraith', name: '설귀', desc: '거리를 벌리고 냉기 탄을 쏘는 설귀다.',
     hp: 80, speed: 2.2, damage: 7, radius: 0.6, kbResist: 0.25, xp: 10,
     behavior: 'ranged', color: 0xd0e8f4, scale: 1.0,
     shootInterval: 2.2, keepDistance: 11, shotSpeed: 10, shotDamage: 12,
   },
   {
     // The slowest thing in the game and the hardest to escape once it starts.
-    id: 'glacierWarden', name: '빙벽수',
+    id: 'glacierWarden', name: '빙벽수', desc: '빙벽처럼 버티며 느리게 다가오는 정예 빙벽수다.',
     hp: 640, speed: 1.3, damage: 15, radius: 1.15, kbResist: 0.85, xp: 28,
     behavior: 'lumberer', color: 0x7fb4d8, scale: 1.3, elite: true,
     rampTime: 11, rampTo: 1.6, loseSight: 30,

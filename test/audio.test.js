@@ -3,7 +3,13 @@ import {
   PENTATONIC, MODES, intensityOf, isAnswerNote, nextDegree, noteFreq, noteInterval,
   scaleFor, tonicFor, BEATS_PER_BAR, tempoFor, phraseAt, chordRootAt, drumsForBar,
 } from '../src/audio/theory.js'
-import { AudioEngine } from '../src/audio/Audio.js'
+import {
+  AudioEngine,
+  BOSS_DEATH_VICTORY_GAP,
+  MAX_ACTIVE_SFX_VOICES,
+  WEAPON_AUDIO_CUE_TABLE,
+  resolveWeaponAudioCue,
+} from '../src/audio/Audio.js'
 
 describe('scale', () => {
   it('has no semitone steps, so nothing generated against the drone can clash', () => {
@@ -218,16 +224,21 @@ describe('audio settings', () => {
   it('ignores a corrupt settings blob instead of failing to boot', () => {
     const store = memoryStorage({ 'yeongheo.audio': '{not json' })
     const a = new AudioEngine({ contextFactory: () => null, storage: store })
-    expect(a.muted).toBe(true)
+    expect(a.muted).toBe(false)
     expect(a.masterVolume).toBeGreaterThan(0)
   })
 
-  it('does not restore the old unmuted default after the silent-start upgrade', () => {
+  it('starts fresh players with sound enabled', () => {
+    const a = new AudioEngine({ contextFactory: () => null, storage: memoryStorage() })
+    expect(a.muted).toBe(false)
+  })
+
+  it('ignores a legacy unversioned mute value', () => {
     const store = memoryStorage({
-      'yeongheo.audio': JSON.stringify({ muted: false, master: 0.75 }),
+      'yeongheo.audio': JSON.stringify({ muted: true, master: 0.75 }),
     })
     const a = new AudioEngine({ contextFactory: () => null, storage: store })
-    expect(a.muted).toBe(true)
+    expect(a.muted).toBe(false)
   })
 })
 
@@ -299,5 +310,269 @@ describe('metre, motif and harmony', () => {
         expect(['deep', 'tap']).toContain(voice)
       }
     }
+  })
+})
+
+class FakeParam {
+  constructor(value = 0) { this.value = value }
+  setValueAtTime(value) { this.value = value }
+  exponentialRampToValueAtTime(value) { this.value = value }
+  cancelScheduledValues() {}
+  setTargetAtTime(value) { this.value = value }
+}
+
+class FakeNode {
+  constructor() {
+    this.connections = []
+    this.disconnectCount = 0
+    this.listeners = new Map()
+    this.onended = null
+  }
+
+  connect(node) { this.connections.push(node); return node }
+
+  disconnect() { this.disconnectCount++ }
+
+  addEventListener(type, callback, options = {}) {
+    const list = this.listeners.get(type) ?? []
+    list.push({ callback, once: Boolean(options.once) })
+    this.listeners.set(type, list)
+  }
+
+  emitEnded() {
+    const list = this.listeners.get('ended') ?? []
+    for (const item of [...list]) {
+      item.callback()
+      if (item.once) {
+        const current = this.listeners.get('ended') ?? []
+        this.listeners.set('ended', current.filter((entry) => entry !== item))
+      }
+    }
+    this.onended?.()
+  }
+
+  start(...args) { this.startTime = args[0] }
+
+  stop(...args) { this.stopTime = args[0] }
+}
+
+class FakeAudioContext {
+  constructor() {
+    this.currentTime = 0
+    this.sampleRate = 8000
+    this.state = 'running'
+    this.destination = new FakeNode()
+    this.sources = []
+    this.gains = []
+  }
+
+  createDynamicsCompressor() {
+    const node = new FakeNode()
+    node.threshold = new FakeParam()
+    node.knee = new FakeParam()
+    node.ratio = new FakeParam()
+    node.attack = new FakeParam()
+    node.release = new FakeParam()
+    return node
+  }
+
+  createGain() {
+    const node = new FakeNode()
+    node.gain = new FakeParam()
+    this.gains.push(node)
+    return node
+  }
+
+  createWaveShaper() {
+    const node = new FakeNode()
+    node.curve = null
+    node.oversample = 'none'
+    return node
+  }
+
+  createBiquadFilter() {
+    const node = new FakeNode()
+    node.frequency = new FakeParam()
+    node.type = 'lowpass'
+    return node
+  }
+
+  createStereoPanner() {
+    const node = new FakeNode()
+    node.pan = new FakeParam()
+    return node
+  }
+
+  createBufferSource() {
+    const node = new FakeNode()
+    node.buffer = null
+    node.playbackRate = new FakeParam(1)
+    this.sources.push(node)
+    return node
+  }
+
+  createOscillator() {
+    const node = new FakeNode()
+    node.frequency = new FakeParam()
+    node.detune = new FakeParam()
+    node.type = 'sine'
+    this.sources.push(node)
+    return node
+  }
+
+  createBuffer(channels, length, rate) {
+    return {
+      channels,
+      length,
+      sampleRate: rate,
+      getChannelData: () => new Float32Array(length),
+    }
+  }
+
+  suspend() { this.state = 'suspended'; return Promise.resolve() }
+  resume() { this.state = 'running'; return Promise.resolve() }
+  close() { this.state = 'closed'; return Promise.resolve() }
+}
+
+function makeLiveAudio() {
+  const context = new FakeAudioContext()
+  const audio = new AudioEngine({ contextFactory: () => context, storage: memoryStorage() })
+  audio.setMuted(false)
+  expect(audio.unlock()).toBe(true)
+  return { audio, context }
+}
+
+describe('live SFX routing and voice lifecycle', () => {
+  it('exposes fixed launch, impact, field, and status cues for every descriptor kind', () => {
+    for (const [kind, row] of Object.entries(WEAPON_AUDIO_CUE_TABLE)) {
+      for (const phase of ['launch', 'impact', 'field', 'status']) {
+        expect(row[phase], `${kind}.${phase}`).toMatch(/^weapon(?:Launch|Impact|Field|Status)$/)
+        expect(resolveWeaponAudioCue(kind, phase), `${kind}.${phase} resolver`).toBe(row[phase])
+      }
+    }
+    expect(resolveWeaponAudioCue('unknown-kind', 'status')).toBe('weaponStatus')
+    expect(resolveWeaponAudioCue('weapon.blade.impact', 'impact')).toBe('weaponImpact')
+  })
+
+  it('recognises weapon phases and boss/content stingers through the live context', () => {
+    const { audio, context } = makeLiveAudio()
+    for (const [index, phase] of ['launch', 'impact', 'field', 'status'].entries()) {
+      context.currentTime = index * 0.2
+      expect(audio.playWeaponCue('blade', phase), phase).toBe(true)
+    }
+    for (const [index, name] of [
+      'bossTelegraph', 'bossImpact', 'bossHit', 'bossDeath',
+      'evolution', 'daoSelect', 'formation', 'timeout',
+      'dash', 'heal', 'finalBoss',
+    ].entries()) {
+      context.currentTime = 1 + index * 0.5
+      expect(audio.play(name), name).toBe(true)
+    }
+    expect(context.sources.length).toBeGreaterThan(0)
+    audio.dispose()
+  })
+
+  it('keeps active SFX at 32, preempts low priority voices, and diagnoses drops', () => {
+    const { audio, context } = makeLiveAudio()
+    for (let i = 0; i < MAX_ACTIVE_SFX_VOICES; i++) expect(audio.play('uiMove')).toBe(true)
+    expect(audio.play('uiMove')).toBe(false)
+    expect(audio.getVoiceDiagnostics()).toMatchObject({
+      activeSfxVoices: MAX_ACTIVE_SFX_VOICES,
+      maxActiveSfxVoices: MAX_ACTIVE_SFX_VOICES,
+      droppedSfxVoices: 1,
+    })
+
+    context.currentTime = 1
+    expect(audio.play('bossImpact')).toBe(true)
+    expect(audio.getVoiceDiagnostics()).toMatchObject({
+      activeSfxVoices: MAX_ACTIVE_SFX_VOICES,
+      preemptedSfxVoices: 1,
+    })
+    audio.stopAllSfx()
+    expect(audio.getVoiceDiagnostics().activeSfxVoices).toBe(0)
+    audio.dispose()
+  })
+
+  it('rate-limits only the shared UI cue helper, not raw low-level UI voices', () => {
+    const { audio, context } = makeLiveAudio()
+    expect(audio.playUiCue('focus')).toBe(true)
+    expect(audio.playUiCue('focus')).toBe(false)
+    expect(audio.play('uiMove')).toBe(true)
+    context.currentTime = 0.061
+    expect(audio.playUiCue('focus')).toBe(true)
+    audio.dispose()
+  })
+
+  it('unlocks and resumes a previously muted context from the same gesture path', () => {
+    const context = new FakeAudioContext()
+    let resumes = 0
+    context.state = 'suspended'
+    context.resume = () => {
+      resumes++
+      context.state = 'running'
+      return Promise.resolve()
+    }
+    const audio = new AudioEngine({ contextFactory: () => context, storage: memoryStorage() })
+    audio.setMuted(true)
+    expect(audio.ensureUnlocked()).toBe(true)
+    expect(audio.muted).toBe(true)
+    expect(resumes).toBe(1)
+    audio.dispose()
+  })
+
+  it('delays the victory stinger until the boss death tail has resolved', () => {
+    const { audio, context } = makeLiveAudio()
+    expect(audio.play('bossDeath')).toBe(true)
+    expect(audio.play('victory')).toBe(true)
+    const victoryStarts = context.sources.slice(-5).map((source) => source.startTime)
+    expect(Math.min(...victoryStarts)).toBeGreaterThanOrEqual(BOSS_DEATH_VICTORY_GAP)
+    audio.dispose()
+  })
+
+  it('disconnects a completed voice and decrements the active count', () => {
+    const { audio, context } = makeLiveAudio()
+    expect(audio.play('uiMove')).toBe(true)
+    expect(audio.getVoiceDiagnostics().activeSfxVoices).toBe(1)
+    context.sources.at(-1).emitEnded()
+    expect(audio.getVoiceDiagnostics()).toMatchObject({
+      activeSfxVoices: 0,
+      endedSfxVoices: 1,
+    })
+    expect(context.sources.at(-1).disconnectCount).toBeGreaterThan(0)
+    audio.dispose()
+  })
+
+  it('ducks and suspends/resumes the context without losing the mix setting', () => {
+    const { audio, context } = makeLiveAudio()
+    audio.setDucked(true, 0.25)
+    expect(audio.master.gain.value).toBeCloseTo(0.75 * 0.25)
+    expect(audio.suspend()).toBe(true)
+    expect(context.state).toBe('suspended')
+    expect(audio.master.gain.value).toBe(0)
+    expect(audio.play('uiMove')).toBe(false)
+    expect(audio.resume()).toBe(false)
+    expect(context.state).toBe('running')
+    expect(audio.master.gain.value).toBeCloseTo(0.75 * 0.25)
+    audio.setDucked(false)
+    expect(audio.master.gain.value).toBeCloseTo(0.75)
+    audio.dispose()
+  })
+
+  it('settles browser-policy resume and suspend rejections', async () => {
+    const context = new FakeAudioContext()
+    context.state = 'suspended'
+    context.resume = () => Promise.reject(new Error('gesture required'))
+    context.suspend = () => Promise.reject(new Error('context closing'))
+    const audio = new AudioEngine({ contextFactory: () => context, storage: memoryStorage() })
+    audio.setMuted(false)
+
+    expect(audio.unlock()).toBe(true)
+    await Promise.resolve()
+    expect(audio.setSuspended(true)).toBe(true)
+    await Promise.resolve()
+    expect(audio.setSuspended(false)).toBe(false)
+    await Promise.resolve()
+
+    audio.dispose()
   })
 })

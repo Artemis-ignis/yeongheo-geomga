@@ -1,6 +1,11 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { defineConfig } from 'vitest/config'
+import {
+  auditSubmissionAssets,
+  formatSubmissionAssetReport,
+  pruneSubmissionAssets,
+} from './tools/submission-assets.mjs'
 
 const SHOT_DIR = resolve(process.cwd(), '.shots')
 const CAPTURE_ENABLED = process.env.VITE_ENABLE_CAPTURE === '1'
@@ -44,6 +49,36 @@ function screenshotSink() {
   }
 }
 
+/**
+ * Vite copies the entire public directory by design.  Keep that source tree
+ * intact for authoring and local legacy QA, then remove only non-runtime
+ * public assets from the generated Pages artifact after the bundle is written.
+ */
+function submissionRuntimeAssetPruner() {
+  let publicDir = resolve(process.cwd(), 'public')
+  let outDir = resolve(process.cwd(), 'dist')
+  return {
+    name: 'submission-runtime-asset-pruner',
+    apply: 'build',
+    configResolved(config) {
+      if (typeof config.publicDir === 'string') publicDir = config.publicDir
+      outDir = resolve(config.root, config.build.outDir)
+    },
+    closeBundle() {
+      const beforeAudit = auditSubmissionAssets({ publicDir, outDir })
+      if (beforeAudit.sourceMissing.length > 0) {
+        throw new Error(`submission runtime source assets missing: ${beforeAudit.sourceMissing.join(', ')}`)
+      }
+      const pruning = pruneSubmissionAssets({ publicDir, outDir })
+      const afterAudit = auditSubmissionAssets({ publicDir, outDir })
+      if (!afterAudit.ok) {
+        throw new Error(`submission runtime output asset audit failed: ${JSON.stringify(afterAudit)}`)
+      }
+      console.log(formatSubmissionAssetReport({ ...afterAudit, ...pruning }))
+    },
+  }
+}
+
 export default defineConfig({
   base: './',
   // Do not auto-launch the system browser: the dev server gets started and
@@ -79,7 +114,10 @@ export default defineConfig({
     },
   },
   // The filesystem sink is only needed during an explicit visual-QA session.
-  plugins: CAPTURE_ENABLED ? [screenshotSink()] : [],
+  plugins: [
+    submissionRuntimeAssetPruner(),
+    ...(CAPTURE_ENABLED ? [screenshotSink()] : []),
+  ],
   test: {
     environment: 'node',
     include: ['test/**/*.test.js'],

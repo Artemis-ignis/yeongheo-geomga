@@ -48,13 +48,26 @@ export const RUN_SECONDS = 900
  * competent human should have room where it dies.
  */
 export const WAVES = [
-  { t: 0, spawnInterval: 1.60, perSpawn: 6, types: ['wisp'] },
-  { t: 30, spawnInterval: 1.50, perSpawn: 6, types: ['wisp'] },
-  { t: 60, spawnInterval: 1.45, perSpawn: 7, types: ['wisp'] },
-  { t: 90, spawnInterval: 1.40, perSpawn: 7, types: ['wisp', 'wolf'] },
-  { t: 120, spawnInterval: 1.35, perSpawn: 8, types: ['wisp', 'wolf'] },
-  { t: 150, spawnInterval: 1.30, perSpawn: 9, types: ['wisp', 'wolf', 'stoneGhoul', 'emberSprite', 'frostWolf'] },
-  { t: 180, spawnInterval: 1.25, perSpawn: 10, types: ['wisp', 'wolf', 'stoneGhoul'] },
+  // Do not spend the first ninety seconds showing one repeated silhouette.
+  // Duplicate ids are intentional weights: wisps stay the opening fodder while
+  // authored melee reads are introduced one at a time. The ranged ghost arrives
+  // only after the player has seen and understood those two melee reads.
+  // 0-30s: ~3.03 enemies/s. Keep the first read to melee fodder and wolves.
+  { t: 0, spawnInterval: 1.65, perSpawn: 5, types: ['wisp', 'wisp', 'wolf'] },
+  // 30-60s: ~3.33 enemies/s. The charger is the first escalation.
+  { t: 30, spawnInterval: 1.50, perSpawn: 5, types: ['wisp', 'wisp', 'wisp', 'wisp', 'wolf', 'jadeSerpent'] },
+  // 60-120s: keep wisps dominant, but alternate a small melee/charger weight.
+  // A full minute of one silhouette read as content repetition even though the
+  // measured density was healthy; duplicated wisps preserve the survivable
+  // economy while the returning wolf/serpent makes movement decisions visible.
+  { t: 60, spawnInterval: 1.45, perSpawn: 6, types: [...Array(19).fill('wisp'), 'wolf'] },
+  { t: 90, spawnInterval: 1.40, perSpawn: 7, types: [...Array(19).fill('wisp'), 'jadeSerpent'] },
+  { t: 120, spawnInterval: 1.35, perSpawn: 8, types: [...Array(38).fill('wisp'), 'wolf', 'jadeSerpent'] },
+  // 150s: wolves become a clearly recurring contact threat.
+  { t: 150, spawnInterval: 1.30, perSpawn: 9, types: ['wisp', 'wisp', 'wolf'] },
+  // 180s: ranged pressure arrives as the mid-boss enters; splitter remains a
+  // later discovery in the unchanged 210s band.
+  { t: 180, spawnInterval: 1.25, perSpawn: 10, types: ['wisp', 'wisp', 'wolf', 'talismanGhost'] },
   { t: 210, spawnInterval: 1.20, perSpawn: 10, types: ['wolf', 'stoneGhoul', 'talismanGhost', 'jadeSerpent', 'emberSprite', 'frostWolf'] },
   { t: 240, spawnInterval: 1.15, perSpawn: 11, types: ['wisp', 'wolf', 'talismanGhost'] },
   { t: 270, spawnInterval: 1.10, perSpawn: 12, types: ['wolf', 'talismanGhost', 'bloodScorpion', 'jadeSerpent', 'ashRaven', 'snowWraith'] },

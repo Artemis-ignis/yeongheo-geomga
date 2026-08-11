@@ -1,0 +1,253 @@
+영허검가 — AI 생성·후처리 이미지 자산 공개 고지
+================================================
+
+기준 시각: 2026-08-10 KST
+대상: 현재 제출 runtime allowlist에 포함된 이미지 73개
+근거: tools/submission-assets.mjs, tools/asset-manifest.json,
+      docs/competition/ASSET_RIGHTS_LEDGER.md
+
+이 파일은 게임에 사용된 이미지의 기술적 생성 경로(provenance)를 공개하는
+고지입니다. AI 생성물이라는 표시는 저작권, 상업 이용권, 공개·홍보·대회
+제출 허가 또는 제3자 권리 비침해를 뜻하지 않습니다. 현재 원장의 판정은
+기술 provenance chain 73/73, 법적 권리 증거 0/73, 권리 게이트 BLOCKED입니다.
+어떤 자산도 이 파일만으로 승인된 것으로 간주하지 마십시오.
+
+원장의 기술 분류 요약: generated=73, own=0, external-direct=0,
+unknown-source=0. 여기서 own=0/unknown-source=0은 기술 원천 라벨의 집계이며,
+권리 확인을 뜻하지 않습니다. 권리 상태는 73개 모두 미확인·차단입니다.
+
+1. 현재 runtime 이미지 73개의 기술적 분류
+-------------------------------------------
+
+A. 직접 ImageGen 결과 또는 직접 결과에 가까운 이미지: 8개
+   AS-01, AS-02, AS-17, AS-18, AS-19, AS-20, AS-21, AS-73
+   - ImageGen 결과 파일을 런타임에서 직접 사용합니다.
+   - AS-18은 Yeongheo AAA Asset Brief 템플릿을 함께 사용한 ImageGen 결과입니다.
+     템플릿의 사용 조건과 권리는 별도로 확인해야 합니다.
+   - 원장의 로컬 SHA 기록상 8개는 .codex/generated_images 원본과 일치하지만,
+     이는 파일 동일성 증거일 뿐 계정·입력물 권리·약관 적용·대표자의 제출
+     권리를 확인하는 증거가 아닙니다.
+
+B. ImageGen → 스프라이트 후처리 → runtime atlas: 14개
+   AS-03~AS-16
+   - ImageGen 방향/모션 원천을 chroma-key, alpha, despill 및 고정 atlas
+     처리한 파생 이미지입니다.
+   - 기술 연결은 src/runtime2d/spriteManifest.js와
+     artifacts/2d-qa/SPRITE_ASSET_AUDIT.md에 기록되어 있습니다.
+   - 후처리는 원본의 권리 상태를 바꾸지 않습니다.
+   - AS-03, AS-05~AS-13, AS-15는 원장상 source 원본과의 로컬 SHA 연결이
+     확인되었습니다(11개).
+   - 기존 원본 미검출이던 AS-04, AS-14, AS-16은 정확한 local ImageGen
+     원본, archived generation event/revised prompt와 변환 명령을 복구했고,
+     격리 재현 source/runtime이 현재 파일과 byte·RGBA pixel 모두 exact
+     match했습니다(3개). 기술 sprite chain은 총 14/14이며 exact original
+     미검출은 0개입니다. 이는 법적 권리 확인이 아닙니다.
+
+C. ImageGen atlas → 결정적 crop → UI/비경 이미지: 19개
+   AS-22~AS-40
+   - 16개 스킬 아이콘(AS-22~AS-37)은
+     artifacts/2d-build/yeongheo-skill-atlas-v1.png에서 crop한 결과입니다.
+   - 3개 비경 선택 썸네일(AS-38~AS-40)은
+     artifacts/2d-build/yeongheo-stage-thumbnail-atlas-v1.png에서 crop한
+     결과입니다.
+   - crop, resize, PNG 저장은 결정적 후처리이며 각 crop이 별도의 독립적인
+     권리 승인을 의미하지 않습니다.
+   - 원장의 분류는 source chain 확인이지 원본 atlas 또는 crop 결과의
+   제출·상업 이용 허가 확인이 아닙니다.
+
+D. ImageGen atlas → 결정적 crop → 의미별 스킬·도가 아이콘: 32개
+   AS-41~AS-72
+   - 16개 법보·공법·진화 아이콘(AS-41~AS-56)은
+     artifacts/2d-build/yeongheo-skill-atlas-v2.png에서 crop했습니다.
+   - 12개 도가 선택 아이콘과 4개 보조 아이콘(AS-57~AS-72)은
+     artifacts/2d-build/yeongheo-dao-atlas-v1.png에서 crop했습니다.
+   - 두 atlas와 각 256×256 crop의 로컬 SHA 연결을 보존했습니다. 이는
+     기술적 source chain일 뿐 상업·공개·대회 제출 권리 승인이 아닙니다.
+
+2. 73개 이미지 인벤토리
+------------------------
+
+[A] 직접 ImageGen 결과 / template-assisted 결과
+
+AS-01 | public/assets/environment/jade-sanctuary-environment-v2.png
+      | source=imagegen
+      | 용도: runtime 환경 배경
+AS-02 | public/assets/marketing/yeongheo-contest-keyart-v1.png
+      | source=imagegen
+      | 용도: 타이틀·마케팅 키아트
+AS-17 | public/assets/characters/seolryeong-character-reference-v2.png
+      | source=imagegen
+      | 용도: 타이틀 캐릭터 reference
+AS-18 | public/assets/characters/seolryeong-character-reference-v3.png
+      | source=imagegen-plus-artifact-template-yeongheo-aaa-asset-brief
+      | 용도: 최신 타이틀 캐릭터 reference
+AS-19 | public/assets/characters/jade-void-warden-boss-reference-v2.png
+      | source=imagegen
+      | 용도: 보스 reference
+AS-20 | public/assets/materials/environment/jade-pavilion-stone-v1.png
+      | source=imagegen
+      | 용도: 제단 paver 재질
+AS-21 | public/assets/materials/environment/jade-highland-ground-v1.png
+      | source=imagegen
+      | 용도: 2D 비취 고원 ground 재질
+AS-73 | public/assets/materials/environment/jade-sanctuary-ground-material-v2.png
+      | source=imagegen
+      | 용도: 2D 청람 성역 seamless ground 재질
+
+[B] ImageGen sprite chain
+
+AS-03 | public/assets/sprites2d/seolryeong-combat-v1.png
+      | source=imagegen-chroma-key-alpha
+      | 용도: 주인공 전투 atlas
+AS-04 | public/assets/sprites2d/seolryeong-heroine-motion-v4.png
+      | source=imagegen-chroma-key-alpha-despill
+      | 용도: 주인공 이동·공격 atlas
+AS-05 | public/assets/sprites2d/seolryeong-heroine-east-motion-v1.png
+      | source=imagegen-chroma-key-alpha-despill-directional-v1
+      | 용도: 주인공 동쪽 방향 atlas
+AS-06 | public/assets/sprites2d/seolryeong-heroine-north-motion-v1.png
+      | source=imagegen-chroma-key-alpha-despill-directional-v1
+      | 용도: 주인공 북쪽 방향 atlas
+AS-07 | public/assets/sprites2d/seolryeong-heroine-northeast-motion-v1.png
+      | source=imagegen-chroma-key-alpha-despill-directional-v1
+      | 용도: 주인공 북동쪽 방향 atlas
+AS-08 | public/assets/sprites2d/seolryeong-heroine-south-motion-v1.png
+      | source=imagegen-chroma-key-alpha-despill-directional-v1
+      | 용도: 주인공 남쪽 방향 atlas
+AS-09 | public/assets/sprites2d/yorang-motion-v2.png
+      | source=imagegen-chroma-key-alpha-despill
+      | 용도: 일반 적 atlas
+AS-10 | public/assets/sprites2d/void-sentinel-motion-v2.png
+      | source=imagegen-chroma-key-alpha-despill
+      | 용도: 정예 적 atlas
+AS-11 | public/assets/sprites2d/jade-void-warden-motion-v2.png
+      | source=imagegen-chroma-key-alpha-despill
+      | 용도: 보스 atlas
+AS-12 | public/assets/sprites2d/jade-sanctuary-props-v1.png
+      | source=imagegen-chroma-key-alpha-despill
+      | 용도: 환경 소품 atlas
+AS-13 | public/assets/sprites2d/talisman-revenant-motion-v1.png
+      | source=imagegen-chroma-key-alpha-despill
+      | 용도: 부적 망령 atlas
+AS-14 | public/assets/sprites2d/jade-serpent-motion-v1.png
+      | source=imagegen-chroma-key-alpha-despill
+      | 용도: 비취 뱀 atlas
+AS-15 | public/assets/sprites2d/jade-stone-ghoul-motion-v1.png
+      | source=imagegen-chroma-key-alpha-despill
+      | 용도: 석귀 atlas
+AS-16 | public/assets/sprites2d/blood-scorpion-motion-v1.png
+      | source=imagegen-chroma-key-alpha-despill
+      | 용도: 혈갈 atlas
+
+[C] ImageGen atlas crop — 스킬 아이콘 16개
+
+AS-22 | public/assets/ui/skill-icons-v1/area-formation.png       | 결계·장판
+AS-23 | public/assets/ui/skill-icons-v1/attack-seal.png           | 공격 부적
+AS-24 | public/assets/ui/skill-icons-v1/bagua-array.png            | 팔괘진
+AS-25 | public/assets/ui/skill-icons-v1/cooldown-hourglass.png     | 재사용 대기
+AS-26 | public/assets/ui/skill-icons-v1/dao-lotus.png               | 도가 연화
+AS-27 | public/assets/ui/skill-icons-v1/fire-talisman.png           | 화염 부적
+AS-28 | public/assets/ui/skill-icons-v1/flying-sword.png             | 비검
+AS-29 | public/assets/ui/skill-icons-v1/frost-palm.png               | 빙장
+AS-30 | public/assets/ui/skill-icons-v1/healing-core.png             | 치유 핵
+AS-31 | public/assets/ui/skill-icons-v1/qi-shield.png                 | 기 보호막
+AS-32 | public/assets/ui/skill-icons-v1/soul-eye.png                  | 영안
+AS-33 | public/assets/ui/skill-icons-v1/spirit-butterfly.png          | 영접
+AS-34 | public/assets/ui/skill-icons-v1/thunder-orb.png                | 천뢰주
+AS-35 | public/assets/ui/skill-icons-v1/twin-blades.png                | 쌍검
+AS-36 | public/assets/ui/skill-icons-v1/vajra.png                      | 금강저
+AS-37 | public/assets/ui/skill-icons-v1/windstep.png                  | 경신법
+
+각 항목의 매니페스트 source는 imagegen-atlas-crop입니다. 원천 atlas의
+생성 조건과 권리 상태는 crop 결과에 그대로 이어집니다.
+
+[C] ImageGen atlas crop — 비경 선택 썸네일 3개
+
+AS-38 | public/assets/ui/stage-thumbnails-v1/ember.png | 적염비경
+AS-39 | public/assets/ui/stage-thumbnails-v1/frost.png | 한천비경
+AS-40 | public/assets/ui/stage-thumbnails-v1/jade.png  | 청람비경
+
+각 항목의 매니페스트 source는 imagegen-atlas-crop이며 원천은
+artifacts/2d-build/yeongheo-stage-thumbnail-atlas-v1.png입니다.
+
+[D] ImageGen atlas crop — 의미별 스킬·도가 아이콘 32개
+
+AS-41 | public/assets/ui/skill-icons-v2/venom-palm.png          | 독장
+AS-42 | public/assets/ui/skill-icons-v2/hidden-needles.png      | 암기
+AS-43 | public/assets/ui/skill-icons-v2/spirit-bell.png         | 영종
+AS-44 | public/assets/ui/skill-icons-v2/wind-blades.png         | 풍인
+AS-45 | public/assets/ui/skill-icons-v2/earth-dragon-spikes.png | 지룡극
+AS-46 | public/assets/ui/skill-icons-v2/heavenly-lightning.png  | 천뢰
+AS-47 | public/assets/ui/skill-icons-v2/myriad-swords.png       | 만검귀원
+AS-48 | public/assets/ui/skill-icons-v2/inferno-sea.png         | 분천화해
+AS-49 | public/assets/ui/skill-icons-v2/violet-thunder.png      | 자소신뢰
+AS-50 | public/assets/ui/skill-icons-v2/frozen-sky.png          | 한천빙옥
+AS-51 | public/assets/ui/skill-icons-v2/plague-tide.png         | 역조
+AS-52 | public/assets/ui/skill-icons-v2/needle-storm.png        | 천침폭우
+AS-53 | public/assets/ui/skill-icons-v2/heart-method.png        | 심법
+AS-54 | public/assets/ui/skill-icons-v2/sword-riding.png        | 어검결
+AS-55 | public/assets/ui/skill-icons-v2/clone-art.png           | 분신결
+AS-56 | public/assets/ui/skill-icons-v2/destined-bond.png       | 연분
+
+AS-57 | public/assets/ui/skill-icons-v2/sword-oath.png          | 검계 맹세
+AS-58 | public/assets/ui/skill-icons-v2/returning-edge.png      | 회귀검선
+AS-59 | public/assets/ui/skill-icons-v2/piercing-edge.png       | 관통검선
+AS-60 | public/assets/ui/skill-icons-v2/sword-ring.png          | 검환
+AS-61 | public/assets/ui/skill-icons-v2/frost-oath.png          | 빙계 맹세
+AS-62 | public/assets/ui/skill-icons-v2/frost-shards.png        | 빙결 파편
+AS-63 | public/assets/ui/skill-icons-v2/frost-line.png          | 빙결 직선
+AS-64 | public/assets/ui/skill-icons-v2/ice-wall.png            | 빙벽
+AS-65 | public/assets/ui/skill-icons-v2/spirit-oath.png         | 영계 맹세
+AS-66 | public/assets/ui/skill-icons-v2/purifying-heart.png     | 정화심
+AS-67 | public/assets/ui/skill-icons-v2/echoing-heart.png       | 공명심
+AS-68 | public/assets/ui/skill-icons-v2/shadow-copy.png         | 그림자 복제
+AS-69 | public/assets/ui/skill-icons-v2/void-orb.png            | 허공주
+AS-70 | public/assets/ui/skill-icons-v2/heal.png                | 회춘단
+AS-71 | public/assets/ui/skill-icons-v2/spirit-stones.png       | 영석 주머니
+AS-72 | public/assets/ui/skill-icons-v2/purge.png               | 정화부
+
+AS-41~AS-56의 매니페스트 source는 imagegen-skill-atlas-crop-v2,
+AS-57~AS-72는 imagegen-dao-atlas-crop-v1입니다. crop과 resize는 결정적
+후처리이며 원천 atlas의 권리 상태를 바꾸지 않습니다.
+
+3. 이미지가 아닌 별도 범위
+---------------------------
+
+다음 항목은 위 73개 이미지의 AI 생성 고지에 포함하지 않습니다.
+
+- procedural/runtime code: PixiPresentation, Terrain, Grass, 파티클·벡터
+  도형·카메라·레이아웃·HUD/CSS 등 코드가 실행 중 생성하는 화면 요소.
+  이는 이미지 파일의 ImageGen provenance가 아니며 소스코드·라이브러리·도구
+  라이선스를 별도로 검토해야 합니다.
+- procedural audio: src/audio/Audio.js, src/audio/synth.js,
+  src/audio/theory.js가 WebAudio로 실행 중 합성하는 음악·효과음. 이 문서는
+  음원 파일 또는 오디오 권리를 승인하지 않으며, 오디오/음악 공개와 권리
+  검토는 별도 기록으로 관리해야 합니다.
+- 73개 allowlist 밖의 44개 authoring·legacy·3D·PBR 파일. 이 파일들은
+  tools/submission-assets.mjs의 현재 runtime allowlist 대상이 아니지만,
+  generic public 복사·영상·썸네일에 다시 포함될 경우 동일한 권리 검토가
+  필요합니다.
+
+4. 권리·사용 허가에 관한 명시적 한계
+-------------------------------------
+
+- 이 고지는 “AI를 사용했다”는 사실을 알리는 공개문이며, 권리 양도·보증·
+  법률 의견·대회 제출 승인서가 아닙니다.
+- ImageGen direct output, sprite chain, atlas crop 모두에 대해 생성 계정,
+  입력 이미지·참조의 권리, 제3자 캐릭터·상표·실존 인물 검토, 팀 내 권리
+  귀속, 상업·공개·홍보·대회 제출 허가를 별도로 확인해야 합니다.
+- local .codex/generated_images SHA match, sourceUrl, atlas crop, QA PASS,
+  매니페스트 등록, 저장소에 파일이 존재한다는 사실은 위 권리 확인을
+  대신하지 않습니다.
+- AS-04, AS-14, AS-16의 정확한 local ImageGen 원본과 변환 chain은
+  `output/qa/rights-provenance-20260810/reproduced/provenance-comparison.json`
+  으로 재현 확인됐습니다. 그러나 생성 계정, Input 권리, 제3자 유사성·상표,
+  팀 귀속과 대회 공개·홍보 권한은 별도 사람 증거가 없으므로 세 자산을 포함한
+  전체 73개를 법적 제출 승인으로 승격하지 않습니다.
+- 대표자/권리 주체가 자산별 증거를 확인하고 대회 약관 및 제공 서비스의
+  최신 약관을 검토하기 전까지, 전체 73개는 권리 상태 “미확인·차단”으로
+  취급합니다.
+
+이 고지는 기술적 투명성을 위한 것이며, 최종 제출 전에는
+docs/competition/ASSET_RIGHTS_LEDGER.md의 체크리스트와 실제 권리 증거를
+함께 검토해야 합니다.

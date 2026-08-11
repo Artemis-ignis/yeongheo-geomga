@@ -1,18 +1,44 @@
 import { describe, it, expect } from 'vitest'
 import {
   rollUpgrades, applyChoice, canEvolve,
-  MAX_WEAPON_SLOTS, MAX_PASSIVE_SLOTS,
+  MAX_WEAPON_SLOTS, MAX_PASSIVE_SLOTS, luckWeightMultiplier,
+  OPENING_WEAPON_FLOOR, OPENING_DEFENSE_IDS,
 } from '../src/combat/upgrades.js'
 import { WEAPONS, EVOLUTIONS, getWeapon } from '../src/data/weapons.js'
 import { PASSIVES } from '../src/data/passives.js'
 import { RNG } from '../src/core/RNG.js'
+import { STARTING_WEAPONS } from '../src/data/unlocks.js'
 
 const stats = { luck: 1 }
 const loadout = (weapons = {}, passives = {}) => ({ weapons: { ...weapons }, passives: { ...passives } })
 
 describe('rollUpgrades', () => {
+  it('makes luck favour rare opportunities instead of cancelling out of every weight', () => {
+    expect(luckWeightMultiplier(1.5, 'owned')).toBe(1)
+    expect(luckWeightMultiplier(1.5, 'new')).toBe(1.5)
+    expect(luckWeightMultiplier(1.5, 'evolution')).toBeGreaterThan(1.5)
+    expect(luckWeightMultiplier(1, 'evolution')).toBe(1)
+  })
+
   it('offers exactly three choices', () => {
     expect(rollUpgrades(loadout({ flyingSword: 1 }), stats, new RNG(1))).toHaveLength(3)
+  })
+
+  it('keeps a new weapon first until the fresh build reaches its four-weapon floor', () => {
+    expect(OPENING_WEAPON_FLOOR).toBe(4)
+    for (let seed = 0; seed < 24; seed++) {
+      const [first] = rollUpgrades(
+        loadout({ flyingSword: 1 }), stats, new RNG(seed), 3, STARTING_WEAPONS,
+      )
+      expect(first).toMatchObject({ kind: 'weapon', fromLevel: 0 })
+    }
+  })
+
+  it('puts a defensive technique first once the opening weapon floor is met', () => {
+    const weapons = Object.fromEntries(STARTING_WEAPONS.map((id) => [id, 1]))
+    const [first] = rollUpgrades(loadout(weapons), stats, new RNG(7), 3, STARTING_WEAPONS)
+    expect(first.kind).toBe('passive')
+    expect(OPENING_DEFENSE_IDS).toContain(first.id)
   })
 
   it('offers distinct choices', () => {

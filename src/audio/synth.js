@@ -85,6 +85,7 @@ export function noiseBuffer(ctx, seconds = 0.3, seed = 999) {
 export function playBuffer(ctx, dest, buffer, {
   gain = 1, rate = 1, attack = 0.002, decay = 0.4,
   filter = null, filterTo = null, pan = 0, when = 0,
+  onEnded = null, returnHandle = false,
 } = {}) {
   const t = ctx.currentTime + when
   const src = ctx.createBufferSource()
@@ -92,39 +93,52 @@ export function playBuffer(ctx, dest, buffer, {
   src.playbackRate.value = rate
 
   let node = src
+  const nodes = [src]
+  let biquad = null
+  let env = null
+  let panner = null
   if (filter !== null) {
-    const biquad = ctx.createBiquadFilter()
+    biquad = ctx.createBiquadFilter()
     biquad.type = 'lowpass'
     biquad.frequency.setValueAtTime(filter, t)
     if (filterTo !== null) biquad.frequency.exponentialRampToValueAtTime(Math.max(40, filterTo), t + decay)
     node.connect(biquad)
+    nodes.push(biquad)
     node = biquad
   }
 
-  const env = ctx.createGain()
+  env = ctx.createGain()
   env.gain.setValueAtTime(0.0001, t)
   env.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t + attack)
   env.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay)
   node.connect(env)
+  nodes.push(env)
 
   if (pan !== 0 && ctx.createStereoPanner) {
-    const panner = ctx.createStereoPanner()
+    panner = ctx.createStereoPanner()
     panner.pan.value = Math.max(-1, Math.min(1, pan))
     env.connect(panner)
     panner.connect(dest)
+    nodes.push(panner)
   } else {
     env.connect(dest)
   }
 
+  const tracker = ctx.__yeongheoSfxTracker
+  const trackedEnded = !onEnded && typeof tracker?.begin === 'function' ? tracker.begin() : null
+  const cleanup = createVoiceHandle(src, nodes, onEnded ?? trackedEnded)
+  tracker?.attach?.(cleanup)
+
   src.start(t)
   src.stop(t + attack + decay + 0.05)
-  return src
+  return returnHandle ? cleanup : src
 }
 
 /** A pitched oscillator voice, for sweeps, blips and horns. */
 export function playTone(ctx, dest, {
   freq = 440, toFreq = null, type = 'sine', gain = 0.3,
   attack = 0.005, hold = 0, decay = 0.3, pan = 0, when = 0, detune = 0,
+  onEnded = null, returnHandle = false,
 } = {}) {
   const t = ctx.currentTime + when
   const osc = ctx.createOscillator()
@@ -142,16 +156,58 @@ export function playTone(ctx, dest, {
   env.gain.exponentialRampToValueAtTime(0.0001, t + attack + hold + decay)
 
   osc.connect(env)
+  const nodes = [osc, env]
   if (pan !== 0 && ctx.createStereoPanner) {
     const panner = ctx.createStereoPanner()
     panner.pan.value = Math.max(-1, Math.min(1, pan))
     env.connect(panner)
     panner.connect(dest)
+    nodes.push(panner)
   } else {
     env.connect(dest)
   }
 
+  const tracker = ctx.__yeongheoSfxTracker
+  const trackedEnded = !onEnded && typeof tracker?.begin === 'function' ? tracker.begin() : null
+  const cleanup = createVoiceHandle(osc, nodes, onEnded ?? trackedEnded)
+  tracker?.attach?.(cleanup)
+
   osc.start(t)
   osc.stop(t + attack + hold + decay + 0.05)
-  return osc
+  return returnHandle ? cleanup : osc
+}
+
+/**
+ * Attach one-shot cleanup to an AudioScheduledSourceNode.
+ *
+ * Audio nodes are intentionally short-lived, but leaving their filter/gain
+ * graph connected until browser GC makes dense combat produce avoidable graph
+ * churn.  The returned handle is opt-in so the historical helper return value
+ * (the source node) stays compatible for callers that do not need cancellation.
+ */
+function createVoiceHandle(source, nodes, onEnded) {
+  let finished = false
+  const disconnect = () => {
+    if (finished) return
+    finished = true
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      try { nodes[i]?.disconnect?.() } catch { /* already disconnected */ }
+    }
+    onEnded?.()
+  }
+
+  if (typeof source.addEventListener === 'function') {
+    source.addEventListener('ended', disconnect, { once: true })
+  } else {
+    source.onended = disconnect
+  }
+
+  return {
+    source,
+    stop() {
+      try { source.stop?.() } catch { /* already stopped */ }
+      disconnect()
+    },
+    disconnect,
+  }
 }

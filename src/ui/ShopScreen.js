@@ -1,7 +1,7 @@
 import { iconFor } from './icons.js'
 import { META_UPGRADES } from '../data/metaUpgrades.js'
 import { CHARACTER_UNLOCKS, WEAPON_UNLOCKS } from '../data/unlocks.js'
-import { getCharacter } from '../data/characters.js'
+import { getCharacter, isReleasePlayableCharacter } from '../data/characters.js'
 import { getWeapon } from '../data/weapons.js'
 
 /**
@@ -60,7 +60,9 @@ export class ShopScreen {
     })
 
     this.unlockRows = [
-      ...CHARACTER_UNLOCKS.map((u) => ({ kind: 'characters', ...u })),
+      ...CHARACTER_UNLOCKS
+        .filter((u) => isReleasePlayableCharacter(u.id))
+        .map((u) => ({ kind: 'characters', ...u })),
       ...WEAPON_UNLOCKS.map((u) => ({ kind: 'weapons', ...u })),
     ].map((u) => {
       const def = u.kind === 'characters' ? getCharacter(u.id) : getWeapon(u.id)

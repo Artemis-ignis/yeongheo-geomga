@@ -159,6 +159,28 @@ describe('gamepad', () => {
     keyUp(t, 'KeyD')
   })
 
+  it('hands control back to a held keyboard direction when the stick returns to neutral', () => {
+    const { input, pad, t } = rig()
+    keyDown(t, 'KeyD')
+    pad.stick(1, 0)
+    input.poll()
+    expect(input.usingGamepad).toBe(true)
+
+    pad.stick(0, 0)
+    input.poll()
+    expect(input.usingGamepad).toBe(false)
+    expect(input.moveX).toBe(1)
+
+    pad.connected = false
+    input.poll()
+    expect(input.usingGamepad).toBe(false)
+    expect(input.moveX).toBe(1)
+    keyUp(t, 'KeyD')
+    input.poll()
+    expect(input.usingGamepad).toBe(false)
+    expect(input.moveX).toBe(0)
+  })
+
   it('survives a pad that reports nothing useful', () => {
     const t = makeTarget()
     const input = new Input(t, () => [null, { connected: false }, {}])
@@ -265,6 +287,52 @@ describe('Input edge-triggered actions', () => {
     keyDown(t, 'F3')
     expect(input.consumeConfirm()).toBe(true)
     expect(input.consumeDebug()).toBe(true)
+  })
+
+  it('lets a focused DOM button own Enter and Space activation', () => {
+    const t = makeTarget()
+    const input = new Input(t)
+    const button = { tagName: 'BUTTON' }
+    t.fire('keydown', { code: 'Enter', target: button })
+    t.fire('keydown', { code: 'Space', target: button })
+    expect(input.consumeConfirm(), 'a native click was duplicated by global confirm').toBe(false)
+    expect(input.consumeDash(), 'a focused button fired the gameplay dash latch').toBe(false)
+  })
+
+  it('treats Space as a menu confirm while retaining its combat dash edge', () => {
+    const t = makeTarget()
+    const input = new Input(t)
+    keyDown(t, 'Space')
+    expect(input.consumeConfirm()).toBe(true)
+    expect(input.consumeDash()).toBe(true)
+  })
+
+  it('discards the paired dash edge when Space or the gamepad confirms a modal', () => {
+    const t = makeTarget()
+    const keyboard = new Input(t)
+    keyDown(t, 'Space')
+    expect(keyboard.consumeConfirm()).toBe(true)
+    keyboard.discardDash()
+    expect(keyboard.consumeDash()).toBe(false)
+
+    const { input: gamepad, pad } = (() => {
+      const target = makeTarget()
+      const controller = makePad()
+      return { input: new Input(target, () => [controller]), pad: controller }
+    })()
+    pad.press(0)
+    gamepad.poll()
+    expect(gamepad.consumeConfirm()).toBe(true)
+    gamepad.discardDash()
+    expect(gamepad.consumeDash()).toBe(false)
+  })
+
+  it('latches world interaction on E and clears it on read', () => {
+    const t = makeTarget()
+    const input = new Input(t)
+    keyDown(t, 'KeyE')
+    expect(input.consumeInteract()).toBe(true)
+    expect(input.consumeInteract()).toBe(false)
   })
 
   it('dispose removes every listener', () => {

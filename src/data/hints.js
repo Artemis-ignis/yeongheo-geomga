@@ -38,20 +38,30 @@ export function particle(word, withFinal, withoutFinal) {
 export const HINTS = [
   {
     id: 'move',
-    text: 'WASD · 방향키로 움직인다',
+    // Keep the first-run control strip intact while the player is actually
+    // trying the game. It is deliberately one compact sentence: movement,
+    // dash, and the automatic-attack rule are the three facts needed before
+    // the first growth choice.
+    text: 'WASD·방향키 이동 | Space 축지법 | 공격 자동',
     when: (s) => s.runTime < 3,
-    hold: 4,
+    hold: 8,
   },
   {
     id: 'auto',
-    text: '법보는 스스로 적을 친다. 살아남는 데 집중하라',
-    when: (s) => s.runTime > 4 && s.kills >= 1,
+    // Keep the onboarding goal concrete. The controls strip already states
+    // that attacks are automatic, so this line can tell the player what to do
+    // with the drops rather than repeating the combat rule.
+    text: '영기 구슬을 모아 첫 경지를 여세요',
+    when: (s) => s.runTime >= 4,
     hold: 4.5,
   },
   {
     id: 'qi',
-    text: '쓰러진 자리의 영기를 주워 경지를 올린다',
-    when: (s) => s.qiOnGround >= 3,
+    // A single first drop is enough to explain its meaning. Waiting for three
+    // drops made the line race the first level-up and left new players unsure
+    // whether the cyan orbs were collectible at all.
+    text: '영기 구슬은 가까이 가면 자동으로 거둡니다',
+    when: (s) => s.qiOnGround >= 1 || s.qiCollected >= 1,
     hold: 4.5,
   },
   {

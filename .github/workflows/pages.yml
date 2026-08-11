@@ -23,14 +23,20 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Match Vite 8's minimum supported 20.x runtime instead of floating
+          # across every Node 20 patch during the judging window.
+          node-version: 20.19.0
           cache: npm
       - name: Install dependencies
         run: npm ci
       - name: Run tests
         run: npm test
+      - name: Audit runtime assets
+        run: npm run assets:audit
       - name: Build static game
         run: npm run build
+      - name: Audit submission build
+        run: npm run assets:build-audit
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

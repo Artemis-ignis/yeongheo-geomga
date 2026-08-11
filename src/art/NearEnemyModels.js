@@ -194,6 +194,31 @@ function addMesh(root, geometry, material, position = null, scale = null, rotati
   return mesh
 }
 
+const _instanceDummy = new THREE.Object3D()
+
+/** Build a static repeated-detail draw once; clones share the same buffers. */
+function addInstanced(root, geometry, material, transforms, name = '') {
+  if (material?.aoMap && geometry.getAttribute('uv') && !geometry.getAttribute('uv2')) {
+    geometry.setAttribute('uv2', geometry.getAttribute('uv').clone())
+  }
+  const mesh = new THREE.InstancedMesh(geometry, material, transforms.length)
+  mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage)
+  for (let index = 0; index < transforms.length; index += 1) {
+    const [position, scale, rotation] = transforms[index]
+    _instanceDummy.position.set(...position)
+    _instanceDummy.scale.set(...(scale ?? [1, 1, 1]))
+    _instanceDummy.rotation.set(...(rotation ?? [0, 0, 0]))
+    _instanceDummy.updateMatrix()
+    mesh.setMatrixAt(index, _instanceDummy.matrix)
+  }
+  mesh.instanceMatrix.needsUpdate = true
+  mesh.castShadow = true
+  mesh.receiveShadow = true
+  if (name) mesh.name = name
+  root.add(mesh)
+  return mesh
+}
+
 function addGlow(root, position, radius, color, intensity = 1.5) {
   const material = physical(color, {
     color,
@@ -606,7 +631,230 @@ function buildJadeSerpent() {
 }
 
 function buildGlacierWarden() {
-  return buildDetailedStoneVariant('glacierWarden', 0xb9edff, 0x2c9cc8, 0.16)
+  const root = new THREE.Group()
+  root.name = 'near-glacier-warden'
+  // This is the runtime near-detail realization of the ImageGen turnaround
+  // and the official img2threejs Forge evidence.  The crowd still uses the
+  // instanced proxy; only the closest eight targets receive this hierarchy.
+  root.userData.referenceAsset = 'assets/characters/glacier-warden-reference-v1.png'
+  root.userData.referencePipeline = 'imagegen-v1-plus-img2threejs-forge-authoring-plus-authored-near-3d'
+  root.userData.referenceSpec = 'artifacts/img2threejs/glacier-warden-v1/object-sculpt-spec.json'
+  root.userData.referencePbrEvidence = 'artifacts/img2threejs/glacier-warden-v1/pbr-report.json'
+
+  // Four canonical maps are shared by every Glacier Warden material. They are
+  // reference-derived Forge channels, not duplicated fake per-material masks.
+  const pbrNormal = channelTexture('materials/img2three/glacier-warden-v1/normal.webp', [1.35, 1.85])
+  const pbrRoughness = channelTexture('materials/img2three/glacier-warden-v1/roughness.webp', [1.35, 1.85])
+  const pbrHeight = channelTexture('materials/img2three/glacier-warden-v1/height.webp', [1.35, 1.85])
+  const pbrAo = channelTexture('materials/img2three/glacier-warden-v1/ao.webp', [1.35, 1.85])
+  const sharedPbr = {
+    aoMap: pbrAo,
+    // The single-image AO estimate still contains a small amount of the navy
+    // studio background. Keep the channel for contact response, but do not let
+    // it crush every blue-steel plate into a black silhouette at gameplay light.
+    aoMapIntensity: 0.18,
+    normalMap: pbrNormal,
+    normalScale: new THREE.Vector2(0.34, 0.34),
+    roughnessMap: pbrRoughness,
+    bumpMap: pbrHeight,
+    bumpScale: 0.009,
+  }
+
+  const steel = physical(0x5a86aa, {
+    ...sharedPbr,
+    roughness: 0.38,
+    metalness: 0.44,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.20,
+    emissive: 0x071b2d,
+    emissiveIntensity: 0.10,
+  })
+  const steelDark = physical(0x263f5d, {
+    ...sharedPbr,
+    roughness: 0.46,
+    metalness: 0.28,
+    clearcoat: 0.22,
+    clearcoatRoughness: 0.26,
+    emissive: 0x061524,
+    emissiveIntensity: 0.12,
+  })
+  const steelEdge = physical(0xb5e2f5, {
+    ...sharedPbr,
+    roughness: 0.24,
+    metalness: 0.52,
+    clearcoat: 0.52,
+    clearcoatRoughness: 0.16,
+    emissive: 0x123b57,
+    emissiveIntensity: 0.18,
+  })
+  const ice = physical(0xb9edff, {
+    ...sharedPbr,
+    roughness: 0.20,
+    metalness: 0.16,
+    clearcoat: 0.58,
+    clearcoatRoughness: 0.12,
+    emissive: 0x1e91b4,
+    emissiveIntensity: 0.14,
+  })
+  const iceBright = physical(0xe1fbff, {
+    ...sharedPbr,
+    roughness: 0.16,
+    metalness: 0.10,
+    clearcoat: 0.66,
+    clearcoatRoughness: 0.10,
+    emissive: 0x36c9e8,
+    emissiveIntensity: 0.20,
+  })
+  const cloakMat = cloth(0x2b4768, { sheenColor: 0x9ac8e2, roughness: 0.70, ...sharedPbr })
+  const under = cloth(0x172943, { sheenColor: 0x4f7899, roughness: 0.78, ...sharedPbr })
+  const eye = physical(0x47e8ff, {
+    color: 0x47e8ff,
+    emissive: 0x16b7d8,
+    emissiveIntensity: 2.4,
+    roughness: 0.12,
+    metalness: 0.08,
+    clearcoat: 0.58,
+  })
+  const weaponMetal = physical(0x86aac4, {
+    ...sharedPbr,
+    roughness: 0.28,
+    metalness: 0.62,
+    clearcoat: 0.46,
+    clearcoatRoughness: 0.14,
+  })
+
+  const motion = new THREE.Group()
+  motion.name = 'near-motion'
+  root.add(motion)
+
+  const torso = addMesh(motion, new RoundedBoxGeometry(0.70, 0.62, 0.44, 5, 0.075), steelDark, [0, 1.43, 0.02])
+  torso.name = 'glacier-warden-torso'
+  const abdomen = addMesh(motion, new THREE.CapsuleGeometry(0.27, 0.22, 7, 18), under, [0, 1.07, 0.05], [1.08, 0.86, 0.82])
+  abdomen.name = 'glacier-warden-under-armor'
+  const chest = addMesh(motion, shieldGeometry(0.86, 0.66, 0.16, 0.034), steel, [0, 1.47, 0.29], null, [-0.06, 0, 0])
+  chest.name = 'glacier-warden-chest-plate'
+  const chestCore = addMesh(motion, new THREE.OctahedronGeometry(0.17, 1), eye, [0, 1.48, 0.42], [0.72, 1.22, 0.34], [0, 0, Math.PI / 4])
+  chestCore.name = 'glacier-warden-chest-core'
+  addMesh(motion, new THREE.TorusGeometry(0.23, 0.018, 6, 28), steelEdge, [0, 1.48, 0.45], [1.26, 1.14, 0.46], [Math.PI / 2, 0, 0])
+  addInstanced(motion, new RoundedBoxGeometry(0.035, 0.30, 0.026, 2, 0.010), iceBright, [
+    [[-0.11, 1.48, 0.445], [1, 1, 1], [0, 0, -0.46]],
+    [[0.11, 1.48, 0.445], [1, 1, 1], [0, 0, 0.46]],
+  ], 'glacier-warden-chest-lattice')
+
+  const collar = addMesh(motion, new THREE.TorusGeometry(0.30, 0.046, 8, 32), steelEdge, [0, 1.77, 0.02], [1.0, 1.0, 0.88], [Math.PI / 2, 0, 0])
+  collar.name = 'glacier-warden-collar'
+
+  // Layered shoulder sockets and stepped ice shards carry the main identity
+  // from the ImageGen reference without creating a particle per enemy.
+  const shoulderTransforms = []
+  const shardTransforms = []
+  const upperArmTransforms = []
+  const forearmTransforms = []
+  const foreguardTransforms = []
+  const handTransforms = []
+  const cuffTransforms = []
+  const waistTransforms = []
+  const thighTransforms = []
+  const shinTransforms = []
+  const bootTransforms = []
+  const bootRingTransforms = []
+  for (const side of [-1, 1]) {
+    shoulderTransforms.push([[side * 0.54, 1.70, 0.09], [1, 1, 1], [0.06, side * 0.16, side * -0.14]])
+    const shardRows = [
+      [0.46, 1.84, 0.13, 0.16, 0.34, 0.10],
+      [0.56, 1.91, 0.07, 0.14, 0.40, 0.09],
+      [0.64, 1.96, -0.01, 0.12, 0.34, 0.08],
+    ]
+    for (const [x, y, z, sx, sy, sz] of shardRows) {
+      shardTransforms.push([[side * x, y, z], [sx / 0.18, sy / 0.18, sz / 0.18], [0, side * 0.24, side * -0.16]])
+    }
+    upperArmTransforms.push([[side * 0.68, 1.38, 0.03], [1.0, 1.0, 0.86], [0, 0, side * 0.18]])
+    forearmTransforms.push([[side * 0.73, 1.07, 0.18], [1.0, 1.0, 0.86], [0.08, side * 0.10, side * 0.10]])
+    foreguardTransforms.push([[side * 0.73, 1.10, 0.34], [1, 1, 1], [0.08, side * 0.10, side * 0.10]])
+    handTransforms.push([[side * 0.71, 0.79, 0.27], [1, 1.08, 0.82], [0, 0, 0]])
+    cuffTransforms.push([[side * 0.72, 1.20, 0.25], [1, 1, 0.72], [Math.PI / 2, 0, 0]])
+
+    for (let row = 0; row < 3; row += 1) {
+      const y = 0.91 - row * 0.20
+      const x = side * (0.38 + row * 0.032)
+      waistTransforms.push([[x, y, 0.25], [1 - row * 0.09, 1, 1], [0.10, side * 0.12, side * -0.10]])
+    }
+
+    thighTransforms.push([[side * 0.24, 0.55, 0.00], [1.04, 1.0, 0.82], [0, 0, side * 0.05]])
+    shinTransforms.push([[side * 0.25, 0.24, 0.22], [1, 1, 1], [0.05, side * 0.08, side * 0.04]])
+    bootTransforms.push([[side * 0.25, 0.10, 0.29], [1, 1, 1], [-0.08, side * 0.05, 0]])
+    bootRingTransforms.push([[side * 0.25, 0.37, 0.24], [1, 1, 0.72], [Math.PI / 2, 0, 0]])
+  }
+  addInstanced(motion, shieldGeometry(0.58, 0.40, 0.16, 0.026), steel, shoulderTransforms, 'glacier-warden-shoulder-sockets')
+  addInstanced(motion, new THREE.OctahedronGeometry(0.18, 0), ice, shardTransforms, 'glacier-warden-shoulder-ice')
+  addInstanced(motion, new THREE.CapsuleGeometry(0.16, 0.36, 7, 14), steelDark, upperArmTransforms, 'glacier-warden-upper-arms')
+  addInstanced(motion, new THREE.CapsuleGeometry(0.13, 0.30, 7, 16), steel, forearmTransforms, 'glacier-warden-forearms')
+  addInstanced(motion, shieldGeometry(0.25, 0.38, 0.09, 0.018), steelEdge, foreguardTransforms, 'glacier-warden-forearm-guards')
+  addInstanced(motion, new THREE.SphereGeometry(0.13, 16, 12), under, handTransforms, 'glacier-warden-hands')
+  addInstanced(motion, new THREE.TorusGeometry(0.14, 0.018, 6, 20), steelEdge, cuffTransforms, 'glacier-warden-cuffs')
+  addInstanced(motion, shieldGeometry(0.36, 0.28, 0.11, 0.020), steel, waistTransforms, 'glacier-warden-waist-plates')
+  addInstanced(motion, new THREE.CapsuleGeometry(0.21, 0.36, 7, 14), under, thighTransforms, 'glacier-warden-thighs')
+  addInstanced(motion, shieldGeometry(0.29, 0.40, 0.11, 0.018), steelDark, shinTransforms, 'glacier-warden-shins')
+  addInstanced(motion, new RoundedBoxGeometry(0.35, 0.22, 0.46, 3, 0.07), steel, bootTransforms, 'glacier-warden-boots')
+  addInstanced(motion, new THREE.TorusGeometry(0.13, 0.017, 6, 20), iceBright, bootRingTransforms, 'glacier-warden-boot-rims')
+
+  const head = addMesh(motion, new THREE.DodecahedronGeometry(0.30, 1), steelDark, [0, 2.12, 0.02], [1.0, 1.10, 0.88])
+  head.name = 'glacier-warden-helm'
+  const facePlate = addMesh(motion, shieldGeometry(0.40, 0.43, 0.14, 0.022), steel, [0, 2.08, 0.31], null, [0.12, 0, 0])
+  facePlate.name = 'glacier-warden-mask'
+  addMesh(motion, shieldGeometry(0.32, 0.16, 0.08, 0.014), steelEdge, [0, 1.94, 0.30], null, [0.04, 0, 0])
+  addMesh(motion, shieldGeometry(0.44, 0.11, 0.06, 0.014), steelEdge, [0, 2.22, 0.37], null, [0.10, 0, 0])
+  addInstanced(motion, new RoundedBoxGeometry(0.11, 0.032, 0.024, 2, 0.010), eye, [
+    [[-0.095, 2.12, 0.445], [1, 1, 1], [0.08, 0.18, -0.10]],
+    [[0.095, 2.12, 0.445], [1, 1, 1], [0.08, -0.18, 0.10]],
+  ], 'glacier-warden-eye-slits')
+  const crown = [
+    [-0.20, 2.38, 0.00, 0.09, 0.34, 0.10],
+    [-0.10, 2.46, -0.01, 0.10, 0.42, 0.11],
+    [0.00, 2.52, -0.02, 0.11, 0.52, 0.12],
+    [0.10, 2.46, -0.01, 0.10, 0.42, 0.11],
+    [0.20, 2.38, 0.00, 0.09, 0.34, 0.10],
+  ]
+  addInstanced(motion, new THREE.ConeGeometry(0.16, 1.0, 6), iceBright, crown.map(([x, y, z, sx, sy, sz]) => (
+    [[x, y, z], [sx / 0.16, sy / 1.0, sz / 0.16], [0, x * 0.55, x * -0.32]]
+  )), 'glacier-warden-ice-crown')
+
+  const mantle = addMesh(motion, taperedPanelGeometry(0.78, 1.16, 1.42, 0.11, 0.024), cloakMat, [0, 0.84, -0.30], null, [0.12, 0, 0])
+  mantle.name = 'glacier-warden-split-mantle'
+  addInstanced(motion, taperedPanelGeometry(0.22, 0.38, 1.00, 0.075, 0.018), cloakMat, [
+    [[-0.22, 0.72, 0.30], [1, 1, 1], [1, 1, 1]],
+    [[0.22, 0.72, 0.30], [1, 1, 1], [1, 1, 1]],
+  ], 'glacier-warden-front-cloak')
+  addInstanced(motion, new THREE.OctahedronGeometry(0.075, 0), ice, [
+    [[-0.38, 0.78, -0.34], [0.52, 1.35, 0.62], [0, 0, 0]],
+    [[0.38, 0.78, -0.34], [0.52, 1.35, 0.62], [0, 0, 0]],
+  ], 'glacier-warden-cloak-shards')
+
+  const glaive = new THREE.Group()
+  glaive.name = 'glacier-warden-crescent-glaive'
+  glaive.position.set(0.66, 0.78, 0.34)
+  glaive.rotation.z = -0.30
+  const shaft = addMesh(glaive, new THREE.CylinderGeometry(0.030, 0.050, 1.86, 10), weaponMetal, [0, 0.78, 0])
+  shaft.rotation.z = 0.06
+  addMesh(glaive, new THREE.OctahedronGeometry(0.072, 0), iceBright, [0, 1.74, 0], [0.72, 1.14, 0.60])
+  const blade = addMesh(glaive, hookedBladeGeometry(0.66, 0.88, 0.11, 0.026), weaponMetal, [0, 1.68, 0], null, [0, 0, -0.20])
+  blade.name = 'glacier-warden-crescent-blade'
+  addMesh(glaive, new THREE.OctahedronGeometry(0.11, 0), eye, [0.01, 1.65, 0.065], [1.0, 1.32, 0.36])
+  addMesh(glaive, new THREE.OctahedronGeometry(0.06, 0), eye, [0.24, 1.93, 0.06], [0.72, 1.26, 0.42])
+  motion.add(glaive)
+
+  // Four static identity shards keep the silhouette readable while avoiding a
+  // particle-system allocation or per-frame transform loop for every enemy.
+  addInstanced(motion, new THREE.OctahedronGeometry(0.09, 0), ice, [
+    [-0.82, 1.56, -0.12, 0.72], [0.84, 1.34, -0.18, 0.58],
+    [-0.58, 0.42, -0.30, 0.44], [0.56, 0.46, -0.28, 0.38],
+  ].map(([x, y, z, scale]) => (
+    [[x, y, z], [scale, scale * 1.55, scale * 0.72], [0.24, x * 0.34, -0.18]]
+  )), 'glacier-warden-floating-shards')
+
+  const halo = addMesh(motion, new THREE.TorusGeometry(0.36, 0.016, 7, 36), eye, [0, 1.50, -0.22], [1.0, 1.18, 0.70], [Math.PI / 2, 0, 0])
+  halo.name = 'near-halo'
+  return root
 }
 
 function buildMagmaBrute() {

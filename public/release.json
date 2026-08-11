@@ -1,0 +1,26 @@
+{
+  "game": "영허검가",
+  "releaseId": "yeongheo-release-v5.3-20260810",
+  "releaseDate": "2026-08-10",
+  "runtime": "pixijs-2d-web",
+  "showcaseSeed": 3185791507,
+  "runDurationSeconds": 420,
+  "runtimeImageAssets": 72,
+  "playableCharacterIds": ["seolryeong"],
+  "releaseStageIds": ["jade"],
+  "persistence": {
+    "metaProgress": true,
+    "settings": true,
+    "activeRun": false
+  },
+  "packages": {
+    "web": "yeongheo-geomga-web-release-v5.3-20260810.zip",
+    "windowsPortable": "yeongheo-geomga-windows-portable-v5.3-20260810.zip",
+    "status": "local-review-candidate-only"
+  },
+  "deploymentStatus": "not-deployed",
+  "rightsEvidenceConfirmed": 0,
+  "rightsGate": "BLOCKED",
+  "loginRequired": false,
+  "externalTelemetry": false
+}

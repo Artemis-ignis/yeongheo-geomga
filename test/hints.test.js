@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import { HINTS, nextHint, particle } from '../src/data/hints.js'
 import { WEAPONS, EVOLUTIONS } from '../src/data/weapons.js'
 import { PASSIVES } from '../src/data/passives.js'
+import { HintOverlay } from '../src/ui/HintOverlay.js'
 
 /** A state where nothing has happened yet. */
 function fresh(over = {}) {
@@ -21,10 +22,45 @@ const everything = () => fresh({
 
 const textOf = (hint, state) => (typeof hint.text === 'function' ? hint.text(state) : hint.text)
 
+function makeHintOverlay() {
+  const node = {
+    style: {}, textContent: '', remove: vi.fn(),
+  }
+  const root = { appendChild: vi.fn() }
+  const listeners = new Map()
+  vi.stubGlobal('document', { createElement: vi.fn(() => node) })
+  vi.stubGlobal('window', {
+    addEventListener: (type, listener) => listeners.set(type, listener),
+    removeEventListener: (type, listener) => {
+      if (listeners.get(type) === listener) listeners.delete(type)
+    },
+  })
+  const overlay = new HintOverlay(root, { state: { hintsSeen: [] }, records: { runs: 0 } })
+  return { overlay, node, listeners }
+}
+
+afterEach(() => vi.unstubAllGlobals())
+
 describe('hint table', () => {
   it('has unique ids', () => {
     const ids = HINTS.map((h) => h.id)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('teaches movement and Space dash in the first hint', () => {
+    const move = HINTS.find((hint) => hint.id === 'move')
+    expect(move.text).toBe('WASD·방향키 이동 | Space 축지법 | 공격 자동')
+    expect(move.hold).toBeGreaterThanOrEqual(6)
+    expect(move.hold).toBeLessThanOrEqual(8)
+  })
+
+  it('states the first growth goal and explains the first 영기 drop', () => {
+    expect(HINTS.find((hint) => hint.id === 'auto').text)
+      .toBe('영기 구슬을 모아 첫 경지를 여세요')
+    const pickup = HINTS.find((hint) => hint.id === 'qi')
+    expect(pickup.when(fresh({ qiOnGround: 1 }))).toBe(true)
+    expect(textOf(pickup, fresh())).toContain('영기 구슬')
+    expect(textOf(pickup, fresh())).toContain('자동으로')
   })
 
   it('gives every hint text and a readable dwell', () => {
@@ -33,7 +69,7 @@ describe('hint table', () => {
       expect(textOf(h, state).length, `"${h.id}" has no text`).toBeGreaterThan(4)
       // Long enough to read a Korean sentence, short enough not to linger.
       expect(h.hold).toBeGreaterThanOrEqual(3)
-      expect(h.hold).toBeLessThanOrEqual(7)
+      expect(h.hold).toBeLessThanOrEqual(8)
     }
   })
 
@@ -150,5 +186,36 @@ describe('hint sequencing', () => {
     }
     expect(fired).toBe(HINTS.length)
     expect(nextHint(fresh({ runTime: 900, bossAlive: true }), shown)).toBeNull()
+  })
+})
+
+describe('combat hint persistence', () => {
+  it('keeps the controls strip after the first movement activity', () => {
+    const { overlay, node } = makeHintOverlay()
+    overlay.update(0, fresh())
+    expect(overlay.current?.id).toBe('move')
+    expect(overlay.notifyActivity()).toBe(false)
+    expect(overlay.current?.id).toBe('move')
+    expect(node.style.opacity).toBe('1')
+    overlay.dispose()
+  })
+
+  it('keeps the WASD strip through the six-second minimum and closes at eight seconds', () => {
+    const { overlay } = makeHintOverlay()
+    overlay.update(0, fresh())
+    overlay.timer = 99
+    overlay.update(6.1, fresh({ runTime: 6.1 }))
+    expect(overlay.current?.id).toBe('move')
+    overlay.update(2, fresh({ runTime: 8.1 }))
+    expect(overlay.current).toBeNull()
+    overlay.dispose()
+  })
+
+  it('does not require keyboard activity to dismiss the strip', () => {
+    const { overlay } = makeHintOverlay()
+    overlay.update(0, fresh())
+    overlay.update(0.016, fresh({ runTime: 0.016 }))
+    expect(overlay.current?.id).toBe('move')
+    overlay.dispose()
   })
 })

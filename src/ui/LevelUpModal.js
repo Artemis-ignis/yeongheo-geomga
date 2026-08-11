@@ -1,4 +1,34 @@
 import { iconFor } from './icons.js'
+import { applyDaoVowCssVars, getDaoVowVisual } from './Hud.js'
+
+const CHOICE_KIND_PRESENTATION = Object.freeze({
+  weapon: Object.freeze({ label: '법보', mark: '寶', className: 'choice-artifact' }),
+  passive: Object.freeze({ label: '공법', mark: '訣', className: 'choice-technique' }),
+  evolution: Object.freeze({ label: '진화', mark: '化', className: 'choice-evolution' }),
+  dao: Object.freeze({ label: '도 선택', mark: '道', className: 'choice-dao' }),
+  consumable: Object.freeze({ label: '기연', mark: '緣', className: 'choice-consumable' }),
+})
+
+const FALLBACK_KIND_PRESENTATION = Object.freeze({
+  label: '선택', mark: '選', className: 'choice-unknown',
+})
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character])
+}
+
+function stepForChoice(choice) {
+  if (choice.kind === 'evolution') return choice.step ?? '법보 진화 · 완성'
+  if (choice.kind === 'dao') return choice.step ?? '천겁의 맹세'
+  if (choice.kind === 'consumable') return choice.step ?? '즉시 발동'
+  if (choice.fromLevel === 0) return `신규 습득 · Lv.${choice.toLevel ?? 1}`
+  if (Number.isFinite(choice.fromLevel) && Number.isFinite(choice.toLevel)) {
+    return `Lv.${choice.fromLevel} → Lv.${choice.toLevel}`
+  }
+  return choice.step ?? '새로운 깨달음'
+}
 
 /**
  * 경지 돌파 upgrade choice.
@@ -7,30 +37,35 @@ import { iconFor } from './icons.js'
  * rendering continues, so the frozen battlefield stays visible behind the cards.
  */
 export class LevelUpModal {
-  constructor(root) {
+  constructor(root, audio = null) {
     this.root = root
+    this.audio = audio
     this.onPick = null
     this.choices = []
     this.focus = 0
+    this._closeTimer = null
 
     this.node = document.createElement('div')
     this.node.className = 'modal-backdrop'
     this.node.style.display = 'none'
+    this.node.setAttribute('aria-hidden', 'true')
     this.node.innerHTML = `
-      <div class="modal-panel">
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-label="경지 돌파">
         <div class="modal-title">경지 돌파</div>
-        <div class="modal-cards"></div>
-        <div class="modal-actions">
-          <button class="modal-action clickable" data-act="reroll">점괘 <span class="act-count"></span></button>
-          <button class="modal-action clickable" data-act="banish">봉인 <span class="act-count"></span></button>
-          <button class="modal-action clickable" data-act="skip">넘기기</button>
+        <div class="modal-cards" role="group" aria-label="돌파 선택지"></div>
+        <div class="modal-actions" role="group" aria-label="선택지 제어">
+          <button type="button" class="modal-action clickable" data-act="reroll">점괘 <span class="act-count"></span></button>
+          <button type="button" class="modal-action clickable" data-act="banish">봉인 <span class="act-count"></span></button>
+          <button type="button" class="modal-action clickable" data-act="skip">넘기기</button>
         </div>
-        <div class="modal-hint">1 · 2 · 3 또는 ← → 로 선택, Enter 로 확정</div>
+        <div class="modal-hint" aria-live="polite">1 · 2 · 3 또는 ← → 로 선택, Enter 로 확정</div>
       </div>`
     root.appendChild(this.node)
     this.cardsHost = this.node.querySelector('.modal-cards')
     this.actionsHost = this.node.querySelector('.modal-actions')
     this.hintNode = this.node.querySelector('.modal-hint')
+    this.titleNode = this.node.querySelector('.modal-title')
+    this.panelNode = this.node.querySelector('.modal-panel')
 
     /**
      * Banish arms rather than firing, because it needs a target.
@@ -75,14 +110,20 @@ export class LevelUpModal {
     this.cardsHost.classList.toggle('banishing', this.arming)
     this.hintNode.textContent = this.arming
       ? '지울 패를 고르세요. 이번 런에서 다시 나오지 않습니다.'
-      : '1 · 2 · 3 또는 ← → 로 선택, Enter 로 확정'
+      : this.customHint ?? '1 · 2 · 3 또는 ← → 로 선택, Enter 로 확정'
   }
 
   get isOpen() {
-    return this.node.style.display !== 'none'
+    return this.node.style.display !== 'none' && !this.node.classList.contains('closing')
   }
 
   open(choices, onPick, opts = {}) {
+    if (this.node.classList.contains('closing')) {
+      if (this._closeTimer !== null) clearTimeout(this._closeTimer)
+      this._closeTimer = null
+      this.node.style.display = 'none'
+      this.node.classList.remove('closing')
+    }
     if (this.isOpen) return
     this.choices = choices
     this.onPick = onPick
@@ -92,36 +133,84 @@ export class LevelUpModal {
     this.charges = opts.charges ?? { reroll: 0, banish: 0 }
     this.arming = false
     this.focus = 0
+    this.titleNode.textContent = opts.title ?? '경지 돌파'
+    this.panelNode.setAttribute('aria-label', this.titleNode.textContent)
+    this.panelNode.classList.toggle('dao-vow-panel', opts.variant === 'dao')
+    this.actionsHost.style.display = opts.actions === false ? 'none' : ''
+    this.customHint = opts.hint ?? null
     this.cardsHost.innerHTML = ''
 
     choices.forEach((choice, i) => {
       const card = document.createElement('button')
-      card.className = `modal-card clickable kind-${choice.kind}`
-      const step = choice.kind === 'evolution'
-        ? '진화'
-        : choice.fromLevel === 0
-          ? '신규 습득'
-          : `Lv${choice.fromLevel} → Lv${choice.toLevel}`
+      card.type = 'button'
+      const daoVisual = choice.kind === 'dao'
+        ? getDaoVowVisual(choice.daoPresentation ?? choice)
+        : null
+      const daoClass = daoVisual?.vowId ? ` dao-${daoVisual.vowId}` : ''
+      const kind = CHOICE_KIND_PRESENTATION[choice.kind] ?? FALLBACK_KIND_PRESENTATION
+      card.className = `modal-card clickable kind-${choice.kind ?? 'unknown'} ${kind.className}${daoClass}`
+      card.dataset.kind = choice.kind ?? 'unknown'
+      if (daoVisual?.vowId) {
+        card.dataset.daoIdentity = daoVisual.identity
+        card.dataset.daoVfx = daoVisual.activeVfx ?? ''
+        card.dataset.daoGlyph = daoVisual.glyph
+        applyDaoVowCssVars(card, daoVisual)
+      }
+      const step = stepForChoice(choice)
+      const iconId = choice.iconId ?? choice.id
+      const name = choice.name ?? choice.id ?? '이름 없는 선택'
+      const effect = choice.desc ?? '선택 즉시 효과가 적용됩니다.'
+      const daoLabel = daoVisual?.vowId
+        ? `<div class="modal-dao-label">${escapeHtml(daoVisual.hanja)} ${escapeHtml(daoVisual.name)}</div>
+        <div class="modal-dao-mark" aria-hidden="true"><span>${escapeHtml(daoVisual.glyph)}</span></div>`
+        : ''
+      const ariaLabel = choice.ariaLabel
+        ?? `${kind.label} · ${step} · ${daoVisual?.vowId ? `${daoVisual.hanja} ${daoVisual.name} · ` : ''}${name} · 효과: ${effect}`
+      card.setAttribute('aria-label', ariaLabel)
+      card.setAttribute('title', `${kind.label} · ${name}\n${step}\n${effect}`)
       card.innerHTML = `
         ${choice.kind === 'evolution' ? '<div class="modal-evo">진화</div>' : ''}
-        <img class="modal-icon" alt="" src="${iconFor(choice.id)}" />
-        <div class="modal-name">${choice.name}</div>
-        <div class="modal-step">${step}</div>
-        <div class="modal-desc">${choice.desc ?? ''}</div>`
+        <div class="modal-icon-frame">
+          <img class="modal-icon" alt="${escapeHtml(`${name} ${kind.label} 아이콘`)}"
+            title="${escapeHtml(`${kind.label} · ${name}`)}" src="${escapeHtml(iconFor(iconId))}"
+            decoding="async" draggable="false" />
+          <span class="modal-kind-mark" aria-hidden="true">${kind.mark}</span>
+        </div>
+        ${daoLabel}
+        <div class="modal-name">${escapeHtml(name)}</div>
+        <div class="modal-meta">
+          <span class="modal-kind">${kind.label}</span>
+          <span class="modal-step">${escapeHtml(step)}</span>
+        </div>
+        <div class="modal-effect">
+          <span class="modal-effect-label">효과</span>
+          <div class="modal-desc">${escapeHtml(effect)}</div>
+        </div>
+        ${daoVisual?.vowId ? `<div class="modal-dao-vfx" aria-hidden="true"></div>` : ''}`
       card.addEventListener('click', () => this.pick(i))
-      card.addEventListener('mouseenter', () => this.setFocus(i))
+      card.addEventListener('mouseenter', () => this.setFocus(i, false))
+      card.addEventListener('focus', () => this.setFocus(i, false))
       this.cardsHost.appendChild(card)
     })
 
     this.node.style.display = ''
+    this.node.setAttribute('aria-hidden', 'false')
     this._render()
     this.setFocus(0)
   }
 
-  setFocus(i) {
-    this.focus = Math.max(0, Math.min(this.choices.length - 1, i))
+  setFocus(i, focusDom = true) {
+    const next = Math.max(0, Math.min(this.choices.length - 1, i))
+    const changed = next !== this.focus
+    this.focus = next
     const cards = this.cardsHost.children
-    for (let k = 0; k < cards.length; k++) cards[k].classList.toggle('focused', k === this.focus)
+    for (let k = 0; k < cards.length; k++) {
+      const focused = k === this.focus
+      cards[k].classList.toggle('focused', focused)
+      cards[k].setAttribute('tabindex', focused ? '0' : '-1')
+    }
+    if (focusDom) cards[this.focus]?.focus?.({ preventScroll: true })
+    if (changed) this.audio?.playUiCue?.('focus')
   }
 
   pick(i) {
@@ -149,16 +238,32 @@ export class LevelUpModal {
   }
 
   close() {
-    this.node.style.display = 'none'
+    if (!this.isOpen) return
+    this.node.setAttribute('aria-hidden', 'true')
+    this.node.classList.add('closing')
     this.choices = []
     this.onPick = null
     this.onSkip = null
     this.onReroll = null
     this.onBanish = null
     this.arming = false
+    this.customHint = null
+    this.actionsHost.style.display = ''
+    this.panelNode.classList.remove('dao-vow-panel')
+    const reducedMotion = typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const finish = () => {
+      this._closeTimer = null
+      this.node.style.display = 'none'
+      this.node.classList.remove('closing')
+    }
+    if (reducedMotion) finish()
+    else this._closeTimer = setTimeout(finish, 150)
   }
 
   dispose() {
+    if (this._closeTimer !== null) clearTimeout(this._closeTimer)
     this.node.remove()
   }
 }

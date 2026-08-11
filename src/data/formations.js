@@ -25,7 +25,11 @@ export const FORMATIONS = [
   { t: 75, kind: 'ring', type: 'wisp', count: 14, radius: 10 },
   { t: 140, kind: 'wall', type: 'wolf', count: 12, radius: 15, arc: 1.5 },
   { t: 215, kind: 'ring', type: 'emberSprite', count: 20, radius: 14 },
-  { t: 290, kind: 'pincer', type: 'jadeSerpent', count: 18, radius: 15, arc: 1.1 },
+  // The 18-serpent version killed the 2560x1600 ordinary-input candidate at
+  // 4:51, one second after it appeared: the two arms merged with the ambient
+  // horde before their escape lanes could be read. Twelve actors still draw a
+  // clear pincer, while the wider radius gives the telegraph time to matter.
+  { t: 290, kind: 'pincer', type: 'jadeSerpent', count: 12, radius: 16, arc: 1.1 },
   { t: 365, kind: 'ring', type: 'talismanGhost', count: 22, radius: 10 },
   // From 7:00 the 진 are made of elites, and that is the whole point of them.
   //

@@ -1,19 +1,92 @@
 ﻿/**
- * Procedural item icons.
+ * Production item icons with a procedural fallback.
  *
- * One canvas glyph per 법보/공법, cached as a data URL. Each has to be readable
- * at 32px, so they are bold silhouettes rather than detailed drawings.
+ * Release-facing 법보/공법 use authored Yeongheo artwork. Canvas glyphs remain
+ * for characters, creatures and utility entries so no missing mapping breaks UI.
  */
 
 import { CHARACTERS } from '../data/characters.js'
 import { PASSIVES } from '../data/passives.js'
 import { ENEMIES } from '../data/enemies.js'
-import { buildEnemyGeometry } from '../art/enemyGeometry.js'
-import { buildBossGeometry } from '../art/bossGeometry.js'
-import { measureModel, silhouetteMask } from '../art/modelGates.js'
 
 const SIZE = 64
 const cache = new Map()
+const ICON_ASSET_V1_BASE = `${import.meta.env?.BASE_URL ?? './'}assets/ui/skill-icons-v1/`
+const ICON_ASSET_V2_BASE = `${import.meta.env?.BASE_URL ?? './'}assets/ui/skill-icons-v2/`
+
+/**
+ * Semantic v2 artwork. Every release-path evolution, late passive, Dao vow,
+ * and consumable gets its own silhouette instead of borrowing a parent icon.
+ * Keeping this map separate from v1 makes provenance and submission auditing
+ * explicit while preserving the stable v1 art for the original base kit.
+ */
+const ART_ICON_FILES_V2 = Object.freeze({
+  venomMist: 'venom-palm.png',
+  hiddenNeedles: 'hidden-needles.png',
+  bellToll: 'spirit-bell.png',
+  windBlade: 'wind-blades.png',
+  earthSpike: 'earth-dragon-spikes.png',
+  skyThunder: 'heavenly-lightning.png',
+  myriadSwords: 'myriad-swords.png',
+  infernoSea: 'inferno-sea.png',
+  violetThunder: 'violet-thunder.png',
+  frozenSky: 'frozen-sky.png',
+  plagueTide: 'plague-tide.png',
+  needleStorm: 'needle-storm.png',
+  heartMethod: 'heart-method.png',
+  swordRiding: 'sword-riding.png',
+  cloneArt: 'clone-art.png',
+  destinedBond: 'destined-bond.png',
+  sword: 'sword-oath.png',
+  'returning-edge': 'returning-edge.png',
+  'piercing-edge': 'piercing-edge.png',
+  'sword-ring': 'sword-ring.png',
+  frost: 'frost-oath.png',
+  // Backward-compatible alias for snapshots authored before frost became the
+  // canonical active Dao icon id.
+  snowflake: 'frost-oath.png',
+  'frost-shards': 'frost-shards.png',
+  'frost-line': 'frost-line.png',
+  'ice-wall': 'ice-wall.png',
+  spirit: 'spirit-oath.png',
+  'purifying-heart': 'purifying-heart.png',
+  'echoing-heart': 'echoing-heart.png',
+  'shadow-copy': 'shadow-copy.png',
+  voidOrb: 'void-orb.png',
+  heal: 'heal.png',
+  stones: 'spirit-stones.png',
+  fortune: 'spirit-stones.png',
+  purge: 'purge.png',
+})
+
+const ART_ICON_FILES = Object.freeze({
+  // Locked cultivators use an authored sect seal rather than the generic
+  // procedural head-and-shoulders placeholder. Their cards clearly remain
+  // seals until a dedicated portrait is produced.
+  seolryeong: 'flying-sword.png', hongryeon: 'fire-talisman.png',
+  cheongmyo: 'thunder-orb.png', byeongna: 'area-formation.png',
+  mukyeon: 'twin-blades.png', baengno: 'dao-lotus.png',
+  flyingSword: 'flying-sword.png', myriadSwords: 'twin-blades.png',
+  fireTalisman: 'fire-talisman.png', infernoSea: 'fire-talisman.png',
+  thunderOrb: 'thunder-orb.png', violetThunder: 'thunder-orb.png', skyThunder: 'thunder-orb.png',
+  frostPalm: 'frost-palm.png', frozenSky: 'frost-palm.png',
+  baguaArray: 'bagua-array.png', vajra: 'vajra.png',
+  spiritButterfly: 'spirit-butterfly.png',
+  venomMist: 'area-formation.png', plagueTide: 'area-formation.png', earthSpike: 'area-formation.png',
+  hiddenNeedles: 'twin-blades.png', needleStorm: 'twin-blades.png', bellToll: 'area-formation.png',
+  windBlade: 'flying-sword.png', voidOrb: 'soul-eye.png',
+  swordArt: 'attack-seal.png', lightBody: 'windstep.png', guardianAura: 'qi-shield.png',
+  spiritRoot: 'cooldown-hourglass.png', farSight: 'soul-eye.png', goldenCore: 'healing-core.png',
+  heartMethod: 'attack-seal.png', swordRiding: 'flying-sword.png', cloneArt: 'twin-blades.png',
+  destinedBond: 'dao-lotus.png',
+  // Distinct existing semantic art for the permanent shop: protection, repair,
+  // and rebirth should not collapse into one healing-core glyph.
+  vitality: 'qi-shield.png', edge: 'attack-seal.png',
+  swift: 'windstep.png', circulation: 'cooldown-hourglass.png', bulwark: 'qi-shield.png',
+  reach: 'area-formation.png', insight: 'soul-eye.png', mending: 'healing-core.png',
+  fortune: 'dao-lotus.png', revive: 'dao-lotus.png', insightRoll: 'soul-eye.png',
+  sealing: 'fire-talisman.png', heal: 'healing-core.png', purge: 'qi-shield.png',
+})
 
 function make(draw, bg) {
   const c = document.createElement('canvas')
@@ -475,48 +548,50 @@ for (const c of CHARACTERS) {
 }
 
 /**
- * Creature icons, rasterised from the creature's own model.
- *
- * The 도감 was falling through to the generic grey circle for all thirteen
- * 요괴 and both bosses, so the one screen whose entire purpose is telling them
- * apart showed fifteen identical discs. Hand-drawing that many glyphs would
- * also mean maintaining a second, silently-diverging picture of every model.
- *
- * The gate module already rasterises a silhouette mask to measure how a
- * creature reads — the same mask, filled with the model's dominant vertex
- * colour, is the icon. It cannot drift from the model because it is derived
- * from it.
+ * Pure 2D creature glyphs. Icons are 32px in the HUD, so importing the retired
+ * Three.js geometry graph to rasterise them cost hundreds of kilobytes without
+ * adding visible detail. These silhouettes derive colour and role from the
+ * canonical data table and keep the production graph renderer-agnostic.
  */
-function creatureDrawer(build, id) {
+function creatureDrawer(def, boss = false) {
   return (ctx) => {
-    const { res, mask } = silhouetteMask(build(id), 0.35)
-    const hex = measureModel(build(id)).dominant
-    const r = (hex >> 16) & 255
-    const g = (hex >> 8) & 255
-    const b = hex & 255
-    const cell = (SIZE - 14) / res
-    // Drawn twice: a dark offset copy for weight, then the creature's colour.
-    for (const [ox, oy, fill] of [[1.5, 1.5, 'rgba(0,0,0,0.55)'], [0, 0, `rgb(${r},${g},${b})`]]) {
-      ctx.fillStyle = fill
-      for (let y = 0; y < res; y++) {
-        for (let x = 0; x < res; x++) {
-          if (mask[y * res + x] === 0) continue
-          // The mask has y up; canvas has y down.
-          ctx.fillRect(
-            (x - res / 2) * cell + ox,
-            (res / 2 - 1 - y) * cell + oy,
-            cell + 0.6, cell + 0.6,
-          )
-        }
+    const color = `#${(def.color ?? 0x8d7ab8).toString(16).padStart(6, '0')}`
+    ctx.fillStyle = 'rgba(0,0,0,.48)'
+    ctx.beginPath(); ctx.ellipse(2, 14, boss ? 23 : 18, 6, 0, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = color
+    if (boss || def.elite || def.behavior === 'lumberer' || def.behavior === 'flanker') {
+      ctx.beginPath()
+      ctx.moveTo(0, -22); ctx.lineTo(13, -14); ctx.lineTo(18, 12)
+      ctx.lineTo(8, 21); ctx.lineTo(0, 13); ctx.lineTo(-8, 21)
+      ctx.lineTo(-18, 12); ctx.lineTo(-13, -14); ctx.closePath(); ctx.fill()
+      ctx.fillStyle = '#bfffee'
+      ctx.fillRect(-7, -9, 5, 3); ctx.fillRect(2, -9, 5, 3)
+      if (boss) {
+        ctx.strokeStyle = '#d8c47c'; ctx.lineWidth = 3
+        ctx.beginPath(); ctx.moveTo(-10, -16); ctx.lineTo(-17, -25); ctx.moveTo(10, -16); ctx.lineTo(17, -25); ctx.stroke()
       }
+    } else if (def.id.includes('wolf') || def.id === 'wolf' || def.id === 'jadeSerpent' || def.id === 'bloodScorpion') {
+      ctx.beginPath()
+      ctx.moveTo(-21, 8); ctx.lineTo(-14, -9); ctx.lineTo(-7, -16); ctx.lineTo(0, -8)
+      ctx.lineTo(14, -6); ctx.lineTo(22, 3); ctx.lineTo(14, 12); ctx.lineTo(-12, 15); ctx.closePath(); ctx.fill()
+      ctx.fillStyle = '#d7f6ff'; ctx.beginPath(); ctx.arc(-11, -6, 2.5, 0, Math.PI * 2); ctx.fill()
+    } else {
+      const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, 22)
+      glow.addColorStop(0, '#f4edff'); glow.addColorStop(0.28, color); glow.addColorStop(1, 'rgba(70,40,120,0)')
+      ctx.fillStyle = glow
+      ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = '#f8f1ff'; ctx.beginPath(); ctx.arc(0, -2, 5, 0, Math.PI * 2); ctx.fill()
     }
   }
 }
 
-for (const e of ENEMIES) DRAWERS[e.id] = creatureDrawer(buildEnemyGeometry, e.id)
-for (const id of ['blueWolfKing', 'darkHeavenLord', 'riverMaiden', 'jadeVoidWarden']) {
-  DRAWERS[id] = creatureDrawer(buildBossGeometry, id)
-}
+for (const e of ENEMIES) DRAWERS[e.id] = creatureDrawer(e)
+for (const def of [
+  { id: 'blueWolfKing', color: 0x5f7fa8 },
+  { id: 'darkHeavenLord', color: 0x6f43a0 },
+  { id: 'riverMaiden', color: 0x6ca6d0 },
+  { id: 'jadeVoidWarden', color: 0x3d9e8c },
+]) DRAWERS[def.id] = creatureDrawer(def, true)
 
 const CREATURE_IDS = new Set([...ENEMIES.map((e) => e.id), 'blueWolfKing', 'darkHeavenLord', 'riverMaiden', 'jadeVoidWarden'])
 const CHARACTER_IDS = new Set(CHARACTERS.map((c) => c.id))
@@ -534,6 +609,13 @@ function bgFor(id) {
 export function iconFor(id) {
   let url = cache.get(id)
   if (url === undefined) {
+    const v2ArtFile = ART_ICON_FILES_V2[id]
+    const artFile = v2ArtFile ?? ART_ICON_FILES[id]
+    if (artFile) {
+      url = `${v2ArtFile ? ICON_ASSET_V2_BASE : ICON_ASSET_V1_BASE}${artFile}`
+      cache.set(id, url)
+      return url
+    }
     const draw = DRAWERS[id] ?? ((ctx) => {
       ctx.strokeStyle = '#8fa0b0'
       ctx.lineWidth = 4

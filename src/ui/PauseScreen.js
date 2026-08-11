@@ -69,6 +69,20 @@ export class PauseScreen {
         </div>
       </div>`
     root.appendChild(this.node)
+    this._uiFocusTarget = null
+
+    // Pause has no synthetic menu loop of its own, so keep pointer and native
+    // keyboard focus on the same small cue path. The target guard prevents the
+    // browser's mouseenter -> focus pair from speaking twice.
+    for (const button of this.node.querySelectorAll('button')) {
+      const cueFocus = () => {
+        if (this._uiFocusTarget === button) return
+        this._uiFocusTarget = button
+        this._uiCue('focus')
+      }
+      button.addEventListener('mouseenter', cueFocus)
+      button.addEventListener('focus', cueFocus)
+    }
 
     for (const input of this.node.querySelectorAll('[data-vol]')) {
       input.addEventListener('input', () => {
@@ -77,22 +91,30 @@ export class PauseScreen {
         this._syncVolumes()
       })
     }
-    this.node.querySelector('[data-act="resume"]').addEventListener('click', () => this.onResume?.())
+    this.node.querySelector('[data-act="resume"]').addEventListener('click', () => {
+      this._uiCue('confirm')
+      this.onResume?.()
+    })
     this.node.querySelector('[data-act="quality"]').addEventListener('click', (e) => {
       e.currentTarget.textContent = `화질 ${this.quality.cycle()}`
+      this._uiCue('confirm')
     })
     this.node.querySelector('[data-act="mute"]').addEventListener('click', () => {
       this.audio.toggleMute()
+      if (!this.audio.muted) this.audio.ensureUnlocked?.()
       this._syncVolumes()
+      this._uiCue('confirm')
     })
     // Leaving a run throws it away, so it asks once rather than on a mis-click.
     this.node.querySelector('[data-act="quit"]').addEventListener('click', (e) => {
       const btn = e.currentTarget
       if (btn.dataset.armed !== '1') {
+        this._uiCue('focus')
         btn.dataset.armed = '1'
         btn.textContent = '정말 물러나는가?'
         return
       }
+      this._uiCue('confirm')
       this.onQuit?.()
     })
   }
@@ -101,9 +123,14 @@ export class PauseScreen {
     return this.node.style.display !== 'none'
   }
 
+  _uiCue(kind = 'confirm') {
+    this.audio?.playUiCue?.(kind)
+  }
+
   /** @param snapshot The same shape `Game._hudState()` builds. */
   show(snapshot, loadout) {
     this.node.style.display = ''
+    this._uiFocusTarget = null
     const quit = this.node.querySelector('[data-act="quit"]')
     quit.dataset.armed = '0'
     quit.textContent = '물러난다'

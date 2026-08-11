@@ -1,5 +1,8 @@
 import { nextHint } from '../data/hints.js'
 
+const MOVE_HINT_ID = 'move'
+const MOVE_HINT_MAX_SECONDS = 8
+
 /**
  * First-run hints, shown one at a time above the health bar.
  *
@@ -25,6 +28,8 @@ export class HintOverlay {
     // A gap after one hint clears, so two triggers landing together do not read
     // as a wall of text.
     this.cooldown = 0
+    this.runSeconds = 0
+    this.lastRunTime = null
   }
 
   /**
@@ -43,9 +48,44 @@ export class HintOverlay {
     return (this.progress.records?.runs ?? 0) < 2
   }
 
+  _dismissMoveHint() {
+    if (this.current?.id !== MOVE_HINT_ID) return false
+    this.current = null
+    this.timer = 0
+    this.cooldown = 1.1
+    this.node.style.opacity = '0'
+    return true
+  }
+
+  /**
+   * Acknowledge activity without dismissing the opening control strip.
+   *
+   * Older callers used this hook to close the movement hint on the first key
+   * press. Keep the hook source-compatible, but the first input is precisely
+   * when the player needs the controls most, so it must not hide the strip.
+   */
+  notifyActivity() {
+    return false
+  }
+
   update(dt, state) {
+    const delta = Number.isFinite(dt) ? Math.max(0, dt) : 0
+    const runTime = Number(state?.runTime)
+    if (Number.isFinite(runTime)) {
+      if (this.lastRunTime !== null && runTime + 0.25 < this.lastRunTime) this.runSeconds = 0
+      this.lastRunTime = runTime
+      this.runSeconds = Math.max(this.runSeconds, Math.max(0, runTime))
+    } else {
+      this.runSeconds += delta
+    }
+
+    if (this.current?.id === MOVE_HINT_ID && this.runSeconds >= MOVE_HINT_MAX_SECONDS) {
+      this._dismissMoveHint()
+      return
+    }
+
     if (this.current) {
-      this.timer -= dt
+      this.timer -= delta
       if (this.timer <= 0) {
         this.current = null
         this.cooldown = 1.1
@@ -55,7 +95,7 @@ export class HintOverlay {
     }
 
     if (this.cooldown > 0) {
-      this.cooldown -= dt
+      this.cooldown -= delta
       return
     }
 
@@ -77,6 +117,8 @@ export class HintOverlay {
 
   hide() {
     this.current = null
+    this.timer = 0
+    this.cooldown = 0
     this.node.style.opacity = '0'
   }
 

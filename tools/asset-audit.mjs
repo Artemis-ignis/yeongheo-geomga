@@ -6,7 +6,7 @@ const TOOL_DIR = path.dirname(fileURLToPath(import.meta.url))
 export const WORKSPACE_ROOT = path.resolve(TOOL_DIR, '..')
 export const MANIFEST_PATH = path.join(WORKSPACE_ROOT, 'tools', 'asset-manifest.json')
 const SOURCE_ROOTS = ['src', 'styles']
-const SOURCE_FILES = ['index.html']
+const SOURCE_FILES = ['index.html', 'tools/yeongheo/sprite-authoring-manifest.json']
 const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.glb', '.gltf', '.bin'])
 
 function normalize(value) {

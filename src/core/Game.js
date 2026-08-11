@@ -60,9 +60,10 @@ const BREAKTHROUGH_IFRAMES = 1.2
 // the GPU hot. Keep simulation and presentation at a predictable 60 Hz cap.
 export const MAX_RENDER_FPS = 60
 const MIN_RENDER_INTERVAL_MS = 1000 / MAX_RENDER_FPS
-// Menus and level-up overlays keep a little cinematic motion behind the UI,
-// but they do not need the full combat presentation rate. Rendering them at
-// 30 Hz prevents a paused run from continuing to heat the GPU like gameplay.
+// Non-interactive menus keep a little cinematic motion behind the UI without
+// continuing to heat the GPU like gameplay. The level-up choice is different:
+// it is an active combat decision, so its blurred live background stays at the
+// same 60 Hz cadence as combat instead of visibly stepping at 30 Hz.
 const PRESENTATION_RENDER_INTERVAL_MS = 1000 / 30
 
 /**
@@ -113,8 +114,8 @@ export class Game {
     // Meta progression is loaded once and lives for the whole session.
     this.progress = new Progress(Save.load())
 
-    // Silent until a gesture unlocks it — browsers refuse to start an
-    // AudioContext before one, and every call is a no-op while it is silent.
+    // The first title interaction unlocks WebAudio. Saved mute preferences are
+    // respected, while a fresh player hears the score on their first run.
     this.audio = new AudioEngine()
     this._unlockAudio = () => {
       if (!this.audio.muted) this.audio.unlock()
@@ -933,7 +934,7 @@ export class Game {
       // The accumulator preserves the 60 FPS average without allowing a tab
       // resume hitch to trigger a burst of catch-up renders.
       if (Number.isFinite(now)) {
-        const renderIntervalMs = this.state === 'playing'
+        const renderIntervalMs = this.state === 'playing' || this.state === 'levelUp'
           ? MIN_RENDER_INTERVAL_MS
           : PRESENTATION_RENDER_INTERVAL_MS
         const previousCallbackAt = this._lastPresentedAt

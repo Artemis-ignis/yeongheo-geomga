@@ -9,6 +9,8 @@ const WEIGHT_OWNED_PASSIVE = 80
 const WEIGHT_NEW_WEAPON = 60
 const WEIGHT_NEW_PASSIVE = 50
 const WEIGHT_EVOLUTION = 400
+export const OPENING_WEAPON_FLOOR = 4
+export const OPENING_DEFENSE_IDS = Object.freeze(['guardianAura', 'goldenCore'])
 
 export const CONSUMABLES = [
   { kind: 'consumable', id: 'heal', name: '회춘단', desc: '기혈을 30% 회복한다.' },
@@ -38,6 +40,20 @@ export const CONSUMABLES = [
  */
 export const EVOLUTION_GATE = { passiveLevel: 1 }
 
+/**
+ * Luck only matters if it changes relative weights. The previous roll multiplied
+ * every candidate by the same value, which cancels out during normalization and
+ * made 연분/혜안 mathematically inert. It now favours run-defining opportunities
+ * (new kit and especially evolutions) while owned incremental levels keep their
+ * baseline weight.
+ */
+export function luckWeightMultiplier(luck, opportunity = 'owned') {
+  const normalized = Math.min(3, Math.max(0.25, Number.isFinite(luck) ? luck : 1))
+  if (opportunity === 'evolution') return normalized ** 1.5
+  if (opportunity === 'new') return normalized
+  return 1
+}
+
 /** A weapon can evolve once it is maxed and its paired 공법 has come far enough. */
 export function canEvolve(loadout, weapon) {
   if (!weapon?.evolvesTo || !weapon.pairPassive) return false
@@ -64,7 +80,7 @@ function buildCandidates(loadout, stats, unlockedWeapons, banished) {
     if (canEvolve(loadout, w) && !loadout.weapons[w.evolvesTo]) {
       const evo = getWeapon(w.evolvesTo)
       out.push({
-        weight: WEIGHT_EVOLUTION * luck,
+        weight: WEIGHT_EVOLUTION * luckWeightMultiplier(luck, 'evolution'),
         choice: {
           kind: 'evolution', id: evo.id, name: evo.name,
           desc: evo.desc, replaces: w.id, fromLevel: level, toLevel: 1,
@@ -76,12 +92,12 @@ function buildCandidates(loadout, stats, unlockedWeapons, banished) {
     if (level === 0) {
       if (weaponCount >= MAX_WEAPON_SLOTS) continue
       out.push({
-        weight: WEIGHT_NEW_WEAPON * luck,
+        weight: WEIGHT_NEW_WEAPON * luckWeightMultiplier(luck, 'new'),
         choice: { kind: 'weapon', id: w.id, name: w.name, desc: w.desc, fromLevel: 0, toLevel: 1 },
       })
     } else if (level < w.levels.length) {
       out.push({
-        weight: WEIGHT_OWNED_WEAPON * luck,
+        weight: WEIGHT_OWNED_WEAPON,
         choice: { kind: 'weapon', id: w.id, name: w.name, desc: w.desc, fromLevel: level, toLevel: level + 1 },
       })
     }
@@ -93,7 +109,9 @@ function buildCandidates(loadout, stats, unlockedWeapons, banished) {
     if (level >= p.max) continue
     if (level === 0 && passiveCount >= MAX_PASSIVE_SLOTS) continue
     out.push({
-      weight: (level === 0 ? WEIGHT_NEW_PASSIVE : WEIGHT_OWNED_PASSIVE) * luck,
+      weight: level === 0
+        ? WEIGHT_NEW_PASSIVE * luckWeightMultiplier(luck, 'new')
+        : WEIGHT_OWNED_PASSIVE,
       choice: { kind: 'passive', id: p.id, name: p.name, desc: p.desc, fromLevel: level, toLevel: level + 1 },
     })
   }
@@ -119,6 +137,31 @@ function buildCandidates(loadout, stats, unlockedWeapons, banished) {
 export function rollUpgrades(loadout, stats, rng, count = 3, unlockedWeapons = null, banished = null) {
   const pool = buildCandidates(loadout, stats, unlockedWeapons, banished)
   const picked = []
+
+  // The first highlighted card must never turn a fresh run into a lottery.
+  // Until the player has four distinct 법보, reserve one random new 법보 as
+  // card one. Once that floor is met, reserve one defensive 공법 if the build
+  // has neither. The other two cards remain fully weighted choices and the
+  // player may ignore the safety card; an unsophisticated first-card route is
+  // simply guaranteed a viable foundation.
+  const weaponCount = Object.keys(loadout.weapons).length
+  let safetyIndex = -1
+  if (weaponCount < OPENING_WEAPON_FLOOR) {
+    const candidates = []
+    for (let i = 0; i < pool.length; i++) {
+      const choice = pool[i].choice
+      if (choice.kind === 'weapon' && choice.fromLevel === 0) candidates.push(i)
+    }
+    if (candidates.length > 0) safetyIndex = candidates[rng.int(candidates.length)]
+  } else if (!OPENING_DEFENSE_IDS.some((id) => (loadout.passives[id] ?? 0) > 0)) {
+    safetyIndex = pool.findIndex(({ choice }) => (
+      choice.kind === 'passive' && OPENING_DEFENSE_IDS.includes(choice.id)
+    ))
+  }
+  if (safetyIndex >= 0 && picked.length < count) {
+    picked.push(pool[safetyIndex].choice)
+    pool.splice(safetyIndex, 1)
+  }
 
   while (picked.length < count && pool.length > 0) {
     let total = 0

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "description": "Authoring-only sprite provenance. This file is not imported by the browser runtime.",
+  "pipelines": [
+    {
+      "actor": "seolryeong-combat",
+      "source": "seolryeong-combat-key-v1.png",
+      "outputs": ["seolryeong-combat-v1.png"]
+    },
+    {
+      "actor": "seolryeong-legacy",
+      "source": "seolryeong-motion-sheet-v2.png",
+      "outputs": ["seolryeong-motion-v2.png"]
+    },
+    {
+      "actor": "seolryeong-heroine",
+      "source": "seolryeong-heroine-motion-sheet-v4.png",
+      "outputs": ["seolryeong-heroine-motion-v4.png"]
+    },
+    {
+      "actor": "seolryeong-east",
+      "source": "seolryeong-heroine-east-sheet-v1.png",
+      "outputs": ["seolryeong-heroine-east-motion-v1.png"]
+    },
+    {
+      "actor": "seolryeong-north",
+      "source": "seolryeong-heroine-north-sheet-v1.png",
+      "outputs": ["seolryeong-heroine-north-motion-v1.png"]
+    },
+    {
+      "actor": "seolryeong-northeast",
+      "source": "seolryeong-heroine-northeast-sheet-v1.png",
+      "outputs": ["seolryeong-heroine-northeast-motion-v1.png"]
+    },
+    {
+      "actor": "seolryeong-south",
+      "source": "seolryeong-heroine-south-sheet-v1.png",
+      "outputs": ["seolryeong-heroine-south-motion-v1.png"]
+    },
+    {
+      "actor": "yorang",
+      "source": "yorang-motion-sheet-v2.png",
+      "legacySource": "yorang-key-v1.png",
+      "outputs": ["yorang-motion-v2.png"],
+      "legacyOutputs": ["yorang-v1.png"]
+    },
+    {
+      "actor": "void-sentinel",
+      "source": "void-sentinel-motion-sheet-v2.png",
+      "legacySource": "void-sentinel-key-v1.png",
+      "outputs": ["void-sentinel-motion-v2.png"],
+      "legacyOutputs": ["void-sentinel-v1.png"]
+    },
+    {
+      "actor": "jade-void-warden",
+      "source": "jade-void-warden-motion-sheet-v2.png",
+      "legacySource": "jade-void-warden-key-v1.png",
+      "outputs": ["jade-void-warden-motion-v2.png"],
+      "legacyOutputs": ["jade-void-warden-v1.png"]
+    },
+    {
+      "actor": "jade-sanctuary-props",
+      "source": "jade-sanctuary-props-sheet-v1.png",
+      "outputs": ["jade-sanctuary-props-v1.png"]
+    },
+    {
+      "actor": "talisman-revenant",
+      "source": "talisman-revenant-motion-sheet-v1.png",
+      "outputs": ["talisman-revenant-motion-v1.png"]
+    },
+    {
+      "actor": "jade-serpent",
+      "source": "jade-serpent-motion-sheet-v1.png",
+      "outputs": ["jade-serpent-motion-v1.png"]
+    },
+    {
+      "actor": "jade-stone-ghoul",
+      "source": "jade-stone-ghoul-motion-sheet-v1.png",
+      "outputs": ["jade-stone-ghoul-motion-v1.png"]
+    },
+    {
+      "actor": "blood-scorpion",
+      "source": "blood-scorpion-motion-sheet-v1.png",
+      "outputs": ["blood-scorpion-motion-v1.png"]
+    }
+  ]
+}

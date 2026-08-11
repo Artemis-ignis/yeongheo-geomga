@@ -1,67 +1,64 @@
-import { isWebGL2Available, showFallback } from './world/webglSupport.js'
+import { showFallback } from './world/webglSupport.js'
 
 const canvas = document.getElementById('scene')
 const overlayCanvas = document.getElementById('overlay')
 const hudRoot = document.getElementById('hud')
+const fallbackRoot = document.getElementById('fallback')
+const params = new URLSearchParams(location.search)
 
-if (!isWebGL2Available()) {
-  showFallback('WebGL2 컨텍스트를 생성할 수 없습니다')
-} else {
-  // Keep the document/bootstrap chunk free of Three.js and postprocessing. The
-  // game is still loaded immediately after the cheap capability check, but the
-  // browser can paint the shell before parsing the renderer-heavy graph.
-  const { Game } = await import('./core/Game.js')
-  const game = new Game({ canvas, overlayCanvas, hudRoot })
-  game.start()
-
-  if (import.meta.env.DEV) {
+async function boot() {
+  // Legacy 3D remains available only to local developers while the 2D cutover
+  // is being compared. This branch is removed by the production build, so its
+  // Three.js graph and GLB assets cannot leak into the shipped entry point.
+  if (import.meta.env.DEV && params.get('renderer') === '3d') {
+    const legacyModule = './core/Game.js'
+    const { Game } = await import(/* @vite-ignore */ legacyModule)
+    const game = new Game({ canvas, overlayCanvas, hudRoot })
+    game.start()
     window.__game = game
-    window.__forceFallback = () => showFallback('forced fallback')
+    window.__rendererMode = 'legacy-3d'
+    return
+  }
 
-    // Capture and diagnostic probes are opt-in. A normal dev session should
-    // never write quality-pass PNGs or spend frames on readback-only probes.
-    if (import.meta.env.VITE_ENABLE_CAPTURE === '1') {
-      const { installCapture, installStepper, installUICapture } = await import('./dev/capture.js')
-      const { installBalanceProbe } = await import('./dev/balanceProbe.js')
-      const {
-        installToneCheck, installModelTone, installSalience, checkTone, MODEL_TONE_LIMITS,
-      } = await import('./dev/toneCheck.js')
-
-      installStepper((dt) => game.stepFrame(dt), 1 / 60)
-      const drawAt = (w, h) => {
-        game.camera.setAspect(w / h)
-        game.post.setSize(w, h)
-        game.draw(1, 1 / 60)
-      }
-      installCapture(game.renderer, drawAt)
-      installUICapture(hudRoot)
-      installBalanceProbe(game)
-      installToneCheck(game.renderer, drawAt)
-      installSalience(game.renderer, drawAt)
-      installModelTone(game.renderer, game.scene, game.camera.camera, () => {
-        // Subjects: the horde plus whichever character is on screen.
-        const subjects = []
-        for (const m of game.enemies?.meshes ?? []) subjects.push(m)
-        const roots = game.player
-          ? [game.player.chibi.root]
-          : (game.previewChibis ?? []).map((c) => c.root)
-        for (const root of roots) root.traverse((o) => { if (o.isMesh) subjects.push(o) })
-        if (game.boss?.group) game.boss.group.traverse((o) => { if (o.isMesh) subjects.push(o) })
-        return subjects
-      })
-
-      window.__toneCheck = () => {
-        const tone = window.__tone()
-        const models = window.__modelTone()
-        return {
-          tone,
-          models,
-          problems: [
-            ...checkTone(tone),
-            ...checkTone(models, MODEL_TONE_LIMITS).map((p) => `models: ${p}`),
-          ],
-        }
-      }
+  const { Game2D } = await import('./runtime2d/Game2D.js')
+  const game = new Game2D({ canvas, overlayCanvas, hudRoot, fallbackRoot })
+  await game.start()
+  if (game._disposed) return
+  window.__game = game
+  window.__game2d = game
+  window.__rendererMode = 'pixi-2d'
+  window.__game2dDiagnostics = () => game.diagnostics()
+  if (import.meta.env.DEV) {
+    window.__forceBoss = (id) => game.forceBoss(id)
+    window.__forceLevelUp = () => game.forceLevelUp()
+    window.__stress2d = (options) => game.stress(options)
+    const qaMode = params.get('qa')
+    if (qaMode === 'stress') {
+      await game._startRun('seolryeong', 'jade')
+      game.world.onLevels = () => {}
+      game.world.player.takeDamage = () => false
+      game.stress({ enemies: 900, projectiles: 1200, pickups: 1500 })
+      game.debug.toggle()
+    } else if (qaMode === 'boss') {
+      await game._startRun('seolryeong', 'jade')
+      game.world.player.takeDamage = () => false
+      game.forceBoss('jadeVoidWarden')
+    } else if (qaMode === 'result') {
+      await game._startRun('seolryeong', 'jade')
+      game.world.runTime = 185
+      const savedProgress = structuredClone(game.progress.toSaveState())
+      const persist = game._persist
+      game._persist = () => {}
+      game._endRun(false)
+      game.progress.state = savedProgress
+      game._persist = persist
     }
   }
+}
+
+try {
+  await boot()
+} catch (error) {
+  console.error(error)
+  showFallback(`2.5D 렌더러를 시작하지 못했습니다.\n${error?.message ?? error}`)
 }

@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .vite/
+__pycache__/
+*.pyc
 *.local
 .DS_Store
 .shots/
@@ -35,3 +37,12 @@ quality-pass-*.png
 /artifacts/img2threejs/void-iron-scale-sentinel-v3/pbr-evidence/void-iron_*.png
 /artifacts/img2threejs/void-iron-scale-sentinel-v3/blockout-blocked.json
 /artifacts/img2threejs/void-iron-scale-sentinel-v2/legacy-public-reference-v2.png
+
+# Browser sessions, QA/release scratch, and generated 2D evidence stay local.
+# These rules only block future untracked files; Git continues to track any
+# path that was already committed and does not remove it retroactively.
+/.playwright-cli/
+/output/
+/tmp/
+/artifacts/2d-build/
+/artifacts/2d-qa/

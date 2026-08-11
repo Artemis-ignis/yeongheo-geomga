@@ -1,7 +1,7 @@
 import { iconFor } from './icons.js'
 import { ENEMIES } from '../data/enemies.js'
 import { WEAPONS, EVOLUTIONS } from '../data/weapons.js'
-import { BOSSES } from '../entities/BossManager.js'
+import { BOSSES } from '../data/bosses.js'
 import { getPassive } from '../data/passives.js'
 import { ACHIEVEMENTS } from '../data/achievements.js'
 
@@ -15,7 +15,7 @@ const TAG_NAMES = {
  * a 도감 entry reading "lumberer" would be worse than saying nothing.
  */
 const BEHAVIOUR_NAMES = {
-  chase: '直進', dasher: '도약', ranged: '원거리', splitter: '분열',
+  chase: '추적', dasher: '도약', ranged: '원거리', splitter: '분열',
   flanker: '측면', charger: '돌진', skirmisher: '치고 빠짐',
   drifter: '표류', flicker: '점멸', lumberer: '완보',
 }

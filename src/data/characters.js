@@ -4,7 +4,9 @@
 export const TAGS = ['sword', 'fire', 'thunder', 'ice', 'array']
 
 export const BASE_STATS = Object.freeze({
-  maxHp: 100,
+  // A clean run needs one extra contact grace window before its first
+  // defensive passive appears; this is health, not free invulnerability.
+  maxHp: 115,
   moveSpeed: 5.2,
   armor: 0,
   might: 1.0,
@@ -13,9 +15,9 @@ export const BASE_STATS = Object.freeze({
   speedProj: 1.0,
   duration: 1.0,
   amount: 0,
-  // Radius of the hard pull. At 3.0 against a move speed of 5.7 an orb dropped
-  // behind a retreating player was simply never reached.
-  magnet: 5.0,
+  // Radius of the hard pull. At 6.5 a retreating player can still recover an orb
+  // without turning the whole screen into an automatic vacuum.
+  magnet: 6.5,
   luck: 1.0,
   growth: 1.0,
   critChance: 0.05,
@@ -108,4 +110,13 @@ export const CHARACTERS = [
 
 export function getCharacter(id) {
   return CHARACTERS.find((c) => c.id === id)
+}
+
+// The contest release ships one fully authored heroine. The other cultivator
+// designs remain source data for future chapters, but must never be sold or
+// launched while the combat renderer has no matching directional sprite set.
+export const RELEASE_PLAYABLE_CHARACTER_IDS = Object.freeze(['seolryeong'])
+
+export function isReleasePlayableCharacter(id) {
+  return RELEASE_PLAYABLE_CHARACTER_IDS.includes(id)
 }
