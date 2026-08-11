@@ -1,6 +1,6 @@
 # 영허검가 현재 상태
 
-기준일: 2026-08-11
+기준일: 2026-08-12
 브랜치: `agent/yeongheo-starfall-quality-pass`
 
 ## production 진실
@@ -13,25 +13,27 @@
 
 | 영역 | 현재 판정 |
 |---|---|
-| build | PASS; Game2D 552.61 kB, gzip 164.07 kB |
-| tests | 67개 파일 / 759개 PASS |
-| assets | 119/119 |
-| runtime | 74/74 |
+| build | PASS; Game2D 553.76 kB, gzip 164.56 kB |
+| tests | 67개 파일 / 760개 PASS |
+| runtime assets | 74/74, source/output 누락 0, unexpected 0 |
 | npm audit | 알려진 취약점 0 |
 | launcher | 브라우저를 열지 않는 실제 smoke PASS |
-| Windows Chromium | 정확한 1920×1080·2560×1600 combat 확인, overflow 0, console error 0 |
-| 시각 확인 | ground/contact PASS, 마기 잔영과 영기 보상 의미 분리 PASS |
+| 7분 Windows Chrome E2E | 1920×1080 무치트 전체 루프 runtime/performance PASS, console error/warning/page error 0 |
+| 2560×1600 확인 | 결과 화면 focused runtime에서 overflow 0, console/page error 0 |
+| 시각 확인 | 결과 화면의 전투 잔상·내부 ID 노출·레이아웃 결함 PASS |
 
 ## 아직 닫히지 않은 게이트
 
-- 전체 commercial visual gate는 **strict FAIL**입니다. 이번 접지·적/보상 의미 분리는 통과했지만 현재 build의 무치트 7분 전체 루프, 보스·결과 화면, 후반 전투 밀도와 안정성을 다시 통과해야 합니다.
+- 전체 commercial visual gate는 **strict FAIL**입니다. 무치트 7분 전체 루프와 결과 화면 결함은 통과했지만, `화염부` 투사체가 붉은 주황색 평면 스탬프처럼 보이고 후반의 동일 포즈 적 반복·영기 보상 과밀이 전투 가독성과 제작 품질을 크게 깎습니다.
 - rights audit는 **BLOCKED**입니다. 법적 증거가 확인된 runtime asset은 0/74입니다.
 - 따라서 release approval, A-grade, rights clearance, 공식 제출 승인을 선언하지 않습니다.
 
-## 2026-08-11 직접 확인한 최신 품질 패스
+## 2026-08-12 직접 확인한 최신 품질 패스
 
-- 초반 보라색 mote형 적을 authored `마기 잔영`으로 교체하고, 보상 영기는 회전하는 청록 결정 실루엣으로 분리했습니다.
-- 주인공과 겹치는 순간에는 마기 잔영 시각 alpha만 낮춰 주인공을 읽히게 했고, 충돌·피해·경로 시뮬레이션은 바꾸지 않았습니다.
-- 실제 1920×1080과 2560×1600 Chrome 프레임에서 적/보상/주인공의 역할 분리와 레이아웃을 루트가 직접 판정했습니다. 자동화 탭의 진단 FPS는 호출 간 throttling 영향을 받으므로 안정 60 FPS 증거로 사용하지 않습니다.
+- immutable run `yeongheo-e2e-20260812-003100-85a81c8`에서 title→전투→도 선택→성장→중간 보스→진화→최종 보스→승리→재시작을 실제 7분 동안 검증했습니다. 시간 점프·피해 무효화·강제 보스/레벨/스트레스 호출은 사용하지 않았습니다.
+- build identity는 commit `85a81c843f17d0a137bbbb9759945a0df2db58bc`, dist manifest `8193d58be3356db9937920cf5f2fce1f4be4e20eb7edff13340023c599c2f81a`, Game2D chunk `assets/Game2D-XxloffMq.js` / `4cb0c4fd87655dd4c44c61e1f5319ad4f2e9e3b95ca934ea703b337a8e3f9e2d`입니다.
+- 실제 결과는 대승 38층, 처치 2919, 획득 영석 416이며 재시작 후 seed가 바뀌고 3.718 world units 이동했습니다.
+- RTX 5070 Laptop GPU WebGL2에서 600 samples, rolling FPS 129.68, p95 work 2.4 ms, sim 0.6 ms, draw 2.0 ms, long task 0을 기록했습니다. 이는 해당 자동화 런의 성능 증거이며 전체 기기군 보장은 아닙니다.
+- 루트가 실제 프레임을 직접 재검토한 결과, 다음 최우선 결함은 디버그 표식이 아니라 이동 방향과 맞지 않는 세워진 불꽃 실루엣의 `화염부` 투사체임을 확인했습니다.
 
 다음 작업은 [TODO.md](TODO.md)의 첫 실제 미완료 항목부터 진행합니다.
