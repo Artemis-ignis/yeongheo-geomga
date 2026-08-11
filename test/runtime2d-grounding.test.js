@@ -58,6 +58,7 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(actorFootPivot2D('bloodScorpion', 4)).toBeCloseTo(0.742)
     expect(actorFootPivot2D('yorang', 5)).toBeCloseTo(0.727)
     expect(actorFootPivot2D('jadeStoneGhoul', 0)).toBeCloseTo(0.953)
+    expect(actorFootPivot2D('wisp', 0)).toBeCloseTo(0.958)
     expect(actorFootPivot2D('prop', 15)).toBe(actorFootPivot2D('prop', 7))
   })
 

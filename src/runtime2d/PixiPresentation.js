@@ -125,6 +125,37 @@ export const RUNTIME2D_POOL_LIMITS = Object.freeze({
   weaponFields: MAX_WEAPON_FIELDS_2D,
 })
 
+// The opening fodder must read as a hostile spirit, not as ambient motes or
+// dropped qi. Keep its mask upright and let only the body sway. Pickups use the
+// opposite motion language: compact faceted gems that rotate continuously.
+export const WISP_THREAT_PRESENTATION_2D = Object.freeze({
+  silhouette: 'upright-eyed-wraith',
+  baseHeight: 80,
+  rotationAmplitude: 0.065,
+  rotationRate: 2.1,
+  alphaBase: 0.93,
+  alphaPulse: 0.04,
+})
+
+export const PICKUP_PRESENTATION_2D = Object.freeze({
+  qi: Object.freeze({ baseScale: 0.46, pulseAmplitude: 0.055, alpha: 0.96 }),
+  stone: Object.freeze({ baseScale: 0.58, pulseAmplitude: 0.045, alpha: 0.98 }),
+})
+
+export function wispThreatRotation2D(time, uid = 0) {
+  return Math.sin(
+    (Number(time) || 0) * WISP_THREAT_PRESENTATION_2D.rotationRate
+      + (Number(uid) || 0) * 0.31,
+  ) * WISP_THREAT_PRESENTATION_2D.rotationAmplitude
+}
+
+export function pickupVisualScale2D(stone, presentationScale = 1, pulse = 0) {
+  const profile = stone ? PICKUP_PRESENTATION_2D.stone : PICKUP_PRESENTATION_2D.qi
+  const viewportScale = Math.max(0.8, Math.min(1.5, Number(presentationScale) || 1))
+  const normalizedPulse = Math.max(-1, Math.min(1, Number(pulse) || 0))
+  return profile.baseScale * viewportScale * (1 + normalizedPulse * profile.pulseAmplitude)
+}
+
 /**
  * Hostile projectiles deliberately use a separate atlas and silhouette set.
  * Keeping the family label stable preserves the coarse combat contract while
@@ -494,7 +525,7 @@ const ACTOR_FOOT_PIVOTS_2D = Object.freeze({
   talismanRevenant: Object.freeze([0.906, 0.891, 0.906, 0.914, 0.859, 0.867, 0.883, 0.859]),
   voidSentinel: Object.freeze([0.898, 0.906, 0.906, 0.914, 0.836, 0.859, 0.82, 0.867]),
   jadeVoidWarden: Object.freeze([0.945, 0.938, 0.945, 0.938, 0.922, 0.922, 0.914, 0.93]),
-  wisp: Object.freeze([0.82]),
+  wisp: Object.freeze([0.958]),
   prop: Object.freeze([0.844, 0.867, 0.867, 0.836, 0.891, 0.789, 0.805, 0.758]),
 })
 
@@ -621,11 +652,15 @@ export function enemyBossFocusAlpha2D(distance, bossActive = false, elite = fals
  * visible and fully simulated, but the player silhouette and ground danger
  * marker stay readable when a dense horde crosses the same depth bucket.
  */
-export function enemyHeroOverlapAlpha2D(distance) {
+export function enemyHeroOverlapAlpha2D(distance, textureKey = '') {
   const value = Number(distance)
   if (!Number.isFinite(value) || value >= 2.8) return 1
-  if (value <= 0) return 0.58
-  return 0.58 + 0.42 * (value / 2.8)
+  // Do not move enemies out of valid contact range just to protect the frame.
+  // The numerous small wraiths instead yield more of their authored opacity at
+  // the exact overlap point; collision, damage and pathing remain authoritative.
+  const minimum = textureKey === 'wisp' ? 0.38 : 0.58
+  if (value <= 0) return minimum
+  return minimum + (1 - minimum) * (value / 2.8)
 }
 
 const BOSS_INTENT_LABELS_2D = Object.freeze({
@@ -896,30 +931,75 @@ function floorBlendMaskTexture() {
 
 function wispTexture() {
   return canvasTexture(128, 128, (ctx) => {
-    ctx.translate(64, 64)
-    const aura = ctx.createRadialGradient(0, 0, 3, 0, 0, 38)
-    aura.addColorStop(0, 'rgba(248,244,255,1)')
-    aura.addColorStop(0.18, 'rgba(183,222,255,.95)')
-    aura.addColorStop(0.46, 'rgba(131,102,220,.48)')
-    aura.addColorStop(1, 'rgba(81,45,154,0)')
+    ctx.translate(64, 52)
+    const aura = ctx.createRadialGradient(0, -5, 4, 0, -5, 43)
+    aura.addColorStop(0, 'rgba(255,255,255,.58)')
+    aura.addColorStop(0.46, 'rgba(224,213,255,.24)')
+    aura.addColorStop(1, 'rgba(137,105,196,0)')
     ctx.fillStyle = aura
     ctx.beginPath()
-    ctx.arc(0, 0, 40, 0, Math.PI * 2)
+    ctx.arc(0, -5, 43, 0, Math.PI * 2)
     ctx.fill()
+
+    // Three downward remnants make the creature float while preserving one
+    // upright read. Radial arms and full-body spin made this family look like
+    // the decorative motes and qi rewards that share the opening battlefield.
     ctx.lineCap = 'round'
-    for (let i = 0; i < 3; i++) {
-      ctx.rotate((Math.PI * 2) / 3)
-      ctx.strokeStyle = `rgba(151,205,255,${0.48 - i * 0.08})`
-      ctx.lineWidth = 5 - i
+    for (const [x, bend, alpha, width] of [[-16, -25, 0.68, 5], [0, 10, 0.78, 6], [16, 25, 0.64, 4]]) {
+      ctx.strokeStyle = `rgba(235,228,255,${alpha})`
+      ctx.lineWidth = width
       ctx.beginPath()
-      ctx.moveTo(9, -4)
-      ctx.bezierCurveTo(30, -15, 43, 7, 54, -2)
+      ctx.moveTo(x, 20)
+      ctx.bezierCurveTo(x + bend * 0.22, 31, x + bend * 0.34, 41, x + bend * 0.5, 51)
       ctx.stroke()
     }
-    ctx.fillStyle = 'rgba(255,255,255,.96)'
+
+    // A broad hood, dark face and paired eye slits survive at the authored
+    // 50-70px runtime size. Grayscale values intentionally accept per-species
+    // tinting without losing the hostile light-dark hierarchy.
+    const body = ctx.createLinearGradient(0, -35, 0, 30)
+    body.addColorStop(0, 'rgba(255,255,255,.98)')
+    body.addColorStop(0.42, 'rgba(220,208,244,.96)')
+    body.addColorStop(1, 'rgba(111,91,147,.88)')
+    ctx.fillStyle = body
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'
+    ctx.lineWidth = 2.6
     ctx.beginPath()
-    ctx.arc(-4, -5, 6, 0, Math.PI * 2)
+    ctx.moveTo(0, -36)
+    ctx.lineTo(10, -25)
+    ctx.bezierCurveTo(29, -22, 35, -5, 28, 12)
+    ctx.bezierCurveTo(22, 28, 10, 33, 0, 38)
+    ctx.bezierCurveTo(-10, 33, -22, 28, -28, 12)
+    ctx.bezierCurveTo(-35, -5, -29, -22, -10, -25)
+    ctx.closePath()
     ctx.fill()
+    ctx.stroke()
+
+    ctx.fillStyle = 'rgba(20,10,35,.94)'
+    ctx.beginPath()
+    ctx.ellipse(0, -5, 20, 16, 0, 0, Math.PI * 2)
+    ctx.fill()
+
+    ctx.fillStyle = 'rgba(255,255,255,.98)'
+    ctx.beginPath()
+    ctx.moveTo(-15, -10)
+    ctx.lineTo(-3, -6)
+    ctx.lineTo(-14, -2)
+    ctx.closePath()
+    ctx.moveTo(15, -10)
+    ctx.lineTo(3, -6)
+    ctx.lineTo(14, -2)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.strokeStyle = 'rgba(35,17,55,.82)'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.moveTo(-27, 5)
+    ctx.lineTo(-41, 17)
+    ctx.moveTo(27, 5)
+    ctx.lineTo(41, 17)
+    ctx.stroke()
   })
 }
 
@@ -2166,16 +2246,39 @@ function weaponFieldWallTexture() {
 function pickupTexture() {
   return canvasTexture(48, 48, (ctx) => {
     ctx.translate(24, 24)
-    ctx.rotate(Math.PI / 4)
-    const gradient = ctx.createLinearGradient(-10, -10, 10, 10)
+    const halo = ctx.createRadialGradient(0, 0, 3, 0, 0, 22)
+    halo.addColorStop(0, 'rgba(205,255,250,.34)')
+    halo.addColorStop(1, 'rgba(102,221,232,0)')
+    ctx.fillStyle = halo
+    ctx.beginPath()
+    ctx.arc(0, 0, 22, 0, Math.PI * 2)
+    ctx.fill()
+
+    const gradient = ctx.createLinearGradient(-12, -17, 12, 17)
     gradient.addColorStop(0, '#f1fcff')
     gradient.addColorStop(0.45, '#7bd9f0')
     gradient.addColorStop(1, '#2c7790')
     ctx.fillStyle = gradient
-    ctx.strokeStyle = 'rgba(220,255,245,.9)'
-    ctx.lineWidth = 2
-    ctx.fillRect(-10, -10, 20, 20)
-    ctx.strokeRect(-10, -10, 20, 20)
+    ctx.strokeStyle = 'rgba(225,255,250,.96)'
+    ctx.lineWidth = 2.4
+    ctx.beginPath()
+    ctx.moveTo(0, -18)
+    ctx.lineTo(14, -2)
+    ctx.lineTo(0, 18)
+    ctx.lineTo(-14, -2)
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+
+    ctx.strokeStyle = 'rgba(240,255,255,.82)'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(0, -16)
+    ctx.lineTo(0, 16)
+    ctx.moveTo(-12, -2)
+    ctx.lineTo(0, 3)
+    ctx.lineTo(12, -2)
+    ctx.stroke()
   })
 }
 
@@ -2419,12 +2522,13 @@ function enemyTextureKey(id) {
 /**
  * Shared atlas silhouettes still need species identity. Keep authored texture
  * detail by mixing each enemy's palette toward white instead of applying a
- * dark full-strength multiply; wisps are already flat-color particles.
+ * dark full-strength multiply. The authored wraith also keeps most of its
+ * cyan-violet material detail while still accepting stage-specific identity.
  */
 export function enemyActorTint2D(color, textureKey = 'wisp', hitFlash = false) {
   if (hitFlash) return 0xffb6b6
   const source = Number.isFinite(color) ? (color >>> 0) : 0xffffff
-  return textureKey === 'wisp' ? source : blendTint2D(source, 0xffffff, 0.64)
+  return blendTint2D(source, 0xffffff, textureKey === 'wisp' ? 0.68 : 0.64)
 }
 
 class ParticlePool {
@@ -2909,6 +3013,7 @@ export class PixiPresentation {
         SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.north.url,
         SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.northeast.url,
         SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.south.url,
+        SPRITE_MANIFEST.actors.wisp.url,
         SPRITE_MANIFEST.actors.yorang.url,
         SPRITE_MANIFEST.actors.jadeSerpent.url,
         SPRITE_MANIFEST.actors.jadeStoneGhoul.url,
@@ -2925,6 +3030,7 @@ export class PixiPresentation {
       }
       this.floor.texture = this.groundBaseTextures.jade
       this._replaceGroundTextures(stageId)
+      this.textures.wisp = Texture.from(SPRITE_MANIFEST.actors.wisp.url)
       this.textures.yorang = Texture.from(SPRITE_MANIFEST.actors.yorang.url)
       this.textures.jadeSerpent = Texture.from(SPRITE_MANIFEST.actors.jadeSerpent.url)
       this.textures.jadeStoneGhoul = Texture.from(SPRITE_MANIFEST.actors.jadeStoneGhoul.url)
@@ -3562,7 +3668,7 @@ export class PixiPresentation {
       entry.sprite.anchor.set(0.5, actorFootPivot2D(key, entry.frame))
       const x = field.prevX[i] + (field.x[i] - field.prevX[i]) * alpha
       const z = field.prevZ[i] + (field.z[i] - field.prevZ[i]) * alpha
-      const baseHeight = key === 'wisp' ? 72
+      const baseHeight = key === 'wisp' ? WISP_THREAT_PRESENTATION_2D.baseHeight
         : key === 'yorang' ? SPRITE_MANIFEST.actors.yorang.runtimeHeight * (field.elite[i] ? 1.18 : 1)
           : key === 'jadeSerpent' ? SPRITE_MANIFEST.actors.jadeSerpent.runtimeHeight
           : key === 'jadeStoneGhoul' ? SPRITE_MANIFEST.actors.jadeStoneGhoul.runtimeHeight
@@ -3598,7 +3704,7 @@ export class PixiPresentation {
       entry.shadow.alpha *= 0.74 + bossFocusAlpha * 0.26
       const player = field.world?.player
       if (player) {
-        const overlapAlpha = enemyHeroOverlapAlpha2D(Math.hypot(x - player.x, z - player.z))
+        const overlapAlpha = enemyHeroOverlapAlpha2D(Math.hypot(x - player.x, z - player.z), key)
         entry.sprite.alpha *= overlapAlpha
         entry.shadow.alpha *= 0.72 + overlapAlpha * 0.28
       }
@@ -3622,8 +3728,12 @@ export class PixiPresentation {
         // Their authored alpha and local glow still read cleanly in normal mode
         // while the entire horde stays in Pixi's multi-texture batch.
         entry.sprite.blendMode = 'normal'
-        entry.sprite.rotation = this.time * 0.72 + field.uid[i] * 0.31
-        entry.sprite.alpha *= 0.82 + Math.sin(this.time * 4.4 + field.uid[i]) * 0.1
+        const wispSway = wispThreatRotation2D(this.time, field.uid[i])
+        entry.sprite.rotation = wispSway
+        entry.sprite.alpha *= WISP_THREAT_PRESENTATION_2D.alphaBase
+          + Math.sin(this.time * 4.4 + field.uid[i]) * WISP_THREAT_PRESENTATION_2D.alphaPulse
+        entry.sprite.scale.x *= 1 + wispSway * 0.32
+        entry.sprite.scale.y *= 1 - Math.abs(wispSway) * 0.12
       } else {
         entry.sprite.blendMode = 'normal'
         const attackKick = field.attackTimer[i] > 0
@@ -4003,11 +4113,13 @@ export class PixiPresentation {
       const z = field.prevZ[i] + (field.z[i] - field.prevZ[i]) * alpha
       projectWorld(x, z, this.cameraX, this.cameraZ, this.viewport, _screen)
       item.x = _screen.x
-      item.y = _screen.y - 6 + Math.sin(this.time * 4 + field.phase[i]) * 3
+      const pickupPulse = Math.sin(this.time * 4 + field.phase[i])
+      const pickupProfile = field.stone[i] ? PICKUP_PRESENTATION_2D.stone : PICKUP_PRESENTATION_2D.qi
+      item.y = _screen.y - 8 * this._presentationScale + pickupPulse * 3.5 * this._presentationScale
       item.rotation = this.time * 0.9 + field.phase[i]
-      item.scaleX = item.scaleY = field.stone[i] ? 0.38 : 0.22
+      item.scaleX = item.scaleY = pickupVisualScale2D(field.stone[i], this._presentationScale, pickupPulse)
       item.tint = field.stone[i] ? 0xf4d878 : 0x91dff4
-      item.alpha = isOnScreen(_screen.x, _screen.y, this.viewport, 60) ? 0.84 : 0
+      item.alpha = isOnScreen(_screen.x, _screen.y, this.viewport, 60) ? pickupProfile.alpha : 0
     }
   }
 

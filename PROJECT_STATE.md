@@ -13,19 +13,25 @@
 
 | 영역 | 현재 판정 |
 |---|---|
-| build | PASS; Game2D 약 548.17 kB, gzip 약 162.68 kB |
-| tests | 67개 파일 / 752개 PASS |
-| assets | 117/117 |
-| runtime | 73/73 |
+| build | PASS; Game2D 552.61 kB, gzip 164.07 kB |
+| tests | 67개 파일 / 759개 PASS |
+| assets | 119/119 |
+| runtime | 74/74 |
 | npm audit | 알려진 취약점 0 |
 | launcher | 브라우저를 열지 않는 실제 smoke PASS |
-| Windows Chromium | 정확한 1920×1080·2560×1600 title/combat 및 level-up DOM 확인, console error 0 |
-| 시각 확인 | title visual PASS, 최신 enemy contact PASS |
+| Windows Chromium | 정확한 1920×1080·2560×1600 combat 확인, overflow 0, console error 0 |
+| 시각 확인 | ground/contact PASS, 마기 잔영과 영기 보상 의미 분리 PASS |
 
 ## 아직 닫히지 않은 게이트
 
-- 전체 commercial visual gate는 **strict FAIL**입니다. 지면이 평평하고 반복적으로 보이며, 초반 threat/action feedback이 약합니다.
-- rights audit는 **BLOCKED**입니다. 법적 증거가 확인된 runtime asset은 0/73입니다.
+- 전체 commercial visual gate는 **strict FAIL**입니다. 이번 접지·적/보상 의미 분리는 통과했지만 현재 build의 무치트 7분 전체 루프, 보스·결과 화면, 후반 전투 밀도와 안정성을 다시 통과해야 합니다.
+- rights audit는 **BLOCKED**입니다. 법적 증거가 확인된 runtime asset은 0/74입니다.
 - 따라서 release approval, A-grade, rights clearance, 공식 제출 승인을 선언하지 않습니다.
 
-이 문서는 문서 정리 pass에서 재실행한 결과가 아니라 현재 인계된 검증 사실을 정리한 것입니다. 다음 작업은 [TODO.md](TODO.md)만 따릅니다.
+## 2026-08-11 직접 확인한 최신 품질 패스
+
+- 초반 보라색 mote형 적을 authored `마기 잔영`으로 교체하고, 보상 영기는 회전하는 청록 결정 실루엣으로 분리했습니다.
+- 주인공과 겹치는 순간에는 마기 잔영 시각 alpha만 낮춰 주인공을 읽히게 했고, 충돌·피해·경로 시뮬레이션은 바꾸지 않았습니다.
+- 실제 1920×1080과 2560×1600 Chrome 프레임에서 적/보상/주인공의 역할 분리와 레이아웃을 루트가 직접 판정했습니다. 자동화 탭의 진단 FPS는 호출 간 throttling 영향을 받으므로 안정 60 FPS 증거로 사용하지 않습니다.
+
+다음 작업은 [TODO.md](TODO.md)의 첫 실제 미완료 항목부터 진행합니다.

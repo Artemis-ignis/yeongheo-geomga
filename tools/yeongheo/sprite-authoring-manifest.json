@@ -45,6 +45,16 @@
       "legacyOutputs": ["yorang-v1.png"]
     },
     {
+      "actor": "magi-remnant",
+      "source": "magi-remnant-key-v1.png",
+      "outputs": ["magi-remnant-v1.png"],
+      "generator": "imagegen-built-in",
+      "originalPath": "C:/Users/50106/.codex/generated_images/019fe2bc-1ddb-7390-910b-8a41a70aa5f0/exec-6fbafd22-a756-43db-837f-1f6307bca217.png",
+      "transform": "remove_chroma_key.py --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+      "visualApproval": "pending",
+      "productionReady": false
+    },
+    {
       "actor": "void-sentinel",
       "source": "void-sentinel-motion-sheet-v2.png",
       "legacySource": "void-sentinel-key-v1.png",

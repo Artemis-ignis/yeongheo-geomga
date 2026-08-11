@@ -55,10 +55,10 @@ describe('recovered ImageGen provenance', () => {
       'utf8',
     )
 
-    expect(disclosure).toContain('기술 provenance chain 73/73')
-    expect(disclosure).toContain('법적 권리 증거 0/73')
-    expect(ledger).toContain('technical_provenance_chain_verified: 73/73')
-    expect(ledger).toContain('source_original_not_found: 0/73')
-    expect(ledger).toContain('rights_evidence_confirmed: 0/73')
+    expect(disclosure).toContain('기술 provenance chain 74/74')
+    expect(disclosure).toContain('법적 권리 증거 0/74')
+    expect(ledger).toContain('technical_provenance_chain_verified: 74/74')
+    expect(ledger).toContain('source_original_not_found: 0/74')
+    expect(ledger).toContain('rights_evidence_confirmed: 0/74')
   })
 })

@@ -579,6 +579,15 @@
       "maxBytes": 1000000
     },
     {
+      "id": "sprite2d.magi-remnant.v1",
+      "path": "public/assets/sprites2d/magi-remnant-v1.png",
+      "role": "runtime-2d-common-enemy-authored-key",
+      "tier": "world",
+      "source": "imagegen-chroma-key-alpha-despill",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 1000000
+    },
+    {
       "id": "sprite2d.void-sentinel.motion.v2",
       "path": "public/assets/sprites2d/void-sentinel-motion-v2.png",
       "role": "runtime-2d-elite-enemy-motion-atlas",
@@ -801,6 +810,15 @@
       "id": "sprite2d.source.blood-scorpion.motion-sheet.v1",
       "path": "public/assets/sprites2d/source/blood-scorpion-motion-sheet-v1.png",
       "role": "2d-motion-sheet-chroma-source",
+      "tier": "authoring",
+      "source": "imagegen",
+      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.magi-remnant.key.v1",
+      "path": "public/assets/sprites2d/source/magi-remnant-key-v1.png",
+      "role": "2d-enemy-key-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
       "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],

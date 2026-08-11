@@ -4,8 +4,10 @@ import {
   COMBAT_HORIZON_PRESENTATION_2D,
   HOSTILE_PROJECTILE_PRESENTATION,
   PROJECTILE_PRESENTATION,
+  PICKUP_PRESENTATION_2D,
   RUNTIME2D_POOL_LIMITS,
   RUNTIME2D_RENDER_BUDGET,
+  WISP_THREAT_PRESENTATION_2D,
   WEAPON_VISUAL_SIGNATURES,
   WEAPON_VISUAL_SIGNATURE_IDS,
   WEAPON_FIELD_PRESENTATION,
@@ -13,6 +15,7 @@ import {
   projectilePresentationForBehavior,
   hostileProjectileVisualFor,
   projectileTint2D,
+  pickupVisualScale2D,
   heroDirectionFor,
   directionalHeroFrames,
   bossCombatHeight2D,
@@ -29,6 +32,7 @@ import {
   attachCombatGroundMasks2D,
   enemyAttackPresentationDuration2D,
   resolveEnemyIntentPresentation2D,
+  wispThreatRotation2D,
 } from '../src/runtime2d/PixiPresentation.js'
 import {
   MAX_PICKUPS_2D,
@@ -58,7 +62,10 @@ describe('PixiPresentation combat bindings', () => {
     const frostWolf = enemyActorTint2D(0xa8d8ea, 'yorang')
     const ashRaven = enemyActorTint2D(0x8a5a4a, 'yorang')
     expect(new Set([wolf, frostWolf, ashRaven]).size).toBe(3)
-    expect(enemyActorTint2D(0xff8a3c, 'wisp')).toBe(0xff8a3c)
+    const authoredWisp = enemyActorTint2D(0xff8a3c, 'wisp')
+    expect(authoredWisp).not.toBe(0xff8a3c)
+    expect((authoredWisp >>> 16) & 0xff).toBeGreaterThan(245)
+    expect((authoredWisp >>> 8) & 0xff).toBeGreaterThan(180)
     expect(enemyActorTint2D(0x5f7fa8, 'yorang', true)).toBe(0xffb6b6)
     for (const tint of [wolf, frostWolf, ashRaven]) {
       expect((tint >>> 16) & 0xff).toBeGreaterThan(100)
@@ -72,6 +79,23 @@ describe('PixiPresentation combat bindings', () => {
     expect(RUNTIME2D_POOL_LIMITS.projectiles).toBe(MAX_PROJECTILES_2D)
     expect(RUNTIME2D_POOL_LIMITS.pickups).toBe(MAX_PICKUPS_2D)
     expect(RUNTIME2D_POOL_LIMITS.weaponFields).toBe(MAX_WEAPON_FIELDS_2D)
+  })
+
+  it('separates upright hostile wisps from continuously rotating faceted rewards', () => {
+    expect(WISP_THREAT_PRESENTATION_2D.silhouette).toBe('upright-eyed-wraith')
+    expect(WISP_THREAT_PRESENTATION_2D.baseHeight).toBeGreaterThanOrEqual(78)
+    expect(Math.abs(wispThreatRotation2D(3.2, 7))).toBeLessThanOrEqual(0.065)
+    expect(Math.abs(wispThreatRotation2D(3.2, 7))).toBeGreaterThan(0)
+
+    const qi1080 = pickupVisualScale2D(false, 1, 0)
+    const qi1600 = pickupVisualScale2D(false, 4 / 3, 0)
+    const stone1080 = pickupVisualScale2D(true, 1, 0)
+    expect(qi1080).toBeCloseTo(PICKUP_PRESENTATION_2D.qi.baseScale)
+    expect(qi1080).toBeGreaterThanOrEqual(0.44)
+    expect(qi1600).toBeGreaterThan(qi1080)
+    expect(stone1080).toBeGreaterThan(qi1080)
+    expect(pickupVisualScale2D(false, 1, 1)).toBeGreaterThan(qi1080)
+    expect(pickupVisualScale2D(false, 1, -1)).toBeLessThan(qi1080)
   })
 
   it('defines seven atlas-backed friendly families with at least two visual axes', () => {
@@ -175,6 +199,9 @@ describe('PixiPresentation combat bindings', () => {
     expect(enemyHeroOverlapAlpha2D(2.8)).toBe(1)
     expect(enemyHeroOverlapAlpha2D(20)).toBe(1)
     expect(enemyHeroOverlapAlpha2D(Number.NaN)).toBe(1)
+    expect(enemyHeroOverlapAlpha2D(0, 'wisp')).toBeCloseTo(0.38)
+    expect(enemyHeroOverlapAlpha2D(1.4, 'wisp')).toBeCloseTo(0.69)
+    expect(enemyHeroOverlapAlpha2D(2.8, 'wisp')).toBe(1)
   })
 
   it('keeps boss-local ordinary mobs subordinate without fading elites', () => {
