@@ -13,24 +13,32 @@
 
 | 영역 | 현재 판정 |
 |---|---|
-| build | PASS; Game2D 557.72 kB, gzip 165.82 kB |
-| tests | 67개 파일 / 767개 PASS |
-| runtime assets | 74/74, source/output 누락 0, unexpected 0 |
+| build | PASS; Game2D 559.87 kB, gzip 166.33 kB |
+| tests | 67개 파일 / 770개 PASS |
+| runtime assets | 75/75, source/output 누락 0, unexpected 0 |
 | npm audit | 알려진 취약점 0 |
 | launcher | 브라우저를 열지 않는 실제 smoke PASS |
-| 7분 Windows Chrome E2E | 이전 checkpoint `009e0c8`에서 1920×1080 무치트 전체 루프 runtime/performance PASS; 현재 `4c59057`은 전체 7분 재검증 필요 |
-| 2560×1600 확인 | 현재 `4c59057`의 3분 42초 자소신뢰 focused runtime에서 overflow 0, console/page error 0 |
-| 시각 확인 | 결과 화면·`화염부`·영체 반복·영기 과밀·뇌령주·자소신뢰 과밀 focused 결함 PASS; 전체 commercial visual gate는 계속 FAIL |
+| 7분 Windows Chrome E2E | 이전 checkpoint `009e0c8`에서 1920×1080 무치트 전체 루프 runtime/performance PASS; 현재 `2ec5061`은 전체 7분 재검증 필요 |
+| 2560×1600 확인 | 현재 `2ec5061`과 동일 build의 3분 56초 focused runtime에서 overflow 0, console/page error 0 |
+| 시각 확인 | 결과 화면·`화염부`·영체 반복·영기 과밀·뇌령주·자소신뢰 과밀·석괴 반복 focused 결함 PASS; 전체 commercial visual gate는 계속 FAIL |
 
 ## 아직 닫히지 않은 게이트
 
-- 전체 commercial visual gate는 **strict FAIL**입니다. 영체 적 반복·영기 보상 과밀·뇌령주/자소신뢰 표현은 focused 실플레이에서 개선을 확인했지만, 흑의 수사·거대 석괴가 같은 포즈로 군집하는 새 반복 결함, 현재 checkpoint의 전체 7분 회귀, 겹치는 발밑 법진/공전 효과의 의미·접지 가독성 검증이 남았습니다.
-- rights audit는 **BLOCKED**입니다. 법적 증거가 확인된 runtime asset은 0/74입니다.
+- 전체 commercial visual gate는 **strict FAIL**입니다. 거대 석괴는 두 authored 실루엣으로 분리됐지만, 흑의 수사가 같은 포즈로 군집하는 반복 결함, 현재 checkpoint의 전체 7분 회귀, 겹치는 발밑 법진/공전 효과의 의미·접지 가독성 검증이 남았습니다.
+- rights audit는 **BLOCKED**입니다. 법적 증거가 확인된 runtime asset은 0/75입니다.
 - 따라서 release approval, A-grade, rights clearance, 공식 제출 승인을 선언하지 않습니다.
 
 ## 2026-08-12 직접 확인한 최신 품질 패스
 
-- 현재 focused checkpoint는 commit `85fb17c`입니다. `80a7569`의 4×2 authored 영체 atlas·개체별 비동기 모션·60~120초 적 편성 다변화·영기 병합 패스에 이어, 뇌령주의 보라색 지그재그 셀을 compact thunder pearl로 교체했습니다.
+- commit `2ec5061`은 215초 원소 고리 편성이 비경에 없는 `emberSprite`를 20마리 elite로 치환하던 실제 밸런스 버그를 같은 위협 등급·가장 가까운 HP 대체로 고쳤습니다. 정상 wave·AI·충돌은 보존했습니다.
+- 같은 checkpoint에 비대칭 옥정 수호자 4×2 authored 이동·공격 atlas를 추가하고 기존 둥근 석괴와 UID 기반으로 안정적으로 혼합했습니다. 루트가 실제 전투 프레임을 원본 크기로 다시 본 결과, 1920×1080 4분 03초에는 석괴 16개가 8/8, 2560×1600 3분 56초에는 22개가 12/10으로 나뉘며 두 실루엣·발 접지·그림자·주인공 가시성이 읽혀 석괴 반복만 focused PASS로 판정했습니다.
+- 실제 캡처는 `output/playwright/enemy-crowd-root-20260812-0321/1920x1080-crowd-variant-live.png`, `output/playwright/enemy-crowd-root-20260812-0321/2560x1600-crowd-variant-live.png` 두 장만 보존했고 임시 스크립트·중간 후보 이미지는 삭제했습니다.
+- 같은 실제 실행에서 비동기 시작 중 숨은 타이틀 버튼이 Codex를 다시 띄워 `state=playing` 위에 메뉴가 남는 screen ownership 경쟁 조건을 발견했습니다. run 시작/정리 시 Shop·Codex를 callback 없이 숨기고, title handler를 `state=title`에만 허용했습니다. 의도적으로 loading 중 숨은 Codex 클릭을 재현해 최종 `playing/title hidden/codex hidden/shop hidden`을 확인했습니다.
+- 2560×1600 focused 진단은 PixiJS WebGL2 / RTX 5070 Laptop GPU, 약 50 enemies·31 projectiles·107 pickups에서 rolling FPS 128.69, p95 interval 8.6 ms, work 1.9 ms, sim 0.5 ms, draw 1.4 ms, long task 0, overflow x/y 0, console error/warning 0이었습니다. 이는 focused 구간의 근거이며 전체 7분 성능 PASS로 확대하지 않습니다.
+- 최신 production build는 `assets/Game2D-BPE_L9pn.js` 559.87 kB / gzip 166.33 kB, SHA-256 `c030abca197faf62f868bad1df6dc8f95cfcbb8150c4e553762fd07102647d4e`입니다. 전체 67개 파일 / 770개 테스트, runtime allowlist 75개 / 누락 0 / unexpected 0, 권리 감사의 의도된 `0/75 BLOCKED`가 순차 확인됐습니다.
+- 루트의 직접 시각 판정에서 흑의 수사 군집은 여전히 같은 실루엣이 반복되고 중심부의 여러 원형 효과도 겹칩니다. 따라서 전체 commercial visual gate와 release 승인은 계속 FAIL입니다.
+
+- 이전 뇌령주 focused checkpoint는 commit `85fb17c`입니다. `80a7569`의 4×2 authored 영체 atlas·개체별 비동기 모션·60~120초 적 편성 다변화·영기 병합 패스에 이어, 뇌령주의 보라색 지그재그 셀을 compact thunder pearl로 교체했습니다.
 - 루트가 실제 Windows Chrome 한 탭에서 1920×1080 2분 26초와 2560×1600 2분 29초까지 직접 이동·전투·성장 선택을 플레이했습니다. 시간·피해·레벨·보스를 쓰는 QA mutation은 사용하지 않았습니다.
 - 동일 구간의 화면 내 pickup은 변경 전 185개에서 변경 후 127개로 감소했으며 보상 가치 보존을 위해 누적 경제 ledger는 Float64로 유지합니다. 영체·늑대·청사 실루엣이 함께 읽히고 오래된 영기가 전투선을 덮지 않아 두 focused 결함은 PASS로 판정했습니다.
 - 해당 enemy/pickup focused build는 `assets/Game2D-DyLjsbkz.js` 556.22 kB / gzip 165.27 kB, SHA-256 `efd68d5151c41aabe97893d392b63c1e3784e4cf93352918f16afa665d1e45a4`였습니다. 전체 67개 파일 / 764개 테스트와 production build가 순차 통과했습니다.
@@ -45,7 +53,7 @@
 - 루트가 실제 Chrome 한 창·한 탭에서 시간·피해·무기·레벨 상태를 쓰는 QA mutation 없이 3분 42초까지 이동·전투·성장 선택을 진행해 뇌령주 Lv.5와 영근을 획득하고 자소신뢰로 정상 진화했습니다. 2560×1600 프레임에서 자소신뢰 simulation body 111개가 존재해도 구슬은 최대 14개만 분산 표시되어 주인공·적·회피 공간이 다시 읽혔습니다.
 - 자소신뢰 캡처는 `output/playwright/orbit-cap-root-20260812-0255/02-1920x1080-violet-thunder-live.png`, `output/playwright/orbit-cap-root-20260812-0255/02-2560x1600-violet-thunder-live.png`에 보존했습니다. 실패한 모달 캡처와 임시 자동화 스크립트는 삭제했습니다.
 - 2560×1600 진단은 Chrome 151 / PixiJS WebGL2 / RTX 5070 Laptop GPU, overflow x/y 0, console error/warning 0, rolling FPS 129.03, p95 interval 8.6 ms, work 2.0 ms, sim 0.5 ms, draw 1.6 ms, long task 0이었습니다. 이는 focused 구간의 근거이며 전체 7분 성능 PASS로 확대하지 않습니다.
-- 최신 production build는 `assets/Game2D-t6IRSWr2.js` 557.72 kB / gzip 165.82 kB, SHA-256 `669230218dfadcf011958f800807d0842d6a5b3d44e9a21e62e151f67646afc7`이며 전체 67개 파일 / 767개 테스트와 build가 순차 통과했습니다.
+- 당시 production build는 `assets/Game2D-t6IRSWr2.js` 557.72 kB / gzip 165.82 kB, SHA-256 `669230218dfadcf011958f800807d0842d6a5b3d44e9a21e62e151f67646afc7`이며 전체 67개 파일 / 767개 테스트와 build가 순차 통과했습니다.
 
 ## 이전 build의 7분 전체 루프 증거
 
