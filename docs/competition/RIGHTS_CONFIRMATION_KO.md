@@ -1,16 +1,16 @@
 # 제출 자산 권리 최종 확인서
 
-> 목적: 마스터가 제출 직전에 76개 runtime 이미지 자산의 권리 게이트를 한 번에 확인하기 위한 문서입니다. 실제 동의값은 비워 두며, 이 문서는 신청서·제출 버튼을 대신하지 않습니다.
+> 목적: 마스터가 제출 직전에 77개 runtime 이미지 자산의 권리 게이트를 한 번에 확인하기 위한 문서입니다. 실제 동의값은 비워 두며, 이 문서는 신청서·제출 버튼을 대신하지 않습니다.
 >
 > 기준 시각: 2026-08-12 KST
-> 현재 판정: **권리 증거 0/76 · 제출 차단**
+> 현재 판정: **권리 증거 0/77 · 제출 차단**
 > 상세 원장: [`ASSET_RIGHTS_LEDGER.md`](./ASSET_RIGHTS_LEDGER.md)
 
 ## 먼저 확인할 현재 상태
 
-- 제출 allowlist는 76개입니다. 직접 출력 8개, sprite source chain 17개, release-v3 UI source chain 19개, v5 의미 아이콘 source chain 32개가 기술적으로 추적되어 technical provenance chain은 76/76입니다. 이 수치는 법적 권리 확인이 아닙니다.
-- 스프라이트 중 14개는 source sheet와 local ImageGen original의 SHA가 직접 일치합니다. 기존 원본 미검출이던 `AS-04`, `AS-14`, `AS-16`은 정확한 `.codex/generated_images` 원본, archived generation event/revised prompt, 변환 명령을 복구했고, 격리 재현한 source와 runtime이 현재 파일과 byte·RGBA pixel 모두 exact match했습니다.
-- 위 3개 원본과 재현 증거는 비배포 `artifacts/2d-build/provenance/recovered-imagegen-originals/`에 보존하고 `tools/yeongheo/recovered-provenance-manifest.json`으로 해시를 고정했습니다. 따라서 `exact original 미검출`은 0/76이지만, 생성 계정·Input 권리·팀 권한·제3자 권리·대회 공개 허락은 여전히 0/76 미확인입니다.
+- 제출 allowlist는 77개입니다. 직접 출력 8개, sprite source chain 18개, release-v3 UI source chain 19개, v5 의미 아이콘 source chain 32개가 기술적으로 추적되어 technical provenance chain은 77/77입니다. 이 수치는 법적 권리 확인이 아닙니다.
+- 스프라이트 중 15개는 source sheet와 local ImageGen original의 SHA가 직접 일치합니다. 기존 원본 미검출이던 `AS-04`, `AS-14`, `AS-16`은 정확한 `.codex/generated_images` 원본, archived generation event/revised prompt, 변환 명령을 복구했고, 격리 재현한 source와 runtime이 현재 파일과 byte·RGBA pixel 모두 exact match했습니다.
+- 위 3개 원본과 재현 증거는 비배포 `artifacts/2d-build/provenance/recovered-imagegen-originals/`에 보존하고 `tools/yeongheo/recovered-provenance-manifest.json`으로 해시를 고정했습니다. 따라서 `exact original 미검출`은 0/77이지만, 생성 계정·Input 권리·팀 권한·제3자 권리·대회 공개 허락은 여전히 0/77 미확인입니다.
 - SHA-256, 파일 크기, mtime, `sourceUrl`, 매니페스트, 생성 로그와 결정적 재현이 있어도 법적 권리를 대신하지 않습니다.
 
 ## 공식 약관의 경계
@@ -38,7 +38,7 @@
 
 ### R-02 — OpenAI 생성 Input 권리
 
-**확인문:** OpenAI 생성 경로로 분류된 76개 runtime 이미지의 모든 prompt·참조 이미지·스타일·로고·캐릭터·데이터 Input에 대해, 생성 계정/서비스의 적용 약관과 함께 제출·공개에 필요한 사용 권리를 확보했습니까?
+**확인문:** OpenAI 생성 경로로 분류된 77개 runtime 이미지의 모든 prompt·참조 이미지·스타일·로고·캐릭터·데이터 Input에 대해, 생성 계정/서비스의 적용 약관과 함께 제출·공개에 필요한 사용 권리를 확보했습니까?
 
 확인값: `[ ] 예  [ ] 아니오`
 증거 참조 ID: `____________________`
@@ -80,7 +80,7 @@
 
 ### R-05 — 인물·상표·제3자 유사성
 
-**확인문:** 76개 runtime 이미지와 제출 보조물에 실존 인물 likeness, 제3자 캐릭터, 로고·상표·상품 외관, 개인정보 또는 혼동을 일으킬 유사성이 없거나, 필요한 동의·허락·검토를 완료했습니까?
+**확인문:** 77개 runtime 이미지와 제출 보조물에 실존 인물 likeness, 제3자 캐릭터, 로고·상표·상품 외관, 개인정보 또는 혼동을 일으킬 유사성이 없거나, 필요한 동의·허락·검토를 완료했습니까?
 
 확인값: `[ ] 예  [ ] 아니오`
 증거 참조 ID: `____________________`

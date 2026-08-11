@@ -99,6 +99,13 @@ export const SPRITE_MANIFEST = Object.freeze({
       animations: Object.freeze({ walk: [0, 1, 2, 3], attack: [4, 5, 6, 7] }),
       animationMode: 'authored-frames', ...pending,
     }),
+    shadowSealDuelist: Object.freeze({
+      url: `${base}assets/sprites2d/shadow-seal-duelist-motion-v1.png`,
+      cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.89], runtimeHeight: 116,
+      directions: ['sw'], mirrorWest: true,
+      animations: Object.freeze({ walk: [0, 1, 2, 3], attack: [4, 5, 6, 7] }),
+      animationMode: 'authored-frames', ...pending,
+    }),
     jadeVoidWarden: Object.freeze({
       url: `${base}assets/sprites2d/jade-void-warden-motion-v2.png`,
       cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.92], runtimeHeight: 220,

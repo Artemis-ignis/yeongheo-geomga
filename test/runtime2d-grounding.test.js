@@ -62,6 +62,8 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(actorFootPivot2D('jadeShardGuardian', 6)).toBeCloseTo(230 / 256)
     expect(actorFootPivot2D('maskedSealRevenant', 0)).toBeCloseTo(217 / 256)
     expect(actorFootPivot2D('maskedSealRevenant', 3)).toBeCloseTo(223 / 256)
+    expect(actorFootPivot2D('shadowSealDuelist', 0)).toBeCloseTo(232 / 256)
+    expect(actorFootPivot2D('shadowSealDuelist', 6)).toBeCloseTo(217 / 256)
     expect(actorFootPivot2D('wisp', 0)).toBeCloseTo(0.902)
     expect(actorFootPivot2D('wisp', 5)).toBeCloseTo(0.848)
     expect(actorFootPivot2D('prop', 15)).toBe(actorFootPivot2D('prop', 7))

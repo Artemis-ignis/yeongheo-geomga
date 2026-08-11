@@ -162,6 +162,7 @@ const ENEMY_MOTION_KEY_SALTS_2D = Object.freeze({
   talismanRevenant: 0x6ae34d95,
   maskedSealRevenant: 0x3cb7a159,
   voidSentinel: 0x7d14b6e9,
+  shadowSealDuelist: 0x4e6f2a91,
 })
 
 function enemyMotionNoise2D(uid, salt) {
@@ -169,6 +170,21 @@ function enemyMotionNoise2D(uid, salt) {
   value = Math.imul(value ^ (value >>> 16), 0x45d9f3b) >>> 0
   value = Math.imul(value ^ (value >>> 16), 0x45d9f3b) >>> 0
   return ((value ^ (value >>> 16)) >>> 0) / 0x100000000
+}
+
+/**
+ * Authored silhouette swaps need low local discrepancy, not merely a good
+ * global hash. Enemy ids arrive at regular roster strides; the general motion
+ * hash could therefore turn ten visible demon cultivators into a 9:1 split.
+ * This Weyl-style sequence stays deterministic per uid while keeping the
+ * common 2-7 slot wave strides close to an even visual mixture.
+ */
+function enemySilhouetteVariant2D(uid, salt) {
+  const value = (
+    (Math.imul(Math.floor(Number(uid) || 0) >>> 0, 0x165667b1) >>> 0)
+    + (salt >>> 0)
+  ) >>> 0
+  return value / 0x100000000
 }
 
 /**
@@ -181,29 +197,30 @@ function enemyMotionNoise2D(uid, salt) {
 export function enemyMotionProfile2D(uid = 0, key = 'wisp') {
   const salt = ENEMY_MOTION_KEY_SALTS_2D[key] ?? 0x1f123bb5
   const talismanFamily = key === 'talismanRevenant' || key === 'maskedSealRevenant'
+  const sentinelFamily = key === 'voidSentinel' || key === 'shadowSealDuelist'
   const floating = key === 'wisp' || talismanFamily
   const stampProne = key === 'jadeStoneGhoul'
     || key === 'jadeShardGuardian'
     || talismanFamily
-    || key === 'voidSentinel'
+    || sentinelFamily
   const phase = enemyMotionNoise2D(uid, salt)
   const tempoSpread = stampProne ? 0.15 : 0.1
   const tempo = 1 - tempoSpread
     + enemyMotionNoise2D(uid, salt ^ 0x9e3779b9) * tempoSpread * 2
   const scaleSpread = key === 'jadeStoneGhoul' || key === 'jadeShardGuardian' ? 0.09
     : talismanFamily ? 0.075
-      : key === 'voidSentinel' ? 0.07 : 0.06
+      : sentinelFamily ? 0.07 : 0.06
   const scale = 1 - scaleSpread
     + enemyMotionNoise2D(uid, salt ^ 0x85ebca6b) * scaleSpread * 2
   const aspectRange = key === 'wisp' ? 0.1
     : talismanFamily ? 0.065
       : key === 'jadeStoneGhoul' || key === 'jadeShardGuardian' ? 0.055
-        : key === 'voidSentinel' ? 0.04 : floating ? 0.045 : 0.018
+        : sentinelFamily ? 0.04 : floating ? 0.045 : 0.018
   const aspect = 1 + (enemyMotionNoise2D(uid, salt ^ 0xc2b2ae35) * 2 - 1) * aspectRange
   const leanRange = key === 'wisp' ? 0.018
     : talismanFamily ? 0.016
       : key === 'jadeStoneGhoul' || key === 'jadeShardGuardian' ? 0.006
-        : key === 'voidSentinel' ? 0.01 : 0
+        : sentinelFamily ? 0.01 : 0
   const lean = (enemyMotionNoise2D(uid, salt ^ 0x27d4eb2f) * 2 - 1) * leanRange
   const bobScale = 0.86 + enemyMotionNoise2D(uid, salt ^ 0x165667b1) * 0.28
   const palette = enemyMotionNoise2D(uid, salt ^ 0xa24baed5)
@@ -801,6 +818,10 @@ const ACTOR_FOOT_PIVOTS_2D = Object.freeze({
     215 / 256, 209 / 256, 207 / 256, 210 / 256,
   ]),
   voidSentinel: Object.freeze([0.898, 0.906, 0.906, 0.914, 0.836, 0.859, 0.82, 0.867]),
+  shadowSealDuelist: Object.freeze([
+    232 / 256, 232 / 256, 231 / 256, 232 / 256,
+    215 / 256, 220 / 256, 217 / 256, 217 / 256,
+  ]),
   jadeVoidWarden: Object.freeze([0.945, 0.938, 0.945, 0.938, 0.922, 0.922, 0.914, 0.93]),
   wisp: Object.freeze([0.902, 0.895, 0.898, 0.906, 0.824, 0.848, 0.832, 0.824]),
   prop: Object.freeze([0.844, 0.867, 0.867, 0.836, 0.891, 0.789, 0.805, 0.758]),
@@ -842,6 +863,7 @@ const ACTOR_GROUNDING_PROFILES_2D = Object.freeze({
   talismanRevenant: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.42, shadowHeight: 0.085, shadowAlpha: 0.6, contactWidth: 0.84, contactHeight: 0.44, contactLift: 0.15, contactAlpha: 0.32, contactTint: 0xa88cff, visualScale: 1.34 }),
   maskedSealRevenant: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.5, shadowHeight: 0.085, shadowAlpha: 0.6, contactWidth: 0.9, contactHeight: 0.42, contactLift: 0.14, contactAlpha: 0.29, contactTint: 0xb39bff, visualScale: 1.34 }),
   voidSentinel: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.56, shadowHeight: 0.105, shadowAlpha: 0.84, contactWidth: 0.94, contactHeight: 0.24, contactLift: 0.01, contactAlpha: 0.4, contactTint: 0x72e0d4, visualScale: 1.32 }),
+  shadowSealDuelist: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.6, shadowHeight: 0.105, shadowAlpha: 0.84, contactWidth: 0.92, contactHeight: 0.23, contactLift: 0.01, contactAlpha: 0.38, contactTint: 0x9d7ad8, visualScale: 1.32 }),
   jadeVoidWarden: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.46, shadowHeight: 0.09, shadowAlpha: 0.72, minShadowWidth: 92, minShadowHeight: 20, contactWidth: 0.8, contactHeight: 0.34, contactLift: 0.1, contactAlpha: 0.23, contactTint: 0x60d9bd }),
 })
 
@@ -2883,7 +2905,12 @@ export function enemyTextureKey2D(id, uid = 0) {
   }
   if (id === 'bloodScorpion') return 'bloodScorpion'
   if (id === 'wolf' || id === 'frostWolf' || id === 'ashRaven') return 'yorang'
-  if (id === 'demonCultivator' || id === 'magmaBrute' || id === 'glacierWarden') return 'voidSentinel'
+  if (id === 'demonCultivator') {
+    return enemySilhouetteVariant2D(uid, 0x7451c2e9) < 0.5
+      ? 'voidSentinel'
+      : 'shadowSealDuelist'
+  }
+  if (id === 'magmaBrute' || id === 'glacierWarden') return 'voidSentinel'
   return 'wisp'
 }
 
@@ -2899,6 +2926,7 @@ const ENEMY_VARIANT_TINT_TARGETS_2D = Object.freeze({
   talismanRevenant: Object.freeze([0xb2a7d8, 0x9cc7d9]),
   maskedSealRevenant: Object.freeze([0xd0b0dc, 0x87d1dc]),
   voidSentinel: Object.freeze([0xa7b8c1, 0xc3a8d0]),
+  shadowSealDuelist: Object.freeze([0xb3a6c9, 0x9cbfc8]),
 })
 
 export function enemyActorTint2D(color, textureKey = 'wisp', hitFlash = false, variant = 0.5) {
@@ -3259,6 +3287,7 @@ export class PixiPresentation {
       talismanRevenant: Texture.WHITE,
       maskedSealRevenant: Texture.WHITE,
       voidSentinel: Texture.WHITE,
+      shadowSealDuelist: Texture.WHITE,
       jadeVoidWarden: Texture.WHITE,
       wisp: wispTexture(),
       shadow: shadowTexture(),
@@ -3411,6 +3440,7 @@ export class PixiPresentation {
         SPRITE_MANIFEST.actors.talismanRevenant.url,
         SPRITE_MANIFEST.actors.maskedSealRevenant.url,
         SPRITE_MANIFEST.actors.voidSentinel.url,
+        SPRITE_MANIFEST.actors.shadowSealDuelist.url,
         SPRITE_MANIFEST.actors.jadeVoidWarden.url,
         SPRITE_MANIFEST.environment.jadeSanctuaryProps.url,
       ])
@@ -3430,6 +3460,7 @@ export class PixiPresentation {
       this.textures.talismanRevenant = Texture.from(SPRITE_MANIFEST.actors.talismanRevenant.url)
       this.textures.maskedSealRevenant = Texture.from(SPRITE_MANIFEST.actors.maskedSealRevenant.url)
       this.textures.voidSentinel = Texture.from(SPRITE_MANIFEST.actors.voidSentinel.url)
+      this.textures.shadowSealDuelist = Texture.from(SPRITE_MANIFEST.actors.shadowSealDuelist.url)
       this.textures.jadeVoidWarden = Texture.from(SPRITE_MANIFEST.actors.jadeVoidWarden.url)
       this.textures.seolryeong = Texture.from(SPRITE_MANIFEST.actors.seolryeong.url)
       this.textures.seolryeongE = Texture.from(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.east.url)
@@ -3461,6 +3492,9 @@ export class PixiPresentation {
         this.textures.maskedSealRevenant, SPRITE_MANIFEST.actors.maskedSealRevenant,
       )
       this.frames.voidSentinel = sliceFrames(this.textures.voidSentinel, SPRITE_MANIFEST.actors.voidSentinel)
+      this.frames.shadowSealDuelist = sliceFrames(
+        this.textures.shadowSealDuelist, SPRITE_MANIFEST.actors.shadowSealDuelist,
+      )
       this.frames.jadeVoidWarden = sliceFrames(this.textures.jadeVoidWarden, SPRITE_MANIFEST.actors.jadeVoidWarden)
       this.frames.jadeSanctuaryProps = sliceFrames(
         this.textures.jadeSanctuaryProps, SPRITE_MANIFEST.environment.jadeSanctuaryProps,
@@ -4079,11 +4113,12 @@ export class PixiPresentation {
           : key === 'bloodScorpion' ? SPRITE_MANIFEST.actors.bloodScorpion.runtimeHeight
           : key === 'talismanRevenant' ? SPRITE_MANIFEST.actors.talismanRevenant.runtimeHeight
           : key === 'maskedSealRevenant' ? SPRITE_MANIFEST.actors.maskedSealRevenant.runtimeHeight
+          : key === 'shadowSealDuelist' ? SPRITE_MANIFEST.actors.shadowSealDuelist.runtimeHeight * (field.elite[i] ? 1.06 : 0.9)
           : SPRITE_MANIFEST.actors.voidSentinel.runtimeHeight * (field.elite[i] ? 1.06 : 0.9)
       const motionPhase = motion.phase * Math.PI * 2
       const stride = Math.sin(this.time * (key === 'yorang' ? 12 : 8.5) * motion.tempo + motionPhase)
       const locomotionBob = key === 'yorang' ? -Math.abs(stride) * 2.4
-        : key === 'voidSentinel' ? -Math.abs(stride) * 1.2 : 0
+        : key === 'voidSentinel' || key === 'shadowSealDuelist' ? -Math.abs(stride) * 1.2 : 0
       const pulse = key === 'wisp'
         ? Math.sin(this.time * 5 * motion.tempo + motionPhase) * 4 * motion.bobScale
         : key === 'talismanRevenant' || key === 'maskedSealRevenant'

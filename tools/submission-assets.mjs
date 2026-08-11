@@ -87,6 +87,7 @@ export const SUBMISSION_RUNTIME_ASSETS = Object.freeze([
   'assets/sprites2d/seolryeong-heroine-north-motion-v1.png',
   'assets/sprites2d/seolryeong-heroine-south-motion-v1.png',
   'assets/sprites2d/talisman-revenant-motion-v1.png',
+  'assets/sprites2d/shadow-seal-duelist-motion-v1.png',
   'assets/sprites2d/void-sentinel-motion-v2.png',
   'assets/sprites2d/yorang-motion-v2.png',
 ])

@@ -597,6 +597,15 @@
       "maxBytes": 1000000
     },
     {
+      "id": "sprite2d.shadow-seal-duelist.motion.v1",
+      "path": "public/assets/sprites2d/shadow-seal-duelist-motion-v1.png",
+      "role": "runtime-2d-asymmetric-elite-enemy-motion-atlas",
+      "tier": "near-detail",
+      "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 1000000
+    },
+    {
       "id": "sprite2d.jade-void-warden.motion.v2",
       "path": "public/assets/sprites2d/jade-void-warden-motion-v2.png",
       "role": "runtime-2d-boss-motion-atlas",
@@ -778,6 +787,15 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
+      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.shadow-seal-duelist.motion-sheet.v1",
+      "path": "public/assets/sprites2d/source/shadow-seal-duelist-motion-sheet-v1.png",
+      "role": "2d-motion-sheet-chroma-source",
+      "tier": "authoring",
+      "source": "imagegen-built-in",
       "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
       "maxBytes": 2500000
     },

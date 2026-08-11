@@ -89,6 +89,34 @@ describe('PixiPresentation combat bindings', () => {
     }
   })
 
+  it('deterministically divides demon cultivators between two authored silhouettes', () => {
+    const variants = Array.from({ length: 64 }, (_, index) => (
+      enemyTextureKey2D('demonCultivator', index + 1)
+    ))
+    const duelistCount = variants.filter((key) => key === 'shadowSealDuelist').length
+
+    expect(new Set(variants)).toEqual(new Set(['voidSentinel', 'shadowSealDuelist']))
+    expect(duelistCount).toBeGreaterThanOrEqual(24)
+    expect(duelistCount).toBeLessThanOrEqual(40)
+    // This is the exact local pattern that previously produced a visible 9:1
+    // wall in a mixed late-wave capture: one demon every seven roster slots.
+    // Cover the other common wave strides as well so a globally balanced hash
+    // cannot regress into a locally repeated crowd again.
+    for (const stride of [2, 3, 4, 5, 6, 7]) {
+      const local = Array.from({ length: 10 }, (_, index) => (
+        enemyTextureKey2D('demonCultivator', 6 + index * stride)
+      ))
+      const localDuelists = local.filter((key) => key === 'shadowSealDuelist').length
+      expect(localDuelists, `stride ${stride}`).toBeGreaterThanOrEqual(4)
+      expect(localDuelists, `stride ${stride}`).toBeLessThanOrEqual(6)
+    }
+    expect(enemyTextureKey2D('demonCultivator', 31)).toBe(
+      enemyTextureKey2D('demonCultivator', 31),
+    )
+    expect(enemyTextureKey2D('magmaBrute', 31)).toBe('voidSentinel')
+    expect(enemyTextureKey2D('glacierWarden', 31)).toBe('voidSentinel')
+  })
+
   it('keeps atlas-sharing enemy species visually distinct without blackening authored art', () => {
     const wolf = enemyActorTint2D(0x5f7fa8, 'yorang')
     const frostWolf = enemyActorTint2D(0xa8d8ea, 'yorang')
@@ -160,7 +188,7 @@ describe('PixiPresentation combat bindings', () => {
   it('gives long-lived crowd silhouettes restrained per-actor shape and palette variation', () => {
     for (const key of [
       'jadeStoneGhoul', 'jadeShardGuardian', 'talismanRevenant', 'maskedSealRevenant',
-      'voidSentinel',
+      'voidSentinel', 'shadowSealDuelist',
     ]) {
       const profiles = Array.from({ length: 32 }, (_, index) => enemyMotionProfile2D(index + 1, key))
       const scaleSpan = Math.max(...profiles.map((profile) => profile.scale))

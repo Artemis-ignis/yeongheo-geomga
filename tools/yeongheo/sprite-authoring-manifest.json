@@ -64,6 +64,24 @@
       "legacyOutputs": ["void-sentinel-v1.png"]
     },
     {
+      "actor": "shadow-seal-duelist",
+      "source": "shadow-seal-duelist-motion-sheet-v1.png",
+      "outputs": ["shadow-seal-duelist-motion-v1.png"],
+      "generator": "imagegen-built-in",
+      "originalPath": "C:/Users/50106/.codex/generated_images/019fe2bc-1ddb-7390-910b-8a41a70aa5f0/exec-7207b448-ff82-4fe3-8b25-7aa091961bd2.png",
+      "originalSha256": "e734edb3ae6410b9ece7b85c5aedbebd803f5d8efa85ac12140d7ca379f1bd8a",
+      "sourceSha256": "e734edb3ae6410b9ece7b85c5aedbebd803f5d8efa85ac12140d7ca379f1bd8a",
+      "runtimeSha256": "d6194b0390b582c6dbd1ed0051fbd47a864f1516c30ccdcc5ea3cebbed59ac85",
+      "transform": "remove_chroma_key.py --key-color #00ff00 --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill; build_sprite_atlas.py --cols 4 --rows 2 --cell 256 --gutter 6 --guard 8",
+      "visualApproval": "root-actual-chrome-pass-1920x1080-and-2560x1600-20260812",
+      "visualEvidence": [
+        "output/playwright/mixed-late-root-20260812/07-mixed-balanced-1920.png",
+        "output/playwright/mixed-late-root-20260812/08-mixed-balanced-2560.png"
+      ],
+      "productionReady": false,
+      "productionBlocker": "legal rights gate remains BLOCKED"
+    },
+    {
       "actor": "jade-void-warden",
       "source": "jade-void-warden-motion-sheet-v2.png",
       "legacySource": "jade-void-warden-key-v1.png",

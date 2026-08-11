@@ -66,7 +66,9 @@ describe('runtime2d sprite contract', () => {
     for (const id of ['jadeStoneGhoul', 'jadeShardGuardian']) {
       expect(SPRITE_MANIFEST.actors[id].runtimeHeight).toBeLessThanOrEqual(110)
     }
-    expect(SPRITE_MANIFEST.actors.voidSentinel.runtimeHeight).toBeLessThanOrEqual(120)
+    for (const id of ['voidSentinel', 'shadowSealDuelist']) {
+      expect(SPRITE_MANIFEST.actors[id].runtimeHeight).toBeLessThanOrEqual(120)
+    }
   })
 
   it('never drops render resolution below 0.85', () => {
