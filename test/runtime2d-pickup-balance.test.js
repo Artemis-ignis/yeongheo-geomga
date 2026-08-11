@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { RNG } from '../src/core/RNG.js'
 import { getCharacter } from '../src/data/characters.js'
 import { getStage } from '../src/data/stages.js'
-import { CombatWorld2D } from '../src/runtime2d/CombatWorld2D.js'
+import { CombatWorld2D, PICKUP_MERGE_RADIUS_2D } from '../src/runtime2d/CombatWorld2D.js'
 
 function makeWorld(seed = 17) {
   return new CombatWorld2D({
@@ -20,6 +20,19 @@ function liveValue(field, values) {
 }
 
 describe('2D pickup ledgers', () => {
+  it('compacts a local kill cluster without merging distinct reward fields', () => {
+    const world = makeWorld()
+    world.pickups.spawn(0, 0, 2, false)
+    world.pickups.spawn(PICKUP_MERGE_RADIUS_2D * 0.9, 0, 3, false)
+    expect(world.pickups.count).toBe(1)
+    expect(world.pickups.xpValue[0]).toBe(5)
+
+    world.pickups.spawn(PICKUP_MERGE_RADIUS_2D * 2.1, 0, 7, false)
+    expect(world.pickups.count).toBe(2)
+    expect(liveValue(world.pickups, world.pickups.xpValue)).toBe(12)
+    expect(world.pickups.spawnedXp).toBe(12)
+  })
+
   it('defers level callbacks until compaction and preserves XP and stone value', () => {
     const world = makeWorld()
 

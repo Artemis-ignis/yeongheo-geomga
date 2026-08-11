@@ -15,6 +15,7 @@ import {
   projectilePresentationForBehavior,
   hostileProjectileVisualFor,
   projectileTint2D,
+  pickupVisualAlpha2D,
   pickupVisualScale2D,
   heroDirectionFor,
   directionalHeroFrames,
@@ -31,6 +32,8 @@ import {
   enemyActorTint2D,
   attachCombatGroundMasks2D,
   enemyAttackPresentationDuration2D,
+  enemyLocomotionFrame2D,
+  enemyMotionProfile2D,
   resolveEnemyIntentPresentation2D,
   wispThreatRotation2D,
 } from '../src/runtime2d/PixiPresentation.js'
@@ -91,11 +94,38 @@ describe('PixiPresentation combat bindings', () => {
     const qi1600 = pickupVisualScale2D(false, 4 / 3, 0)
     const stone1080 = pickupVisualScale2D(true, 1, 0)
     expect(qi1080).toBeCloseTo(PICKUP_PRESENTATION_2D.qi.baseScale)
-    expect(qi1080).toBeGreaterThanOrEqual(0.44)
+    expect(qi1080).toBeGreaterThanOrEqual(0.32)
+    expect(qi1080).toBeLessThanOrEqual(0.38)
     expect(qi1600).toBeGreaterThan(qi1080)
     expect(stone1080).toBeGreaterThan(qi1080)
     expect(pickupVisualScale2D(false, 1, 1)).toBeGreaterThan(qi1080)
     expect(pickupVisualScale2D(false, 1, -1)).toBeLessThan(qi1080)
+    expect(pickupVisualAlpha2D(false, 0)).toBeCloseTo(PICKUP_PRESENTATION_2D.qi.alpha)
+    expect(pickupVisualAlpha2D(false, 20)).toBeLessThan(PICKUP_PRESENTATION_2D.qi.alpha)
+    expect(pickupVisualAlpha2D(false, 120)).toBeCloseTo(PICKUP_PRESENTATION_2D.qi.minimumAlpha)
+    expect(pickupVisualAlpha2D(true, 120)).toBeCloseTo(PICKUP_PRESENTATION_2D.stone.alpha)
+  })
+
+  it('breaks consecutive spawn pulses into deterministic local motion variants', () => {
+    const profiles = Array.from({ length: 24 }, (_, index) => enemyMotionProfile2D(index + 1, 'wisp'))
+    expect(enemyMotionProfile2D(7, 'wisp')).toEqual(enemyMotionProfile2D(7, 'wisp'))
+    expect(enemyMotionProfile2D(7, 'wisp')).not.toEqual(enemyMotionProfile2D(7, 'yorang'))
+    expect(Math.min(...profiles.map((profile) => profile.tempo))).toBeGreaterThanOrEqual(0.9)
+    expect(Math.max(...profiles.map((profile) => profile.tempo))).toBeLessThanOrEqual(1.1)
+    expect(Math.min(...profiles.map((profile) => profile.scale))).toBeGreaterThanOrEqual(0.94)
+    expect(Math.max(...profiles.map((profile) => profile.scale))).toBeLessThanOrEqual(1.06)
+    expect(Math.min(...profiles.map((profile) => profile.aspect))).toBeGreaterThanOrEqual(0.9)
+    expect(Math.max(...profiles.map((profile) => profile.aspect))).toBeLessThanOrEqual(1.1)
+
+    const frames = profiles.map((profile) => enemyLocomotionFrame2D([0, 1, 2, 3], 120, 7, profile))
+    expect(new Set(frames)).toEqual(new Set([0, 1, 2, 3]))
+    let longestRun = 1
+    let currentRun = 1
+    for (let index = 1; index < frames.length; index++) {
+      currentRun = frames[index] === frames[index - 1] ? currentRun + 1 : 1
+      longestRun = Math.max(longestRun, currentRun)
+    }
+    expect(longestRun).toBeLessThanOrEqual(2)
   })
 
   it('defines seven atlas-backed friendly families with at least two visual axes', () => {

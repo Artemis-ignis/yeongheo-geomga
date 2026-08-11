@@ -56,13 +56,13 @@ export const WAVES = [
   { t: 0, spawnInterval: 1.65, perSpawn: 5, types: ['wisp', 'wisp', 'wolf'] },
   // 30-60s: ~3.33 enemies/s. The charger is the first escalation.
   { t: 30, spawnInterval: 1.50, perSpawn: 5, types: ['wisp', 'wisp', 'wisp', 'wisp', 'wolf', 'jadeSerpent'] },
-  // 60-120s: keep wisps dominant, but alternate a small melee/charger weight.
-  // A full minute of one silhouette read as content repetition even though the
-  // measured density was healthy; duplicated wisps preserve the survivable
-  // economy while the returning wolf/serpent makes movement decisions visible.
-  { t: 60, spawnInterval: 1.45, perSpawn: 6, types: [...Array(19).fill('wisp'), 'wolf'] },
-  { t: 90, spawnInterval: 1.40, perSpawn: 7, types: [...Array(19).fill('wisp'), 'jadeSerpent'] },
-  { t: 120, spawnInterval: 1.35, perSpawn: 8, types: [...Array(38).fill('wisp'), 'wolf', 'jadeSerpent'] },
+  // 60-120s: actual 1920/2560 play at 80-89% wisps still produced a repeated
+  // purple wall even after the wisp gained eight authored poses. Preserve wisps
+  // as the majority economy fodder and keep total spawn pressure unchanged, but
+  // let the already-taught wolf and serpent own 33-40% of the silhouette mix.
+  { t: 60, spawnInterval: 1.45, perSpawn: 6, types: [...Array(6).fill('wisp'), 'wolf', 'wolf', 'jadeSerpent'] },
+  { t: 90, spawnInterval: 1.40, perSpawn: 7, types: [...Array(6).fill('wisp'), 'wolf', 'wolf', 'jadeSerpent', 'jadeSerpent'] },
+  { t: 120, spawnInterval: 1.35, perSpawn: 8, types: [...Array(6).fill('wisp'), 'wolf', 'wolf', 'jadeSerpent', 'jadeSerpent'] },
   // 150s: wolves become a clearly recurring contact threat.
   { t: 150, spawnInterval: 1.30, perSpawn: 9, types: ['wisp', 'wisp', 'wolf'] },
   // 180s: ranged pressure arrives as the mid-boss enters; splitter remains a

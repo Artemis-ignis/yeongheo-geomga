@@ -138,7 +138,10 @@ export const WISP_THREAT_PRESENTATION_2D = Object.freeze({
 })
 
 export const PICKUP_PRESENTATION_2D = Object.freeze({
-  qi: Object.freeze({ baseScale: 0.46, pulseAmplitude: 0.055, alpha: 0.96 }),
+  qi: Object.freeze({
+    baseScale: 0.35, pulseAmplitude: 0.045, alpha: 0.86,
+    ageFadeStart: 7, ageFadeDuration: 25, minimumAlpha: 0.38,
+  }),
   stone: Object.freeze({ baseScale: 0.58, pulseAmplitude: 0.045, alpha: 0.98 }),
 })
 
@@ -149,11 +152,68 @@ export function wispThreatRotation2D(time, uid = 0) {
   ) * WISP_THREAT_PRESENTATION_2D.rotationAmplitude
 }
 
+const ENEMY_MOTION_KEY_SALTS_2D = Object.freeze({
+  wisp: 0x13a5f271,
+  yorang: 0x2c6d3b87,
+  jadeSerpent: 0x35f19ac3,
+  jadeStoneGhoul: 0x47b2e56d,
+  bloodScorpion: 0x59c8712f,
+  talismanRevenant: 0x6ae34d95,
+  voidSentinel: 0x7d14b6e9,
+})
+
+function enemyMotionNoise2D(uid, salt) {
+  let value = (Math.floor(Number(uid) || 0) >>> 0) ^ (salt >>> 0)
+  value = Math.imul(value ^ (value >>> 16), 0x45d9f3b) >>> 0
+  value = Math.imul(value ^ (value >>> 16), 0x45d9f3b) >>> 0
+  return ((value ^ (value >>> 16)) >>> 0) / 0x100000000
+}
+
+/**
+ * Consecutive enemies are born in the same spawn pulse. A linear phase offset
+ * made those neighbours advance in visible triplets, which read like a stamped
+ * formation even though the atlas contained four frames. Cache this profile per
+ * uid and spread phase, tempo and a restrained silhouette variation without
+ * changing collision, movement, grounding or authored texture identity.
+ */
+export function enemyMotionProfile2D(uid = 0, key = 'wisp') {
+  const salt = ENEMY_MOTION_KEY_SALTS_2D[key] ?? 0x1f123bb5
+  const floating = key === 'wisp' || key === 'talismanRevenant'
+  const phase = enemyMotionNoise2D(uid, salt)
+  const tempo = 0.9 + enemyMotionNoise2D(uid, salt ^ 0x9e3779b9) * 0.2
+  const scale = 0.94 + enemyMotionNoise2D(uid, salt ^ 0x85ebca6b) * 0.12
+  const aspectRange = key === 'wisp' ? 0.1 : floating ? 0.045 : 0.018
+  const aspect = 1 + (enemyMotionNoise2D(uid, salt ^ 0xc2b2ae35) * 2 - 1) * aspectRange
+  const leanRange = key === 'wisp' ? 0.018 : key === 'talismanRevenant' ? 0.009 : 0
+  const lean = (enemyMotionNoise2D(uid, salt ^ 0x27d4eb2f) * 2 - 1) * leanRange
+  const bobScale = 0.86 + enemyMotionNoise2D(uid, salt ^ 0x165667b1) * 0.28
+  return Object.freeze({ phase, tempo, scale, aspect, lean, bobScale })
+}
+
+export function enemyLocomotionFrame2D(indices, time, fps, motion) {
+  const profile = motion ?? enemyMotionProfile2D(0)
+  return loopingFrameIndex(
+    indices,
+    time,
+    fps * profile.tempo,
+    profile.phase * indices.length,
+  )
+}
+
 export function pickupVisualScale2D(stone, presentationScale = 1, pulse = 0) {
   const profile = stone ? PICKUP_PRESENTATION_2D.stone : PICKUP_PRESENTATION_2D.qi
   const viewportScale = Math.max(0.8, Math.min(1.5, Number(presentationScale) || 1))
   const normalizedPulse = Math.max(-1, Math.min(1, Number(pulse) || 0))
   return profile.baseScale * viewportScale * (1 + normalizedPulse * profile.pulseAmplitude)
+}
+
+export function pickupVisualAlpha2D(stone, age = 0) {
+  const profile = stone ? PICKUP_PRESENTATION_2D.stone : PICKUP_PRESENTATION_2D.qi
+  if (stone || !Number.isFinite(profile.ageFadeStart)) return profile.alpha
+  const fade = Math.max(0, Math.min(1,
+    ((Number(age) || 0) - profile.ageFadeStart) / profile.ageFadeDuration,
+  ))
+  return Math.max(profile.minimumAlpha, profile.alpha * (1 - fade * 0.56))
 }
 
 /**
@@ -525,7 +585,7 @@ const ACTOR_FOOT_PIVOTS_2D = Object.freeze({
   talismanRevenant: Object.freeze([0.906, 0.891, 0.906, 0.914, 0.859, 0.867, 0.883, 0.859]),
   voidSentinel: Object.freeze([0.898, 0.906, 0.906, 0.914, 0.836, 0.859, 0.82, 0.867]),
   jadeVoidWarden: Object.freeze([0.945, 0.938, 0.945, 0.938, 0.922, 0.922, 0.914, 0.93]),
-  wisp: Object.freeze([0.958]),
+  wisp: Object.freeze([0.902, 0.895, 0.898, 0.906, 0.824, 0.848, 0.832, 0.824]),
   prop: Object.freeze([0.844, 0.867, 0.867, 0.836, 0.891, 0.789, 0.805, 0.758]),
 })
 
@@ -3107,6 +3167,7 @@ export class PixiPresentation {
       this.frames.seolryeongN = sliceFrames(this.textures.seolryeongN, SPRITE_MANIFEST.actors.seolryeong)
       this.frames.seolryeongNe = sliceFrames(this.textures.seolryeongNe, SPRITE_MANIFEST.actors.seolryeong)
       this.frames.seolryeongS = sliceFrames(this.textures.seolryeongS, SPRITE_MANIFEST.actors.seolryeong)
+      this.frames.wisp = sliceFrames(this.textures.wisp, SPRITE_MANIFEST.actors.wisp)
       this.frames.yorang = sliceFrames(this.textures.yorang, SPRITE_MANIFEST.actors.yorang)
       this.frames.jadeSerpent = sliceFrames(this.textures.jadeSerpent, SPRITE_MANIFEST.actors.jadeSerpent)
       this.frames.jadeStoneGhoul = sliceFrames(
@@ -3293,7 +3354,10 @@ export class PixiPresentation {
       const sprite = new Sprite(this.textures.wisp)
       sprite.anchor.set(0.5, 0.88)
       sprite.visible = false
-      const entry = { sprite, shadow, contact, intent, bucket: 0, key: 'wisp', frame: 0 }
+      const entry = {
+        sprite, shadow, contact, intent, bucket: 0, key: 'wisp', frame: 0,
+        motionUid: 0, motion: enemyMotionProfile2D(0, 'wisp'),
+      }
       this.actorBuckets[0].addChild(sprite)
       this.enemyPool.push(entry)
     }
@@ -3709,20 +3773,20 @@ export class PixiPresentation {
         field.contactIntentTimer?.[i],
         attackDuration,
       )
-      if (entry.key !== key) entry.key = key
-      if (key !== 'wisp') {
-        const actor = SPRITE_MANIFEST.actors[key]
-        const attacking = intentPresentation.visible
-        const locomotion = actor.animations.walk ?? actor.animations.hover ?? actor.animations.idle
-        const attack = actor.animations.attack ?? actor.animations.cast ?? locomotion
-        entry.frame = attacking
-          ? oneShotFrameIndex(attack, intentPresentation.remaining, intentPresentation.duration)
-          : loopingFrameIndex(locomotion, this.time, key === 'yorang' ? 9 : 7, field.uid[i] * 0.37)
-        entry.sprite.texture = this.frames[key][entry.frame]
-      } else {
-        entry.frame = 0
-        entry.sprite.texture = this.textures.wisp
+      if (entry.key !== key || entry.motionUid !== field.uid[i]) {
+        entry.key = key
+        entry.motionUid = field.uid[i]
+        entry.motion = enemyMotionProfile2D(field.uid[i], key)
       }
+      const motion = entry.motion
+      const actor = SPRITE_MANIFEST.actors[key]
+      const attacking = intentPresentation.visible
+      const locomotion = actor.animations.walk ?? actor.animations.hover ?? actor.animations.idle
+      const attack = actor.animations.attack ?? actor.animations.cast ?? locomotion
+      entry.frame = attacking
+        ? oneShotFrameIndex(attack, intentPresentation.remaining, intentPresentation.duration)
+        : enemyLocomotionFrame2D(locomotion, this.time, key === 'yorang' ? 9 : 7, motion)
+      entry.sprite.texture = this.frames[key][entry.frame]
       entry.sprite.anchor.set(0.5, actorFootPivot2D(key, entry.frame))
       const x = field.prevX[i] + (field.x[i] - field.prevX[i]) * alpha
       const z = field.prevZ[i] + (field.z[i] - field.prevZ[i]) * alpha
@@ -3733,19 +3797,21 @@ export class PixiPresentation {
           : key === 'bloodScorpion' ? SPRITE_MANIFEST.actors.bloodScorpion.runtimeHeight
           : key === 'talismanRevenant' ? SPRITE_MANIFEST.actors.talismanRevenant.runtimeHeight
           : SPRITE_MANIFEST.actors.voidSentinel.runtimeHeight * (field.elite[i] ? 1.06 : 0.9)
-      const stride = Math.sin(this.time * (key === 'yorang' ? 12 : 8.5) + field.uid[i] * 0.91)
+      const motionPhase = motion.phase * Math.PI * 2
+      const stride = Math.sin(this.time * (key === 'yorang' ? 12 : 8.5) * motion.tempo + motionPhase)
       const locomotionBob = key === 'yorang' ? -Math.abs(stride) * 2.4
         : key === 'voidSentinel' ? -Math.abs(stride) * 1.2 : 0
-      const pulse = key === 'wisp' ? Math.sin(this.time * 5 + field.uid[i]) * 4
-        : key === 'talismanRevenant' ? Math.sin(this.time * 3.5 + field.uid[i]) * 2.5
+      const pulse = key === 'wisp'
+        ? Math.sin(this.time * 5 * motion.tempo + motionPhase) * 4 * motion.bobScale
+        : key === 'talismanRevenant'
+          ? Math.sin(this.time * 3.5 * motion.tempo + motionPhase) * 2.5 * motion.bobScale
           : locomotionBob
       const tint = enemyActorTint2D(def.color ?? 0xa880db, key, field.flash[i] > 0)
-      const sizeVariation = 1 + ((field.uid[i] % 7) - 3) * 0.012
       const spawnProgress = Math.max(0, Math.min(1, (field.age?.[i] ?? 1) / 0.24))
       const spawnEase = 1 - (1 - spawnProgress) ** 3
       const grounding = actorGroundingProfile2D(key, entry.frame)
       const visualHeight = baseHeight * this._presentationScale * (def.scale ?? 1) * grounding.visualScale
-        * sizeVariation * (0.78 + spawnEase * 0.22)
+        * motion.scale * (0.78 + spawnEase * 0.22)
       this._placeActor(entry, x, z, visualHeight,
         (field.dead[i] ? 0.25 : 1) * spawnEase,
         field.facing[i], tint, pulse)
@@ -3787,18 +3853,18 @@ export class PixiPresentation {
         // while the entire horde stays in Pixi's multi-texture batch.
         entry.sprite.blendMode = 'normal'
         const wispSway = wispThreatRotation2D(this.time, field.uid[i])
-        entry.sprite.rotation = wispSway
+        entry.sprite.rotation = wispSway + motion.lean
         entry.sprite.alpha *= WISP_THREAT_PRESENTATION_2D.alphaBase
           + Math.sin(this.time * 4.4 + field.uid[i]) * WISP_THREAT_PRESENTATION_2D.alphaPulse
-        entry.sprite.scale.x *= 1 + wispSway * 0.32
+        entry.sprite.scale.x *= (1 + wispSway * 0.32) * motion.aspect
         entry.sprite.scale.y *= 1 - Math.abs(wispSway) * 0.12
       } else {
         entry.sprite.blendMode = 'normal'
         const attackKick = field.attackTimer[i] > 0
           ? Math.sin((field.attackTimer[i] / attackDuration) * Math.PI) * 0.055
           : 0
-        entry.sprite.rotation = stride * (key === 'yorang' ? 0.018 : 0.01) + attackKick
-        entry.sprite.scale.x *= 1 + stride * (key === 'yorang' ? 0.026 : 0.012)
+        entry.sprite.rotation = stride * (key === 'yorang' ? 0.018 : 0.01) + attackKick + motion.lean
+        entry.sprite.scale.x *= (1 + stride * (key === 'yorang' ? 0.026 : 0.012)) * motion.aspect
         entry.sprite.scale.y *= 1 - stride * (key === 'yorang' ? 0.018 : 0.008)
         if (field.flash[i] > 0) {
           entry.sprite.scale.x *= 1.055
@@ -4177,12 +4243,13 @@ export class PixiPresentation {
       projectWorld(x, z, this.cameraX, this.cameraZ, this.viewport, _screen)
       item.x = _screen.x
       const pickupPulse = Math.sin(this.time * 4 + field.phase[i])
-      const pickupProfile = field.stone[i] ? PICKUP_PRESENTATION_2D.stone : PICKUP_PRESENTATION_2D.qi
       item.y = _screen.y - 8 * this._presentationScale + pickupPulse * 3.5 * this._presentationScale
       item.rotation = this.time * 0.9 + field.phase[i]
       item.scaleX = item.scaleY = pickupVisualScale2D(field.stone[i], this._presentationScale, pickupPulse)
       item.tint = field.stone[i] ? 0xf4d878 : 0x91dff4
-      item.alpha = isOnScreen(_screen.x, _screen.y, this.viewport, 60) ? pickupProfile.alpha : 0
+      item.alpha = isOnScreen(_screen.x, _screen.y, this.viewport, 60)
+        ? pickupVisualAlpha2D(field.stone[i], field.age?.[i] ?? 0)
+        : 0
     }
   }
 

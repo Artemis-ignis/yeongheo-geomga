@@ -6,7 +6,7 @@ import { getStage } from '../src/data/stages.js'
 import { DaoVows2D } from '../src/runtime2d/DaoVows2D.js'
 import {
   CombatWorld2D, FINAL_BOSS_PHASE_GATE_SECONDS_2D, FINAL_BOSS_WAVE_DENSITY_2D,
-  MAX_ENEMIES_2D, MAX_PICKUPS_2D, MAX_PROJECTILES_2D,
+  MAX_ENEMIES_2D, MAX_PICKUPS_2D, MAX_PROJECTILES_2D, PICKUP_MERGE_RADIUS_2D,
 } from '../src/runtime2d/CombatWorld2D.js'
 import { MIN_TELEGRAPH_SECONDS_2D } from '../src/runtime2d/BossPatterns2D.js'
 import { getWeapon } from '../src/data/weapons.js'
@@ -574,7 +574,8 @@ describe('CombatWorld2D', () => {
     expect(pickups.count).toBe(1)
     expect(pickups.value[0]).toBe(5)
 
-    for (let i = 1; i < MAX_PICKUPS_2D; i++) pickups.spawn(i * 2, 100, 1, false)
+    const isolatedSpacing = PICKUP_MERGE_RADIUS_2D + 0.5
+    for (let i = 1; i < MAX_PICKUPS_2D; i++) pickups.spawn(i * isolatedSpacing, 100, 1, false)
     pickups.update(2, world.player, () => {})
     const before = pickupTotals(pickups)
     expect(pickups.count).toBe(MAX_PICKUPS_2D)

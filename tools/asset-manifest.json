@@ -579,11 +579,11 @@
       "maxBytes": 1000000
     },
     {
-      "id": "sprite2d.magi-remnant.v1",
-      "path": "public/assets/sprites2d/magi-remnant-v1.png",
-      "role": "runtime-2d-common-enemy-authored-key",
+      "id": "sprite2d.magi-remnant.motion.v2",
+      "path": "public/assets/sprites2d/magi-remnant-motion-v2.png",
+      "role": "runtime-2d-common-enemy-motion-atlas",
       "tier": "world",
-      "source": "imagegen-chroma-key-alpha-despill",
+      "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v2",
       "consumers": ["src/runtime2d/spriteManifest.js"],
       "maxBytes": 1000000
     },

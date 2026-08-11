@@ -138,9 +138,9 @@ AS-15 | public/assets/sprites2d/jade-stone-ghoul-motion-v1.png
 AS-16 | public/assets/sprites2d/blood-scorpion-motion-v1.png
       | source=imagegen-chroma-key-alpha-despill
       | 용도: 혈갈 atlas
-AS-74 | public/assets/sprites2d/magi-remnant-v1.png
-      | source=imagegen-chroma-key-alpha-despill
-      | 용도: 초반 마기 잔영 적 sprite
+AS-74 | public/assets/sprites2d/magi-remnant-motion-v2.png
+      | source=imagegen-chroma-key-alpha-despill-atlas-normalize-v2
+      | 용도: 초반 마기 잔영 적 4×2 이동·공격 atlas
 
 [C] ImageGen atlas crop — 스킬 아이콘 16개
 

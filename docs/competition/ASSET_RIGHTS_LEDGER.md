@@ -130,7 +130,7 @@
 | AS-71 | `public/assets/ui/skill-icons-v2/spirit-stones.png` | `generated` | `imagegen-dao-atlas-crop-v1` | 영석 주머니 의미별 아이콘; `src/ui/icons.js` | 로컬 ImageGen atlas의 결정적 crop과 SHA 연결은 확인했으나 계정·Input·공개·팀 제출 권리 증거 없음 | **source chain 확인·법적 권리 미확인·차단** |
 | AS-72 | `public/assets/ui/skill-icons-v2/purge.png` | `generated` | `imagegen-dao-atlas-crop-v1` | 정화부 의미별 아이콘; `src/ui/icons.js` | 로컬 ImageGen atlas의 결정적 crop과 SHA 연결은 확인했으나 계정·Input·공개·팀 제출 권리 증거 없음 | **source chain 확인·법적 권리 미확인·차단** |
 | AS-73 | `public/assets/materials/environment/jade-sanctuary-ground-material-v2.png` | `generated` | `imagegen` | WorldClaw의 생성 재질+절차 지역 변주 원칙을 적용한 2D 청람 성역 seamless ground; `src/runtime2d/PixiPresentation.js` | ImageGen 직접 출력과 local `.codex` 원본 SHA가 일치하지만 계정·Input 권리·제3자 유사성·공개·상업·대회 사용과 팀 권한 증거는 없음 | **로컬 원본 확인·법적 권리 미확인·차단** |
-| AS-74 | `public/assets/sprites2d/magi-remnant-v1.png` | `generated` | `imagegen-chroma-key-alpha-despill` | 초반 마기 잔영 적 authored sprite; `src/runtime2d/spriteManifest.js`, `src/runtime2d/PixiPresentation.js` | local ImageGen source SHA와 기록된 chroma-key·alpha·despill 변환은 확인했지만 생성 계정·Input 권리·제3자 유사성·공개·상업·대회 사용과 팀 권한 증거는 없음 | **로컬 source chain 확인·법적 권리 미확인·차단** |
+| AS-74 | `public/assets/sprites2d/magi-remnant-motion-v2.png` | `generated` | `imagegen-chroma-key-alpha-despill-atlas-normalize-v2` | 초반 마기 잔영 적 4×2 이동·공격 atlas; `src/runtime2d/spriteManifest.js`, `src/runtime2d/PixiPresentation.js` | local ImageGen source SHA와 기록된 chroma-key·alpha·atlas 정규화·despill 변환은 확인했지만 생성 계정·Input 권리·제3자 유사성·공개·상업·대회 사용과 팀 권한 증거는 없음 | **로컬 source chain 확인·법적 권리 미확인·차단** |
 
 ### 로컬 provenance snapshots — 2026-08-09 기존 / 2026-08-10 release-v3·v5
 
@@ -172,7 +172,9 @@
 
 | ID | 제출 파일 | 바이트 | SHA-256 | mtime UTC | Git 상태/최근 커밋 |
 |---|---|---:|---|---|---|
-| AS-74 | `public/assets/sprites2d/magi-remnant-v1.png` | 793,034 | `6ce2e374b6fb922ddebbe7ce93225da505dda4d322b237edf40a102ebc2623fd` | `2026-08-11T14:24:13.2067131Z` | 이번 품질 체크포인트에 포함 예정 |
+| AS-74 | `public/assets/sprites2d/magi-remnant-motion-v2.png` | 441,793 | `8122d62377adaca9763aedc82f85ebd48192b34708be106128b5912ec44ae903` | `2026-08-11T16:44:01.4237418Z` | 이번 품질 체크포인트에 포함 예정 |
+
+ImageGen 원본 `exec-ac9a1604-30ce-4490-84c7-be1f85920c73.png`의 SHA-256은 `4e63217446f9f869ba97553e40855bdfb8a0911f8462bb4dec09b9b829f2ba6c`이며, 로컬 authoring manifest에 동일 경로와 변환 체인을 기록했다.
 
 #### release-v3 신규 UI fingerprint — AS-22~AS-40
 

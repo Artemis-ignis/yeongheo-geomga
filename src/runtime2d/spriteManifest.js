@@ -44,11 +44,11 @@ export const SPRITE_MANIFEST = Object.freeze({
       animationMode: 'authored-frames', ...pending,
     }),
     wisp: Object.freeze({
-      url: `${base}assets/sprites2d/magi-remnant-v1.png`,
-      cell: [1254, 1254], sheet: [1, 1], pivot: [0.5, 0.958], runtimeHeight: 80,
+      url: `${base}assets/sprites2d/magi-remnant-motion-v2.png`,
+      cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.9], runtimeHeight: 80,
       directions: ['s'], mirrorWest: false,
-      animations: Object.freeze({ hover: [0], attack: [0] }),
-      animationMode: 'authored-key-with-procedural-sway', ...pending,
+      animations: Object.freeze({ hover: [0, 1, 2, 3], attack: [4, 5, 6, 7] }),
+      animationMode: 'authored-frames-with-procedural-sway', ...pending,
     }),
     jadeSerpent: Object.freeze({
       url: `${base}assets/sprites2d/jade-serpent-motion-v1.png`,

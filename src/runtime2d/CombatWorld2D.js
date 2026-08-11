@@ -68,7 +68,10 @@ export const FINAL_BOSS_PHASE_GATE_SECONDS_2D = Object.freeze([25, 55, 85])
 // threat or granting a hidden revive.
 export const FINAL_BOSS_PHASE_RELIEF_HEAL_FRACTION_2D = 0.18
 export const FINAL_BOSS_PHASE_RELIEF_GRACE_SECONDS_2D = 1.15
-const PICKUP_MERGE_RADIUS_2D = 1.35
+// A 2:23 keyboard run left 185 separately rendered qi shards despite a 6.5m
+// magnet. Merge drops from the same local kill cluster so their value survives
+// as one readable reward instead of turning the whole arena into cyan confetti.
+export const PICKUP_MERGE_RADIUS_2D = 2.4
 const PICKUP_RECYCLE_DISTANCE_2D = 18
 const WEAPON_AUDIO_COOLDOWN_2D = Object.freeze({
   launch: 0,
@@ -591,12 +594,15 @@ class PickupField2D {
     this.z = new Float32Array(MAX_PICKUPS_2D)
     this.prevX = new Float32Array(MAX_PICKUPS_2D)
     this.prevZ = new Float32Array(MAX_PICKUPS_2D)
-    this.value = new Float32Array(MAX_PICKUPS_2D)
+    // Reward ledgers use Float64 because local drop compaction can accumulate
+    // hundreds of values into one slot. Float32 drift broke the invariant that
+    // spawned = collected + live even though no reward was logically dropped.
+    this.value = new Float64Array(MAX_PICKUPS_2D)
     // Keep both ledgers per slot so the final saturated-slot fallback can
     // preserve XP and stones even when the only recyclable slot is the other
     // type.  Normal slots contain exactly one non-zero ledger.
-    this.xpValue = new Float32Array(MAX_PICKUPS_2D)
-    this.stoneValue = new Float32Array(MAX_PICKUPS_2D)
+    this.xpValue = new Float64Array(MAX_PICKUPS_2D)
+    this.stoneValue = new Float64Array(MAX_PICKUPS_2D)
     this.stone = new Uint8Array(MAX_PICKUPS_2D)
     this.uid = new Uint32Array(MAX_PICKUPS_2D)
     this.phase = new Float32Array(MAX_PICKUPS_2D)

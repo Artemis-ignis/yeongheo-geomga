@@ -12,6 +12,16 @@ describe('runtime2d sprite contract', () => {
     }
   })
 
+  it('ships the common wisp as a real hover and attack atlas', () => {
+    const wisp = SPRITE_MANIFEST.actors.wisp
+    expect(wisp.url).toContain('magi-remnant-motion-v2.png')
+    expect(wisp.cell).toEqual([256, 256])
+    expect(wisp.sheet).toEqual([4, 2])
+    expect(wisp.animations.hover).toEqual([0, 1, 2, 3])
+    expect(wisp.animations.attack).toEqual([4, 5, 6, 7])
+    expect(new Set([...wisp.animations.hover, ...wisp.animations.attack]).size).toBe(8)
+  })
+
   it('rejects production readiness without human visual approval', () => {
     const invalid = {
       ...SPRITE_MANIFEST,

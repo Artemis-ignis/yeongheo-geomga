@@ -164,8 +164,10 @@ describe('opening combat balance', () => {
     for (const time of [60, 90, 120]) {
       const silhouettes = new Set(waveAt(time).types)
       expect(silhouettes.size, `${time}s wave repeats one silhouette`).toBeGreaterThanOrEqual(2)
-      expect(waveAt(time).types.filter((type) => type === 'wisp').length / waveAt(time).types.length)
-        .toBeGreaterThanOrEqual(0.9)
+      const wispRatio = waveAt(time).types.filter((type) => type === 'wisp').length
+        / waveAt(time).types.length
+      expect(wispRatio, `${time}s wave loses fodder identity`).toBeGreaterThanOrEqual(0.6)
+      expect(wispRatio, `${time}s wave becomes a one-silhouette stamp wall`).toBeLessThanOrEqual(2 / 3)
     }
   })
 
