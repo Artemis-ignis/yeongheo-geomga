@@ -327,6 +327,31 @@ describe('ResultScreen keyboard CTAs', () => {
     expect(screen.node.innerHTML).toContain('위력')
     expect(screen.node.innerHTML).toContain('단전 강화')
   })
+
+  it('turns replay pattern ids into concise player-facing boss records', () => {
+    const screen = new ResultScreen(makeRoot())
+    screen.show({
+      ...resultFixture(),
+      victory: true,
+      bossSummary: {
+        name: '옥허진장',
+        phase: 3,
+        patternId: 'shadow-summon-overcharge-purge',
+        phases: [
+          { patternId: 'violet-orb-barrage' },
+          { patternId: 'tracking-shadow-double-purge' },
+          { patternId: 'shadow-summon-overcharge-purge' },
+        ],
+      },
+    }, { onRestart() {} })
+
+    const record = screen.node.innerHTML
+    expect(record).toContain('옥허진장')
+    expect(record).toContain('3단계')
+    expect(record).toContain('정화 그림자 과충전')
+    expect(record).not.toContain('shadow-summon-overcharge-purge')
+    expect(record).not.toContain('violet-orb-barrage')
+  })
 })
 
 describe('LevelUpModal keyboard focus', () => {

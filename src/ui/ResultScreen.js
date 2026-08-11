@@ -5,6 +5,35 @@ import { getPassive } from '../data/passives.js'
 
 const RESULT_HERO_ART = 'assets/sprites2d/seolryeong-combat-v1.png'
 
+const BOSS_PATTERN_LABELS = Object.freeze({
+  radialVolley: '전방위 탄막',
+  swordLine: '직선 베기',
+  swordCone: '부채꼴 참격',
+  swordRing: '검환 폭발',
+  frostZone: '빙결 장판',
+  frostLane: '빙결 가로막',
+  frostMine: '빙결 지뢰',
+  spiritOrbit: '영체 선회',
+  spiritClone: '영체 분신',
+  spiritBurst: '영체 폭발',
+  'violet-orb-barrage': '자주색 구체 탄막',
+  'returning-sword-line': '귀환 검로',
+  'returning-sword-ring': '귀환 검환',
+  'piercing-sword-cross': '관통 십자검',
+  'piercing-sword-ring': '관통 검환',
+  'chain-frost-mines': '연쇄 빙뢰',
+  'chain-frost-mines-shards': '쇄빙 연쇄뢰',
+  'chain-frost-wall-shards': '쇄빙 장벽',
+  'cutting-ice-line': '절빙 검로',
+  'cutting-ice-wall-line': '절빙 장벽',
+  'tracking-shadow-double': '추적 그림자 분신',
+  'tracking-shadow-double-purge': '정화 추적 그림자',
+  'tracking-shadow-double-echo': '메아리 추적 그림자',
+  'shadow-summon-overcharge': '그림자 소환과 과충전 폭발',
+  'shadow-summon-overcharge-purge': '정화 그림자 과충전',
+  'shadow-summon-overcharge-echo': '메아리 그림자 과충전',
+})
+
 function assetUrl(path) {
   const base = import.meta.env?.BASE_URL ?? '/'
   const prefix = base.endsWith('/') ? base : `${base}/`
@@ -28,17 +57,29 @@ function readableField(value) {
   return String(value)
 }
 
+function bossPatternLabel(value) {
+  const raw = readableField(value).trim()
+  if (!raw) return ''
+  if (BOSS_PATTERN_LABELS[raw]) return BOSS_PATTERN_LABELS[raw]
+  // Replay ids are a stable technical contract, not player-facing copy. Keep
+  // an unknown machine id out of the result screen while retaining authored
+  // Korean names and normal prose from older saves.
+  return /^[a-z0-9_-]+$/i.test(raw) ? '기록된 비전' : raw
+}
+
 function bossField(value) {
   if (!value) return ''
   if (typeof value !== 'object') return readableField(value)
   const name = value.name ?? value.bossName ?? value.id ?? ''
-  const pattern = value.patternName ?? value.patternId ?? value.intent ?? value.mirrorPattern?.name ?? ''
+  const pattern = bossPatternLabel(
+    value.patternName ?? value.patternId ?? value.intent ?? value.mirrorPattern?.name ?? '',
+  )
   const phase = Number.isFinite(value.phase) ? `${value.phase}단계` : ''
   const phases = (value.phases ?? value.phaseSummary ?? value.mirrorPattern?.phases ?? [])
-    .map((entry) => entry?.name ?? entry?.patternId ?? entry?.id ?? '')
+    .map((entry) => bossPatternLabel(entry?.name ?? entry?.patternName ?? entry?.patternId ?? entry?.id ?? ''))
     .filter(Boolean)
-    .join(' · ')
-  return [name, pattern ? `패턴 ${pattern}` : '', phase, phases ? `미러 ${phases}` : '']
+  const signature = pattern || phases.at(-1) || ''
+  return [name, phase, signature]
     .filter(Boolean)
     .join(' · ')
 }
