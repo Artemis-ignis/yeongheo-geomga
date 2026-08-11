@@ -44,7 +44,7 @@
 - FormationDirector2D: 75초·140초·215초·290초·365초의 ring·wall·pincer 진을 한 번씩 생성하고, 용량 부족 시 같은 이벤트를 재시도한다.
 - WorldInteractions2D: seed·비경·청크에 따라 재현되는 제단·보물·정예 봉인·회복 샘 POI와 E 상호작용·보상.
 
-다만 이 연결은 제출 완료 선언이 아닙니다. 원클릭 quickStart는 showcase seed `3185791507`로 POI·진·선택·보스 경로를 재현하며, 상세 시작은 저장 진행과 새 seed를 유지합니다. 권위 타임라인은 첫 맹세 0:20, POI 강조 2:00, 맹세 심화 2:45, 중간 보스 3:00, 맹세 완성 4:30, 최종 보스 5:30, 승천/좌화 결과 7:00입니다. 과거 로컬 production build의 정확한 420초 승천·결과→재도전 기록은 보존되어 있지만, 현재 build 기준의 장시간 7분 E2E 재검증은 아직 남아 있습니다. 공개 URL과 대표자 권리 확인 게이트도 남아 있습니다. 최신 실제 런과 고정 산출물은 [release-v5.3 감사](docs/competition/RELEASE_V5_3_AUDIT_2026-08-10.md)를 기준으로 합니다.
+다만 이 연결은 제출 완료 선언이 아닙니다. 원클릭 quickStart는 showcase seed `3185791507`로 POI·진·선택·보스 경로를 재현하며, 상세 시작은 저장 진행과 새 seed를 유지합니다. 권위 타임라인은 첫 맹세 0:20, POI 강조 2:00, 맹세 심화 2:45, 중간 보스 3:00, 맹세 완성 4:30, 최종 보스 5:30, 승천/좌화 결과 7:00입니다. 현재 exact commit `6516321`에서 무치트 420초 승천·결과→재도전·이동까지 실제 Chrome 한 탭 검증을 통과했습니다. 공개 URL과 대표자 권리 확인 게이트는 여전히 남아 있으며, 최신 세부 근거는 [PROJECT_STATE.md](PROJECT_STATE.md)를 기준으로 합니다.
 
 ## 현재 상태
 
@@ -62,10 +62,10 @@
 - Web ZIP 104개 entry와 Windows portable ZIP 113개 entry를 만들고, 각각 재추출해 source dist와 104/104 SHA 일치를 확인했습니다.
 - v5.3 Web ZIP을 다시 실제 플레이해 타이틀·첫 10초·중간보스·완성 도가·최종보스·07:00 승천을 담은 166.468초 1920×1080 영상 `output/releases/yeongheo-geomga-submission-video-v5.3-1080p-audio-166s-20260810.webm`을 봉인했습니다. 실제 WebAudio만 사용했고 콘솔·페이지·디코드·인코더 타임스탬프 오류는 0입니다. 이전 v5 176.01초 영상은 역사 후보일 뿐 v5.3 제출본이 아닙니다.
 - 자동 테스트·빌드·자산 감사와 격리 자동 완주는 외부 일반 사용자 테스트나 대표자의 권리 승인을 대신하지 않습니다.
-- 전체 commercial visual gate는 **strict FAIL**입니다. 지면이 평평하고 반복적으로 보이며, 초반 threat/action feedback이 약합니다.
-- rights audit는 **BLOCKED**이며 법적 증거는 0/73입니다. 3D 모델·ImageGen·TRELLIS 산출물은 개발/자산 QA 증거이며, contest용 AAA 최종 모델이나 권리 clearance로 홍보하지 않습니다.
+- 전체 commercial visual gate는 **strict FAIL**입니다. 후반 전투에서 겹치는 지면 원·범위 장판·보스 예고가 접지와 위험 우선순위를 흐리고 적 군집도 반복적으로 보입니다.
+- rights audit는 **BLOCKED**이며 법적 증거는 0/76입니다. 3D 모델·ImageGen·TRELLIS 산출물은 개발/자산 QA 증거이며, contest용 AAA 최종 모델이나 권리 clearance로 홍보하지 않습니다.
 
-따라서 지금의 정확한 상태는 **PixiJS 2D production 경로의 구조·빌드·자산·런처와 제한된 Windows Chromium DOM/시각 증거는 확인됐지만, 평평하고 반복적인 지면·약한 초반 threat/action feedback 때문에 전체 commercial visual은 strict FAIL이고, 현재 build 7분 E2E·법적 권리 증거·번들 경고 정리가 남은 로컬 QA 후보**입니다. release approval, A-grade, rights clearance, 공식 제출 승인은 선언하지 않습니다.
+따라서 지금의 정확한 상태는 **PixiJS 2D production 경로의 구조·빌드·자산·런처와 현재 build 무치트 7분 전체 루프는 확인됐지만, 지면 효과의 의미·접지 가독성과 후반 적 군집 반복 때문에 전체 commercial visual은 strict FAIL이고 법적 권리 증거·번들 경고 정리가 남은 로컬 QA 후보**입니다. release approval, A-grade, rights clearance, 공식 제출 승인은 선언하지 않습니다.
 
 ## 실행
 
@@ -192,7 +192,7 @@ public/assets/             production 2D 스프라이트·환경·재질·마케
 3. 실제 런타임 PASS: Windows Chromium에서 입력·상태·프레임·화면을 확인
 4. contest 출품 PASS: 천겁의 맹세 Gate 1–6과 제출 자료를 모두 확인
 
-현재 구조/로직·빌드·자산·런처와 제한된 실제 DOM/시각 증거는 각각 확인됐지만, 전체 commercial visual은 strict FAIL입니다. contest 출품 PASS, release approval, A-grade를 선언하지 않으며, rights audit는 법적 증거 0/73으로 BLOCKED이고 공개 URL·마스터의 시청각 승인·공식 제출도 남아 있습니다.
+현재 구조/로직·빌드·자산·런처와 무치트 7분 전체 루프는 확인됐지만, 전체 commercial visual은 strict FAIL입니다. contest 출품 PASS, release approval, A-grade를 선언하지 않으며, rights audit는 법적 증거 0/76으로 BLOCKED이고 공개 URL·마스터의 시청각 승인·공식 제출도 남아 있습니다.
 
 오류가 나면 boot fallback 패널과 콘솔 로그를 먼저 확인하십시오. F3에서 renderer, FPS, frame/simulation/draw 시간, 엔티티 수, 품질 배율을 볼 수 있지만, 실제 성능 보고서에는 p95 실측과 브라우저·해상도·build ID를 함께 기록해야 합니다.
 
