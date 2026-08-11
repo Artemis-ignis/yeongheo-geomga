@@ -625,6 +625,16 @@
       "maxBytes": 1000000
     },
     {
+      "id": "sprite2d.masked-seal-revenant.motion.v1",
+      "path": "public/assets/sprites2d/masked-seal-revenant-motion-v1.png",
+      "role": "runtime-2d-asymmetric-caster-enemy-motion-atlas",
+      "tier": "world",
+      "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "qa": { "allowGreenEdge": true, "reason": "cyan spirit flames visually reviewed at original size" },
+      "maxBytes": 1000000
+    },
+    {
       "id": "sprite2d.jade-serpent.motion.v1",
       "path": "public/assets/sprites2d/jade-serpent-motion-v1.png",
       "role": "runtime-2d-charger-enemy-motion-atlas",
@@ -792,6 +802,15 @@
     {
       "id": "sprite2d.source.talisman-revenant.motion-sheet.v1",
       "path": "public/assets/sprites2d/source/talisman-revenant-motion-sheet-v1.png",
+      "role": "2d-motion-sheet-chroma-source",
+      "tier": "authoring",
+      "source": "imagegen",
+      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.masked-seal-revenant.motion-sheet.v1",
+      "path": "public/assets/sprites2d/source/masked-seal-revenant-motion-sheet-v1.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",

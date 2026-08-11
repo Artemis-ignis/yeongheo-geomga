@@ -160,6 +160,7 @@ const ENEMY_MOTION_KEY_SALTS_2D = Object.freeze({
   jadeShardGuardian: 0x8fb31e4d,
   bloodScorpion: 0x59c8712f,
   talismanRevenant: 0x6ae34d95,
+  maskedSealRevenant: 0x3cb7a159,
   voidSentinel: 0x7d14b6e9,
 })
 
@@ -179,27 +180,28 @@ function enemyMotionNoise2D(uid, salt) {
  */
 export function enemyMotionProfile2D(uid = 0, key = 'wisp') {
   const salt = ENEMY_MOTION_KEY_SALTS_2D[key] ?? 0x1f123bb5
-  const floating = key === 'wisp' || key === 'talismanRevenant'
+  const talismanFamily = key === 'talismanRevenant' || key === 'maskedSealRevenant'
+  const floating = key === 'wisp' || talismanFamily
   const stampProne = key === 'jadeStoneGhoul'
     || key === 'jadeShardGuardian'
-    || key === 'talismanRevenant'
+    || talismanFamily
     || key === 'voidSentinel'
   const phase = enemyMotionNoise2D(uid, salt)
   const tempoSpread = stampProne ? 0.15 : 0.1
   const tempo = 1 - tempoSpread
     + enemyMotionNoise2D(uid, salt ^ 0x9e3779b9) * tempoSpread * 2
   const scaleSpread = key === 'jadeStoneGhoul' || key === 'jadeShardGuardian' ? 0.09
-    : key === 'talismanRevenant' ? 0.075
+    : talismanFamily ? 0.075
       : key === 'voidSentinel' ? 0.07 : 0.06
   const scale = 1 - scaleSpread
     + enemyMotionNoise2D(uid, salt ^ 0x85ebca6b) * scaleSpread * 2
   const aspectRange = key === 'wisp' ? 0.1
-    : key === 'talismanRevenant' ? 0.065
+    : talismanFamily ? 0.065
       : key === 'jadeStoneGhoul' || key === 'jadeShardGuardian' ? 0.055
         : key === 'voidSentinel' ? 0.04 : floating ? 0.045 : 0.018
   const aspect = 1 + (enemyMotionNoise2D(uid, salt ^ 0xc2b2ae35) * 2 - 1) * aspectRange
   const leanRange = key === 'wisp' ? 0.018
-    : key === 'talismanRevenant' ? 0.016
+    : talismanFamily ? 0.016
       : key === 'jadeStoneGhoul' || key === 'jadeShardGuardian' ? 0.006
         : key === 'voidSentinel' ? 0.01 : 0
   const lean = (enemyMotionNoise2D(uid, salt ^ 0x27d4eb2f) * 2 - 1) * leanRange
@@ -680,6 +682,10 @@ const ACTOR_FOOT_PIVOTS_2D = Object.freeze({
   ]),
   bloodScorpion: Object.freeze([0.844, 0.852, 0.844, 0.844, 0.742, 0.805, 0.836, 0.828]),
   talismanRevenant: Object.freeze([0.906, 0.891, 0.906, 0.914, 0.859, 0.867, 0.883, 0.859]),
+  maskedSealRevenant: Object.freeze([
+    217 / 256, 223 / 256, 214 / 256, 223 / 256,
+    215 / 256, 209 / 256, 207 / 256, 210 / 256,
+  ]),
   voidSentinel: Object.freeze([0.898, 0.906, 0.906, 0.914, 0.836, 0.859, 0.82, 0.867]),
   jadeVoidWarden: Object.freeze([0.945, 0.938, 0.945, 0.938, 0.922, 0.922, 0.914, 0.93]),
   wisp: Object.freeze([0.902, 0.895, 0.898, 0.906, 0.824, 0.848, 0.832, 0.824]),
@@ -720,6 +726,7 @@ const ACTOR_GROUNDING_PROFILES_2D = Object.freeze({
   jadeShardGuardian: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.57, shadowHeight: 0.105, shadowAlpha: 0.87, contactWidth: 0.88, contactHeight: 0.22, contactLift: 0.01, contactAlpha: 0.38, contactTint: 0x72d7b7, visualScale: 1.35 }),
   bloodScorpion: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.86, shadowHeight: 0.095, shadowAlpha: 0.86, contactWidth: 1.12, contactHeight: 0.2, contactLift: 0, contactAlpha: 0.44, contactTint: 0xffa078, visualScale: 1.42 }),
   talismanRevenant: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.42, shadowHeight: 0.085, shadowAlpha: 0.6, contactWidth: 0.84, contactHeight: 0.44, contactLift: 0.15, contactAlpha: 0.32, contactTint: 0xa88cff, visualScale: 1.34 }),
+  maskedSealRevenant: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.5, shadowHeight: 0.085, shadowAlpha: 0.6, contactWidth: 0.9, contactHeight: 0.42, contactLift: 0.14, contactAlpha: 0.29, contactTint: 0xb39bff, visualScale: 1.34 }),
   voidSentinel: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.56, shadowHeight: 0.105, shadowAlpha: 0.84, contactWidth: 0.94, contactHeight: 0.24, contactLift: 0.01, contactAlpha: 0.4, contactTint: 0x72e0d4, visualScale: 1.32 }),
   jadeVoidWarden: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.46, shadowHeight: 0.09, shadowAlpha: 0.72, minShadowWidth: 92, minShadowHeight: 20, contactWidth: 0.8, contactHeight: 0.34, contactLift: 0.1, contactAlpha: 0.23, contactTint: 0x60d9bd }),
 })
@@ -2749,7 +2756,11 @@ function setHeight(sprite, height, mirror = false) {
 
 export function enemyTextureKey2D(id, uid = 0) {
   if (id === 'wisp') return 'wisp'
-  if (id === 'talismanGhost' || id === 'snowWraith') return 'talismanRevenant'
+  if (id === 'talismanGhost' || id === 'snowWraith') {
+    return enemyMotionNoise2D(uid, 0x36d84b71) < 0.5
+      ? 'talismanRevenant'
+      : 'maskedSealRevenant'
+  }
   if (id === 'jadeSerpent') return 'jadeSerpent'
   if (id === 'stoneGhoul') {
     return enemyMotionNoise2D(uid, 0x9ad47c31) < 0.5
@@ -2772,6 +2783,7 @@ const ENEMY_VARIANT_TINT_TARGETS_2D = Object.freeze({
   jadeStoneGhoul: Object.freeze([0xb7c2b7, 0x8bcbb0]),
   jadeShardGuardian: Object.freeze([0xadc6b5, 0x7fd4b5]),
   talismanRevenant: Object.freeze([0xb2a7d8, 0x9cc7d9]),
+  maskedSealRevenant: Object.freeze([0xd0b0dc, 0x87d1dc]),
   voidSentinel: Object.freeze([0xa7b8c1, 0xc3a8d0]),
 })
 
@@ -3129,6 +3141,7 @@ export class PixiPresentation {
       jadeShardGuardian: Texture.WHITE,
       bloodScorpion: Texture.WHITE,
       talismanRevenant: Texture.WHITE,
+      maskedSealRevenant: Texture.WHITE,
       voidSentinel: Texture.WHITE,
       jadeVoidWarden: Texture.WHITE,
       wisp: wispTexture(),
@@ -3280,6 +3293,7 @@ export class PixiPresentation {
         SPRITE_MANIFEST.actors.jadeShardGuardian.url,
         SPRITE_MANIFEST.actors.bloodScorpion.url,
         SPRITE_MANIFEST.actors.talismanRevenant.url,
+        SPRITE_MANIFEST.actors.maskedSealRevenant.url,
         SPRITE_MANIFEST.actors.voidSentinel.url,
         SPRITE_MANIFEST.actors.jadeVoidWarden.url,
         SPRITE_MANIFEST.environment.jadeSanctuaryProps.url,
@@ -3298,6 +3312,7 @@ export class PixiPresentation {
       this.textures.jadeShardGuardian = Texture.from(SPRITE_MANIFEST.actors.jadeShardGuardian.url)
       this.textures.bloodScorpion = Texture.from(SPRITE_MANIFEST.actors.bloodScorpion.url)
       this.textures.talismanRevenant = Texture.from(SPRITE_MANIFEST.actors.talismanRevenant.url)
+      this.textures.maskedSealRevenant = Texture.from(SPRITE_MANIFEST.actors.maskedSealRevenant.url)
       this.textures.voidSentinel = Texture.from(SPRITE_MANIFEST.actors.voidSentinel.url)
       this.textures.jadeVoidWarden = Texture.from(SPRITE_MANIFEST.actors.jadeVoidWarden.url)
       this.textures.seolryeong = Texture.from(SPRITE_MANIFEST.actors.seolryeong.url)
@@ -3325,6 +3340,9 @@ export class PixiPresentation {
       )
       this.frames.talismanRevenant = sliceFrames(
         this.textures.talismanRevenant, SPRITE_MANIFEST.actors.talismanRevenant,
+      )
+      this.frames.maskedSealRevenant = sliceFrames(
+        this.textures.maskedSealRevenant, SPRITE_MANIFEST.actors.maskedSealRevenant,
       )
       this.frames.voidSentinel = sliceFrames(this.textures.voidSentinel, SPRITE_MANIFEST.actors.voidSentinel)
       this.frames.jadeVoidWarden = sliceFrames(this.textures.jadeVoidWarden, SPRITE_MANIFEST.actors.jadeVoidWarden)
@@ -3944,6 +3962,7 @@ export class PixiPresentation {
           : key === 'jadeShardGuardian' ? SPRITE_MANIFEST.actors.jadeShardGuardian.runtimeHeight
           : key === 'bloodScorpion' ? SPRITE_MANIFEST.actors.bloodScorpion.runtimeHeight
           : key === 'talismanRevenant' ? SPRITE_MANIFEST.actors.talismanRevenant.runtimeHeight
+          : key === 'maskedSealRevenant' ? SPRITE_MANIFEST.actors.maskedSealRevenant.runtimeHeight
           : SPRITE_MANIFEST.actors.voidSentinel.runtimeHeight * (field.elite[i] ? 1.06 : 0.9)
       const motionPhase = motion.phase * Math.PI * 2
       const stride = Math.sin(this.time * (key === 'yorang' ? 12 : 8.5) * motion.tempo + motionPhase)
@@ -3951,7 +3970,7 @@ export class PixiPresentation {
         : key === 'voidSentinel' ? -Math.abs(stride) * 1.2 : 0
       const pulse = key === 'wisp'
         ? Math.sin(this.time * 5 * motion.tempo + motionPhase) * 4 * motion.bobScale
-        : key === 'talismanRevenant'
+        : key === 'talismanRevenant' || key === 'maskedSealRevenant'
           ? Math.sin(this.time * 3.5 * motion.tempo + motionPhase) * 2.5 * motion.bobScale
           : locomotionBob
       const tint = enemyActorTint2D(def.color ?? 0xa880db, key, field.flash[i] > 0, motion.palette)

@@ -5,7 +5,7 @@
   "runtime": "pixijs-2d-web",
   "showcaseSeed": 3185791507,
   "runDurationSeconds": 420,
-  "runtimeImageAssets": 75,
+  "runtimeImageAssets": 76,
   "playableCharacterIds": ["seolryeong"],
   "releaseStageIds": ["jade"],
   "persistence": {

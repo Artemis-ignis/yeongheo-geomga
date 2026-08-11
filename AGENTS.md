@@ -17,7 +17,7 @@
 - 요청 범위 안에서 최소 diff만 만들고, 관련 없는 코드·에셋·설정을 고치지 않습니다.
 - 자동·headless·fixture PASS와 실제 사용자가 보는 Windows Chromium 시각/입력/런타임 PASS를 구분합니다.
 - release 승인, A-grade, 사람의 미학적 승인, 권리 clearance를 테스트 통과만으로 선언하지 않습니다.
-- 현재 권리 감사는 법적 증거 0/75로 `BLOCKED`입니다. 기술적 provenance는 법적 권리 확인을 대신하지 않습니다.
+- 현재 권리 감사는 법적 증거 0/76으로 `BLOCKED`입니다. 기술적 provenance는 법적 권리 확인을 대신하지 않습니다.
 
 ## Git과 작업 인계
 

@@ -81,6 +81,24 @@
       "outputs": ["talisman-revenant-motion-v1.png"]
     },
     {
+      "actor": "masked-seal-revenant",
+      "source": "masked-seal-revenant-motion-sheet-v1.png",
+      "outputs": ["masked-seal-revenant-motion-v1.png"],
+      "generator": "imagegen-built-in",
+      "originalPath": "C:/Users/50106/.codex/generated_images/019fe2bc-1ddb-7390-910b-8a41a70aa5f0/exec-21734e32-edcf-4a3d-807e-ee46418dcd9b.png",
+      "originalSha256": "b232c78ebe95487cd210c8c49b2955f1fe02b9ed503157dfa4dee6ecf48745ee",
+      "sourceSha256": "b232c78ebe95487cd210c8c49b2955f1fe02b9ed503157dfa4dee6ecf48745ee",
+      "runtimeSha256": "41a9b151b7b554033d9bcdb0e7da0e35782d91f455cb9a8120f4521027bbaf75",
+      "transform": "remove_chroma_key.py --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill; high-quality bicubic resize to 1024x512; per-cell 12px inset normalization",
+      "visualApproval": "root-actual-chrome-pass-1920x1080-and-2560x1600-20260812",
+      "visualEvidence": [
+        "output/playwright/enemy-mask-root-20260812/1920x1080-mask-live.png",
+        "output/playwright/enemy-mask-root-20260812/2560x1600-mask-live.png"
+      ],
+      "productionReady": false,
+      "productionBlocker": "legal rights gate remains BLOCKED"
+    },
+    {
       "actor": "jade-serpent",
       "source": "jade-serpent-motion-sheet-v1.png",
       "outputs": ["jade-serpent-motion-v1.png"]

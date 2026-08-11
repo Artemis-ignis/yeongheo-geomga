@@ -85,6 +85,13 @@ export const SPRITE_MANIFEST = Object.freeze({
       animations: Object.freeze({ hover: [0, 1, 2, 3], cast: [4, 5, 6, 7] }),
       animationMode: 'authored-frames', ...pending,
     }),
+    maskedSealRevenant: Object.freeze({
+      url: `${base}assets/sprites2d/masked-seal-revenant-motion-v1.png`,
+      cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.87], runtimeHeight: 88,
+      directions: ['sw'], mirrorWest: true,
+      animations: Object.freeze({ hover: [0, 1, 2, 3], cast: [4, 5, 6, 7] }),
+      animationMode: 'authored-frames', ...pending,
+    }),
     voidSentinel: Object.freeze({
       url: `${base}assets/sprites2d/void-sentinel-motion-v2.png`,
       cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.88], runtimeHeight: 118,

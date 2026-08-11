@@ -76,6 +76,18 @@ describe('PixiPresentation combat bindings', () => {
     expect(enemyTextureKey2D('jadeSerpent', 17)).toBe('jadeSerpent')
   })
 
+  it('deterministically divides talisman casters between two authored silhouettes', () => {
+    for (const id of ['talismanGhost', 'snowWraith']) {
+      const variants = Array.from({ length: 64 }, (_, index) => enemyTextureKey2D(id, index + 1))
+      const maskedCount = variants.filter((key) => key === 'maskedSealRevenant').length
+
+      expect(new Set(variants)).toEqual(new Set(['talismanRevenant', 'maskedSealRevenant']))
+      expect(maskedCount).toBeGreaterThanOrEqual(24)
+      expect(maskedCount).toBeLessThanOrEqual(40)
+      expect(enemyTextureKey2D(id, 29)).toBe(enemyTextureKey2D(id, 29))
+    }
+  })
+
   it('keeps atlas-sharing enemy species visually distinct without blackening authored art', () => {
     const wolf = enemyActorTint2D(0x5f7fa8, 'yorang')
     const frostWolf = enemyActorTint2D(0xa8d8ea, 'yorang')
@@ -145,7 +157,10 @@ describe('PixiPresentation combat bindings', () => {
   })
 
   it('gives long-lived crowd silhouettes restrained per-actor shape and palette variation', () => {
-    for (const key of ['jadeStoneGhoul', 'jadeShardGuardian', 'talismanRevenant', 'voidSentinel']) {
+    for (const key of [
+      'jadeStoneGhoul', 'jadeShardGuardian', 'talismanRevenant', 'maskedSealRevenant',
+      'voidSentinel',
+    ]) {
       const profiles = Array.from({ length: 32 }, (_, index) => enemyMotionProfile2D(index + 1, key))
       const scaleSpan = Math.max(...profiles.map((profile) => profile.scale))
         - Math.min(...profiles.map((profile) => profile.scale))
