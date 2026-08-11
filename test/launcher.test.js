@@ -4,6 +4,7 @@ import { once } from 'node:events'
 import { createServer } from 'node:net'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { SUBMISSION_RUNTIME_ASSETS } from '../tools/submission-assets.mjs'
 
 const root = resolve(process.cwd())
 const launcher = readFileSync(resolve(root, 'tools/start-game.ps1'), 'utf8')
@@ -91,7 +92,9 @@ describe('Windows release launcher contract', () => {
 
       const metadata = await fetch(`http://127.0.0.1:${port}/release.json`, { signal: AbortSignal.timeout(4_000) })
       expect(metadata.status).toBe(200)
-      expect((await metadata.json()).releaseId).toBe('yeongheo-release-v5.3-20260810')
+      const releaseMetadata = await metadata.json()
+      expect(releaseMetadata.releaseId).toBe('yeongheo-release-v5.3-20260810')
+      expect(releaseMetadata.runtimeImageAssets).toBe(SUBMISSION_RUNTIME_ASSETS.length)
     } finally {
       if (child.exitCode === null) {
         child.kill()
