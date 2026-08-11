@@ -13,30 +13,36 @@
 
 | 영역 | 현재 판정 |
 |---|---|
-| build | PASS; Game2D 561.24 kB, gzip 166.67 kB |
-| tests | 67개 파일 / 772개 PASS |
+| build | PASS; Game2D 562.71 kB, gzip 167.27 kB |
+| tests | 67개 파일 / 773개 PASS |
 | runtime assets | 76/76, source/output 누락 0, unexpected 0 |
 | npm audit | 알려진 취약점 0 |
 | launcher | 브라우저를 열지 않는 실제 smoke PASS |
 | 7분 Windows Chrome E2E | 현재 `6516321`에서 1920×1080 무치트 전체 루프와 2560×1600 결과·재시작 PASS |
 | 2560×1600 확인 | 현재 `6516321` 결과 화면·재시작에서 overflow 0, console/page error 0 |
-| 시각 확인 | 결과 화면·`화염부`·영체 반복·영기 과밀·뇌령주·자소신뢰 과밀·석괴·부적 원혼 반복·공전 구슬·타격 섬광 focused 결함 PASS; 전체 commercial visual gate는 계속 FAIL |
+| 시각 확인 | 결과 화면·`화염부`·영체 반복·영기 과밀·뇌령주·자소신뢰 과밀·석괴·부적 원혼 반복·공전 구슬·타격 섬광·지속 장판 겹침/기울기·보스 전조 공존 focused 결함 PASS; 전체 commercial visual gate는 계속 FAIL |
 
 ## 아직 닫히지 않은 게이트
 
-- 전체 commercial visual gate는 **strict FAIL**입니다. 현재 checkpoint의 전체 7분 회귀는 통과했지만, 중심부에서 겹치는 발밑 법진·범위 장판·보스 예고의 의미와 접지 가독성, 후반 적 군집의 반복·실루엣 분리가 아직 상용 후보 수준에 못 미칩니다.
+- 전체 commercial visual gate는 **strict FAIL**입니다. 지속 장판 겹침·기울기와 보스 전조 공존 focused 결함은 닫혔지만, 후반 적 군집의 반복·실루엣 분리가 아직 상용 후보 수준에 못 미칩니다.
 - rights audit는 **BLOCKED**입니다. 법적 증거가 확인된 runtime asset은 0/76입니다.
 - 따라서 release approval, A-grade, rights clearance, 공식 제출 승인을 선언하지 않습니다.
 
 ## 2026-08-12 직접 확인한 최신 품질 패스
+
+- commit `c9ce389`은 같은 법보의 깊게 겹친 지속 장판만 표현 단계에서 하나의 외곽으로 묶고, 실제 충돌·피해 틱을 담당하는 모든 시뮬레이션 장판은 보존합니다. 서로 다른 법보, 떨어진 장판, 도벽 segment는 합치지 않습니다. 이미 원근이 적용된 지면 타원은 화면 공간 회전을 제거해 방패처럼 기울지 않게 했습니다.
+- 루트가 production build를 Windows Chrome 한 창·한 탭에서 직접 열어 12개의 실제 장판 판정체를 배치한 focused QA를 수행했습니다. 1920×1080·2560×1600 모두 simulation 12 / visual 1 / rotation 0, overflow x/y 0, console/page error 0이었습니다. 별도 공존 장면에서는 옥허진장의 radial 전조·보스 의도 표시와 장판이 동시에 활성화됐고, 큰 백색 외곽/회색 채움 위험 구역이 얇은 옥색 플레이어 장판보다 우선해서 읽혔습니다.
+- 해당 focused 캡처는 `output/playwright/weapon-field-root-20260812/02-controlled-twelve-fields-1920.png`, `03-controlled-twelve-fields-2560.png`, `04-boss-field-coexist-1920.png`, `05-boss-field-coexist-2560.png`입니다. 이는 의도적인 집중 QA이며 아래 `6516321` 무치트 7분 전체 런을 대체하거나 섞지 않습니다.
+- 현재 production build는 `assets/Game2D-bjem03DJ.js` 562.71 kB / gzip 167.27 kB, SHA-256 `5fb904936f1bc72cb0366bf30c8e35dbb1e18402fae6101328d90d907eedb231`입니다. 전체 67개 파일 / 773개 테스트, runtime allowlist 76개 / source·output 누락 0 / unexpected 0, 자산 매니페스트 123/123이 순차 확인됐습니다. 500 kB 초과 번들 경고와 권리 감사 `0/76 BLOCKED`는 계속 남습니다.
+- 반복 장판과 보스 전조 공존 focused 결함은 닫혔지만, 동일 적이 후반 밀도에서 같은 색·크기·방향으로 뭉쳐 복제 스프라이트처럼 보이는 문제 때문에 전체 commercial visual gate와 release 승인은 계속 FAIL입니다.
 
 - commit `7affb61`은 여러 공전 법보가 각자 렌더 예산을 가져 화면을 다시 채우던 결함을 전체 공유 예산 14개로 제한했습니다. commit `6516321`은 같은 원소의 근접 타격 섬광을 반경 2.6 안에서 병합하되 수명은 연장하지 않고 강도만 보강하며, 타격 효과 렌더 예산도 최대 14개로 제한했습니다. 충돌·피해·시뮬레이션 투사체·오디오는 보존했습니다.
 - 루트가 exact commit `6516321` production build를 Windows Chrome 한 창·한 탭에서 `yeongheo-e2e-20260812-0603-6516321-r1`로 직접 검증했습니다. 시간 점프·피해 무효화·강제 보스·강제 레벨·stress 호출 없이 title→이동·전투→실제 성장 카드 선택→중간 보스→자소신뢰 진화와 뇌령주 재습득→최종 보스→07:00 승리→`같은 비경 다시 도전`→W 이동까지 이어졌습니다.
 - 실제 결과는 대승 38층, 처치 2,987, 총 피해 519,494, 획득 영석 364입니다. 387.23초에는 자소신뢰 119개와 뇌령주 90개 등 227개 공전 시뮬레이션 바디가 남아 있어도 대표 렌더와 타격 섬광은 각각 33개·4개로 제한됐고, 420초 결과에서도 타격 섬광은 6개였습니다. 루트가 최종 보스 프레임을 원본 크기로 확인해 이전의 불투명한 보라색 덩어리가 재현되지 않아 해당 focused 결함만 PASS로 판정했습니다.
 - 600 samples 기준 p95 interval 8.6 ms, long task 0, audio drop/preemption 0, overflow x/y 0, console error/warning/page error 0이었습니다. 이 수치는 해당 RTX 5070 Laptop GPU·Chrome build의 근거이며 전체 기기군 보장은 아닙니다.
 - 실제 캡처는 `output/playwright/yeongheo-e2e-20260812-0603-6516321-r1/00-title-1920.png`, `01-first-combat-1920.png`, `05-final-boss-1920.png`, `06-victory-2560.png`, `07-restart-2560.png`만 보존했습니다. 레벨업 모달에 가린 잘못된 중간 캡처와 임시 자동화 스크립트는 삭제했습니다.
-- 최신 production build는 `assets/Game2D-DtJk1GKt.js` 561.24 kB / gzip 166.67 kB, SHA-256 `fff73c668a9447a442952e896e893abc7dd4d9ed5dedf7172983202ff75eafad`입니다. 전체 67개 파일 / 772개 테스트, runtime allowlist 76개 / 누락 0 / unexpected 0, 자산 매니페스트 123/123, 권리 감사의 의도된 `0/76 BLOCKED`가 순차 확인됐습니다.
-- 공전 구슬과 타격 섬광 과밀은 닫혔지만, 루트의 최종 보스 프레임 판정에서는 여러 지면 원·범위 장판·예고가 겹쳐 접지와 위험 우선순위를 흐리고 후반 적 군집도 반복적으로 보입니다. 따라서 전체 commercial visual gate와 release 승인은 계속 FAIL입니다.
+- 해당 전체 런 production build는 `assets/Game2D-DtJk1GKt.js` 561.24 kB / gzip 166.67 kB, SHA-256 `fff73c668a9447a442952e896e893abc7dd4d9ed5dedf7172983202ff75eafad`입니다. 전체 67개 파일 / 772개 테스트, runtime allowlist 76개 / 누락 0 / unexpected 0, 자산 매니페스트 123/123, 권리 감사의 의도된 `0/76 BLOCKED`가 순차 확인됐습니다.
+- 이 전체 런에서 공전 구슬·타격 섬광 결함을 닫고 반복 지면 장판과 후반 적 군집 문제를 발견했습니다. 지면 장판은 위 `c9ce389` focused QA로 닫혔으며, 후반 적 군집 반복은 여전히 남습니다.
 
 - commit `27142b1`은 흑의 부적 원혼 군집이 하나의 atlas를 반복하던 결함을 가면·비대칭 부적부채·짧은 장포 실루엣의 두 번째 4×2 authored 이동·공격 atlas로 보완했습니다. `talismanGhost`와 `snowWraith`의 기존 AI·충돌·체력·피해·편성은 보존하고 UID 기반으로 두 atlas를 안정적으로 나눕니다.
 - 루트가 실제 Chrome 한 창·한 탭에서 시간·피해·무기·레벨을 직접 쓰는 QA mutation 없이 1920×1080 3분 35초와 2560×1600 3분 42초까지 이동·전투·성장 선택을 진행했습니다. 1920 프레임은 기존/가면 원혼 16/13, 2560 프레임은 22/23으로 나뉘며 실루엣·접지·프레임 잘림·크로마 잔여가 모두 읽혀 원혼 반복 결함만 focused PASS로 판정했습니다.

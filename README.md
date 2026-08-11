@@ -62,10 +62,10 @@
 - Web ZIP 104개 entry와 Windows portable ZIP 113개 entry를 만들고, 각각 재추출해 source dist와 104/104 SHA 일치를 확인했습니다.
 - v5.3 Web ZIP을 다시 실제 플레이해 타이틀·첫 10초·중간보스·완성 도가·최종보스·07:00 승천을 담은 166.468초 1920×1080 영상 `output/releases/yeongheo-geomga-submission-video-v5.3-1080p-audio-166s-20260810.webm`을 봉인했습니다. 실제 WebAudio만 사용했고 콘솔·페이지·디코드·인코더 타임스탬프 오류는 0입니다. 이전 v5 176.01초 영상은 역사 후보일 뿐 v5.3 제출본이 아닙니다.
 - 자동 테스트·빌드·자산 감사와 격리 자동 완주는 외부 일반 사용자 테스트나 대표자의 권리 승인을 대신하지 않습니다.
-- 전체 commercial visual gate는 **strict FAIL**입니다. 후반 전투에서 겹치는 지면 원·범위 장판·보스 예고가 접지와 위험 우선순위를 흐리고 적 군집도 반복적으로 보입니다.
+- 반복 지속 장판의 겹침·화면 공간 기울기와 보스 전조 공존 focused 결함은 `c9ce389`에서 1920×1080·2560×1600 실제 Chrome 화면으로 닫았습니다. 전체 commercial visual gate는 **strict FAIL**입니다. 후반 적 군집이 같은 색·크기·방향으로 뭉쳐 반복적으로 보이는 문제가 남습니다.
 - rights audit는 **BLOCKED**이며 법적 증거는 0/76입니다. 3D 모델·ImageGen·TRELLIS 산출물은 개발/자산 QA 증거이며, contest용 AAA 최종 모델이나 권리 clearance로 홍보하지 않습니다.
 
-따라서 지금의 정확한 상태는 **PixiJS 2D production 경로의 구조·빌드·자산·런처와 현재 build 무치트 7분 전체 루프는 확인됐지만, 지면 효과의 의미·접지 가독성과 후반 적 군집 반복 때문에 전체 commercial visual은 strict FAIL이고 법적 권리 증거·번들 경고 정리가 남은 로컬 QA 후보**입니다. release approval, A-grade, rights clearance, 공식 제출 승인은 선언하지 않습니다.
+따라서 지금의 정확한 상태는 **PixiJS 2D production 경로의 구조·빌드·자산·런처와 현재 전체 런 기준 무치트 7분 루프, 반복 지면 장판 focused 수정은 확인됐지만, 후반 적 군집 반복 때문에 전체 commercial visual은 strict FAIL이고 법적 권리 증거·번들 경고 정리가 남은 로컬 QA 후보**입니다. release approval, A-grade, rights clearance, 공식 제출 승인은 선언하지 않습니다.
 
 ## 실행
 
