@@ -159,6 +159,22 @@ describe('PixiPresentation combat bindings', () => {
     expect(inferno.scaleX).toBeGreaterThan(fire.scaleX)
   })
 
+  it('renders orbiting thunder weapons as compact pearls instead of zigzag handwriting', () => {
+    const fallback = PROJECTILE_PRESENTATION[4]
+    const orb = WEAPON_VISUAL_SIGNATURES.thunderOrb.projectile
+    const evolved = WEAPON_VISUAL_SIGNATURES.violetThunder.projectile
+
+    expect(fallback.shape).toBe('thunder-orb')
+    expect(orb.shape).toBe('thunder-orb')
+    expect(evolved.shape).toBe('violet-thunder-orb')
+    for (const visual of [fallback, orb, evolved]) {
+      expect(visual.preserveAtlasColor).toBe(true)
+      expect(visual.scaleX / visual.scaleY).toBeCloseTo(1, 5)
+      expect(visual.pulse).toBeLessThanOrEqual(0.14)
+    }
+    expect(evolved.scaleX).toBeGreaterThan(orb.scaleX)
+  })
+
   it('keeps hostile projectile silhouettes separate from wisps and friendly frames', () => {
     expect(HOSTILE_PROJECTILE_PRESENTATION).toHaveLength(4)
     expect(new Set(HOSTILE_PROJECTILE_PRESENTATION.map((visual) => visual.shape)).size).toBe(4)
@@ -445,8 +461,9 @@ describe('PixiPresentation combat bindings', () => {
     )
     expect(new Set(particles.map((particle) => `${particle.scaleX}:${particle.scaleY}`)).size).toBeGreaterThanOrEqual(6)
     expect(new Set(particles.map((particle) => particle.rotation)).size).toBe(7)
-    expect(new Set(particles.map((particle) => particle.tint)).size).toBe(7)
+    expect(new Set(particles.map((particle) => particle.tint)).size).toBe(6)
     expect(particles[1].tint).toBe(0xffffff)
+    expect(particles[3].tint).toBe(0xffffff)
     expect(presentation.friendlyProjectileContainer.update).toHaveBeenCalledTimes(1)
   })
 

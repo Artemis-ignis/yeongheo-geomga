@@ -240,7 +240,7 @@ export const PROJECTILE_PRESENTATION = Object.freeze({
   1: Object.freeze({ family: 'sword', frame: 0, scaleX: 0.62, scaleY: 0.18, rotationOffset: 0, spin: 0.04, pulse: 0.04, alpha: 0.95, tint: 0xe8f8ff }),
   2: Object.freeze({ family: 'fire', shape: 'talisman-comet', preserveAtlasColor: true, frame: 1, scaleX: 0.54, scaleY: 0.32, rotationOffset: 0.035, spin: 0.04, pulse: 0.06, alpha: 0.94, tint: 0xff8a4f }),
   3: Object.freeze({ family: 'ice', frame: 2, scaleX: 0.54, scaleY: 0.22, rotationOffset: -0.16, spin: 0.02, pulse: 0.14, alpha: 0.92, tint: 0x8edcff }),
-  4: Object.freeze({ family: 'thunder', frame: 3, scaleX: 0.48, scaleY: 0.24, rotationOffset: Math.PI / 4, spin: 0.7, pulse: 0.16, alpha: 0.94, tint: 0xb98cff }),
+  4: Object.freeze({ family: 'thunder', shape: 'thunder-orb', preserveAtlasColor: true, frame: 3, scaleX: 0.38, scaleY: 0.38, rotationOffset: 0.22, spin: 1.1, pulse: 0.1, alpha: 0.96, tint: 0xb98cff }),
   5: Object.freeze({ family: 'void', frame: 4, scaleX: 0.36, scaleY: 0.36, rotationOffset: Math.PI / 8, spin: -0.45, pulse: 0.3, alpha: 0.78, tint: 0x7e63c7 }),
   6: Object.freeze({ family: 'needle', frame: 5, scaleX: 0.78, scaleY: 0.1, rotationOffset: -0.08, spin: 0.04, pulse: 0.05, alpha: 0.93, tint: 0xf6d88a }),
   7: Object.freeze({ family: 'wind', frame: 6, scaleX: 0.58, scaleY: 0.3, rotationOffset: 0.34, spin: 0.65, pulse: 0.22, alpha: 0.82, tint: 0x77efcf }),
@@ -280,7 +280,7 @@ export const WEAPON_VISUAL_SIGNATURES = Object.freeze({
   }),
   thunderOrb: weaponVisualSignature({
     mode: 'orbitContact', trajectory: 'orbit', collision: 'contact', status: 'orbit-knockback',
-    projectile: { family: 'thunderOrb', frame: 3, scaleX: 0.34, scaleY: 0.34, rotationOffset: 0.34, spin: 1.8, pulse: 0.16, alpha: 0.94, tint: 0xb98cff },
+    projectile: { family: 'thunderOrb', shape: 'thunder-orb', preserveAtlasColor: true, frame: 3, scaleX: 0.36, scaleY: 0.36, rotationOffset: 0.12, spin: 1.15, pulse: 0.1, alpha: 0.96, tint: 0xb98cff },
     field: { family: 'orbitSeal', frame: 2, scaleX: 0.8, scaleY: 0.44, rotationSpeed: 0.4, pulse: 0.18, alpha: 0.4, tint: 0xc6a8ff },
   }),
   frostPalm: weaponVisualSignature({
@@ -350,7 +350,7 @@ export const WEAPON_VISUAL_SIGNATURES = Object.freeze({
   }),
   violetThunder: weaponVisualSignature({
     mode: 'chainingOrbit', trajectory: 'orbit', collision: 'chain', status: 'orbit-chain',
-    projectile: { family: 'violetChain', frame: 3, scaleX: 0.42, scaleY: 0.26, rotationOffset: 0.76, spin: 2.8, pulse: 0.24, alpha: 0.96, tint: 0xd1aaff },
+    projectile: { family: 'violetChain', shape: 'violet-thunder-orb', preserveAtlasColor: true, frame: 3, scaleX: 0.44, scaleY: 0.44, rotationOffset: 0.38, spin: 1.6, pulse: 0.14, alpha: 1, tint: 0xd1aaff },
     field: { family: 'violetChainSeal', frame: 6, scaleX: 0.92, scaleY: 0.52, rotationSpeed: 0.85, pulse: 0.34, alpha: 0.5, tint: 0xd1aaff },
   }),
   frozenSky: weaponVisualSignature({
@@ -1961,28 +1961,51 @@ function projectileAtlasTexture() {
     ctx.fill()
     finish()
 
-    // thunder: a jagged bolt, intentionally diagonally biased.
+    // thunder pearl: orbit weapons are described and simulated as spirit
+    // orbs. The former long zigzag became a ring of purple handwriting when
+    // five copies orbited the heroine. Keep every mark inside a compact pearl
+    // silhouette so its position and contact radius remain immediately clear.
     translate(3)
-    drawGlow(0, 0, 'rgba(185,140,255,.38)', 42)
-    ctx.strokeStyle = '#e9ddff'
-    ctx.lineWidth = 8
-    ctx.lineJoin = 'round'
+    drawGlow(0, 0, 'rgba(181,126,255,.52)', 46)
+    const thunderPearl = ctx.createRadialGradient(-9, -11, 2, 0, 0, 29)
+    thunderPearl.addColorStop(0, '#ffffff')
+    thunderPearl.addColorStop(0.18, '#e9ddff')
+    thunderPearl.addColorStop(0.5, '#b788ff')
+    thunderPearl.addColorStop(0.8, '#6842b5')
+    thunderPearl.addColorStop(1, '#24194f')
+    ctx.fillStyle = thunderPearl
     ctx.beginPath()
-    ctx.moveTo(-45, -19)
-    ctx.lineTo(-7, -19)
-    ctx.lineTo(-28, 2)
-    ctx.lineTo(10, 2)
-    ctx.lineTo(-15, 28)
+    ctx.arc(0, 0, 28, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(239,225,255,.94)'
+    ctx.lineWidth = 2.5
     ctx.stroke()
-    ctx.strokeStyle = '#a979ff'
-    ctx.lineWidth = 3
+
+    ctx.save()
+    ctx.scale(1, 0.58)
+    ctx.strokeStyle = 'rgba(214,181,255,.72)'
+    ctx.lineWidth = 3.5
     ctx.beginPath()
-    ctx.moveTo(-42, -18)
-    ctx.lineTo(-6, -18)
-    ctx.lineTo(-27, 3)
-    ctx.lineTo(10, 3)
-    ctx.lineTo(-14, 27)
+    ctx.arc(0, 0, 37, -2.72, -0.22)
     ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(0, 0, 37, 0.42, 2.92)
+    ctx.stroke()
+    ctx.restore()
+
+    ctx.fillStyle = '#fbf7ff'
+    ctx.beginPath()
+    ctx.arc(-7, -8, 7, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = '#d7b8ff'
+    for (let index = 0; index < 4; index++) {
+      const angle = index * Math.PI * 0.5 + Math.PI * 0.25
+      ctx.save()
+      ctx.translate(Math.cos(angle) * 37, Math.sin(angle) * 21)
+      ctx.rotate(angle + Math.PI * 0.25)
+      ctx.fillRect(-3, -3, 6, 6)
+      ctx.restore()
+    }
     finish()
 
     // void: a rotating sigil for the friendly fifth kind (hostile kind 5 is
