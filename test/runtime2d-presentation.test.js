@@ -3,6 +3,7 @@ import {
   PixiPresentation,
   COMBAT_HORIZON_PRESENTATION_2D,
   HOSTILE_PROJECTILE_PRESENTATION,
+  ORBIT_PROJECTILE_RENDER_CAP_2D,
   PROJECTILE_PRESENTATION,
   PICKUP_PRESENTATION_2D,
   RUNTIME2D_POOL_LIMITS,
@@ -13,6 +14,7 @@ import {
   WEAPON_FIELD_PRESENTATION,
   projectilePresentationFor,
   projectilePresentationForBehavior,
+  selectOrbitProjectileRenderIndices2D,
   hostileProjectileVisualFor,
   projectileTint2D,
   pickupVisualAlpha2D,
@@ -173,6 +175,68 @@ describe('PixiPresentation combat bindings', () => {
       expect(visual.pulse).toBeLessThanOrEqual(0.14)
     }
     expect(evolved.scaleX).toBeGreaterThan(orb.scaleX)
+  })
+
+  it('caps only visible orbit representatives while preserving every simulation body', () => {
+    const orbitCount = 40
+    const count = orbitCount + 2
+    const indices = Array.from({ length: count }, (_, index) => index)
+    const orbit = new Uint8Array(count)
+    orbit.fill(1, 0, orbitCount)
+    const hostile = new Uint8Array(count)
+    hostile[count - 1] = 1
+    const orbitAngle = new Float32Array(count)
+    const age = new Float32Array(count)
+    const behaviorDescriptor = Array.from({ length: count }, (_, index) => (
+      index < orbitCount ? { id: 'violetThunder', trajectory: { orbit: true } } : null
+    ))
+    for (let index = 0; index < orbitCount; index++) {
+      orbitAngle[index] = index / orbitCount * Math.PI * 2
+      age[index] = index * 0.01
+    }
+    const field = { count, orbit, hostile, orbitAngle, age, behaviorDescriptor, kind: new Uint8Array(count) }
+
+    const visible = selectOrbitProjectileRenderIndices2D(indices, field)
+    const visibleOrbit = visible.filter((index) => index < orbitCount)
+
+    expect(visibleOrbit).toHaveLength(ORBIT_PROJECTILE_RENDER_CAP_2D)
+    expect(visible).toContain(orbitCount)
+    expect(visible).toContain(orbitCount + 1)
+    expect(field.count).toBe(count)
+    expect(orbit.reduce((sum, value) => sum + value, 0)).toBe(orbitCount)
+    const sectors = new Set(visibleOrbit.map((index) => Math.floor(
+      orbitAngle[index] / (Math.PI * 2) * ORBIT_PROJECTILE_RENDER_CAP_2D,
+    )))
+    expect(sectors.size).toBeGreaterThanOrEqual(ORBIT_PROJECTILE_RENDER_CAP_2D - 1)
+  })
+
+  it('applies the orbit render budget independently to simultaneous behaviors', () => {
+    const groupSize = 8
+    const count = groupSize * 2
+    const indices = Array.from({ length: count }, (_, index) => index)
+    const orbit = new Uint8Array(count)
+    orbit.fill(1)
+    const orbitAngle = new Float32Array(count)
+    const behaviorDescriptor = Array.from({ length: count }, (_, index) => ({
+      id: index < groupSize ? 'thunderOrb' : 'violetThunder',
+      trajectory: { orbit: true },
+    }))
+    for (let index = 0; index < count; index++) {
+      orbitAngle[index] = index % groupSize / groupSize * Math.PI * 2
+    }
+    const field = {
+      orbit,
+      orbitAngle,
+      behaviorDescriptor,
+      hostile: new Uint8Array(count),
+      age: new Float32Array(count),
+      kind: new Uint8Array(count),
+    }
+
+    const visible = selectOrbitProjectileRenderIndices2D(indices, field, 4)
+
+    expect(visible.filter((index) => index < groupSize)).toHaveLength(4)
+    expect(visible.filter((index) => index >= groupSize)).toHaveLength(4)
   })
 
   it('keeps hostile projectile silhouettes separate from wisps and friendly frames', () => {

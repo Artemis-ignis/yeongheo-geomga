@@ -396,6 +396,81 @@ export function projectilePresentationForBehavior(behavior, kind, hostile = fals
   return signatureForBehavior(behavior)?.projectile ?? projectilePresentationFor(kind)
 }
 
+// Orbit weapons pulse far more often than their three-second simulation
+// lifetime. Keeping every collision body visible turns the evolved thunder
+// weapon into a solid necklace that hides the heroine, boss and safe space.
+// Simulation remains authoritative; the renderer keeps angularly distributed
+// representatives while hit/death effects still expose every real impact.
+export const ORBIT_PROJECTILE_RENDER_CAP_2D = 14
+
+export function selectOrbitProjectileRenderIndices2D(
+  indices,
+  field,
+  cap = ORBIT_PROJECTILE_RENDER_CAP_2D,
+) {
+  const source = Array.isArray(indices) ? indices : Array.from(indices ?? [])
+  const safeCap = Math.max(1, Math.trunc(Number(cap) || ORBIT_PROJECTILE_RENDER_CAP_2D))
+  const groups = new Map()
+  let overflowing = false
+
+  for (const index of source) {
+    const hostile = field?.hostile?.[index] === 1
+    const behavior = field?.behaviorDescriptor?.[index]
+    const orbiting = field?.orbit?.[index] === 1 || Boolean(behavior?.trajectory?.orbit)
+    if (hostile || !orbiting) continue
+    const key = behavior?.id ?? behavior?.weaponId ?? `kind:${field?.kind?.[index] ?? 0}`
+    const group = groups.get(key) ?? []
+    group.push(index)
+    groups.set(key, group)
+    if (group.length > safeCap) overflowing = true
+  }
+
+  if (!overflowing) return source
+
+  const keep = new Set()
+  const tau = Math.PI * 2
+  for (const group of groups.values()) {
+    if (group.length <= safeCap) {
+      for (const index of group) keep.add(index)
+      continue
+    }
+
+    const buckets = new Array(safeCap).fill(-1)
+    const bucketAges = new Array(safeCap).fill(Infinity)
+    for (const index of group) {
+      const rawAngle = Number(field?.orbitAngle?.[index]) || 0
+      const angle = ((rawAngle % tau) + tau) % tau
+      const bucket = Math.min(safeCap - 1, Math.floor(angle / tau * safeCap))
+      const age = Math.max(0, Number(field?.age?.[index]) || 0)
+      if (buckets[bucket] < 0 || age < bucketAges[bucket]) {
+        buckets[bucket] = index
+        bucketAges[bucket] = age
+      }
+    }
+    let keptForGroup = 0
+    for (const index of buckets) {
+      if (index < 0) continue
+      keep.add(index)
+      keptForGroup++
+    }
+    // Identical cast phases can occupy the same sector. Fill the remaining
+    // budget in stable field order instead of leaving a lopsided half-ring.
+    for (const index of group) {
+      if (keptForGroup >= safeCap) break
+      if (keep.has(index)) continue
+      keep.add(index)
+      keptForGroup++
+    }
+  }
+
+  return source.filter((index) => {
+    const hostile = field?.hostile?.[index] === 1
+    const behavior = field?.behaviorDescriptor?.[index]
+    const orbiting = field?.orbit?.[index] === 1 || Boolean(behavior?.trajectory?.orbit)
+    return hostile || !orbiting || keep.has(index)
+  })
+}
+
 function mixTint2D(sourceColor, targetColor) {
   if (!Number.isFinite(sourceColor) || sourceColor === 0 || sourceColor === 0xffffff) return targetColor
   const source = sourceColor >>> 0
@@ -4183,9 +4258,10 @@ export class PixiPresentation {
       currentAllocatedCount: this.friendlyProjectilePool.items.length + this.hostileProjectilePool.items.length,
       frameId: Math.floor(this.time * 60),
     })
+    const renderIndices = selectOrbitProjectileRenderIndices2D(plan.indices, field)
     let friendlyCount = 0
     let hostileCount = 0
-    for (const i of plan.indices) {
+    for (const i of renderIndices) {
       if (field.hostile[i] === 1) hostileCount++
       else friendlyCount++
     }
@@ -4193,7 +4269,7 @@ export class PixiPresentation {
     this.hostileProjectilePool.setActiveCount(hostileCount)
     let friendlySlot = 0
     let hostileSlot = 0
-    for (const i of plan.indices) {
+    for (const i of renderIndices) {
       const hostile = field.hostile[i] === 1
       const item = hostile
         ? this.hostileProjectilePool.items[hostileSlot++]
