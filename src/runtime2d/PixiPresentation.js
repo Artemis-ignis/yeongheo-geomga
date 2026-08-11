@@ -6,7 +6,9 @@ import {
   cameraFollowStep2D, projectWorld, depthBucket, directionFor, isOnScreen, SORT_BUCKETS, viewportPresentationScale,
 } from './projection.js'
 import { SPRITE_MANIFEST } from './spriteManifest.js'
-import { MAX_PROJECTILES_2D, MAX_PICKUPS_2D, MAX_WEAPON_FIELDS_2D } from './CombatWorld2D.js'
+import {
+  CONTACT_INTENT_SECONDS_2D, MAX_PROJECTILES_2D, MAX_PICKUPS_2D, MAX_WEAPON_FIELDS_2D,
+} from './CombatWorld2D.js'
 import { choosePixiBackend, probeWebGLRenderer } from './backend.js'
 import { planEffectRenderSamples, planParticlePool2D } from './ParticleBudget2D.js'
 import {
@@ -22,6 +24,9 @@ const JADE_GROUND_FALLBACK_URL = `${base}assets/materials/environment/jade-highl
 const _screen = { x: 0, y: 0, unit: 24 }
 const _segmentStart = { x: 0, y: 0, unit: 24 }
 const _segmentEnd = { x: 0, y: 0, unit: 24 }
+const _enemyIntentPresentation = {
+  visible: false, preContact: false, remaining: 0, duration: 0.3,
+}
 const COMBAT_HORIZON_RATIO = 0.19
 const TERRAIN_TILE_SIZE = 512
 const TERRAIN_ATLAS_PADDING = 2
@@ -2360,6 +2365,29 @@ export function enemyAttackPresentationDuration2D(def, behavior = 0) {
   return 0.3
 }
 
+export function resolveEnemyIntentPresentation2D(
+  target,
+  attackTimer,
+  contactIntentTimer,
+  attackDuration,
+) {
+  const output = target ?? {}
+  const attackRemaining = Math.max(0, Number(attackTimer) || 0)
+  const contactRemaining = Math.max(0, Number(contactIntentTimer) || 0)
+  if (attackRemaining > 0) {
+    output.visible = true
+    output.preContact = false
+    output.remaining = attackRemaining
+    output.duration = Math.max(0.01, Number(attackDuration) || 0.3)
+    return output
+  }
+  output.visible = contactRemaining > 0
+  output.preContact = contactRemaining > 0
+  output.remaining = contactRemaining
+  output.duration = CONTACT_INTENT_SECONDS_2D
+  return output
+}
+
 function oneShotFrame(frames, indices, remaining, duration) {
   return frames[oneShotFrameIndex(indices, remaining, duration)]
 }
@@ -3511,14 +3539,20 @@ export class PixiPresentation {
       const def = ENEMIES[field.type[i]] ?? ENEMIES[0]
       const key = enemyTextureKey(def.id)
       const attackDuration = enemyAttackPresentationDuration2D(def, field.behavior[i])
+      const intentPresentation = resolveEnemyIntentPresentation2D(
+        _enemyIntentPresentation,
+        field.attackTimer[i],
+        field.contactIntentTimer?.[i],
+        attackDuration,
+      )
       if (entry.key !== key) entry.key = key
       if (key !== 'wisp') {
         const actor = SPRITE_MANIFEST.actors[key]
-        const attacking = field.attackTimer[i] > 0
+        const attacking = intentPresentation.visible
         const locomotion = actor.animations.walk ?? actor.animations.hover ?? actor.animations.idle
         const attack = actor.animations.attack ?? actor.animations.cast ?? locomotion
         entry.frame = attacking
-          ? oneShotFrameIndex(attack, field.attackTimer[i], attackDuration)
+          ? oneShotFrameIndex(attack, intentPresentation.remaining, intentPresentation.duration)
           : loopingFrameIndex(locomotion, this.time, key === 'yorang' ? 9 : 7, field.uid[i] * 0.37)
         entry.sprite.texture = this.frames[key][entry.frame]
       } else {
@@ -3605,15 +3639,20 @@ export class PixiPresentation {
         entry.shadow.alpha *= 0.8 + Math.abs(stride) * 0.14
       }
       const intent = entry.intent
-      intent.visible = field.attackTimer[i] > 0 && entry.sprite.visible
+      intent.visible = intentPresentation.visible && entry.sprite.visible
       if (intent.visible) {
-        const intentProgress = Math.max(0, Math.min(1, 1 - field.attackTimer[i] / attackDuration))
+        const intentProgress = Math.max(0, Math.min(1,
+          1 - intentPresentation.remaining / intentPresentation.duration,
+        ))
         const intentScale = Math.max(0.28, baseHeight * this._presentationScale / 360)
         intent.position.set(_screen.x, _screen.y + 4)
         intent.scale.set(intentScale * (1.12 + intentProgress * 0.18), intentScale * 0.48)
         intent.rotation = -this.time * 0.7
-        intent.tint = field.behavior[i] === 1 ? 0xff7c96 : 0xf2c76f
-        intent.alpha = 0.2 + Math.sin(intentProgress * Math.PI) * 0.24
+        intent.tint = field.behavior[i] === 1
+          ? 0xff7c96
+          : intentPresentation.preContact ? 0xffb85c : 0xf2c76f
+        intent.alpha = (intentPresentation.preContact ? 0.28 : 0.2)
+          + Math.sin(intentProgress * Math.PI) * 0.24
       }
     }
     for (let i = field.count; i < this.enemyPool.length; i++) {

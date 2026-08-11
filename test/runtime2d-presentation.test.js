@@ -28,6 +28,7 @@ import {
   enemyActorTint2D,
   attachCombatGroundMasks2D,
   enemyAttackPresentationDuration2D,
+  resolveEnemyIntentPresentation2D,
 } from '../src/runtime2d/PixiPresentation.js'
 import {
   MAX_PICKUPS_2D,
@@ -231,6 +232,19 @@ describe('PixiPresentation combat bindings', () => {
     expect(enemyAttackPresentationDuration2D({}, 7)).toBeCloseTo(0.2)
     expect(enemyAttackPresentationDuration2D({}, 1)).toBeCloseTo(0.34)
     expect(enemyAttackPresentationDuration2D({}, 0)).toBeCloseTo(0.3)
+  })
+
+  it('renders pre-contact intent separately from the post-contact attack timer', () => {
+    const output = {}
+    const preContact = resolveEnemyIntentPresentation2D(output, 0, 0.18, 0.3)
+    expect(preContact).toMatchObject({ visible: true, preContact: true, duration: 0.24 })
+    expect(preContact.remaining).toBeCloseTo(0.18)
+
+    const attack = resolveEnemyIntentPresentation2D(output, 0.22, 0.18, 0.3)
+    expect(attack).toBe(output)
+    expect(attack).toMatchObject({ visible: true, preContact: false, duration: 0.3 })
+    expect(attack.remaining).toBeCloseTo(0.22)
+    expect(resolveEnemyIntentPresentation2D(output, 0, 0, 0.3).visible).toBe(false)
   })
 
   it('maps boss cast intent and separates the wolf telegraph palette', () => {

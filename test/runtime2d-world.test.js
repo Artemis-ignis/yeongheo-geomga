@@ -135,6 +135,28 @@ describe('CombatWorld2D', () => {
     expect(world.enemies.burstTimer[0]).toBeCloseTo(authoredBurst)
   })
 
+  it('shows a contact intent before damage without changing the collision radius', () => {
+    const world = makeWorld()
+    world.enemies.spawnTimer = 999
+    world.enemies.spawn('wisp', 1.55, 0, 60)
+    world.enemies.hitCd[0] = 0
+    const hpBeforeIntent = world.player.hp
+
+    world.enemies.update(1 / 60, 60, world.player)
+
+    expect(world.enemies.contactIntentTimer[0]).toBeGreaterThan(0)
+    expect(world.enemies.attackTimer[0]).toBe(0)
+    expect(world.player.hp).toBe(hpBeforeIntent)
+
+    world.enemies.x[0] = 0.9
+    world.enemies.z[0] = 0
+    world.enemies.update(1 / 60, 60 + 1 / 60, world.player)
+
+    expect(world.player.hp).toBeLessThan(hpBeforeIntent)
+    expect(world.enemies.contactIntentTimer[0]).toBe(0)
+    expect(world.enemies.attackTimer[0]).toBeGreaterThan(0)
+  })
+
   it('splits blood scorpions into finite non-recursive brood on death', () => {
     const world = makeWorld()
     world.enemies.spawn('bloodScorpion', 4, 0, 0)

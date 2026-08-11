@@ -34,6 +34,9 @@ const SPAWN_MIN = 20
 const SPAWN_MAX = 25
 const DESPAWN_RADIUS = 39
 const CONTACT_COOLDOWN = 0.72
+export const CONTACT_INTENT_SECONDS_2D = 0.24
+export const CONTACT_INTENT_MIN_MARGIN_2D = 0.72
+export const CONTACT_INTENT_MAX_MARGIN_2D = 1.15
 const DASH_DISTANCE = 6
 const DASH_COOLDOWN = 3
 const DASH_IFRAMES = 0.35
@@ -276,6 +279,20 @@ export function openingMercyIFrames2D(runTime) {
   const t = clamp((Number(runTime) || 0) / 60, 0, 1)
   const eased = t * t * (3 - 2 * t)
   return 1.02 - 0.34 * eased
+}
+
+/**
+ * Show a short approach tell before ordinary contact damage can land.  The
+ * distance follows the authored enemy speed, but stays bounded so a slow body
+ * still reads and a charger does not paint a huge warning circle.  This is a
+ * presentation lead only: collision radius, damage and cooldown are unchanged.
+ */
+export function contactIntentLeadDistance2D(speed) {
+  return clamp(
+    (Number(speed) || 0) * CONTACT_INTENT_SECONDS_2D,
+    CONTACT_INTENT_MIN_MARGIN_2D,
+    CONTACT_INTENT_MAX_MARGIN_2D,
+  )
 }
 
 function copyAt(fields, from, to) {
@@ -982,6 +999,7 @@ class EnemyField2D {
     this.shotCd = new Float32Array(MAX_ENEMIES_2D)
     this.flash = new Float32Array(MAX_ENEMIES_2D)
     this.attackTimer = new Float32Array(MAX_ENEMIES_2D)
+    this.contactIntentTimer = new Float32Array(MAX_ENEMIES_2D)
     this.facing = new Float32Array(MAX_ENEMIES_2D)
     this.age = new Float32Array(MAX_ENEMIES_2D)
     this.windup = new Float32Array(MAX_ENEMIES_2D)
@@ -995,7 +1013,8 @@ class EnemyField2D {
     this.shatterDamage = new Float32Array(MAX_ENEMIES_2D)
     this._fields = [this.type, this.behavior, this.archetype, this.elite, this.dead, this.uid, this.x, this.z,
       this.prevX, this.prevZ, this.hp, this.maxHp, this.speed, this.damage, this.radius,
-      this.xp, this.hitCd, this.shotCd, this.flash, this.attackTimer, this.facing, this.age,
+      this.xp, this.hitCd, this.shotCd, this.flash, this.attackTimer, this.contactIntentTimer,
+      this.facing, this.age,
       this.windup, this.burstTimer, this.burnDamage, this.burnTimer, this.burnTick,
       this.slowMultiplier, this.slowTimer, this.freezeTimer, this.shatterDamage]
     this.dropped = 0
@@ -1032,6 +1051,7 @@ class EnemyField2D {
     this.shotCd[i] = this.rng.range(0.6, 1.8)
     this.flash[i] = 0
     this.attackTimer[i] = 0
+    this.contactIntentTimer[i] = 0
     this.facing[i] = 0
     this.age[i] = 0
     this.windup[i] = 0
@@ -1084,6 +1104,7 @@ class EnemyField2D {
       this.shotCd[i] -= dt
       this.flash[i] = Math.max(0, this.flash[i] - dt)
       this.attackTimer[i] = Math.max(0, this.attackTimer[i] - dt)
+      this.contactIntentTimer[i] = Math.max(0, this.contactIntentTimer[i] - dt)
       this.burnTimer[i] = Math.max(0, this.burnTimer[i] - dt)
       this.slowTimer[i] = Math.max(0, this.slowTimer[i] - dt)
       this.freezeTimer[i] = Math.max(0, this.freezeTimer[i] - dt)
@@ -1159,7 +1180,18 @@ class EnemyField2D {
       }
 
       const rr = this.radius[i] + 0.55
+      const contactIntentMargin = contactIntentLeadDistance2D(this.speed[i])
+      if (
+        dist > rr
+        && dist <= rr + contactIntentMargin
+        && this.hitCd[i] <= 0
+        && this.attackTimer[i] <= 0
+        && this.contactIntentTimer[i] <= 0
+      ) {
+        this.contactIntentTimer[i] = CONTACT_INTENT_SECONDS_2D
+      }
       if (dist <= rr && this.hitCd[i] <= 0) {
+        this.contactIntentTimer[i] = 0
         this.attackTimer[i] = 0.3
         const contactDamage = this.damage[i] * openingIncomingDamageScale2D(runTime)
         if (player.takeDamage(contactDamage, openingMercyIFrames2D(runTime))) {
