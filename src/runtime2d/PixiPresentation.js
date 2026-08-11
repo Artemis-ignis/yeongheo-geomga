@@ -421,6 +421,9 @@ export function projectilePresentationForBehavior(behavior, kind, hostile = fals
 // weapon into a solid necklace that hides the heroine, boss and safe space.
 // Simulation remains authoritative; the renderer keeps angularly distributed
 // representatives while hit/death effects still expose every real impact.
+// The budget is shared by every simultaneous friendly orbit behavior. A late
+// build can evolve thunderOrb and then learn thunderOrb again; budgeting each
+// behavior separately produced 28 near-identical pearls around the heroine.
 export const ORBIT_PROJECTILE_RENDER_CAP_2D = 14
 
 export function selectOrbitProjectileRenderIndices2D(
@@ -431,7 +434,7 @@ export function selectOrbitProjectileRenderIndices2D(
   const source = Array.isArray(indices) ? indices : Array.from(indices ?? [])
   const safeCap = Math.max(1, Math.trunc(Number(cap) || ORBIT_PROJECTILE_RENDER_CAP_2D))
   const groups = new Map()
-  let overflowing = false
+  let orbitingCount = 0
 
   for (const index of source) {
     const hostile = field?.hostile?.[index] === 1
@@ -442,25 +445,46 @@ export function selectOrbitProjectileRenderIndices2D(
     const group = groups.get(key) ?? []
     group.push(index)
     groups.set(key, group)
-    if (group.length > safeCap) overflowing = true
+    orbitingCount++
   }
 
-  if (!overflowing) return source
+  if (orbitingCount <= safeCap) return source
 
   const keep = new Set()
   const tau = Math.PI * 2
-  for (const group of groups.values()) {
-    if (group.length <= safeCap) {
+  const entries = Array.from(groups.values())
+  const budgets = new Array(entries.length).fill(0)
+  let remaining = safeCap
+
+  // Give every simultaneous orbit behavior a readable share before filling
+  // spare slots. This avoids either the base or evolved 법보 disappearing when
+  // their simulation body counts differ.
+  while (remaining > 0) {
+    let assigned = false
+    for (let groupIndex = 0; groupIndex < entries.length && remaining > 0; groupIndex++) {
+      if (budgets[groupIndex] >= entries[groupIndex].length) continue
+      budgets[groupIndex]++
+      remaining--
+      assigned = true
+    }
+    if (!assigned) break
+  }
+
+  for (let groupIndex = 0; groupIndex < entries.length; groupIndex++) {
+    const group = entries[groupIndex]
+    const groupBudget = budgets[groupIndex]
+    if (groupBudget <= 0) continue
+    if (group.length <= groupBudget) {
       for (const index of group) keep.add(index)
       continue
     }
 
-    const buckets = new Array(safeCap).fill(-1)
-    const bucketAges = new Array(safeCap).fill(Infinity)
+    const buckets = new Array(groupBudget).fill(-1)
+    const bucketAges = new Array(groupBudget).fill(Infinity)
     for (const index of group) {
       const rawAngle = Number(field?.orbitAngle?.[index]) || 0
       const angle = ((rawAngle % tau) + tau) % tau
-      const bucket = Math.min(safeCap - 1, Math.floor(angle / tau * safeCap))
+      const bucket = Math.min(groupBudget - 1, Math.floor(angle / tau * groupBudget))
       const age = Math.max(0, Number(field?.age?.[index]) || 0)
       if (buckets[bucket] < 0 || age < bucketAges[bucket]) {
         buckets[bucket] = index
@@ -476,7 +500,7 @@ export function selectOrbitProjectileRenderIndices2D(
     // Identical cast phases can occupy the same sector. Fill the remaining
     // budget in stable field order instead of leaving a lopsided half-ring.
     for (const index of group) {
-      if (keptForGroup >= safeCap) break
+      if (keptForGroup >= groupBudget) break
       if (keep.has(index)) continue
       keep.add(index)
       keptForGroup++

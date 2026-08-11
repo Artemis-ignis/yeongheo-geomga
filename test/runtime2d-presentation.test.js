@@ -259,7 +259,7 @@ describe('PixiPresentation combat bindings', () => {
     expect(sectors.size).toBeGreaterThanOrEqual(ORBIT_PROJECTILE_RENDER_CAP_2D - 1)
   })
 
-  it('applies the orbit render budget independently to simultaneous behaviors', () => {
+  it('shares the orbit render budget across simultaneous behaviors', () => {
     const groupSize = 8
     const count = groupSize * 2
     const indices = Array.from({ length: count }, (_, index) => index)
@@ -284,8 +284,10 @@ describe('PixiPresentation combat bindings', () => {
 
     const visible = selectOrbitProjectileRenderIndices2D(indices, field, 4)
 
-    expect(visible.filter((index) => index < groupSize)).toHaveLength(4)
-    expect(visible.filter((index) => index >= groupSize)).toHaveLength(4)
+    expect(visible).toHaveLength(4)
+    expect(visible.filter((index) => index < groupSize)).toHaveLength(2)
+    expect(visible.filter((index) => index >= groupSize)).toHaveLength(2)
+    expect(orbit.reduce((sum, value) => sum + value, 0)).toBe(count)
   })
 
   it('keeps hostile projectile silhouettes separate from wisps and friendly frames', () => {
