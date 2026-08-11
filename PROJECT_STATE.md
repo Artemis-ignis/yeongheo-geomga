@@ -13,29 +13,34 @@
 
 | 영역 | 현재 판정 |
 |---|---|
-| build | PASS; Game2D 556.22 kB, gzip 165.27 kB |
-| tests | 67개 파일 / 764개 PASS |
+| build | PASS; Game2D 556.80 kB, gzip 165.43 kB |
+| tests | 67개 파일 / 765개 PASS |
 | runtime assets | 74/74, source/output 누락 0, unexpected 0 |
 | npm audit | 알려진 취약점 0 |
 | launcher | 브라우저를 열지 않는 실제 smoke PASS |
-| 7분 Windows Chrome E2E | 이전 checkpoint `009e0c8`에서 1920×1080 무치트 전체 루프 runtime/performance PASS; 현재 `80a7569`는 전체 7분 재검증 필요 |
-| 2560×1600 확인 | 현재 `80a7569`의 2분 29초 focused runtime에서 overflow 0, console/page error 0 |
-| 시각 확인 | 결과 화면·`화염부`·영체 반복·영기 과밀 focused 결함 PASS; 전체 commercial visual gate는 계속 FAIL |
+| 7분 Windows Chrome E2E | 이전 checkpoint `009e0c8`에서 1920×1080 무치트 전체 루프 runtime/performance PASS; 현재 `85fb17c`는 전체 7분 재검증 필요 |
+| 2560×1600 확인 | 현재 `85fb17c`의 42초 뇌령주 focused runtime에서 overflow 0, console/page error 0 |
+| 시각 확인 | 결과 화면·`화염부`·영체 반복·영기 과밀·뇌령주 focused 결함 PASS; 전체 commercial visual gate는 계속 FAIL |
 
 ## 아직 닫히지 않은 게이트
 
-- 전체 commercial visual gate는 **strict FAIL**입니다. 영체 적 반복과 영기 보상 과밀은 focused 실플레이에서 개선을 확인했지만, 현재 checkpoint의 전체 7분 회귀 검증과 다음 가시적 결함인 보라색 지그재그/진형 VFX의 상품성 개선이 남았습니다.
+- 전체 commercial visual gate는 **strict FAIL**입니다. 영체 적 반복·영기 보상 과밀·보라색 뇌령주 낙서 표현은 focused 실플레이에서 개선을 확인했지만, 현재 checkpoint의 전체 7분 회귀 검증과 겹치는 발밑 법진/공전 효과의 의미·접지 가독성 검증이 남았습니다.
 - rights audit는 **BLOCKED**입니다. 법적 증거가 확인된 runtime asset은 0/74입니다.
 - 따라서 release approval, A-grade, rights clearance, 공식 제출 승인을 선언하지 않습니다.
 
 ## 2026-08-12 직접 확인한 최신 품질 패스
 
-- 현재 focused checkpoint는 commit `80a7569ab98a870eadea788ccb1bf3b16c78a6bf`입니다. 4×2 authored 영체 atlas, 개체별 비동기 모션, 60~120초 적 편성 다변화, 영기 병합 반경·크기·노후 감쇠를 적용했습니다.
+- 현재 focused checkpoint는 commit `85fb17c`입니다. `80a7569`의 4×2 authored 영체 atlas·개체별 비동기 모션·60~120초 적 편성 다변화·영기 병합 패스에 이어, 뇌령주의 보라색 지그재그 셀을 compact thunder pearl로 교체했습니다.
 - 루트가 실제 Windows Chrome 한 탭에서 1920×1080 2분 26초와 2560×1600 2분 29초까지 직접 이동·전투·성장 선택을 플레이했습니다. 시간·피해·레벨·보스를 쓰는 QA mutation은 사용하지 않았습니다.
 - 동일 구간의 화면 내 pickup은 변경 전 185개에서 변경 후 127개로 감소했으며 보상 가치 보존을 위해 누적 경제 ledger는 Float64로 유지합니다. 영체·늑대·청사 실루엣이 함께 읽히고 오래된 영기가 전투선을 덮지 않아 두 focused 결함은 PASS로 판정했습니다.
-- 현재 build는 `assets/Game2D-DyLjsbkz.js` 556.22 kB / gzip 165.27 kB, SHA-256 `efd68d5151c41aabe97893d392b63c1e3784e4cf93352918f16afa665d1e45a4`입니다. 전체 67개 파일 / 764개 테스트와 production build가 순차 통과했습니다.
+- 해당 enemy/pickup focused build는 `assets/Game2D-DyLjsbkz.js` 556.22 kB / gzip 165.27 kB, SHA-256 `efd68d5151c41aabe97893d392b63c1e3784e4cf93352918f16afa665d1e45a4`였습니다. 전체 67개 파일 / 764개 테스트와 production build가 순차 통과했습니다.
 - 2560×1600 focused 진단은 PixiJS WebGL2 / RTX 5070 Laptop GPU, rolling FPS 111.61, p95 interval 8.5 ms, work 1.8 ms, sim 0.4 ms, draw 1.5 ms, overflow x/y 0, console error/warning 0이었습니다. resize/자동화가 포함된 long task 3건은 숨기지 않으며, 현재 전체 7분 성능 PASS 근거로 사용하지 않습니다.
 - 실제 캡처는 `output/playwright/enemy-pickup-pass-20260812-0206/01-1920x1080-02m26s.png`, `output/playwright/enemy-pickup-pass-20260812-0206/02-2560x1600-02m29s.png`에 분리 보존했습니다.
+- 루트가 새 build를 실제 Chrome 한 창·한 탭에서 시작해 정상 성장 선택으로 31초에 Lv.1 뇌령주를 습득했습니다. 1920×1080과 2560×1600에서 여러 공전 세트가 움직이는 장면을 직접 확인했으며 시간·피해·무기·레벨 상태를 쓰는 QA mutation은 사용하지 않았습니다.
+- 뇌령주는 설명과 일치하는 둥근 영주 실루엣으로 읽히고, 이전 보라색 낙서 고리는 재현되지 않았습니다. 전투 DPS·재시전·공전 수명은 이번 시각 수정에서 보존했습니다.
+- 2560×1600 진단은 Chrome 151 / PixiJS WebGL2 / RTX 5070 Laptop GPU, overflow x/y 0, console error/warning 0, rolling FPS 117.27, p95 interval 8.4 ms, work 1.7 ms, sim 0.4 ms, draw 1.4 ms였습니다. resize/자동화가 포함된 long task 2건은 전체 7분 성능 PASS 근거로 사용하지 않습니다.
+- 뇌령주 캡처는 `output/playwright/thunder-orb-root-20260812-0220/01-1920x1080-orb.png`, `output/playwright/thunder-orb-root-20260812-0220/03-2560x1600-orb.png`에 보존했습니다.
+- 최신 production build는 `assets/Game2D-KsWOOD44.js` 556.80 kB / gzip 165.43 kB, SHA-256 `3ae2a5facb3d9f709eecd9ddedd85d0b26c29c1e4dd71c069ec43b9ef663e447`이며 전체 67개 파일 / 765개 테스트와 build가 순차 통과했습니다.
 
 ## 이전 build의 7분 전체 루프 증거
 
