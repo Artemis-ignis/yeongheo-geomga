@@ -308,6 +308,8 @@ describe('Game2D run-state integration', () => {
       hints: { hide: vi.fn() },
       pause: { hide: vi.fn() },
       modal: { close: vi.fn() },
+      shop: { hide: vi.fn(), show: vi.fn() },
+      codex: { hide: vi.fn(), show: vi.fn() },
       audio: {
         muted: false,
         unlock: vi.fn(),
@@ -339,6 +341,8 @@ describe('Game2D run-state integration', () => {
     expect(game.runCharacterId).toBeNull()
     expect(game.audio.stopMusic).toHaveBeenCalled()
     expect(game.presentation.showTitle).toHaveBeenCalled()
+    expect(game.shop.hide).toHaveBeenCalled()
+    expect(game.codex.hide).toHaveBeenCalled()
     expect(typeof titleHandlers.onStart).toBe('function')
     expect(typeof titleHandlers.onShop).toBe('function')
     expect(typeof titleHandlers.onCodex).toBe('function')
@@ -346,6 +350,12 @@ describe('Game2D run-state integration', () => {
     expect(oldWorld.onWeaponAudio).toBeNull()
     expect(oldWorld.onBossDeath).toBeNull()
     expect(oldWorld.player.onHurt).toBeNull()
+    game.state = 'playing'
+    titleHandlers.onShop()
+    titleHandlers.onCodex()
+    expect(game.state).toBe('playing')
+    expect(game.shop.show).not.toHaveBeenCalled()
+    expect(game.codex.show).not.toHaveBeenCalled()
     expect(game._banner).toHaveBeenLastCalledWith(
       '비경 자원을 불러오지 못했습니다. 다시 시도해 주세요.', 3,
     )

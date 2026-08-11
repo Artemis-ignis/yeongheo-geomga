@@ -645,6 +645,16 @@
       "maxBytes": 1000000
     },
     {
+      "id": "sprite2d.jade-shard-guardian.motion.v1",
+      "path": "public/assets/sprites2d/jade-shard-guardian-motion-v1.png",
+      "role": "runtime-2d-asymmetric-tank-enemy-motion-atlas",
+      "tier": "world",
+      "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "qa": { "allowGreenEdge": true, "reason": "jade shard material visually reviewed at original size" },
+      "maxBytes": 1000000
+    },
+    {
       "id": "sprite2d.blood-scorpion.motion.v1",
       "path": "public/assets/sprites2d/blood-scorpion-motion-v1.png",
       "role": "runtime-2d-splitter-enemy-motion-atlas",
@@ -800,6 +810,15 @@
     {
       "id": "sprite2d.source.jade-stone-ghoul.motion-sheet.v1",
       "path": "public/assets/sprites2d/source/jade-stone-ghoul-motion-sheet-v1.png",
+      "role": "2d-motion-sheet-chroma-source",
+      "tier": "authoring",
+      "source": "imagegen",
+      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-shard-guardian.motion-sheet.v1",
+      "path": "public/assets/sprites2d/source/jade-shard-guardian-motion-sheet-v1.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",

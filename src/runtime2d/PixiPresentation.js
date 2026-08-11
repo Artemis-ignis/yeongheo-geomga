@@ -157,6 +157,7 @@ const ENEMY_MOTION_KEY_SALTS_2D = Object.freeze({
   yorang: 0x2c6d3b87,
   jadeSerpent: 0x35f19ac3,
   jadeStoneGhoul: 0x47b2e56d,
+  jadeShardGuardian: 0x8fb31e4d,
   bloodScorpion: 0x59c8712f,
   talismanRevenant: 0x6ae34d95,
   voidSentinel: 0x7d14b6e9,
@@ -179,15 +180,32 @@ function enemyMotionNoise2D(uid, salt) {
 export function enemyMotionProfile2D(uid = 0, key = 'wisp') {
   const salt = ENEMY_MOTION_KEY_SALTS_2D[key] ?? 0x1f123bb5
   const floating = key === 'wisp' || key === 'talismanRevenant'
+  const stampProne = key === 'jadeStoneGhoul'
+    || key === 'jadeShardGuardian'
+    || key === 'talismanRevenant'
+    || key === 'voidSentinel'
   const phase = enemyMotionNoise2D(uid, salt)
-  const tempo = 0.9 + enemyMotionNoise2D(uid, salt ^ 0x9e3779b9) * 0.2
-  const scale = 0.94 + enemyMotionNoise2D(uid, salt ^ 0x85ebca6b) * 0.12
-  const aspectRange = key === 'wisp' ? 0.1 : floating ? 0.045 : 0.018
+  const tempoSpread = stampProne ? 0.15 : 0.1
+  const tempo = 1 - tempoSpread
+    + enemyMotionNoise2D(uid, salt ^ 0x9e3779b9) * tempoSpread * 2
+  const scaleSpread = key === 'jadeStoneGhoul' || key === 'jadeShardGuardian' ? 0.09
+    : key === 'talismanRevenant' ? 0.075
+      : key === 'voidSentinel' ? 0.07 : 0.06
+  const scale = 1 - scaleSpread
+    + enemyMotionNoise2D(uid, salt ^ 0x85ebca6b) * scaleSpread * 2
+  const aspectRange = key === 'wisp' ? 0.1
+    : key === 'talismanRevenant' ? 0.065
+      : key === 'jadeStoneGhoul' || key === 'jadeShardGuardian' ? 0.055
+        : key === 'voidSentinel' ? 0.04 : floating ? 0.045 : 0.018
   const aspect = 1 + (enemyMotionNoise2D(uid, salt ^ 0xc2b2ae35) * 2 - 1) * aspectRange
-  const leanRange = key === 'wisp' ? 0.018 : key === 'talismanRevenant' ? 0.009 : 0
+  const leanRange = key === 'wisp' ? 0.018
+    : key === 'talismanRevenant' ? 0.016
+      : key === 'jadeStoneGhoul' || key === 'jadeShardGuardian' ? 0.006
+        : key === 'voidSentinel' ? 0.01 : 0
   const lean = (enemyMotionNoise2D(uid, salt ^ 0x27d4eb2f) * 2 - 1) * leanRange
   const bobScale = 0.86 + enemyMotionNoise2D(uid, salt ^ 0x165667b1) * 0.28
-  return Object.freeze({ phase, tempo, scale, aspect, lean, bobScale })
+  const palette = enemyMotionNoise2D(uid, salt ^ 0xa24baed5)
+  return Object.freeze({ phase, tempo, scale, aspect, lean, bobScale, palette })
 }
 
 export function enemyLocomotionFrame2D(indices, time, fps, motion) {
@@ -656,6 +674,10 @@ const ACTOR_FOOT_PIVOTS_2D = Object.freeze({
   yorang: Object.freeze([0.797, 0.797, 0.781, 0.75, 0.734, 0.727, 0.727, 0.75]),
   jadeSerpent: Object.freeze([0.953, 0.953, 0.953, 0.945, 0.953, 0.953, 0.953, 0.953]),
   jadeStoneGhoul: Object.freeze([0.953, 0.953, 0.953, 0.953, 0.953, 0.953, 0.953, 0.953]),
+  jadeShardGuardian: Object.freeze([
+    223 / 256, 221 / 256, 221 / 256, 225 / 256,
+    221 / 256, 218 / 256, 230 / 256, 225 / 256,
+  ]),
   bloodScorpion: Object.freeze([0.844, 0.852, 0.844, 0.844, 0.742, 0.805, 0.836, 0.828]),
   talismanRevenant: Object.freeze([0.906, 0.891, 0.906, 0.914, 0.859, 0.867, 0.883, 0.859]),
   voidSentinel: Object.freeze([0.898, 0.906, 0.906, 0.914, 0.836, 0.859, 0.82, 0.867]),
@@ -695,6 +717,7 @@ const ACTOR_GROUNDING_PROFILES_2D = Object.freeze({
   yorang: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.84, shadowHeight: 0.105, shadowAlpha: 0.87, contactWidth: 0.82, contactHeight: 0.14, contactLift: 0.01, contactAlpha: 0.2, contactTint: 0x8ccfff, visualScale: 1.55 }),
   jadeSerpent: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.105, shadowAlpha: 0.84, contactWidth: 1, contactHeight: 0.24, contactLift: 0.015, contactAlpha: 0.4, contactTint: 0x7df4cf, visualScale: 1.38 }),
   jadeStoneGhoul: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.11, shadowAlpha: 0.87, contactWidth: 0.98, contactHeight: 0.24, contactLift: 0.01, contactAlpha: 0.4, contactTint: 0x7bd9b7, visualScale: 1.35 }),
+  jadeShardGuardian: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.57, shadowHeight: 0.105, shadowAlpha: 0.87, contactWidth: 0.88, contactHeight: 0.22, contactLift: 0.01, contactAlpha: 0.38, contactTint: 0x72d7b7, visualScale: 1.35 }),
   bloodScorpion: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.86, shadowHeight: 0.095, shadowAlpha: 0.86, contactWidth: 1.12, contactHeight: 0.2, contactLift: 0, contactAlpha: 0.44, contactTint: 0xffa078, visualScale: 1.42 }),
   talismanRevenant: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.42, shadowHeight: 0.085, shadowAlpha: 0.6, contactWidth: 0.84, contactHeight: 0.44, contactLift: 0.15, contactAlpha: 0.32, contactTint: 0xa88cff, visualScale: 1.34 }),
   voidSentinel: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.56, shadowHeight: 0.105, shadowAlpha: 0.84, contactWidth: 0.94, contactHeight: 0.24, contactLift: 0.01, contactAlpha: 0.4, contactTint: 0x72e0d4, visualScale: 1.32 }),
@@ -2724,11 +2747,15 @@ function setHeight(sprite, height, mirror = false) {
   sprite.scale.set(mirror ? -scale : scale, scale)
 }
 
-function enemyTextureKey(id) {
+export function enemyTextureKey2D(id, uid = 0) {
   if (id === 'wisp') return 'wisp'
   if (id === 'talismanGhost' || id === 'snowWraith') return 'talismanRevenant'
   if (id === 'jadeSerpent') return 'jadeSerpent'
-  if (id === 'stoneGhoul') return 'jadeStoneGhoul'
+  if (id === 'stoneGhoul') {
+    return enemyMotionNoise2D(uid, 0x9ad47c31) < 0.5
+      ? 'jadeStoneGhoul'
+      : 'jadeShardGuardian'
+  }
   if (id === 'bloodScorpion') return 'bloodScorpion'
   if (id === 'wolf' || id === 'frostWolf' || id === 'ashRaven') return 'yorang'
   if (id === 'demonCultivator' || id === 'magmaBrute' || id === 'glacierWarden') return 'voidSentinel'
@@ -2741,10 +2768,26 @@ function enemyTextureKey(id) {
  * dark full-strength multiply. The authored wraith also keeps most of its
  * cyan-violet material detail while still accepting stage-specific identity.
  */
-export function enemyActorTint2D(color, textureKey = 'wisp', hitFlash = false) {
+const ENEMY_VARIANT_TINT_TARGETS_2D = Object.freeze({
+  jadeStoneGhoul: Object.freeze([0xb7c2b7, 0x8bcbb0]),
+  jadeShardGuardian: Object.freeze([0xadc6b5, 0x7fd4b5]),
+  talismanRevenant: Object.freeze([0xb2a7d8, 0x9cc7d9]),
+  voidSentinel: Object.freeze([0xa7b8c1, 0xc3a8d0]),
+})
+
+export function enemyActorTint2D(color, textureKey = 'wisp', hitFlash = false, variant = 0.5) {
   if (hitFlash) return 0xffb6b6
   const source = Number.isFinite(color) ? (color >>> 0) : 0xffffff
-  return blendTint2D(source, 0xffffff, textureKey === 'wisp' ? 0.68 : 0.64)
+  const baseTint = blendTint2D(source, 0xffffff, textureKey === 'wisp' ? 0.68 : 0.64)
+  const targets = ENEMY_VARIANT_TINT_TARGETS_2D[textureKey]
+  if (!targets) return baseTint
+  const numericVariant = Number(variant)
+  const normalized = Number.isFinite(numericVariant)
+    ? Math.max(0, Math.min(1, numericVariant))
+    : 0.5
+  const target = normalized < 0.5 ? targets[0] : targets[1]
+  const amount = Math.abs(normalized - 0.5) * 0.28
+  return blendTint2D(baseTint, target, amount)
 }
 
 class ParticlePool {
@@ -3083,6 +3126,7 @@ export class PixiPresentation {
       yorang: Texture.WHITE,
       jadeSerpent: Texture.WHITE,
       jadeStoneGhoul: Texture.WHITE,
+      jadeShardGuardian: Texture.WHITE,
       bloodScorpion: Texture.WHITE,
       talismanRevenant: Texture.WHITE,
       voidSentinel: Texture.WHITE,
@@ -3233,6 +3277,7 @@ export class PixiPresentation {
         SPRITE_MANIFEST.actors.yorang.url,
         SPRITE_MANIFEST.actors.jadeSerpent.url,
         SPRITE_MANIFEST.actors.jadeStoneGhoul.url,
+        SPRITE_MANIFEST.actors.jadeShardGuardian.url,
         SPRITE_MANIFEST.actors.bloodScorpion.url,
         SPRITE_MANIFEST.actors.talismanRevenant.url,
         SPRITE_MANIFEST.actors.voidSentinel.url,
@@ -3250,6 +3295,7 @@ export class PixiPresentation {
       this.textures.yorang = Texture.from(SPRITE_MANIFEST.actors.yorang.url)
       this.textures.jadeSerpent = Texture.from(SPRITE_MANIFEST.actors.jadeSerpent.url)
       this.textures.jadeStoneGhoul = Texture.from(SPRITE_MANIFEST.actors.jadeStoneGhoul.url)
+      this.textures.jadeShardGuardian = Texture.from(SPRITE_MANIFEST.actors.jadeShardGuardian.url)
       this.textures.bloodScorpion = Texture.from(SPRITE_MANIFEST.actors.bloodScorpion.url)
       this.textures.talismanRevenant = Texture.from(SPRITE_MANIFEST.actors.talismanRevenant.url)
       this.textures.voidSentinel = Texture.from(SPRITE_MANIFEST.actors.voidSentinel.url)
@@ -3270,6 +3316,9 @@ export class PixiPresentation {
       this.frames.jadeSerpent = sliceFrames(this.textures.jadeSerpent, SPRITE_MANIFEST.actors.jadeSerpent)
       this.frames.jadeStoneGhoul = sliceFrames(
         this.textures.jadeStoneGhoul, SPRITE_MANIFEST.actors.jadeStoneGhoul,
+      )
+      this.frames.jadeShardGuardian = sliceFrames(
+        this.textures.jadeShardGuardian, SPRITE_MANIFEST.actors.jadeShardGuardian,
       )
       this.frames.bloodScorpion = sliceFrames(
         this.textures.bloodScorpion, SPRITE_MANIFEST.actors.bloodScorpion,
@@ -3863,7 +3912,7 @@ export class PixiPresentation {
     for (let i = 0; i < field.count; i++) {
       const entry = this.enemyPool[i]
       const def = ENEMIES[field.type[i]] ?? ENEMIES[0]
-      const key = enemyTextureKey(def.id)
+      const key = enemyTextureKey2D(def.id, field.uid[i])
       const attackDuration = enemyAttackPresentationDuration2D(def, field.behavior[i])
       const intentPresentation = resolveEnemyIntentPresentation2D(
         _enemyIntentPresentation,
@@ -3892,6 +3941,7 @@ export class PixiPresentation {
         : key === 'yorang' ? SPRITE_MANIFEST.actors.yorang.runtimeHeight * (field.elite[i] ? 1.18 : 1)
           : key === 'jadeSerpent' ? SPRITE_MANIFEST.actors.jadeSerpent.runtimeHeight
           : key === 'jadeStoneGhoul' ? SPRITE_MANIFEST.actors.jadeStoneGhoul.runtimeHeight
+          : key === 'jadeShardGuardian' ? SPRITE_MANIFEST.actors.jadeShardGuardian.runtimeHeight
           : key === 'bloodScorpion' ? SPRITE_MANIFEST.actors.bloodScorpion.runtimeHeight
           : key === 'talismanRevenant' ? SPRITE_MANIFEST.actors.talismanRevenant.runtimeHeight
           : SPRITE_MANIFEST.actors.voidSentinel.runtimeHeight * (field.elite[i] ? 1.06 : 0.9)
@@ -3904,7 +3954,7 @@ export class PixiPresentation {
         : key === 'talismanRevenant'
           ? Math.sin(this.time * 3.5 * motion.tempo + motionPhase) * 2.5 * motion.bobScale
           : locomotionBob
-      const tint = enemyActorTint2D(def.color ?? 0xa880db, key, field.flash[i] > 0)
+      const tint = enemyActorTint2D(def.color ?? 0xa880db, key, field.flash[i] > 0, motion.palette)
       const spawnProgress = Math.max(0, Math.min(1, (field.age?.[i] ?? 1) / 0.24))
       const spawnEase = 1 - (1 - spawnProgress) ** 3
       const grounding = actorGroundingProfile2D(key, entry.frame)

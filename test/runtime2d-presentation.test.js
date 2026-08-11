@@ -36,6 +36,7 @@ import {
   enemyAttackPresentationDuration2D,
   enemyLocomotionFrame2D,
   enemyMotionProfile2D,
+  enemyTextureKey2D,
   resolveEnemyIntentPresentation2D,
   wispThreatRotation2D,
 } from '../src/runtime2d/PixiPresentation.js'
@@ -62,6 +63,19 @@ function fakePool(count) {
 }
 
 describe('PixiPresentation combat bindings', () => {
+  it('deterministically divides stone ghouls between two authored silhouettes', () => {
+    const variants = Array.from({ length: 64 }, (_, index) => (
+      enemyTextureKey2D('stoneGhoul', index + 1)
+    ))
+    const shardCount = variants.filter((key) => key === 'jadeShardGuardian').length
+
+    expect(new Set(variants)).toEqual(new Set(['jadeStoneGhoul', 'jadeShardGuardian']))
+    expect(shardCount).toBeGreaterThanOrEqual(24)
+    expect(shardCount).toBeLessThanOrEqual(40)
+    expect(enemyTextureKey2D('stoneGhoul', 17)).toBe(enemyTextureKey2D('stoneGhoul', 17))
+    expect(enemyTextureKey2D('jadeSerpent', 17)).toBe('jadeSerpent')
+  })
+
   it('keeps atlas-sharing enemy species visually distinct without blackening authored art', () => {
     const wolf = enemyActorTint2D(0x5f7fa8, 'yorang')
     const frostWolf = enemyActorTint2D(0xa8d8ea, 'yorang')
@@ -128,6 +142,26 @@ describe('PixiPresentation combat bindings', () => {
       longestRun = Math.max(longestRun, currentRun)
     }
     expect(longestRun).toBeLessThanOrEqual(2)
+  })
+
+  it('gives long-lived crowd silhouettes restrained per-actor shape and palette variation', () => {
+    for (const key of ['jadeStoneGhoul', 'jadeShardGuardian', 'talismanRevenant', 'voidSentinel']) {
+      const profiles = Array.from({ length: 32 }, (_, index) => enemyMotionProfile2D(index + 1, key))
+      const scaleSpan = Math.max(...profiles.map((profile) => profile.scale))
+        - Math.min(...profiles.map((profile) => profile.scale))
+      const aspectSpan = Math.max(...profiles.map((profile) => profile.aspect))
+        - Math.min(...profiles.map((profile) => profile.aspect))
+      const tints = profiles.map((profile) => enemyActorTint2D(0x6b5f78, key, false, profile.palette))
+
+      expect(scaleSpan, `${key} scale variation`).toBeGreaterThan(0.1)
+      expect(aspectSpan, `${key} aspect variation`).toBeGreaterThan(0.05)
+      expect(new Set(tints).size, `${key} palette variation`).toBeGreaterThanOrEqual(12)
+      for (const tint of tints) {
+        expect((tint >>> 16) & 0xff).toBeGreaterThan(90)
+        expect((tint >>> 8) & 0xff).toBeGreaterThan(90)
+        expect(tint & 0xff).toBeGreaterThan(90)
+      }
+    }
   })
 
   it('defines seven atlas-backed friendly families with at least two visual axes', () => {

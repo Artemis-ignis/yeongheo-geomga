@@ -58,6 +58,8 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(actorFootPivot2D('bloodScorpion', 4)).toBeCloseTo(0.742)
     expect(actorFootPivot2D('yorang', 5)).toBeCloseTo(0.727)
     expect(actorFootPivot2D('jadeStoneGhoul', 0)).toBeCloseTo(0.953)
+    expect(actorFootPivot2D('jadeShardGuardian', 0)).toBeCloseTo(223 / 256)
+    expect(actorFootPivot2D('jadeShardGuardian', 6)).toBeCloseTo(230 / 256)
     expect(actorFootPivot2D('wisp', 0)).toBeCloseTo(0.902)
     expect(actorFootPivot2D('wisp', 5)).toBeCloseTo(0.848)
     expect(actorFootPivot2D('prop', 15)).toBe(actorFootPivot2D('prop', 7))
@@ -71,11 +73,13 @@ describe('runtime 2D grounding and terrain integration', () => {
   it('uses silhouette-specific contact shadows and restrained separation light', () => {
     const scorpion = actorGroundingProfile2D('bloodScorpion')
     const serpent = actorGroundingProfile2D('jadeSerpent')
+    const shardGuardian = actorGroundingProfile2D('jadeShardGuardian')
     const wisp = actorGroundingProfile2D('wisp')
     const pillar = actorGroundingProfile2D('prop', 2)
     const fence = actorGroundingProfile2D('prop', 6)
 
     expect(scorpion.shadowWidth).toBeGreaterThan(serpent.shadowWidth)
+    expect(shardGuardian.shadowWidth).toBeLessThan(actorGroundingProfile2D('jadeStoneGhoul').shadowWidth)
     expect(wisp.shadowAlpha).toBeLessThan(serpent.shadowAlpha)
     expect(fence.shadowWidth).toBeGreaterThan(pillar.shadowWidth)
     expect(new Set([scorpion.contactTint, serpent.contactTint, wisp.contactTint]).size).toBe(3)

@@ -36,24 +36,24 @@
 - 공식 [OpenAI Terms of Use (Rest of World)](https://openai.com/policies/row-terms-of-use/)는 2026-01-01 시행본이다. 해당 약관의 `Output` 조항은 **법이 허용하는 범위에서, 사용자와 OpenAI 사이에서는 사용자가 Output을 소유하고 OpenAI가 자신이 가질 수 있는 권리·권원·이익을 사용자에게 양도한다**고 규정한다.
 - 같은 약관은 사용자가 Input에 필요한 권리·라이선스·허락을 보유할 책임, Output이 고유하지 않을 수 있다는 점, 제3자 서비스/Output에는 별도 약관이 적용될 수 있다는 점, Output을 사람의 생성물이라고 가장해서는 안 된다는 점, 정확성·적합성을 사람이 검토해야 한다는 점을 함께 둔다. OpenAI는 비침해를 보증하지 않는다.
 - 공식 [OpenAI Service Terms](https://openai.com/policies/service-terms/)의 시각 기능 제한은 사람의 초상을 명시적 동의와 필요한 권리 없이 재현하지 않도록 한다. 이 조항은 안전·사용 조건이지, 이 저장소의 특정 파일에 대한 계정·입력·동의·팀 소유권을 증명하는 기록은 아니다.
-- `.codex/generated_images`와 `artifacts/2d-build`의 파일·SHA-256은 로컬 출력 보관·동일성 증거일 뿐, 어느 OpenAI 계정/관할/서비스 약관으로 생성됐는지, Input 권리가 있었는지, 팀 대표자가 제출·홍보권을 갖는지는 증명하지 않는다. 그러므로 위 OpenAI 약관을 근거로 74개 중 어느 것도 `own` 또는 권리 확인으로 승격하지 않는다.
+- `.codex/generated_images`와 `artifacts/2d-build`의 파일·SHA-256은 로컬 출력 보관·동일성 증거일 뿐, 어느 OpenAI 계정/관할/서비스 약관으로 생성됐는지, Input 권리가 있었는지, 팀 대표자가 제출·홍보권을 갖는지는 증명하지 않는다. 그러므로 위 OpenAI 약관을 근거로 75개 중 어느 것도 `own` 또는 권리 확인으로 승격하지 않는다.
 - `img2threejs`/TRELLIS/Forge/Hugging Face 등 외부 파이프라인 결과에는 위 OpenAI Output 조항을 자동 적용하지 않는다. 외부 서비스 약관·입력 권리·출력 권리·팀 권한은 별도로 확인해야 한다.
 
 ## 현재 인벤토리와 제출 경계
 
 | 확인 항목 | 현재 관찰값 | 증거 | 판정 |
 |---|---:|---|---|
-| 매니페스트 자산 | 119개 | `tools/asset-manifest.json` | 기술 목록 확인 |
-| 실제 `public/assets` 파일 | 119개 | `public/assets/**` 재귀 목록 | 매니페스트와 수량 일치 |
-| 현재 제출 runtime allowlist | 74개 | `tools/submission-assets.mjs`의 `SUBMISSION_RUNTIME_ASSETS` | 아래 74개만 계획상 번들 포함 |
-| allowlist 밖 public 자산 | 45개 | 매니페스트와 allowlist 차집합 | 제출 번들에서 제외하도록 설계됨. generic `public/**` 배포로 재포함되지 않는지 별도 확인 필요 |
-| 권리 증거 파일 | 법적 권리 증거 없음; 기술 provenance는 74/74 추적 | 직접 출력 8/74, sprite source chain 15/74(원본과 source exact 12 + 원본·생성 로그·변환 재현 3), release-v3 UI atlas chain 19/74, release-v5 의미별 아이콘 atlas chain 32/74, exact original 미검출 0/74. 계정·Input 권리·대표자 권한·대회 공개 허락 기록은 없음 | 기술 provenance 74/74 확인; 법적 권리 0/74·차단 |
+| 매니페스트 자산 | 121개 | `tools/asset-manifest.json` | 기술 목록 확인 |
+| 실제 `public/assets` 파일 | 121개 | `public/assets/**` 재귀 목록 | 매니페스트와 수량 일치 |
+| 현재 제출 runtime allowlist | 75개 | `tools/submission-assets.mjs`의 `SUBMISSION_RUNTIME_ASSETS` | 아래 75개만 계획상 번들 포함 |
+| allowlist 밖 public 자산 | 46개 | 매니페스트와 allowlist 차집합 | 제출 번들에서 제외하도록 설계됨. generic `public/**` 배포로 재포함되지 않는지 별도 확인 필요 |
+| 권리 증거 파일 | 법적 권리 증거 없음; 기술 provenance는 75/75 추적 | 직접 출력 8/75, sprite source chain 16/75(원본과 source exact 13 + 원본·생성 로그·변환 재현 3), release-v3 UI atlas chain 19/75, release-v5 의미별 아이콘 atlas chain 32/75, exact original 미검출 0/75. 계정·Input 권리·대표자 권한·대회 공개 허락 기록은 없음 | 기술 provenance 75/75 확인; 법적 권리 0/75·차단 |
 
 `tools/asset-manifest.json`의 `source`는 기술적 생성 경로만 기록하고 저작자, 권리 주체, AI 서비스 약관 버전, 출력물의 상업·공개 허용 범위를 기록하지 않는다. `tools/asset-audit.mjs`도 경로·스키마·소비자·용량을 검사할 뿐 권리를 검사하지 않는다.
 
-## 제출 포함 자산 원장 — 74개
+## 제출 포함 자산 원장 — 75개
 
-아래 74개는 현재 `tools/submission-assets.mjs` allowlist와 매니페스트의 교집합이다. 전부 기술 provenance는 `generated`로 분류한다. 상태 문구의 `로컬 원본 확인` 또는 `source chain 확인`은 파일 동일성과 경로가 확인됐다는 뜻일 뿐, 권리 상태가 `own` 또는 제출 승인으로 바뀌었다는 뜻이 아니다. `외부 파이프라인` 표시는 출력 파일의 외부 사용권이 확인됐다는 뜻이 아니다.
+아래 75개는 현재 `tools/submission-assets.mjs` allowlist와 매니페스트의 교집합이다. 전부 기술 provenance는 `generated`로 분류한다. 상태 문구의 `로컬 원본 확인` 또는 `source chain 확인`은 파일 동일성과 경로가 확인됐다는 뜻일 뿐, 권리 상태가 `own` 또는 제출 승인으로 바뀌었다는 뜻이 아니다. `외부 파이프라인` 표시는 출력 파일의 외부 사용권이 확인됐다는 뜻이 아니다.
 
 | ID | 제출 경로 | 분류 | 매니페스트 `source` | 런타임 사용·증빙 경로 | 라이선스/AI 고지 및 미확인 위험 | 권리 상태 |
 |---|---|---|---|---|---|---|
@@ -131,6 +131,7 @@
 | AS-72 | `public/assets/ui/skill-icons-v2/purge.png` | `generated` | `imagegen-dao-atlas-crop-v1` | 정화부 의미별 아이콘; `src/ui/icons.js` | 로컬 ImageGen atlas의 결정적 crop과 SHA 연결은 확인했으나 계정·Input·공개·팀 제출 권리 증거 없음 | **source chain 확인·법적 권리 미확인·차단** |
 | AS-73 | `public/assets/materials/environment/jade-sanctuary-ground-material-v2.png` | `generated` | `imagegen` | WorldClaw의 생성 재질+절차 지역 변주 원칙을 적용한 2D 청람 성역 seamless ground; `src/runtime2d/PixiPresentation.js` | ImageGen 직접 출력과 local `.codex` 원본 SHA가 일치하지만 계정·Input 권리·제3자 유사성·공개·상업·대회 사용과 팀 권한 증거는 없음 | **로컬 원본 확인·법적 권리 미확인·차단** |
 | AS-74 | `public/assets/sprites2d/magi-remnant-motion-v2.png` | `generated` | `imagegen-chroma-key-alpha-despill-atlas-normalize-v2` | 초반 마기 잔영 적 4×2 이동·공격 atlas; `src/runtime2d/spriteManifest.js`, `src/runtime2d/PixiPresentation.js` | local ImageGen source SHA와 기록된 chroma-key·alpha·atlas 정규화·despill 변환은 확인했지만 생성 계정·Input 권리·제3자 유사성·공개·상업·대회 사용과 팀 권한 증거는 없음 | **로컬 source chain 확인·법적 권리 미확인·차단** |
+| AS-75 | `public/assets/sprites2d/jade-shard-guardian-motion-v1.png` | `generated` | `imagegen-chroma-key-alpha-despill-atlas-normalize-v1` | 석귀 군중의 비대칭 옥정 수호자 4×2 이동·공격 atlas; `src/runtime2d/spriteManifest.js`, `src/runtime2d/PixiPresentation.js` | local ImageGen source/original SHA와 runtime 파생물 SHA·후처리 설명은 확인했지만 생성 계정·Input 권리·제3자 유사성·공개·상업·대회 사용과 팀 권한 증거는 없음 | **로컬 source chain 확인·법적 권리 미확인·차단** |
 
 ### 로컬 provenance snapshots — 2026-08-09 기존 / 2026-08-10 release-v3·v5
 
@@ -175,6 +176,14 @@
 | AS-74 | `public/assets/sprites2d/magi-remnant-motion-v2.png` | 441,793 | `8122d62377adaca9763aedc82f85ebd48192b34708be106128b5912ec44ae903` | `2026-08-11T16:44:01.4237418Z` | 이번 품질 체크포인트에 포함 예정 |
 
 ImageGen 원본 `exec-ac9a1604-30ce-4490-84c7-be1f85920c73.png`의 SHA-256은 `4e63217446f9f869ba97553e40855bdfb8a0911f8462bb4dec09b9b829f2ba6c`이며, 로컬 authoring manifest에 동일 경로와 변환 체인을 기록했다.
+
+#### 비대칭 옥정 수호자 runtime fingerprint — AS-75
+
+| ID | 제출 파일 | 바이트 | SHA-256 | mtime UTC | Git 상태/최근 커밋 |
+|---|---|---:|---|---|---|
+| AS-75 | `public/assets/sprites2d/jade-shard-guardian-motion-v1.png` | 498,052 | `0b26675c124da1364efb8374dc4259013ba29974e5fc48edcfa85146734a4080` | `2026-08-11T18:33:34.3122670Z` | 이번 품질 체크포인트에 포함 예정 |
+
+ImageGen 원본 `exec-c6a75ee1-2db0-4e25-be1d-635bc146fc4b.png`와 authoring source의 SHA-256은 모두 `dfe6ab4c6dd6ce1c08aaae950eee2eae2ec444fe51ac15637e6eb011b8634e84`이다. runtime atlas는 border-sampled soft matte, magenta despill, bicubic 1024×512 정규화 파생물이며 법적 권리 상태는 계속 차단한다.
 
 #### release-v3 신규 UI fingerprint — AS-22~AS-40
 
@@ -272,24 +281,25 @@ ImageGen 원본 `exec-ac9a1604-30ce-4490-84c7-be1f85920c73.png`의 SHA-256은 `4
 | AS-21 | 매니페스트 `source=imagegen` | `C:\Users\50106\.codex\generated_images\019fdab1-1541-7091-a7c0-69482c8dd950\exec-ceb40769-643d-4701-83c1-39a54ef5ed90.png` | 제출 SHA와 exact match |
 | AS-73 | 매니페스트 `source=imagegen` | `C:\Users\50106\.codex\generated_images\019fe2bc-1ddb-7390-910b-8a41a70aa5f0\exec-6132a4b5-dc56-42de-b2e2-8ef33c0e01d2.png` | 제출 SHA와 exact match; 생성 call·runtime path·SHA를 이 row에 고정했으나 계정·Input·공개 권리 증거는 아님 |
 | AS-74 | `spriteManifest.js` → `source/magi-remnant-key-v1.png` | source: 1,478,497 bytes; SHA `0864931c35fc1e596b855ad8a49ee14add523d448443bfaf1b00fac36a548a13`; mtime `2026-08-11T14:23:06.5331413Z`; original `C:\Users\50106\.codex\generated_images\019fe2bc-1ddb-7390-910b-8a41a70aa5f0\exec-6fbafd22-a756-43db-837f-1f6307bca217.png`, 1,478,497 bytes, same SHA | source SHA와 original exact match; runtime은 기록된 `remove_chroma_key.py --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill` 파생물 |
+| AS-75 | `spriteManifest.js` → `source/jade-shard-guardian-motion-sheet-v1.png` | source/original: 1,954,876 bytes; SHA `dfe6ab4c6dd6ce1c08aaae950eee2eae2ec444fe51ac15637e6eb011b8634e84`; original `C:\Users\50106\.codex\generated_images\019fe2bc-1ddb-7390-910b-8a41a70aa5f0\exec-c6a75ee1-2db0-4e25-be1d-635bc146fc4b.png`, same SHA; runtime SHA `0b26675c124da1364efb8374dc4259013ba29974e5fc48edcfa85146734a4080` | source SHA와 original exact match; runtime은 authoring manifest에 기록한 soft matte·despill·1024×512 정규화 파생물 |
 
 #### 생성·후처리 스크립트와 증거 한계
 
 | 경로 | 확인된 역할 | 현재 증거/한계 |
 |---|---|---|
-| `tools/asset-manifest.json` | 119개 자산의 `path`, `source`, `consumer`, 용량 제한을 선언 | 기술 목록만 증명하며 생성 계정·Input 권리·출력 약관·정확한 명령 실행은 기록하지 않음; 현재 작업 트리에서 수정 상태 |
+| `tools/asset-manifest.json` | 121개 자산의 `path`, `source`, `consumer`, 용량 제한을 선언 | 기술 목록만 증명하며 생성 계정·Input 권리·출력 약관·정확한 명령 실행은 기록하지 않음; 현재 작업 트리에서 수정 상태 |
 | `src/runtime2d/spriteManifest.js` | runtime atlas와 `sourceUrl` authoring 파일의 연결, `visualApproval: pending`, `productionReady: false` | 의도한 파일 연결은 증명하지만 실제 빌드 시점과 변환 명령은 증명하지 않음 |
 | `tools/yeongheo/build_sprite_atlas.py` | 4×2 grid를 cell 256, gutter 6, guard 8의 고정 atlas로 변환 | 파일 존재와 파라미터는 확인; untracked이며 자산별 실제 invocation/input→output 로그는 없음 (mtime `2026-08-08T14:47:44.1773426Z`) |
 | `tools/yeongheo/clean_chroma_spill.py` | chroma spill/alpha edge 제거와 RGBA 저장 | 파일 존재와 역할은 확인; untracked이며 AS별 실행 로그·원본 선택·명령 hash는 없음 (mtime `2026-08-07T07:50:31.1198860Z`) |
 | `tools/yeongheo/build_alpha_contact_sheet.py`, `report_green_pixels.py` | alpha/green-edge 시각·휴리스틱 QA | 검사 도구이지 권리 또는 production generator가 아님 (각 파일 untracked) |
 | `tools/yeongheo/validate_runtime_sprites.py` | PNG/alpha/중복 후보 audit; `SPRITE_ASSET_AUDIT.md`에 `PASS_WITH_REVIEW` 기록 | QA-only이며 `visualApproval: pending`, `productionReady: false`를 유지; 저작권·서비스 권리·재현성은 증명하지 않음 |
 
-현재 저장소에는 74개 결과 각각의 계정·Input 권리·대표자 공개 권한을 고정한 법적 증거가 없다. 그러므로 `sourceUrl`, atlas crop, exact SHA match를 “로컬 provenance 부분 확인”까지만 사용하고 “권리 승인”으로 확장하지 않는다.
+현재 저장소에는 75개 결과 각각의 계정·Input 권리·대표자 공개 권한을 고정한 법적 증거가 없다. 그러므로 `sourceUrl`, atlas crop, exact SHA match를 “로컬 provenance 부분 확인”까지만 사용하고 “권리 승인”으로 확장하지 않는다.
 
 #### 프로젝트 커밋·문서 연결
 
 - release-v3 원장 초안 snapshot의 HEAD는 `351541c8acf64029d27c016612b0383e0c79a74d` (`Integrate ImageGen v3 Forge enemy assets`)였고 당시 작업 트리는 dirty였다. 아래 역사 fingerprint의 Git 상태 표시는 그 snapshot을 설명하며 현재 브랜치 상태를 대신하지 않는다.
-- AS-74는 이번 품질 체크포인트의 runtime/source fingerprint와 변환 명령을 위 원장에 추가했다. 고정 제출 commit/build/deploy/run과 대표자 권리 증거는 별도 최종 게이트에서 다시 연결해야 한다.
+- AS-74와 AS-75는 이번 품질 체크포인트의 runtime/source fingerprint와 변환 명령을 위 원장에 추가했다. 고정 제출 commit/build/deploy/run과 대표자 권리 증거는 별도 최종 게이트에서 다시 연결해야 한다.
 - `docs/competition/CODEX_COLLABORATION_EVIDENCE.md`는 dirty checkout, 고정된 final commit/build/run/session 부재, 파일만으로 Codex 저작·대회기간을 주장할 수 없음을 기록한다. 이 문서는 정적 증거 연결이지 저작권 양도·대표자 승인 기록이 아니다.
 - 소비/파생 연결은 `tools/submission-assets.mjs`, `src/runtime2d/spriteManifest.js`, `artifacts/2d-qa/SPRITE_ASSET_AUDIT.md`, `docs/QUALITY_STATUS.md` 및 관련 `artifacts/img2threejs/**/README.md`에서 확인했다. 이 문서들은 기술 provenance와 QA를 연결하지만 사람의 권리 선언을 대신하지 않는다.
 
@@ -297,29 +307,29 @@ ImageGen 원본 `exec-ac9a1604-30ce-4490-84c7-be1f85920c73.png`의 SHA-256은 `4
 
 | 분류 | 개수 | 의미 |
 |---|---:|---|
-| `generated` | 74 | 매니페스트가 ImageGen 또는 ImageGen 후처리 provenance를 명시 |
+| `generated` | 75 | 매니페스트가 ImageGen 또는 ImageGen 후처리 provenance를 명시 |
 | `own` | 0 | 저장소에서 권리 주체를 확인하는 명시적 소유·양도 증거를 찾지 못함 |
 | `external` | 0개의 직접 제출 파일 | 직접 외부 원본 파일은 allowlist에 없지만, 생성 서비스·도구 의존성은 아래 별도 게이트 대상 |
-| `unknown` | 0개의 기술 원천 | 기술 source 라벨은 있으나 **권리 상태는 74개 전부 미확인** |
-| 직접 제출 파일과 `.codex/generated_images` exact match | 8/74 | AS-01, AS-02, AS-17~AS-21, AS-73의 제출 파일 자체가 local generated original과 SHA-256 일치 |
-| sprite source와 `.codex/generated_images` exact match | 12/74 | AS-03, AS-05~AS-13, AS-15, AS-74의 source sheet가 local generated original과 SHA-256 일치; runtime은 파생물 |
-| 원본·생성 이벤트·변환 명령으로 재현한 sprite chain | 3/74 | AS-04, AS-14, AS-16의 source와 runtime을 격리 재생성하여 파일 SHA와 RGBA pixel 모두 exact match |
-| release-v3 UI atlas source chain | 19/74 | AS-22~AS-40은 로컬 ImageGen atlas와 결정적 crop 산출물로 연결됨 |
-| release-v5 의미별 아이콘 atlas source chain | 32/74 | AS-41~AS-72는 두 로컬 ImageGen atlas와 결정적 256×256 crop 산출물로 연결됨 |
-| source는 있으나 exact original 미검출 | 0/74 | 기존 AS-04, AS-14, AS-16 원본과 변환 chain을 복구·재현함 |
-| 기술 provenance chain 확인 | 74/74 | 8 direct + 12 exact sprite source + 3 reproduced sprite chain + 19 legacy UI atlas + 32 semantic icon atlas |
-| OpenAI 약관의 조건부 Output 근거 후보 | 74/74 | 로컬 생성 chain이 연결된 범위일 뿐 계정·Input·대회 권리 clearance 아님 |
-| 법적 권리 증거 확인 | 0/74 | OpenAI 약관의 일반적 Output 조항, 로컬 SHA, QA PASS는 자산별 권리·대회 제출 허락을 증명하지 않음 |
+| `unknown` | 0개의 기술 원천 | 기술 source 라벨은 있으나 **권리 상태는 75개 전부 미확인** |
+| 직접 제출 파일과 `.codex/generated_images` exact match | 8/75 | AS-01, AS-02, AS-17~AS-21, AS-73의 제출 파일 자체가 local generated original과 SHA-256 일치 |
+| sprite source와 `.codex/generated_images` exact match | 13/75 | AS-03, AS-05~AS-13, AS-15, AS-74, AS-75의 source sheet가 local generated original과 SHA-256 일치; runtime은 파생물 |
+| 원본·생성 이벤트·변환 명령으로 재현한 sprite chain | 3/75 | AS-04, AS-14, AS-16의 source와 runtime을 격리 재생성하여 파일 SHA와 RGBA pixel 모두 exact match |
+| release-v3 UI atlas source chain | 19/75 | AS-22~AS-40은 로컬 ImageGen atlas와 결정적 crop 산출물로 연결됨 |
+| release-v5 의미별 아이콘 atlas source chain | 32/75 | AS-41~AS-72는 두 로컬 ImageGen atlas와 결정적 256×256 crop 산출물로 연결됨 |
+| source는 있으나 exact original 미검출 | 0/75 | 기존 AS-04, AS-14, AS-16 원본과 변환 chain을 복구·재현함 |
+| 기술 provenance chain 확인 | 75/75 | 8 direct + 13 exact sprite source + 3 reproduced sprite chain + 19 legacy UI atlas + 32 semantic icon atlas |
+| OpenAI 약관의 조건부 Output 근거 후보 | 75/75 | 로컬 생성 chain이 연결된 범위일 뿐 계정·Input·대회 권리 clearance 아님 |
+| 법적 권리 증거 확인 | 0/75 | OpenAI 약관의 일반적 Output 조항, 로컬 SHA, QA PASS는 자산별 권리·대회 제출 허락을 증명하지 않음 |
 
-이 표의 `own=0`, `unknown=0`은 기술 source 라벨의 분류이며 안전 판정이 아니다. provenance 연결 수는 권리 승인 수가 아니다. 계정·Input·인물/상표·팀/대표자 권한·대회 공개 허락이 확인되지 않은 상태이므로 제출 가능 수와 최종 권리 확인 수는 현재 0/74로 취급한다.
+이 표의 `own=0`, `unknown=0`은 기술 source 라벨의 분류이며 안전 판정이 아니다. provenance 연결 수는 권리 승인 수가 아니다. 계정·Input·인물/상표·팀/대표자 권한·대회 공개 허락이 확인되지 않은 상태이므로 제출 가능 수와 최종 권리 확인 수는 현재 0/75로 취급한다.
 
-## allowlist 밖 45개와 외부 파이프라인 위험
+## allowlist 밖 46개와 외부 파이프라인 위험
 
 아래 파일은 현재 `tools/submission-assets.mjs`의 제출 runtime allowlist에는 없지만 저장소 `public/assets`에 존재한다. 썸네일, 영상, generic static copy, 향후 코드 변경으로 다시 노출되면 즉시 이 원장에 포함시켜 같은 권리 게이트를 적용해야 한다.
 
 | 범위 | 수량 | 기술 분류 | 확인된 provenance | 현재 처리 | 잔여 권리 위험 |
 |---|---:|---|---|---|---|
-| `public/assets/sprites2d/source/**` 제작 원본·방향 sheet | 19 | `generated` | `imagegen`, `imagegen-directional-source-v1`; `tools/asset-manifest.json` | authoring 전용, 제출 allowlist 제외 | 원본 ImageGen 출력·후처리 권리, 썸네일/영상에 무심코 사용될 위험 |
+| `public/assets/sprites2d/source/**` 제작 원본·방향 sheet | 20 | `generated` | `imagegen`, `imagegen-directional-source-v1`; `tools/asset-manifest.json` | authoring 전용, 제출 allowlist 제외 | 원본 ImageGen 출력·후처리 권리, 썸네일/영상에 무심코 사용될 위험 |
 | `public/assets/sprites2d/yorang-v1.png`, `void-sentinel-v1.png`, `jade-void-warden-v1.png`, `seolryeong-motion-v2.png` | 4 | `generated` | ImageGen chroma/despill; 매니페스트·`artifacts/2d-qa/SPRITE_ASSET_AUDIT.md` | legacy/superseded, allowlist 제외 | 오래된 파일이 generic 배포나 영상 캡처에 들어갈 경우 같은 미확인 위험 |
 | `public/assets/characters/seolryeong-turnaround-v4.png`, `models/characters/seolryeong-trellis-v4.glb`, `characters/void-iron-scale-sentinel-reference-v3.png`, `characters/glacier-warden-reference-v1.png` | 4 | `generated` (외부 파이프라인 파생) | `artifacts/img2threejs/seolryeong/character-model-v4/README.md`, `artifacts/img2threejs/void-iron-scale-sentinel-v3/README.md`, `artifacts/img2threejs/glacier-warden-v1/README.md` | 3D/ImageGen/TRELLIS/Forge 개발·QA evidence, 현재 2D 제출 allowlist 제외 | ImageGen 원천 권리와 외부 anonymous Hugging Face/TRELLIS·GitHub 도구 조건의 결합 증거가 없음. video/thumbnail 사용 금지 until cleared |
 | `public/assets/materials/characters/moon-silk-brocade-v2.png`, `materials/guardians/{jade-scale-weave-v1,jade-void-armor-v1,void-iron-scale-armor-v1,ember-feather-weave-v1}.png` | 5 | `generated` | `imagegen`; `docs/QUALITY_STATUS.md`, 매니페스트 | 3D/material development asset, allowlist 제외 | ImageGen 재질의 원천·출력 이용권·반복 타일의 제3자 유사성 검토 없음 |
@@ -337,7 +347,7 @@ ImageGen 원본 `exec-ac9a1604-30ce-4490-84c7-be1f85920c73.png`의 SHA-256은 `4
 | 문서 | 확인 가능한 사실 | 증명하지 않는 것 |
 |---|---|---|
 | `tools/asset-manifest.json` | 경로, role/tier, source 라벨, consumer, 용량 제한 | 소유권, AI 서비스 이용 조건, 제3자 원천 허락, 상업·공개 권리 |
-| `tools/submission-assets.mjs` | 현재 Pages/runtime에 복사할 74개 allowlist와 authoring·legacy 제외 의도 | 실제 배포가 그 allowlist만 사용하는지에 대한 최종 호스팅 확인, 권리 승인 |
+| `tools/submission-assets.mjs` | 현재 Pages/runtime에 복사할 75개 allowlist와 authoring·legacy 제외 의도 | 실제 배포가 그 allowlist만 사용하는지에 대한 최종 호스팅 확인, 권리 승인 |
 | `artifacts/2d-qa/SPRITE_ASSET_AUDIT.md` | PNG 구조, atlas 셀, alpha/green-edge QA, `visualApproval: pending`, `productionReady: false` | 저작권·라이선스·AI 출력 사용권 |
 | `docs/QUALITY_STATUS.md` | ImageGen/TRELLIS/img2threejs 기반 authoring과 일부 런타임 연결 기록 | 제출 허용, 외부 원천 권리, 현재 제출 bundle의 권리 완결 |
 | `artifacts/img2threejs/**/README.md`, `assessment.json`, `pbr-report.json` | ImageGen 입력, Forge/PBR/TRELLIS 생성·검수 경로와 품질 경계 | ImageGen 계정 권리, 원천 이미지의 제3자 권리, 대회 공개 허락 |
@@ -347,20 +357,20 @@ ImageGen 원본 `exec-ac9a1604-30ce-4490-84c7-be1f85920c73.png`의 SHA-256은 `4
 
 현재는 아래 항목이 모두 완료되기 전까지 제출하지 않는다.
 
-- [ ] AS-01~AS-74 각각에 대해 실제 제작자/권리 주체와 제출 권한을 대표자가 확인한다.
+- [ ] AS-01~AS-75 각각에 대해 실제 제작자/권리 주체와 제출 권한을 대표자가 확인한다.
 - [ ] AS-01, AS-02, AS-17~AS-21, AS-73의 8개 direct match에 대해 실제 생성 계정·관할·약관 버전·Input 목록을 계정 기록 또는 영수증으로 연결한다. local `.codex/generated_images` 경로만으로 계정 권리를 추정하지 않는다.
-- [ ] AS-03, AS-05~AS-13, AS-15, AS-74의 12개 source chain은 source 원본·runtime 파생물·정확한 변환 명령·입력/출력 SHA를 하나의 immutable run/build 기록으로 묶는다. source SHA match를 파생물 권리 승인으로 확장하지 않는다.
+- [ ] AS-03, AS-05~AS-13, AS-15, AS-74, AS-75의 13개 source chain은 source 원본·runtime 파생물·정확한 변환 명령·입력/출력 SHA를 하나의 immutable run/build 기록으로 묶는다. source SHA match를 파생물 권리 승인으로 확장하지 않는다.
 - [x] AS-04, AS-14, AS-16의 `.codex/generated_images` 원본·생성 이벤트·변환 명령을 복구하고 격리 재현 source/runtime의 byte·RGBA exact match를 `tools/yeongheo/recovered-provenance-manifest.json`과 `artifacts/2d-build/provenance/recovered-imagegen-originals/provenance-comparison-20260810.json`에 고정했다. 원본 3개도 같은 비배포 보관소에 byte exact copy로 보존했다. 이 완료 표시는 기술 provenance만 뜻하며 세 자산의 법적 권리는 계속 차단한다.
 - [ ] ImageGen 계정/서비스의 현재 약관 버전, 출력물의 공개·상업·대회 홍보 사용 가능 여부를 확인하고, AI 생성물임을 제출 자산 목록에 고지한다.
 - [ ] ImageGen 입력에 사용된 원천 이미지·참조·스타일·로고·실존 인물·제3자 캐릭터가 있다면 원천별 허락·라이선스·초상/상표 검토를 연결한다. 확인할 수 없는 원천은 제거·교체한다.
 - [ ] chroma-key, despill, atlas crop, PBR extraction 같은 후처리는 원본의 권리 상태를 바꾸지 않는다는 전제로 원본과 파생물을 함께 기록한다.
 - [ ] `img2threejs`를 공개 저장소/배포물에 포함하는 경우 Apache-2.0 저작권·라이선스 고지를 보존한다. 도구 라이선스를 생성 map/GLB 라이선스로 확장 해석하지 않는다.
-- [ ] 3D/TRELLIS/Forge 자산을 최종 런타임·썸네일·3분 영상에 넣을 경우, 이 원장의 별도 row를 만들고 ImageGen 원천 및 외부 서비스 권리를 먼저 닫는다. 현재 계획상 제출 runtime은 2D allowlist 74개다.
+- [ ] 3D/TRELLIS/Forge 자산을 최종 런타임·썸네일·3분 영상에 넣을 경우, 이 원장의 별도 row를 만들고 ImageGen 원천 및 외부 서비스 권리를 먼저 닫는다. 현재 계획상 제출 runtime은 2D allowlist 75개다.
 - [ ] 16:9 썸네일은 실제 사용할 AS ID와 동일한 권리 증거가 있는 파일만 사용한다. `AS-02`가 자동으로 썸네일 권리를 승인하지 않는다.
 - [ ] 3분 이내 데모 영상은 녹화에 보이는 모든 이미지·폰트·음원·UI·외부 로고와 화면 속 개인정보를 별도로 검사한다. 영상은 게임 asset ledger를 상속하며, 영상 자체도 제출물 권리 row가 필요하다.
-- [ ] build 산출물은 `tools/submission-assets.mjs` allowlist를 사용했는지 확인하고, allowlist 밖 45개가 generic `public/**` 복사·host 설정으로 다시 포함되지 않았는지 실제 배포에서 검증한다.
+- [ ] build 산출물은 `tools/submission-assets.mjs` allowlist를 사용했는지 확인하고, allowlist 밖 46개가 generic `public/**` 복사·host 설정으로 다시 포함되지 않았는지 실제 배포에서 검증한다.
 - [ ] 최종 build/deploy ID, `run_id`, 제출 자산 SHA-256, 권리 증거 경로를 하나의 불변 기록으로 묶는다. 자동 audit/테스트/시각 QA는 권리 승인을 대신하지 않는다.
-- [ ] 최종 제출 커밋을 만든 뒤 74개 파일의 SHA-256·크기·mtime과 실제 dist/공개 URL을 다시 캡처한다. 현재 snapshot의 untracked/dirty 상태를 제출 증거로 사용하지 않는다.
+- [ ] 최종 제출 커밋을 만든 뒤 75개 파일의 SHA-256·크기·mtime과 실제 dist/공개 URL을 다시 캡처한다. 현재 snapshot의 untracked/dirty 상태를 제출 증거로 사용하지 않는다.
 - [ ] `docs/competition/CODEX_COLLABORATION_EVIDENCE.md`를 최종 `run_id`·`build_id`·commit과 연결하되, Codex 협업 파일만으로 저작권·팀 소유권·대회 기간을 주장하지 않는다.
 
 ## 제출물·권리 증거의 안전한 placeholder
@@ -368,7 +378,7 @@ ImageGen 원본 `exec-ac9a1604-30ce-4490-84c7-be1f85920c73.png`의 SHA-256은 `4
 실제 사용자 개인정보, Google 계정, 연락처, 토큰, 개인 식별 가능한 Codex 원문은 이 원장에 넣지 않는다. 아래 값은 대표자가 제출 직전에 채울 외부 증거의 자리표시자다.
 
 ```text
-asset_id: <AS-01..AS-74 또는 THUMBNAIL/DEMO_VIDEO>
+asset_id: <AS-01..AS-75 또는 THUMBNAIL/DEMO_VIDEO>
 asset_path_or_role: <저장소 경로 또는 제출 역할>
 classification: <own|generated|external|unknown>
 creator_or_rightsholder: <미입력; 실명·이메일은 이 저장소에 저장하지 않음>
@@ -398,27 +408,27 @@ confirmed_at_kst: <미입력>
 
 ## 현재 남은 차단 — 사람 확인 없이는 승격하지 않음
 
-- OpenAI 약관의 Output 조항은 기술 chain이 연결된 74/74의 **조건부 후보 근거**일 뿐이다. 로컬 생성물에는 계정·관할·서비스·약관 동의 시점이 완전하게 남아 있지 않으므로, 해당 출력이 실제 그 약관의 적용을 받는다는 사실은 아직 확인되지 않았다.
-- 8개 direct output, 15개 sprite source chain, 19개 release-v3 UI chain, 32개 v5 의미 아이콘 chain 모두 Input 원천, 제3자 이미지/캐릭터/로고, 실존 인물 유사성, 상표·개인정보 검토 기록이 없다. OpenAI 약관도 Input 권리와 사람 검토 책임을 사용자에게 둔다.
+- OpenAI 약관의 Output 조항은 기술 chain이 연결된 75/75의 **조건부 후보 근거**일 뿐이다. 로컬 생성물에는 계정·관할·서비스·약관 동의 시점이 완전하게 남아 있지 않으므로, 해당 출력이 실제 그 약관의 적용을 받는다는 사실은 아직 확인되지 않았다.
+- 8개 direct output, 16개 sprite source chain, 19개 release-v3 UI chain, 32개 v5 의미 아이콘 chain 모두 Input 원천, 제3자 이미지/캐릭터/로고, 실존 인물 유사성, 상표·개인정보 검토 기록이 없다. OpenAI 약관도 Input 권리와 사람 검토 책임을 사용자에게 둔다.
 - AS-04, AS-14, AS-16의 exact `.codex/generated_images` 원본, revised prompt, 변환 명령 및 byte·RGBA exact 재현은 확인됐다. 남은 차단은 원본 부재가 아니라 생성 계정·Input·제3자 권리·팀 귀속·대회 공개 권한의 사람 확인이다.
-- 기존 11개 sprite 파생물은 `build_sprite_atlas.py`/`clean_chroma_spill.py`의 존재와 `sourceUrl` 연결만 확인했다. AS-74는 별도 chroma-key 명령을 기록했지만 immutable build/run 묶음은 아직 없다. 따라서 AS-04·AS-14·AS-16의 완전 재현 증거와 같은 법적 승격 근거로 사용하지 않는다.
-- release-v3 snapshot에서 sprite와 AS-02/AS-21/AS-73은 제출 기준 commit/build/deploy/run이 고정되지 않았다. 현재 AS-74까지 포함한 새 체크포인트도 최종 제출 commit·공개 build·동일 run ID와 대표자 제출 권한을 별도로 고정하기 전에는 권리 승인으로 취급하지 않는다.
+- 기존 11개 sprite 파생물은 `build_sprite_atlas.py`/`clean_chroma_spill.py`의 존재와 `sourceUrl` 연결만 확인했다. AS-74와 AS-75는 별도 chroma-key·soft-matte 변환 명령을 기록했지만 immutable build/run 묶음은 아직 없다. 따라서 AS-04·AS-14·AS-16의 완전 재현 증거와 같은 법적 승격 근거로 사용하지 않는다.
+- release-v3 snapshot에서 sprite와 AS-02/AS-21/AS-73은 제출 기준 commit/build/deploy/run이 고정되지 않았다. 현재 AS-75까지 포함한 새 체크포인트도 최종 제출 commit·공개 build·동일 run ID와 대표자 제출 권한을 별도로 고정하기 전에는 권리 승인으로 취급하지 않는다.
 - `img2threejs`/TRELLIS/Forge/Hugging Face 등 외부 pipeline, 영상·썸네일에 추가되는 폰트·음원·로고·화면 개인정보, 팀 구성원 간 양도/사용 허락은 이 원장과 OpenAI 약관만으로 승인하지 않는다.
 
 ## 현재 최종 판정
 
 ```text
-submission_runtime_files: 74
-technical_classification: generated=74, own=0, external-direct=0, unknown-source=0
-local_exact_direct_imagegen_match: 8/74
-local_exact_sprite_source_chain: 12/74
-local_reproduced_sprite_source_chain: 3/74 (AS-04, AS-14, AS-16)
-local_release_v3_ui_atlas_chain: 19/74
-local_release_v5_semantic_icon_atlas_chain: 32/74
-source_original_not_found: 0/74
-technical_provenance_chain_verified: 74/74
-conditional_openai_terms_basis: 74/74 (not a rights clearance)
-rights_evidence_confirmed: 0/74
+submission_runtime_files: 75
+technical_classification: generated=75, own=0, external-direct=0, unknown-source=0
+local_exact_direct_imagegen_match: 8/75
+local_exact_sprite_source_chain: 13/75
+local_reproduced_sprite_source_chain: 3/75 (AS-04, AS-14, AS-16)
+local_release_v3_ui_atlas_chain: 19/75
+local_release_v5_semantic_icon_atlas_chain: 32/75
+source_original_not_found: 0/75
+technical_provenance_chain_verified: 75/75
+conditional_openai_terms_basis: 75/75 (not a rights clearance)
+rights_evidence_confirmed: 0/75
 rights_gate: BLOCKED
 safe_action: 사용자/대표자의 권리 증거 확인 전 제출·공개·썸네일·영상 사용 금지
 ```

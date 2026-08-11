@@ -73,17 +73,40 @@ export const FORMATIONS = [
  * fielding the weakest creature in the game. Caught by reading the health of a
  * ring that should have been 3350 apiece and was 84.
  *
- * The substitute is the toughest thing the 비경 allows, because the whole point
- * of a late 진 is to put something on the field that a finished build cannot
- * delete on contact.
+ * A substitute must stay in the wanted creature's threat class. Previously the
+ * 215-second 화정 ring became twenty elite 마수사 in 청람비경 simply because
+ * 마수사 had the most HP in that roster. That was both a difficulty spike and a
+ * wall of duplicated silhouettes. Non-elite 진 now choose the closest-health
+ * non-elite alternative; elite 진 still choose an elite alternative, so the
+ * late pressure cannot silently collapse back into fodder.
  *
  * @param {string} wanted @param {string[]|undefined} roster @param {object} byId
  */
 export function formationType(wanted, roster, byId) {
   if (!roster || roster.includes(wanted)) return wanted
-  let best = roster[0]
-  for (const id of roster) {
-    if ((byId[id]?.hp ?? 0) > (byId[best]?.hp ?? 0)) best = id
+  const wantedDef = byId[wanted]
+  if (!wantedDef) {
+    let toughest = roster[0]
+    for (const id of roster) {
+      if ((byId[id]?.hp ?? 0) > (byId[toughest]?.hp ?? 0)) toughest = id
+    }
+    return toughest
+  }
+
+  const sameThreatClass = roster.filter((id) => (
+    byId[id] && Boolean(byId[id].elite) === Boolean(wantedDef.elite)
+  ))
+  const candidates = sameThreatClass.length > 0
+    ? sameThreatClass
+    : roster.filter((id) => byId[id])
+  let best = candidates[0] ?? roster[0]
+  let bestDistance = Math.abs((byId[best]?.hp ?? 0) - wantedDef.hp)
+  for (const id of candidates.slice(1)) {
+    const distance = Math.abs((byId[id]?.hp ?? 0) - wantedDef.hp)
+    if (distance < bestDistance) {
+      best = id
+      bestDistance = distance
+    }
   }
   return best
 }

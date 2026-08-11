@@ -75,6 +75,7 @@ export const SUBMISSION_RUNTIME_ASSETS = Object.freeze([
   'assets/sprites2d/blood-scorpion-motion-v1.png',
   'assets/sprites2d/jade-sanctuary-props-v1.png',
   'assets/sprites2d/jade-serpent-motion-v1.png',
+  'assets/sprites2d/jade-shard-guardian-motion-v1.png',
   'assets/sprites2d/jade-stone-ghoul-motion-v1.png',
   'assets/sprites2d/jade-void-warden-motion-v2.png',
   'assets/sprites2d/magi-remnant-motion-v2.png',

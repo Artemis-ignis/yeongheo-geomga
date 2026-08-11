@@ -91,6 +91,19 @@
       "outputs": ["jade-stone-ghoul-motion-v1.png"]
     },
     {
+      "actor": "jade-shard-guardian",
+      "source": "jade-shard-guardian-motion-sheet-v1.png",
+      "outputs": ["jade-shard-guardian-motion-v1.png"],
+      "generator": "imagegen-built-in",
+      "originalPath": "C:/Users/50106/.codex/generated_images/019fe2bc-1ddb-7390-910b-8a41a70aa5f0/exec-c6a75ee1-2db0-4e25-be1d-635bc146fc4b.png",
+      "originalSha256": "dfe6ab4c6dd6ce1c08aaae950eee2eae2ec444fe51ac15637e6eb011b8634e84",
+      "sourceSha256": "dfe6ab4c6dd6ce1c08aaae950eee2eae2ec444fe51ac15637e6eb011b8634e84",
+      "runtimeSha256": "0b26675c124da1364efb8374dc4259013ba29974e5fc48edcfa85146734a4080",
+      "transform": "System.Drawing border-sampled chroma soft matte and magenta despill; high-quality bicubic atlas normalization to 1024x512 RGBA",
+      "visualApproval": "pending-runtime",
+      "productionReady": false
+    },
+    {
       "actor": "blood-scorpion",
       "source": "blood-scorpion-motion-sheet-v1.png",
       "outputs": ["blood-scorpion-motion-v1.png"]

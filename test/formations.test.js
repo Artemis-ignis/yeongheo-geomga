@@ -157,26 +157,41 @@ describe('the formation timeline', () => {
     }
   })
 
-  it('substitutes the toughest creature a 비경 allows, never its weakest', () => {
+  it('substitutes within the same threat class at the closest authored health', () => {
     /**
      * 빙벽수 exists only in 한천비경 and 용암귀 only in 적염비경, so a 진 naming
-     * one has to field something else elsewhere. Routing that through the wave
-     * table's `rosterFor` picked the roster's *first* entry, which is 마기 잔영
-     * — every elite 진 in 청람비경 was fielding the weakest creature in the game.
-     * It was invisible in every danger number and obvious the moment I read one
-     * ring's health: 84 apiece where 빙벽수 should have been 3350.
+     * one has to field something else elsewhere. The replacement must neither
+     * collapse an elite 진 into fodder nor turn an early elemental ring into
+     * twenty elites. Matching elite rank first and HP second preserves both.
      */
     const byId = Object.fromEntries(ENEMIES.map((e) => [e.id, e]))
     for (const stage of STAGES) {
-      for (const f of FORMATIONS.filter((x) => x.t >= 420)) {
+      for (const f of FORMATIONS) {
         const got = formationType(f.type, stage.roster, byId)
         expect(stage.roster.includes(got), `${stage.id} fields "${got}", not in its roster`).toBe(true)
         if (got === f.type) continue
-        // A substitute must be the heaviest thing available, and never fodder.
-        const heaviest = stage.roster.reduce((a, b) => (byId[b].hp > byId[a].hp ? b : a))
-        expect(got, `${stage.id} swapped ${f.type} for ${got}`).toBe(heaviest)
-        expect(byId[got].hp, `${stage.id} substituted fodder`).toBeGreaterThan(byId.wisp.hp * 4)
+        expect(Boolean(byId[got].elite), `${stage.id} changed threat class for ${f.type}`)
+          .toBe(Boolean(byId[f.type].elite))
+        const sameClass = stage.roster.filter((id) => (
+          Boolean(byId[id].elite) === Boolean(byId[f.type].elite)
+        ))
+        const closest = sameClass.reduce((best, id) => (
+          Math.abs(byId[id].hp - byId[f.type].hp) < Math.abs(byId[best].hp - byId[f.type].hp)
+            ? id
+            : best
+        ))
+        expect(got, `${stage.id} swapped ${f.type} for ${got}`).toBe(closest)
       }
+    }
+  })
+
+  it('never upgrades the early elemental ring into twenty elites', () => {
+    const byId = Object.fromEntries(ENEMIES.map((enemy) => [enemy.id, enemy]))
+    const elementalRing = FORMATIONS.find((formation) => formation.t === 215)
+    expect(elementalRing?.type).toBe('emberSprite')
+    for (const stage of STAGES) {
+      const substitute = formationType(elementalRing.type, stage.roster, byId)
+      expect(byId[substitute].elite, `${stage.id} fields elite ${substitute} at 215s`).toBeFalsy()
     }
   })
 

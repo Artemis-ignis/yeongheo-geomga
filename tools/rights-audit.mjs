@@ -96,7 +96,7 @@ function cleanMarkdownCell(value) {
 }
 
 /**
- * Parse the AS-01..AS-73 table without trusting its prose as legal approval.
+ * Parse the current AS inventory table without trusting its prose as legal approval.
  * The final cell is retained as a human-readable evidence excerpt.
  */
 export function parseRightsLedger(markdown) {

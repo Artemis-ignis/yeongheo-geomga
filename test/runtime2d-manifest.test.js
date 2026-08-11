@@ -61,7 +61,9 @@ describe('runtime2d sprite contract', () => {
       expect(SPRITE_MANIFEST.actors[id].runtimeHeight).toBeGreaterThanOrEqual(55)
       expect(SPRITE_MANIFEST.actors[id].runtimeHeight).toBeLessThanOrEqual(95)
     }
-    expect(SPRITE_MANIFEST.actors.jadeStoneGhoul.runtimeHeight).toBeLessThanOrEqual(110)
+    for (const id of ['jadeStoneGhoul', 'jadeShardGuardian']) {
+      expect(SPRITE_MANIFEST.actors[id].runtimeHeight).toBeLessThanOrEqual(110)
+    }
     expect(SPRITE_MANIFEST.actors.voidSentinel.runtimeHeight).toBeLessThanOrEqual(120)
   })
 

@@ -190,10 +190,15 @@ export class CodexScreen {
   }
 
   close() {
-    this.node.style.display = 'none'
     const cb = this.onClose
-    this.onClose = null
+    this.hide()
     if (cb) cb()
+  }
+
+  /** Close without invoking the title callback while a run is taking ownership. */
+  hide() {
+    this.node.style.display = 'none'
+    this.onClose = null
   }
 
   dispose() {

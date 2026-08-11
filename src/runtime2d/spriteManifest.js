@@ -64,6 +64,13 @@ export const SPRITE_MANIFEST = Object.freeze({
       animations: Object.freeze({ walk: [0, 1, 2, 3], attack: [4, 5, 6, 7] }),
       animationMode: 'authored-frames', ...pending,
     }),
+    jadeShardGuardian: Object.freeze({
+      url: `${base}assets/sprites2d/jade-shard-guardian-motion-v1.png`,
+      cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.88], runtimeHeight: 104,
+      directions: ['se'], mirrorWest: true,
+      animations: Object.freeze({ walk: [0, 1, 2, 3], attack: [4, 5, 6, 7] }),
+      animationMode: 'authored-frames', ...pending,
+    }),
     bloodScorpion: Object.freeze({
       url: `${base}assets/sprites2d/blood-scorpion-motion-v1.png`,
       cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.91], runtimeHeight: 72,

@@ -384,6 +384,12 @@ export class Game2D {
     this.hints.hide()
     this.pause.hide()
     this.modal.close()
+    // Menu sub-screens are separate full-screen nodes. A queued native button
+    // activation during retry/loading used to leave the codex over a live run.
+    // Hide them without firing their return-to-title callbacks whenever a run
+    // or title transition takes ownership of the screen.
+    this.shop?.hide?.()
+    this.codex?.hide?.()
     this.audio.stopMusic?.()
     this.audio.setDucked?.(false)
     this.input.consumeInteract?.()
@@ -404,10 +410,12 @@ export class Game2D {
       onStart: (id, stageId, options) => this._startRun(id, stageId, options),
       onUnlock: () => this._persist(),
       onShop: () => {
+        if (this.state !== 'title') return
         this.state = 'shop'
         this.shop.show(() => { this.state = 'title'; this.title.show() })
       },
       onCodex: () => {
+        if (this.state !== 'title') return
         this.state = 'codex'
         this.codex.show(() => { this.state = 'title'; this.title.show() })
       },
@@ -456,6 +464,11 @@ export class Game2D {
     }
 
     if (this._disposed) return
+    // Asset preparation is asynchronous. Reassert exclusive screen ownership
+    // before publishing `playing`, even if a stale focused menu button emitted
+    // a native click while the title was disappearing.
+    this.shop?.hide?.()
+    this.codex?.hide?.()
 
     this.seed = seedForRun(this.runOptions)
     this.rng = new RNG(this.seed)
