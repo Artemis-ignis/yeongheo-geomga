@@ -178,7 +178,7 @@ const HOSTILE_PROJECTILE_VISUAL = HOSTILE_PROJECTILE_PRESENTATION[0]
  */
 export const PROJECTILE_PRESENTATION = Object.freeze({
   1: Object.freeze({ family: 'sword', frame: 0, scaleX: 0.62, scaleY: 0.18, rotationOffset: 0, spin: 0.04, pulse: 0.04, alpha: 0.95, tint: 0xe8f8ff }),
-  2: Object.freeze({ family: 'fire', frame: 1, scaleX: 0.38, scaleY: 0.38, rotationOffset: 0.2, spin: 0.18, pulse: 0.12, alpha: 0.9, tint: 0xff7a43 }),
+  2: Object.freeze({ family: 'fire', shape: 'talisman-comet', preserveAtlasColor: true, frame: 1, scaleX: 0.54, scaleY: 0.32, rotationOffset: 0.035, spin: 0.04, pulse: 0.06, alpha: 0.94, tint: 0xff8a4f }),
   3: Object.freeze({ family: 'ice', frame: 2, scaleX: 0.54, scaleY: 0.22, rotationOffset: -0.16, spin: 0.02, pulse: 0.14, alpha: 0.92, tint: 0x8edcff }),
   4: Object.freeze({ family: 'thunder', frame: 3, scaleX: 0.48, scaleY: 0.24, rotationOffset: Math.PI / 4, spin: 0.7, pulse: 0.16, alpha: 0.94, tint: 0xb98cff }),
   5: Object.freeze({ family: 'void', frame: 4, scaleX: 0.36, scaleY: 0.36, rotationOffset: Math.PI / 8, spin: -0.45, pulse: 0.3, alpha: 0.78, tint: 0x7e63c7 }),
@@ -215,7 +215,7 @@ export const WEAPON_VISUAL_SIGNATURES = Object.freeze({
   }),
   fireTalisman: weaponVisualSignature({
     mode: 'lobbedBlast', trajectory: 'lob', collision: 'blast', status: 'burn',
-    projectile: { family: 'fire', frame: 1, scaleX: 0.4, scaleY: 0.4, rotationOffset: 0.18, spin: 0.18, pulse: 0.12, alpha: 0.9, tint: 0xff7a43 },
+    projectile: { family: 'fire', shape: 'talisman-comet', preserveAtlasColor: true, frame: 1, scaleX: 0.56, scaleY: 0.34, rotationOffset: 0.03, spin: 0.04, pulse: 0.06, alpha: 0.94, tint: 0xff8a4f },
     field: { family: 'emberMark', frame: 1, scaleX: 1, scaleY: 0.56, rotationSpeed: -0.12, pulse: 0.13, alpha: 0.52, tint: 0xff9c4c },
   }),
   thunderOrb: weaponVisualSignature({
@@ -285,7 +285,7 @@ export const WEAPON_VISUAL_SIGNATURES = Object.freeze({
   }),
   infernoSea: weaponVisualSignature({
     mode: 'fireFieldBlast', trajectory: 'lob', collision: 'blast', status: 'burn-persistent',
-    projectile: { family: 'inferno', frame: 1, scaleX: 0.52, scaleY: 0.52, rotationOffset: 0.45, spin: 0.3, pulse: 0.2, alpha: 0.96, tint: 0xff542f },
+    projectile: { family: 'inferno', shape: 'inferno-talisman-comet', preserveAtlasColor: true, frame: 1, scaleX: 0.72, scaleY: 0.42, rotationOffset: 0.06, spin: 0.06, pulse: 0.1, alpha: 0.98, tint: 0xff6038 },
     field: { family: 'infernoSea', frame: 1, scaleX: 1.32, scaleY: 0.78, rotationSpeed: -0.35, pulse: 0.28, alpha: 0.78, tint: 0xff542f },
   }),
   violetThunder: weaponVisualSignature({
@@ -1800,23 +1800,81 @@ function projectileAtlasTexture() {
     ctx.stroke()
     finish()
 
-    // fire: a compact ember with a rising split flame.
+    // fire talisman: the atlas cell points along +X so the pooled projectile's
+    // travel rotation reads as velocity. The previous upright flame became a
+    // flat orange icon when rotated and repeated; a parchment head, cinnabar
+    // seal and tapering ember tail now read as an authored flying talisman.
     translate(1)
-    drawGlow(0, 8, 'rgba(255,105,45,.48)', 38)
-    ctx.fillStyle = '#ff7a43'
+    drawGlow(-3, 0, 'rgba(255,111,46,.42)', 45)
+    const emberTail = ctx.createLinearGradient(-55, 0, 8, 0)
+    emberTail.addColorStop(0, 'rgba(255,64,30,0)')
+    emberTail.addColorStop(0.38, 'rgba(255,73,30,.58)')
+    emberTail.addColorStop(0.78, 'rgba(255,168,58,.9)')
+    emberTail.addColorStop(1, 'rgba(255,232,146,.96)')
+    ctx.fillStyle = emberTail
     ctx.beginPath()
-    ctx.moveTo(-23, 22)
-    ctx.bezierCurveTo(-36, 5, -17, -2, -10, -20)
-    ctx.bezierCurveTo(-1, -10, 0, -2, 6, -15)
-    ctx.bezierCurveTo(19, -3, 33, 3, 25, 22)
-    ctx.bezierCurveTo(13, 34, -12, 34, -23, 22)
+    ctx.moveTo(-57, 0)
+    ctx.bezierCurveTo(-43, -5, -34, -15, -8, -10)
+    ctx.lineTo(10, -6)
+    ctx.lineTo(10, 6)
+    ctx.lineTo(-8, 10)
+    ctx.bezierCurveTo(-34, 15, -43, 5, -57, 0)
+    ctx.closePath()
     ctx.fill()
-    ctx.fillStyle = '#ffe6a4'
+
+    ctx.lineCap = 'round'
+    for (const [y, width, alpha] of [[-7, 3, 0.68], [0, 4, 0.92], [7, 2, 0.54]]) {
+      ctx.strokeStyle = `rgba(255,224,128,${alpha})`
+      ctx.lineWidth = width
+      ctx.beginPath()
+      ctx.moveTo(-48, y * 0.45)
+      ctx.quadraticCurveTo(-25, y * 1.15, 6, y * 0.55)
+      ctx.stroke()
+    }
+
+    ctx.fillStyle = '#50151b'
     ctx.beginPath()
-    ctx.moveTo(-11, 18)
-    ctx.bezierCurveTo(-15, 7, -4, 3, 0, -8)
-    ctx.bezierCurveTo(8, 3, 14, 8, 10, 18)
-    ctx.bezierCurveTo(5, 24, -5, 24, -11, 18)
+    ctx.moveTo(-9, -17)
+    ctx.lineTo(30, -13)
+    ctx.lineTo(46, 0)
+    ctx.lineTo(30, 13)
+    ctx.lineTo(-9, 17)
+    ctx.lineTo(-3, 0)
+    ctx.closePath()
+    ctx.fill()
+
+    const parchment = ctx.createLinearGradient(-6, -11, 39, 11)
+    parchment.addColorStop(0, '#fff4bf')
+    parchment.addColorStop(0.52, '#efbd63')
+    parchment.addColorStop(1, '#ff7845')
+    ctx.fillStyle = parchment
+    ctx.beginPath()
+    ctx.moveTo(-5, -11)
+    ctx.lineTo(27, -8)
+    ctx.lineTo(39, 0)
+    ctx.lineTo(27, 8)
+    ctx.lineTo(-5, 11)
+    ctx.lineTo(0, 0)
+    ctx.closePath()
+    ctx.fill()
+
+    // A tiny original seal remains legible as a red centre stroke at combat
+    // scale without depending on a font or an external icon asset.
+    ctx.strokeStyle = '#a9282d'
+    ctx.lineWidth = 3
+    ctx.lineJoin = 'round'
+    ctx.beginPath()
+    ctx.moveTo(7, -7)
+    ctx.lineTo(18, -4)
+    ctx.lineTo(9, 0)
+    ctx.lineTo(21, 4)
+    ctx.lineTo(10, 8)
+    ctx.moveTo(24, -7)
+    ctx.lineTo(24, 7)
+    ctx.stroke()
+    ctx.fillStyle = '#fff3b3'
+    ctx.beginPath()
+    ctx.arc(39, 0, 3.5, 0, Math.PI * 2)
     ctx.fill()
     finish()
 
@@ -4063,7 +4121,12 @@ export class PixiPresentation {
         : projectilePresentationForBehavior(behavior, kind, false)
       if (!hostile) {
         item.texture = this.textures.projectileFrames[visual.frame]
-        item.tint = projectileTintForBehavior2D(behavior, kind, field.color[i])
+        // The fire cell is already a multi-colour parchment/seal/flame asset.
+        // Multiplicative tint collapsed those authored values into one orange
+        // stamp, so only that explicit signature keeps its atlas colours.
+        item.tint = visual.preserveAtlasColor
+          ? 0xffffff
+          : projectileTintForBehavior2D(behavior, kind, field.color[i])
       } else {
         item.texture = this.textures.hostileProjectileFrames?.[visual.frame] ?? this.textures.wisp
         item.tint = mixTint2D(field.color?.[i], visual.tint)

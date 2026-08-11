@@ -113,6 +113,22 @@ describe('PixiPresentation combat bindings', () => {
     expect(projectilePresentationFor(5, true).family).toBe('hostile')
   })
 
+  it('keeps fire talismans aligned to travel instead of rendering upright icon stamps', () => {
+    const fallback = PROJECTILE_PRESENTATION[2]
+    const fire = WEAPON_VISUAL_SIGNATURES.fireTalisman.projectile
+    const inferno = WEAPON_VISUAL_SIGNATURES.infernoSea.projectile
+
+    expect(fallback.shape).toBe('talisman-comet')
+    expect(fire.shape).toBe('talisman-comet')
+    expect(inferno.shape).toBe('inferno-talisman-comet')
+    for (const visual of [fallback, fire, inferno]) {
+      expect(visual.preserveAtlasColor).toBe(true)
+      expect(visual.scaleX / visual.scaleY).toBeGreaterThan(1.5)
+      expect(Math.abs(visual.rotationOffset)).toBeLessThan(0.1)
+    }
+    expect(inferno.scaleX).toBeGreaterThan(fire.scaleX)
+  })
+
   it('keeps hostile projectile silhouettes separate from wisps and friendly frames', () => {
     expect(HOSTILE_PROJECTILE_PRESENTATION).toHaveLength(4)
     expect(new Set(HOSTILE_PROJECTILE_PRESENTATION.map((visual) => visual.shape)).size).toBe(4)
@@ -400,6 +416,7 @@ describe('PixiPresentation combat bindings', () => {
     expect(new Set(particles.map((particle) => `${particle.scaleX}:${particle.scaleY}`)).size).toBeGreaterThanOrEqual(6)
     expect(new Set(particles.map((particle) => particle.rotation)).size).toBe(7)
     expect(new Set(particles.map((particle) => particle.tint)).size).toBe(7)
+    expect(particles[1].tint).toBe(0xffffff)
     expect(presentation.friendlyProjectileContainer.update).toHaveBeenCalledTimes(1)
   })
 
