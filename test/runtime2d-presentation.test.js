@@ -30,6 +30,7 @@ import {
   bossTelegraphProfile2D,
   bossTelegraphWorldShapes2D,
   weaponFieldVisualForBehavior,
+  planWeaponFieldVisuals2D,
   weaponFieldPulse2D,
   enemyActorTint2D,
   attachCombatGroundMasks2D,
@@ -637,10 +638,42 @@ describe('PixiPresentation combat bindings', () => {
     expect(presentation.weaponFieldPool[0].alpha).toBeGreaterThan(0)
     expect(presentation.weaponFieldPool[1].alpha).toBeGreaterThan(0)
     expect(presentation.weaponFieldPool[0].scale.set).toHaveBeenCalled()
-    expect(presentation.weaponFieldPool[1].rotation).not.toBe(presentation.weaponFieldPool[0].rotation)
+    expect(presentation.weaponFieldPool[0].rotation).toBe(0)
+    expect(presentation.weaponFieldPool[1].rotation).toBe(0)
     expect(presentation.weaponFieldPool[2].visible).toBe(false)
     expect(weaponFieldPulse2D(3, 4, 1, 0)).not.toBe(weaponFieldPulse2D(0.05, 4, 1, 0))
     expect(Object.keys(WEAPON_FIELD_PRESENTATION)).toEqual(['1', '2', '3', '4'])
+  })
+
+  it('clusters only deeply overlapping copies of the same weapon field', () => {
+    const bagua = getWeaponBehavior2D('baguaArray', 5)
+    const plague = getWeaponBehavior2D('plagueTide', 1)
+    const field = {
+      count: 5,
+      kind: new Uint8Array([1, 1, 1, 1, 3]),
+      x: new Float32Array([0, 0.3, -0.25, 4, 0]),
+      z: new Float32Array([0, -0.2, 0.15, 0, 0]),
+      radius: new Float32Array([2, 2, 2, 2, 2]),
+      segment: new Uint8Array(5),
+      tag: ['array', 'array', 'array', 'array', 'array'],
+      behavior: [bagua, bagua, bagua, bagua, plague],
+    }
+
+    const plan = planWeaponFieldVisuals2D(field)
+    expect(plan).toHaveLength(3)
+    expect(plan[0]).toMatchObject({ overlapCount: 3 })
+    expect(plan[0].x).toBeCloseTo((0 + 0.3 - 0.25) / 3)
+    expect(plan[0].z).toBeCloseTo((0 - 0.2 + 0.15) / 3)
+    expect(plan[0].radius).toBeGreaterThan(2)
+    expect(plan[1]).toMatchObject({ overlapCount: 1, x: 4, z: 0, radius: 2 })
+    expect(plan[2]).toMatchObject({ overlapCount: 1, x: 0, z: 0, radius: 2 })
+    expect(field.count).toBe(5)
+
+    field.segment[0] = 1
+    const segmented = planWeaponFieldVisuals2D(field)
+    expect(segmented).toHaveLength(4)
+    expect(segmented[0]).toMatchObject({ overlapCount: 1, index: 0, radius: 2 })
+    expect(segmented[1]).toMatchObject({ overlapCount: 2 })
   })
 
   it('uses weaponFields.behavior for glyph, size, pulse and alpha', () => {
@@ -674,7 +707,8 @@ describe('PixiPresentation combat bindings', () => {
       presentation.weaponFieldPool[1].scale.set.mock.calls[0][0],
       presentation.weaponFieldPool[1].scale.set.mock.calls[0][1],
     )
-    expect(presentation.weaponFieldPool[0].rotation).not.toBe(presentation.weaponFieldPool[1].rotation)
+    expect(presentation.weaponFieldPool[0].rotation).toBe(0)
+    expect(presentation.weaponFieldPool[1].rotation).toBe(0)
     expect(presentation.weaponFieldPool[0].alpha).not.toBe(presentation.weaponFieldPool[1].alpha)
   })
 

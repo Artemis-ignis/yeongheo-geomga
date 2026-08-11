@@ -554,6 +554,96 @@ export function weaponFieldPulse2D(life, maxLife, time, slot = 0, amplitude = 0.
   return (0.9 + Math.sin(phase) * pulse) * (0.74 + remaining * 0.26)
 }
 
+function sameWeaponFieldSemantic2D(field, left, right) {
+  const leftBehavior = field.behavior?.[left]
+  const rightBehavior = field.behavior?.[right]
+  const leftSemantic = leftBehavior?.id ?? leftBehavior?.weaponId ?? null
+  const rightSemantic = rightBehavior?.id ?? rightBehavior?.weaponId ?? null
+  if (leftSemantic != null || rightSemantic != null) return leftSemantic === rightSemantic
+  return (field.kind?.[left] ?? 0) === (field.kind?.[right] ?? 0)
+    && (field.tag?.[left] ?? '') === (field.tag?.[right] ?? '')
+}
+
+/**
+ * Persistent fields keep every collision body in the simulation, but a
+ * late-game build can place 6-20 copies of the same glyph around one target.
+ * Collapse only deeply overlapping copies of the same semantic field into one
+ * crisp visual envelope. Distinct weapons, spaced coverage and Dao wall
+ * segments retain individual glyphs and the simulation pool is never mutated.
+ */
+export function planWeaponFieldVisuals2D(field, output = [], marks = null) {
+  const count = Math.min(Math.max(0, Math.trunc(field.count ?? 0)), MAX_WEAPON_FIELDS_2D)
+  const assigned = marks?.length >= count ? marks : new Uint16Array(Math.max(1, count))
+  assigned.fill(0, 0, count)
+  let planned = 0
+
+  for (let seed = 0; seed < count; seed++) {
+    if (assigned[seed] !== 0) continue
+    const clusterId = planned + 1
+    assigned[seed] = clusterId
+    const segment = field.segment?.[seed] === 1
+    const seedX = Number(field.x?.[seed])
+    const seedZ = Number(field.z?.[seed])
+    const seedRadius = Math.max(0.1, Number(field.radius?.[seed]) || 0.1)
+    let memberCount = 1
+    let sumX = Number.isFinite(seedX) ? seedX : 0
+    let sumZ = Number.isFinite(seedZ) ? seedZ : 0
+
+    if (!segment && Number.isFinite(seedX) && Number.isFinite(seedZ)) {
+      for (let other = seed + 1; other < count; other++) {
+        if (assigned[other] !== 0 || field.segment?.[other] === 1) continue
+        if (!sameWeaponFieldSemantic2D(field, seed, other)) continue
+        const otherX = Number(field.x?.[other])
+        const otherZ = Number(field.z?.[other])
+        if (!Number.isFinite(otherX) || !Number.isFinite(otherZ)) continue
+        const otherRadius = Math.max(0.1, Number(field.radius?.[other]) || 0.1)
+        const deepOverlap = Math.max(0.8, Math.min(seedRadius, otherRadius) * 0.45)
+        const dx = otherX - seedX
+        const dz = otherZ - seedZ
+        if (dx * dx + dz * dz > deepOverlap * deepOverlap) continue
+        assigned[other] = clusterId
+        memberCount++
+        sumX += otherX
+        sumZ += otherZ
+      }
+    }
+
+    const centerX = sumX / memberCount
+    const centerZ = sumZ / memberCount
+    let envelopeRadius = seedRadius
+    let renderIndex = seed
+    let bestRemaining = -1
+    for (let member = seed; member < count; member++) {
+      if (assigned[member] !== clusterId) continue
+      const memberX = Number(field.x?.[member])
+      const memberZ = Number(field.z?.[member])
+      const memberRadius = Math.max(0.1, Number(field.radius?.[member]) || 0.1)
+      if (Number.isFinite(memberX) && Number.isFinite(memberZ)) {
+        envelopeRadius = Math.max(
+          envelopeRadius,
+          Math.hypot(memberX - centerX, memberZ - centerZ) + memberRadius,
+        )
+      }
+      const remaining = (Number(field.life?.[member]) || 0)
+        / Math.max(0.05, Number(field.maxLife?.[member]) || 0.05)
+      if (remaining > bestRemaining) {
+        bestRemaining = remaining
+        renderIndex = member
+      }
+    }
+
+    const entry = output[planned] ?? (output[planned] = {})
+    entry.index = renderIndex
+    entry.x = segment ? seedX : centerX
+    entry.z = segment ? seedZ : centerZ
+    entry.radius = segment ? seedRadius : envelopeRadius
+    entry.overlapCount = memberCount
+    planned++
+  }
+  output.length = planned
+  return output
+}
+
 export const COMBAT_HORIZON_RATIO_2D = COMBAT_HORIZON_RATIO
 
 // The combat floor remains present all the way to the top of the viewport so
@@ -2881,6 +2971,8 @@ export class PixiPresentation {
     this.enemyPool = []
     this.effectPool = []
     this.weaponFieldPool = []
+    this.weaponFieldVisualPlan = []
+    this.weaponFieldClusterMarks = new Uint16Array(MAX_WEAPON_FIELDS_2D)
     this.propPool = []
     this.poiPool = []
     this.mapDecalPool = []
@@ -4279,9 +4371,14 @@ export class PixiPresentation {
   }
 
   _renderWeaponFields(field) {
-    const count = Math.min(field?.count ?? 0, MAX_WEAPON_FIELDS_2D)
-    for (let i = 0; i < count; i++) {
-      const sprite = this.weaponFieldPool[i]
+    const plan = planWeaponFieldVisuals2D(
+      field ?? { count: 0 }, this.weaponFieldVisualPlan, this.weaponFieldClusterMarks,
+    )
+    const count = plan.length
+    for (let slot = 0; slot < count; slot++) {
+      const item = plan[slot]
+      const i = item.index
+      const sprite = this.weaponFieldPool[slot]
       const kind = field.kind?.[i] ?? 1
       const behavior = field.behavior?.[i]
       const visual = weaponFieldVisualForBehavior(behavior, kind)
@@ -4290,7 +4387,7 @@ export class PixiPresentation {
       const statusPulse = behavior?.statusEffects?.freeze?.enabled || behavior?.statusEffects?.burn?.enabled ? 0.035 : 0
       const pulse = weaponFieldPulse2D(life, maxLife, this.time, i, visual.pulse + statusPulse)
       const collisionScale = Math.max(0.72, Math.min(1.45, behavior?.collision?.radiusScale ?? 1))
-      const radius = Math.max(0.8, (field.radius?.[i] ?? 1) * (0.92 + collisionScale * 0.08))
+      const radius = Math.max(0.8, item.radius * (0.92 + collisionScale * 0.08))
 
       const fromX = Number(field.fromX?.[i])
       const fromZ = Number(field.fromZ?.[i])
@@ -4325,15 +4422,17 @@ export class PixiPresentation {
         continue
       }
 
-      projectWorld(field.x[i], field.z[i], this.cameraX, this.cameraZ, this.viewport, _screen)
+      projectWorld(item.x, item.z, this.cameraX, this.cameraZ, this.viewport, _screen)
       const onScreen = isOnScreen(_screen.x, _screen.y, this.viewport, 90)
       const diameter = Math.max(34, Math.min(420, radius * _screen.unit * 2))
       const baseScale = diameter / Math.max(1, this.textures.weaponField.width)
       sprite.position.set(_screen.x, _screen.y + 1)
       sprite.scale.set(baseScale * visual.scaleX * pulse, baseScale * visual.scaleY * pulse)
       sprite.texture = this.textures.weaponFieldFrames?.[visual.frame] ?? this.textures.weaponField
-      const orbitAngle = behavior?.trajectory?.orbit ? (field.orbitAngle?.[i] ?? 0) * 0.12 : 0
-      sprite.rotation = this.time * visual.rotationSpeed + orbitAngle + (i % 5) * 0.08
+      // The texture is already authored as a perspective-flattened ground
+      // ellipse. Rotating that screen-space ellipse makes the field stand up
+      // like a shield; pulse the glyph instead and keep its ground axis fixed.
+      sprite.rotation = 0
       sprite.tint = mixTint2D(field.color?.[i], visual.tint)
       sprite.alpha = onScreen
         ? Math.min(0.82, (0.24 + (life / Math.max(0.05, maxLife)) * 0.34) * visual.alpha * pulse)
@@ -4556,6 +4655,8 @@ export class PixiPresentation {
     this.enemyPool = []
     this.effectPool = []
     this.weaponFieldPool = []
+    this.weaponFieldVisualPlan = []
+    this.weaponFieldClusterMarks = null
     this.propPool = []
     this.poiPool = []
     this.mapDecalPool = []
