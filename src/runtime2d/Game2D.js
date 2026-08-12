@@ -45,14 +45,21 @@ export const EMERGENCY_HEAL_THRESHOLD_2D = 0.5
 // Preserve the opening read: heroine, movement, automatic attack, and dash
 // must all be visible before the first full-screen growth decision pauses play.
 export const FIRST_LEVEL_MODAL_MIN_SECONDS_2D = 12
+// A seven-minute run grants roughly thirty choices. The authored XP curve is
+// part of the build fantasy, but two full-screen decisions only a few seconds
+// apart make the opening feel like menu navigation rather than combat. Measure
+// this in simulation time so time spent reading a card never counts as action.
+export const GROWTH_CHOICE_MIN_GAMEPLAY_GAP_SECONDS_2D = 8
 export const UPGRADE_RNG_SALT_2D = 0x51f15e37
 
 export function upgradeSeedForRun2D(seed) {
   return ((Number(seed) >>> 0) ^ UPGRADE_RNG_SALT_2D) >>> 0
 }
 
-export function canOpenQueuedLevelChoice2D(runTime) {
-  return Number.isFinite(runTime) && runTime + 1e-6 >= FIRST_LEVEL_MODAL_MIN_SECONDS_2D
+export function canOpenGrowthChoice2D(runTime, lastOpenedAt = Number.NEGATIVE_INFINITY) {
+  if (!Number.isFinite(runTime) || runTime + 1e-6 < FIRST_LEVEL_MODAL_MIN_SECONDS_2D) return false
+  if (!Number.isFinite(lastOpenedAt)) return true
+  return runTime - lastOpenedAt + 1e-6 >= GROWTH_CHOICE_MIN_GAMEPLAY_GAP_SECONDS_2D
 }
 const RADAR_RADIUS = 72
 const RADAR_REFRESH_SECONDS = 0.08
@@ -221,6 +228,7 @@ export class Game2D {
     this.runOptions = null
     this.runProgress = null
     this.pendingLevels = 0
+    this._lastGrowthChoiceAt = Number.NEGATIVE_INFINITY
     this.rerolls = 0
     this.banishes = 0
     this.banished = new Set()
@@ -373,6 +381,7 @@ export class Game2D {
     this._eliteEncounters.length = 0
     this._interactionSnapshotKey = ''
     this.pendingLevels = 0
+    this._lastGrowthChoiceAt = Number.NEGATIVE_INFINITY
     this.rerolls = 0
     this.banishes = 0
     this.banished = new Set()
@@ -481,6 +490,7 @@ export class Game2D {
     this._eliteEncounters.length = 0
     this._interactionSnapshotKey = ''
     this.pendingLevels = 0
+    this._lastGrowthChoiceAt = Number.NEGATIVE_INFINITY
     this.rerolls = this.runProgress.rerollCharges
     this.banishes = this.runProgress.banishCharges
     this.banished = new Set()
@@ -606,7 +616,7 @@ export class Game2D {
 
   _openNextModal(refunded = false) {
     if (!this.world || this.modal.isOpen) return
-    if (!refunded && !canOpenQueuedLevelChoice2D(this.world.runTime)) return
+    if (!refunded && !canOpenGrowthChoice2D(this.world.runTime, this._lastGrowthChoiceAt)) return
     if (!refunded) {
       if (!Number.isFinite(this.pendingLevels) || this.pendingLevels <= 0) return
       this.pendingLevels--
@@ -620,6 +630,7 @@ export class Game2D {
       this._takeUpgrade(choices[0])
       return
     }
+    if (!refunded) this._lastGrowthChoiceAt = this.world.runTime
     this.state = 'levelUp'
     this._needsStaticRender = true
     this.modal.open(choices, (choice) => this._takeUpgrade(choice), {
@@ -680,6 +691,7 @@ export class Game2D {
     const milestone = this.daoVows.milestone
     if (milestone >= DAO_MILESTONE_SECONDS.length) return
     if (this.world.runTime + 1e-6 < DAO_MILESTONE_SECONDS[milestone]) return
+    if (!canOpenGrowthChoice2D(this.world.runTime, this._lastGrowthChoiceAt)) return
     this._openDaoVowModal()
   }
 
@@ -718,6 +730,7 @@ export class Game2D {
         ariaLabel: `${milestoneName} 선택 · ${pledge ? `${option.hanja} ${option.name}` : `${snapshot.vowHanja} ${snapshot.vowName}`} · ${option.name} · ${option.description ?? ''}`,
       }
     })
+    this._lastGrowthChoiceAt = this.world.runTime
     this.state = 'daoVow'
     this._needsStaticRender = true
     this.audio.play('breakthrough')

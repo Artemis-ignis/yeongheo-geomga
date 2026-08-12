@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   BREAKTHROUGH_HEAL_FRACTION_2D, DAO_VOW_HEAL_FRACTION_2D,
-  FIRST_LEVEL_MODAL_MIN_SECONDS_2D, Game2D, canOpenQueuedLevelChoice2D, isHudLiveState,
+  FIRST_LEVEL_MODAL_MIN_SECONDS_2D, GROWTH_CHOICE_MIN_GAMEPLAY_GAP_SECONDS_2D, Game2D,
+  canOpenGrowthChoice2D, isHudLiveState,
   prioritizeEmergencyHeal2D,
 } from '../src/runtime2d/Game2D.js'
 import { DaoVows2D } from '../src/runtime2d/DaoVows2D.js'
@@ -83,8 +84,21 @@ describe('runtime2d breakthrough sustain', () => {
   })
 
   it('protects the first twelve seconds from a full-screen growth modal', () => {
-    expect(canOpenQueuedLevelChoice2D(FIRST_LEVEL_MODAL_MIN_SECONDS_2D - 0.01)).toBe(false)
-    expect(canOpenQueuedLevelChoice2D(FIRST_LEVEL_MODAL_MIN_SECONDS_2D)).toBe(true)
+    expect(canOpenGrowthChoice2D(FIRST_LEVEL_MODAL_MIN_SECONDS_2D - 0.01)).toBe(false)
+    expect(canOpenGrowthChoice2D(FIRST_LEVEL_MODAL_MIN_SECONDS_2D)).toBe(true)
+  })
+
+  it('requires active combat time between separate full-screen growth choices', () => {
+    const previousChoiceAt = 24.5
+    expect(canOpenGrowthChoice2D(
+      previousChoiceAt + GROWTH_CHOICE_MIN_GAMEPLAY_GAP_SECONDS_2D - 0.01,
+      previousChoiceAt,
+    )).toBe(false)
+    expect(canOpenGrowthChoice2D(
+      previousChoiceAt + GROWTH_CHOICE_MIN_GAMEPLAY_GAP_SECONDS_2D,
+      previousChoiceAt,
+    )).toBe(true)
+    expect(canOpenGrowthChoice2D(120, Number.NEGATIVE_INFINITY)).toBe(true)
   })
 
   it('puts a heal in a critical-health roll without replacing an evolution', () => {
@@ -131,6 +145,7 @@ function makeDaoFlowGame() {
     world,
     daoVows,
     _daoSnapshot: daoVows.snapshot(),
+    _lastGrowthChoiceAt: Number.NEGATIVE_INFINITY,
     modal,
     audio: { play: vi.fn() },
     _banner: vi.fn(),
@@ -390,6 +405,21 @@ describe('Game2D run-state integration', () => {
       Game2D.prototype._checkDaoMilestone.call(game)
       expect(modal.open).toHaveBeenCalledTimes(index + 1)
     })
+  })
+
+  it('defers a Dao choice when another full-screen growth decision just closed', () => {
+    const { game, world, modal } = makeDaoFlowGame()
+    game._lastGrowthChoiceAt = 14
+    world.runTime = 20
+
+    Game2D.prototype._checkDaoMilestone.call(game)
+    expect(game.state).toBe('playing')
+    expect(modal.open).not.toHaveBeenCalled()
+
+    world.runTime = 14 + GROWTH_CHOICE_MIN_GAMEPLAY_GAP_SECONDS_2D
+    Game2D.prototype._checkDaoMilestone.call(game)
+    expect(game.state).toBe('daoVow')
+    expect(modal.open).toHaveBeenCalledOnce()
   })
 
   it('carries each Dao choice presentation identity into the modal contract', () => {
