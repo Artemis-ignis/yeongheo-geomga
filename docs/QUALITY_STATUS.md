@@ -6,12 +6,13 @@
 
 ## 현재 production 2D 검증 스냅샷
 
-- build PASS: Game2D 564.82 kB, gzip 167.67 kB. 번들 warning 정리는 아직 남아 있습니다.
-- tests PASS: 67개 파일/775개 테스트. assets PASS: 127/127. runtime PASS: 78/78. `npm audit` 알려진 취약점 0.
+- build PASS: Game2D 565.12 kB, gzip 167.73 kB. 번들 warning 정리는 아직 남아 있습니다.
+- tests PASS: 67개 파일/777개 테스트. assets PASS: 127/127. runtime PASS: 78/78. `npm audit` 알려진 취약점 0.
 - `YEONGHEO_NO_BROWSER=1` launcher 실제 smoke PASS.
 - actual combat checkpoint `4be14c6`에서 Windows Chrome 1920×1080 title→420초 전투→승천과 2560×1600 결과→재도전을 시간·피해·보스·레벨 치트 없이 확인했습니다. 결과는 대승 35층·2,919처치이며 console error 0입니다.
 - `f2b9254` 결과 화면은 실제 ResultScreen 최대 밀도 검증에서 1920 첫 화면에 보상·CTA·통계·11개 빌드, 2560 첫 화면에 상세 효과 포함 11개 빌드를 표시하고 하단 업적·은행·seed까지 스크롤 도달합니다. 이 UI fixture는 위 실제 완주 근거를 대신하지 않습니다.
-- 전체 commercial visual은 **strict FAIL**입니다. 반복 지면 장판·악귀 수사·일반 늑대·결과 정보 위계의 focused 결함은 닫았지만, 공개 옥산 런의 선택 모달 빈도·후반 군집 반복·지면 평면감이 남았습니다. `ashRaven` 늑대 재사용은 잠긴 염화 비경 P1로 추적합니다.
+- `b3434f8`은 일반 성장·도 선택 사이에 실제 전투 시간 8초를 보장합니다. 루트가 1920 실제 빠른 출정을 125.25초까지 진행해 선택 간격·대기열 해소·생존을 확인했고, 2560 실제 레벨업 화면도 직접 확인했습니다.
+- 전체 commercial visual은 **strict FAIL**입니다. 반복 지면 장판·악귀 수사·일반 늑대·결과 정보 위계·전면 선택 간격 focused 결함은 닫았지만, 공개 옥산 런의 후반 군집 반복·지면 평면감이 남았습니다. `ashRaven` 늑대 재사용은 잠긴 염화 비경 P1로 추적합니다.
 - WorldClaw는 지역/공유 레이아웃/접점 QA에만 선택적으로 적용했습니다. 전체 3D 포트나 파노라마 전환은 하지 않았습니다.
 - rights audit는 **BLOCKED**이며 법적 증거는 0/78입니다. release approval, A-grade, rights clearance를 선언하지 않습니다.
 

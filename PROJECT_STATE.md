@@ -13,28 +13,32 @@
 
 | 영역 | 현재 판정 |
 |---|---|
-| build | PASS; Game2D 564.82 kB, gzip 167.67 kB |
-| tests | 67개 파일 / 775개 PASS |
+| build | PASS; Game2D 565.12 kB, gzip 167.73 kB |
+| tests | 67개 파일 / 777개 PASS |
 | runtime assets | 78/78, source/output 누락 0, unexpected 0 |
 | npm audit | 알려진 취약점 0 |
 | launcher | 브라우저를 열지 않는 실제 smoke PASS |
 | 7분 Windows Chrome E2E | actual combat checkpoint `4be14c6`에서 1920×1080 무치트 420초 승천, 2560×1600 결과·재시작 PASS |
 | 결과 화면 | `f2b9254` 실제 ResultScreen을 1920×1080·2560×1600 최대 밀도 데이터로 검증; 핵심 빌드 첫 화면 노출·하단 스크롤 도달 PASS |
-| 시각 확인 | 결과 화면·`화염부`·영체 반복·영기 과밀·뇌령주·자소신뢰 과밀·석괴·부적 원혼·악귀 수사·일반 늑대 반복·공전 구슬·타격 섬광·지속 장판 겹침/기울기·보스 전조 공존 focused 결함 PASS; 현재 옥산의 선택 빈도·후반 군집 반복·지면 평면감 때문에 전체 commercial visual gate는 계속 FAIL |
+| 시각 확인 | 결과 화면·전면 성장 선택 간격·`화염부`·영체 반복·영기 과밀·뇌령주·자소신뢰 과밀·석괴·부적 원혼·악귀 수사·일반 늑대 반복·공전 구슬·타격 섬광·지속 장판 겹침/기울기·보스 전조 공존 focused 결함 PASS; 현재 옥산의 후반 군집 반복·지면 평면감 때문에 전체 commercial visual gate는 계속 FAIL |
 
 ## 아직 닫히지 않은 게이트
 
-- 전체 commercial visual gate는 **strict FAIL**입니다. 지속 장판·악귀 수사·일반 늑대·결과 화면 focused 결함은 닫혔지만, 실제 옥산 7분 런의 반복 선택 모달·후반 군집 반복·지면 평면감이 남았습니다. `ashRaven`의 `yorang` 늑대 재사용은 잠긴 염화 비경 P1 콘텐츠 결함으로 추적합니다.
+- 전체 commercial visual gate는 **strict FAIL**입니다. 지속 장판·악귀 수사·일반 늑대·결과 화면·전면 선택 간격 focused 결함은 닫혔지만, 실제 옥산 7분 런의 후반 군집 반복·지면 평면감이 남았습니다. `ashRaven`의 `yorang` 늑대 재사용은 잠긴 염화 비경 P1 콘텐츠 결함으로 추적합니다.
 - rights audit는 **BLOCKED**입니다. 법적 증거가 확인된 runtime asset은 0/78입니다.
 - 따라서 release approval, A-grade, rights clearance, 공식 제출 승인을 선언하지 않습니다.
 
 ## 2026-08-12 직접 확인한 최신 품질 패스
 
+- commit `b3434f8`은 일반 성장과 도 선택을 하나의 전면 결정 계열로 묶어, 두 창 사이에 실제 전투 시간 8초를 보장합니다. XP 곡선·레벨 수·업그레이드 수·보스 수치는 바꾸지 않았습니다.
+- 루트가 production build의 실제 빠른 출정을 1920×1080에서 125.25초까지 WASD·축지법·실제 카드 클릭만으로 진행했습니다. 전면 선택은 `13.25 → 21.25(도) → 29.25 → 37.25 → 45.25…`로 8초 간격을 지켰고, 초반 대기 선택은 93.25초에 `pending=0`으로 모두 해소됐습니다. 125.25초에는 레벨 14·기혈 170/170·pending 0이었고 console error/warning은 0입니다.
+- 같은 실제 레벨업 화면을 2560×1600에서 루트가 직접 확인했고 카드·설명·HUD overflow는 없었습니다. 임시 캡처는 검수 직후 삭제했습니다. 현재 production build는 `assets/Game2D-2rOBY3pT.js` 565.12 kB / gzip 167.73 kB, 565,128 bytes, SHA-256 `75de0b49a1ae48ad82c765aa28b63938a5adea910b25e38d4a3b135531aa4d4d`이며 전체 67개 파일 / 777개 테스트가 통과했습니다.
+
 - actual combat checkpoint `4be14c6`의 immutable run `yeongheo-e2e-20260812-4be14c6-r2`에서 title→성장→도 선택 3/3→중간 보스→진화→최종 보스→승천→결과→재도전을 실제 Chrome으로 검증했습니다. 시간 점프·피해 무효화·강제 보스/레벨/스트레스 호출은 사용하지 않았습니다. 결과는 420초, 대승 35층, 처치 2,919, 피해 470,218, 영석 +274였습니다.
-- 루트가 `00-title-1920.png`, `07-391s-boss-1920.png`, `08-result-1920.png`, `09-result-2560.png`, `10-restart-051s-2560.png`를 원본 크기로 직접 확인했습니다. 진행 불가·크래시는 없고 재도전 뒤 51초·레벨 7·처치 101까지 다시 진행됐습니다. 후반 전투 위험은 존재했지만 선택 모달 빈도와 군집 반복·지면 평면감은 계속 개선 대상으로 판정했습니다.
+- 루트가 `00-title-1920.png`, `07-391s-boss-1920.png`, `08-result-1920.png`, `09-result-2560.png`, `10-restart-051s-2560.png`를 원본 크기로 직접 확인했습니다. 진행 불가·크래시는 없고 재도전 뒤 51초·레벨 7·처치 101까지 다시 진행됐습니다. 이 런에서 드러난 선택 모달 연속 중단은 이후 `b3434f8`에서 focused PASS로 닫았고, 군집 반복·지면 평면감은 계속 개선 대상으로 남습니다.
 - commit `f2b9254`는 결과 화면에서 보상·CTA·통계 다음에 빌드를 업적보다 먼저 배치하고, 1920×1080에서는 종류·이름·레벨 중심의 6열 compact grid와 전체 효과 툴팁을, 2560×1600에서는 상세 효과가 보이는 6열 grid를 사용합니다. UI 전용 fixture `yeongheo-result-layout-20260812-r1`은 실제 ResultScreen 컴포넌트에 최대 업적 8개·빌드 11개를 넣은 레이아웃 검증이며 게임 완주 증거로 사용하지 않습니다.
 - 결과 레이아웃은 1920에서 viewport/scroll 1080/1349, 빌드 bottom 1047로 핵심 빌드가 첫 화면에 들어오고, 2560에서 viewport/scroll 1600/1840, 빌드 bottom 1358로 상세 빌드 전체가 첫 화면에 들어옵니다. 2560 하단 scrollTop 240에서 은행과 seed까지 실제 도달을 확인했습니다. 유효 캡처는 `output/playwright/yeongheo-result-layout-20260812-r1/10-final-dense-result-1920.png`, `11-final-dense-result-2560.png`, `12-bottom-reachable-2560.png`입니다.
-- 현재 production build는 `assets/Game2D-DsQU53EL.js` 564.82 kB / gzip 167.67 kB, SHA-256 `8c1da58caa69dd5f6deca9395b212f436a2047d291320cedb109a02461363878`입니다. 전체 67개 파일 / 775개 테스트가 통과했고 runtime allowlist 78개 / source·output 누락 0 / unexpected 0 상태를 빌드가 다시 확인했습니다. 권리 감사는 의도대로 `0/78 BLOCKED`이며 500 kB 초과 번들 경고도 남습니다.
+- `f2b9254` 직후 production build는 `assets/Game2D-DsQU53EL.js` 564.82 kB / gzip 167.67 kB, SHA-256 `8c1da58caa69dd5f6deca9395b212f436a2047d291320cedb109a02461363878`였습니다. 당시 전체 67개 파일 / 775개 테스트가 통과했고 runtime allowlist 78개 / source·output 누락 0 / unexpected 0 상태를 빌드가 확인했습니다. 권리 감사는 의도대로 `0/78 BLOCKED`이며 500 kB 초과 번들 경고도 남습니다.
 
 - commit `4be14c6`은 일반 늑대 군중에 기존 푸른 장꼬리 룬 늑대와 명확히 다른 숯빛 짧은 꼬리·비취 등마루 사냥개 4×2 authored 이동/공격 아틀라스를 추가했습니다. 기존 종·AI·충돌·체력·피해·스폰 수는 보존하고, UID 기반 저불일치 Weyl 분배로 실제 흔한 stride 2~7에서도 두 실루엣이 4:6~6:4 안에 유지되게 했습니다.
 - 루트가 실제 Chrome과 정확한 headless Chrome의 72마리 집중 장면을 1920×1080·2560×1600에서 직접 확인했습니다. 기존 푸른 장꼬리와 새 숯빛 짧은 꼬리·비취 등마루가 약 절반씩 분리되고, 발 접지·그림자·주인공 가시성·크로마 경계가 읽혀 일반 늑대 단일 아틀라스 반복만 focused PASS로 판정했습니다. 유효 캡처는 `output/playwright/wolf-variant-root-20260812/07-wolf-crowd-1920.png`, `08-wolf-crowd-2560.png`입니다.
