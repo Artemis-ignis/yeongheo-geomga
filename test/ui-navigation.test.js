@@ -310,6 +310,7 @@ describe('ResultScreen keyboard CTAs', () => {
       earnedStones: 8,
       weapons: [{ id: 'flyingSword', level: 3 }],
       passives: [{ id: 'swordArt', level: 2 }],
+      achievements: [{ name: '첫 베기', desc: '요괴를 쓰러뜨린다.', stones: 4 }],
     }, { onRestart() {} })
 
     expect(screen.node.getAttribute('role')).toBe('dialog')
@@ -323,6 +324,13 @@ describe('ResultScreen keyboard CTAs', () => {
     expect(loadout[0].getAttribute('aria-label')).toContain('비검')
     expect(loadout[1].getAttribute('aria-label')).toContain('검결')
     expect(loadout[0].getAttribute('aria-label')).toContain('효과:')
+    expect(loadout[0].getAttribute('title')).toBe(loadout[0].getAttribute('aria-label'))
+    const buildSummary = screen.node.querySelector('.result-build-summary')
+    expect(buildSummary.getAttribute('aria-labelledby')).toBe('result-build-title')
+    expect(screen.node.querySelector('.result-section-title').getAttribute('id')).toBe('result-build-title')
+    expect(screen.node.innerHTML.indexOf('result-build-summary')).toBeLessThan(
+      screen.node.innerHTML.indexOf('result-achievements'),
+    )
     expect(screen.node.innerHTML).toContain('추적')
     expect(screen.node.innerHTML).toContain('위력')
     expect(screen.node.innerHTML).toContain('단전 강화')

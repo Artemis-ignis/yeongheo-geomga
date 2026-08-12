@@ -193,7 +193,7 @@ export class ResultScreen {
     const icons = loadoutItems.length === 0
       ? '<div class="result-loadout-empty">이번 출정에서 얻은 법보가 없습니다.</div>'
       : loadoutItems.map((item) => `
-        <div class="result-loadout-item kind-${item.visualKind}" role="listitem" aria-label="${escapeHtml(item.alt)}">
+        <div class="result-loadout-item kind-${item.visualKind}" role="listitem" aria-label="${escapeHtml(item.alt)}" title="${escapeHtml(item.alt)}">
           <img alt="${escapeHtml(item.alt)}" title="${escapeHtml(item.alt)}" src="${iconFor(item.id)}" />
           <span class="result-loadout-kind">${escapeHtml(item.kindLabel)}</span>
           <b class="result-loadout-name">${escapeHtml(item.name)}</b>
@@ -282,9 +282,12 @@ export class ResultScreen {
           <div><span>가한 피해</span><b>${escapeHtml(Math.round(result.damageDealt ?? 0).toLocaleString('ko-KR'))}</b></div>
           <div><span>획득 영석</span><b class="gain">+${escapeHtml(earnedStones)}</b></div>
         </div>
+        <section class="result-build-summary" aria-labelledby="result-build-title">
+          <h2 class="result-section-title" id="result-build-title">이번 출정의 빌드</h2>
+          <div class="result-loadout" role="list">${icons}</div>
+        </section>
         ${achievements}
         <div class="result-bank">보유 영석 <b>${result.totalStones ?? 0}</b> · 단전에서 영구 강화에 쓸 수 있다</div>
-        <section class="result-loadout" role="list" aria-label="이번 출정의 빌드">${icons}</section>
         <div class="result-seed" aria-label="출정 seed">seed ${escapeHtml(result.seed)}</div>
       </div>`
 
