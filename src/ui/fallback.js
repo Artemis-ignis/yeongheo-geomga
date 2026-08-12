@@ -1,12 +1,3 @@
-export function isWebGL2Available() {
-  try {
-    const canvas = document.createElement('canvas')
-    return !!(window.WebGL2RenderingContext && canvas.getContext('webgl2'))
-  } catch {
-    return false
-  }
-}
-
 /** Replace the game with a readable explanation instead of a black screen. */
 export function showFallback(reason) {
   const el = document.getElementById('fallback')
@@ -20,9 +11,7 @@ export function showFallback(reason) {
     </div>`
   el.hidden = false
   const scene = document.getElementById('scene')
-  const overlay = document.getElementById('overlay')
   const hud = document.getElementById('hud')
   if (scene) scene.style.display = 'none'
-  if (overlay) overlay.style.display = 'none'
   if (hud) hud.style.display = 'none'
 }

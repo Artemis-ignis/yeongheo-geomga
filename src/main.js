@@ -1,27 +1,13 @@
-import { showFallback } from './world/webglSupport.js'
+import { showFallback } from './ui/fallback.js'
 
 const canvas = document.getElementById('scene')
-const overlayCanvas = document.getElementById('overlay')
 const hudRoot = document.getElementById('hud')
 const fallbackRoot = document.getElementById('fallback')
 const params = new URLSearchParams(location.search)
 
 async function boot() {
-  // Legacy 3D remains available only to local developers while the 2D cutover
-  // is being compared. This branch is removed by the production build, so its
-  // Three.js graph and GLB assets cannot leak into the shipped entry point.
-  if (import.meta.env.DEV && params.get('renderer') === '3d') {
-    const legacyModule = './core/Game.js'
-    const { Game } = await import(/* @vite-ignore */ legacyModule)
-    const game = new Game({ canvas, overlayCanvas, hudRoot })
-    game.start()
-    window.__game = game
-    window.__rendererMode = 'legacy-3d'
-    return
-  }
-
   const { Game2D } = await import('./runtime2d/Game2D.js')
-  const game = new Game2D({ canvas, overlayCanvas, hudRoot, fallbackRoot })
+  const game = new Game2D({ canvas, hudRoot, fallbackRoot })
   await game.start()
   if (game._disposed) return
   window.__game = game

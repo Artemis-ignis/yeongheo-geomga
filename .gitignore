@@ -5,44 +5,11 @@ __pycache__/
 *.pyc
 *.local
 .DS_Store
-.shots/
-quality-pass-*.png
 
-# Local asset intake, archive, and resumable img2threejs state are not runtime
-# deliverables. Keep them on the workstation for audit/recovery without
-# allowing unapproved candidates to enter the repository or shipped bundle.
-/.img2threejs/
-/artifacts/asset-intake/
-/artifacts/asset-archive/
-/artifacts/img2threejs/jade-sanctuary-gate/
-
-# Keep the v3 reference brief and admitted outputs reviewable, but do not
-# accumulate generated crops or failed probe copies in the repository.
-/artifacts/img2threejs/seolryeong/character-model-v3/detail-inventory/
-/artifacts/img2threejs/seolryeong/character-model-v3/material-evidence/
-/artifacts/img2threejs/seolryeong/character-model-v3/seolryeong-chroma.png
-/artifacts/img2threejs/void-iron-scale-sentinel-v2/detail-inventory/
-/artifacts/img2threejs/void-iron-scale-sentinel-v2/chroma.png
-/artifacts/img2threejs/void-iron-scale-sentinel-v2/reference.png
-
-# The canonical runtime GLB is copied to public/assets/models. Keep the
-# converter's local OBJ/GLB intermediates available for audit without
-# committing duplicate binary payloads.
-/artifacts/img2threejs/seolryeong/character-model-v4/trellis-mesh/reference.glb
-/artifacts/img2threejs/seolryeong/character-model-v4/trellis-mesh/reference.obj
-
-# A failed preflight used the non-existent material id `void-iron`; keep those
-# local probes out of the canonical v3 evidence set. The named material maps
-# (base/skin/hair/shirt/pants/shoes/eye) remain reviewable and reproducible.
-/artifacts/img2threejs/void-iron-scale-sentinel-v3/pbr-evidence/void-iron_*.png
-/artifacts/img2threejs/void-iron-scale-sentinel-v3/blockout-blocked.json
-/artifacts/img2threejs/void-iron-scale-sentinel-v2/legacy-public-reference-v2.png
-
-# Browser sessions, QA/release scratch, and generated 2D evidence stay local.
-# These rules only block future untracked files; Git continues to track any
-# path that was already committed and does not remove it retroactively.
+# Runtime captures, browser profiles and generated inspection evidence are
+# disposable local outputs. Only current source assets belong in the repo.
 /.playwright-cli/
+/.shots/
 /output/
 /tmp/
-/artifacts/2d-build/
-/artifacts/2d-qa/
+/artifacts/

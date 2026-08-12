@@ -22,7 +22,7 @@ export const RUN_SECONDS = 900
  *
  * Density cannot carry an opening by itself: more enemies is more 영기, which is
  * levels, which is damage, and the danger column barely moves. It works only in
- * company with the shorter entry ring in `EnemyManager.SPAWN_RING`, which is
+ * company with the shorter entry ring in `CombatWorld2D`, which is
  * what lets any of them arrive at all.
  *
  * From there the whole table is one geometric curve: every band is about 12.6%

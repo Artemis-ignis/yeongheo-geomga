@@ -549,7 +549,7 @@ for (const c of CHARACTERS) {
 
 /**
  * Pure 2D creature glyphs. Icons are 32px in the HUD, so importing the retired
- * Three.js geometry graph to rasterise them cost hundreds of kilobytes without
+ * A procedural geometry graph to rasterise them cost hundreds of kilobytes without
  * adding visible detail. These silhouettes derive colour and role from the
  * canonical data table and keep the production graph renderer-agnostic.
  */

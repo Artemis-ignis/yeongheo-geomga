@@ -16,7 +16,7 @@
  * chooses when. So the reward for finishing the shop is not a quieter run, it is
  * permission to fight something that can actually reach you.
  *
- * Multipliers are read live by `EnemyManager`, `scaledHp` and the spawn loop
+ * Multipliers are read live by `CombatWorld2D`, `scaledHp` and the spawn loop
  * through `TRIAL`, so a tier costs no per-enemy state.
  *
  * `stones` is not a courtesy. A tier that is harder and pays the same is a tier

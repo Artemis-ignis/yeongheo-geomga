@@ -71,7 +71,7 @@ export const PASSIVES = [
   {
     /**
      * +0.2 a level, so a maxed 분신결 is exactly one more of everything that
-     * counts its projectiles. `WeaponSystem` rounds, so the extra arrives at
+     * counts its projectiles. `CombatWorld2D` rounds, so the extra arrives at
      * level 3 and holds — a visible step rather than a number that only shows
      * up at the cap.
      */

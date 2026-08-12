@@ -5,7 +5,6 @@ import { PASSIVES } from '../src/data/passives.js'
 import { CHARACTERS, TAGS } from '../src/data/characters.js'
 import { realmFor, xpFor } from '../src/data/realms.js'
 import { ENEMIES, getEnemy, scaledHp, scaledDamage, scaledXp } from '../src/data/enemies.js'
-import { WEAPON_MODULES, getWeaponModule } from '../src/combat/weapons/index.js'
 import { MAX_PASSIVE_SLOTS } from '../src/combat/upgrades.js'
 
 describe('data validation', () => {
@@ -89,34 +88,6 @@ describe('data validation', () => {
     expect(new Set(starts).size).toBe(CHARACTERS.length)
   })
 
-  it('has a behaviour module for every weapon and evolution', () => {
-    for (const w of [...WEAPONS, ...EVOLUTIONS]) {
-      const module = getWeaponModule(w.id)
-      expect(module, `no module for "${w.id}"`).toBeDefined()
-      // A weapon must do something: fire on a cadence, or run continuously.
-      expect(
-        typeof module.fire === 'function' || typeof module.update === 'function',
-        `"${w.id}" has neither fire nor update`,
-      ).toBe(true)
-    }
-  })
-
-  it('pairs attach with detach so persistent weapons cannot leak meshes', () => {
-    for (const w of [...WEAPONS, ...EVOLUTIONS]) {
-      const module = getWeaponModule(w.id)
-      expect(
-        Boolean(module.attach) === Boolean(module.detach),
-        `"${w.id}" has attach without detach (or vice versa)`,
-      ).toBe(true)
-    }
-  })
-
-  it('exposes no modules for weapons that are not in the data tables', () => {
-    const known = new Set([...WEAPONS, ...EVOLUTIONS].map((w) => w.id))
-    for (const id of Object.keys(WEAPON_MODULES)) {
-      expect(known.has(id), `module "${id}" has no data entry`).toBe(true)
-    }
-  })
 })
 
 describe('realms', () => {

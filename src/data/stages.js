@@ -35,7 +35,7 @@ export const STAGES = [
       barrier: 0x6eb7d1,
       mote: 'petal',
       moteTint: 0xffffff,
-    // See Terrain._buildMist. Jade's own greens are strong enough to carry the
+    // Jade's own greens are strong enough to carry the
     // frame; at the old 0.35 they read as a pale wash.
     mistStrength: 0.18,
       moteRise: false,

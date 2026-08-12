@@ -2,7 +2,7 @@
  * Allocation-light behavior contracts for the Pixi/Canvas 2D weapon roster.
  *
  * The renderer consumes these descriptions; it does not need to know about
- * Three.js weapon modules.  Each row is compiled once at module load and all
+ * legacy weapon modules. Each row is compiled once at module load and all
  * per-level values are kept as immutable plain data.  A simulation tick can
  * therefore reuse its own typed-array pools instead of allocating an object
  * for every projectile, status tick, or sound request.

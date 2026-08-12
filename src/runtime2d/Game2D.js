@@ -201,12 +201,10 @@ export function isHudLiveState(state) {
 }
 
 export class Game2D {
-  constructor({ canvas, overlayCanvas, hudRoot, fallbackRoot = null }) {
+  constructor({ canvas, hudRoot, fallbackRoot = null }) {
     this.canvas = canvas
-    this.overlayCanvas = overlayCanvas
     this.hudRoot = hudRoot
     this.fallbackRoot = fallbackRoot
-    this.overlayCanvas.style.display = 'none'
     this.state = 'boot'
     this.clock = new Clock()
     this.input = new Input(window)
@@ -256,7 +254,7 @@ export class Game2D {
 
     this.hud = new Hud(hudRoot)
     this.modal = new LevelUpModal(hudRoot, this.audio)
-    this.title = new TitleScreen(hudRoot, CHARACTERS, this.progress, null, this.audio)
+    this.title = new TitleScreen(hudRoot, CHARACTERS, this.progress, this.audio)
     this.result = new ResultScreen(hudRoot, this.audio)
     this.shop = new ShopScreen(hudRoot, this.progress, () => this._persist())
     this.codex = new CodexScreen(hudRoot, this.progress)

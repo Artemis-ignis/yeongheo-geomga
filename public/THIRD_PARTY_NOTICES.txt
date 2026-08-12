@@ -11,9 +11,8 @@
 - 기준 패키지 버전은 `package-lock.json`(lockfileVersion 3)을 따랐습니다.
 - production build의 emitted JavaScript source map으로 `node_modules/` 출처를
   추적했습니다. 실제 번들에 포함된 패키지는 아래 7개입니다.
-- `three`, `vite`, `vitest` 및 그 개발용 transitive dependency는 production
-  entry에서 제외되어 이 고지에 포함하지 않습니다. `three`는 개발 모드의
-  legacy 3D 비교 경로에서만 동적으로 로드됩니다.
+- `vite`, `vitest` 및 그 개발용 transitive dependency는 production
+  entry에서 제외되어 이 고지에 포함하지 않습니다.
 - PixiJS의 package dependency 중 `@types/earcut`, `@webgpu/types`,
   `@xmldom/xmldom`, `gifuct-js`, `js-binary-schema-parser`는 emitted
   production JavaScript source에 포함되지 않아 고지 대상에서 제외했습니다.

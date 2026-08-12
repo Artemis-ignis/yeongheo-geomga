@@ -19,7 +19,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-#scene, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 #scene { z-index: 0; }
 
 .runtime2d-banner {
@@ -87,7 +87,6 @@ body {
   mask-image: linear-gradient(180deg, #000 0%, #000 8%, rgba(0,0,0,0.55) 18%, transparent 30%);
 }
 #cinematic-backdrop.active { display: block; }
-#overlay { z-index: 2; pointer-events: none; }
 
 #hud {
   --boss-top: clamp(132px, 8.4vw, 208px);
@@ -778,11 +777,7 @@ body {
 
 .char-card { position: relative; }
 
-/*
- * The face on the card. Baked from the same chibi the player gets in the fight
- * (src/art/portrait.js), so it can never promise something the model does not
- * deliver.
- */
+/* The roster card uses admitted 2D character art or a styled path emblem. */
 .char-portrait {
   width: 100%; aspect-ratio: 1 / 1; max-height: 116px;
   margin: 0 auto 6px;

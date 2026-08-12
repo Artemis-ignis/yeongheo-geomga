@@ -7,7 +7,7 @@ import { defaultSave } from './Save.js'
 /**
  * Runtime model over the save state.
  *
- * Pure logic — no DOM, no three.js — so the whole meta economy is unit testable.
+ * Pure logic — no DOM or renderer dependency — so the whole meta economy is unit testable.
  * Game owns one of these for the lifetime of the session and writes it back
  * through Save whenever it changes.
  */

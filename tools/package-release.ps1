@@ -1,8 +1,8 @@
 ﻿[CmdletBinding()]
 param(
-  [string] $ReleaseTag = 'v5-20260810',
+  [string] $ReleaseTag = 'current-20260812',
   [string] $OutputDirectory = '',
-  [datetimeoffset] $ArchiveTimestamp = [datetimeoffset]'2026-08-10T00:00:00+09:00',
+  [datetimeoffset] $ArchiveTimestamp = [datetimeoffset]'2026-08-12T00:00:00+09:00',
   [switch] $AllowUnclearedRights
 )
 
@@ -17,6 +17,7 @@ if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
 }
 $outputRoot = [IO.Path]::GetFullPath($OutputDirectory)
 $rightsDisclosurePath = Join-Path $gameRoot 'public\AI_ASSET_DISCLOSURE_KO.txt'
+$releaseMetadataPath = Join-Path $gameRoot 'public\release.json'
 
 $requiredFiles = @(
   (Join-Path $distRoot 'index.html'),
@@ -27,7 +28,7 @@ $requiredFiles = @(
   (Join-Path $gameRoot 'public\PRIVACY_KO.txt'),
   (Join-Path $gameRoot 'public\THIRD_PARTY_NOTICES.txt'),
   $rightsDisclosurePath,
-  (Join-Path $gameRoot 'public\release.json')
+  $releaseMetadataPath
 )
 foreach ($requiredFile in $requiredFiles) {
   if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
@@ -35,8 +36,8 @@ foreach ($requiredFile in $requiredFiles) {
   }
 }
 
-$rightsDisclosure = [IO.File]::ReadAllText($rightsDisclosurePath, [Text.Encoding]::UTF8)
-if (-not $AllowUnclearedRights -and $rightsDisclosure -match '권리\s*게이트\s*BLOCKED') {
+$releaseMetadata = [IO.File]::ReadAllText($releaseMetadataPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
+if (-not $AllowUnclearedRights -and $releaseMetadata.rightsGate -ne 'CLEARED') {
   throw '권리 게이트가 BLOCKED입니다. 공개·제출용 패키지를 만들 수 없습니다. 로컬 검토 후보만 만들려면 -AllowUnclearedRights를 명시하십시오.'
 }
 

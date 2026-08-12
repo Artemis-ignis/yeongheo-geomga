@@ -2,7 +2,7 @@
  * Pure damage math — no world state, no side effects, fully unit-testable.
  *
  * The mutating half (applying HP loss, spawning floating text, triggering death)
- * lives in EnemyManager alongside the arrays it mutates.
+ * lives in CombatWorld2D alongside the arrays it mutates.
  */
 
 /** Roll one hit: might + matching tag bonus, then a crit check. */

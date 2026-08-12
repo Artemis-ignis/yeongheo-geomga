@@ -1,5 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { defineConfig } from 'vitest/config'
 import {
   auditSubmissionAssets,
@@ -7,52 +6,10 @@ import {
   pruneSubmissionAssets,
 } from './tools/submission-assets.mjs'
 
-const SHOT_DIR = resolve(process.cwd(), '.shots')
-const CAPTURE_ENABLED = process.env.VITE_ENABLE_CAPTURE === '1'
-
 /**
- * Dev-only: lets the page POST a rendered frame to disk so it can be inspected
- * without a visible browser window. Never included in a production build.
- */
-function screenshotSink() {
-  return {
-    name: 'screenshot-sink',
-    apply: 'serve',
-    configureServer(server) {
-      server.middlewares.use('/__shot', (req, res) => {
-        if (req.method !== 'POST') {
-          res.statusCode = 405
-          res.end('POST only')
-          return
-        }
-        const chunks = []
-        req.on('data', (c) => chunks.push(c))
-        req.on('end', () => {
-          try {
-            const body = Buffer.concat(chunks).toString('utf8')
-            const sep = body.indexOf('\n')
-            const name = body.slice(0, sep).replace(/[^a-zA-Z0-9._-]/g, '_')
-            const dataUrl = body.slice(sep + 1)
-            const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1)
-            const file = resolve(SHOT_DIR, `${name}.png`)
-            mkdirSync(dirname(file), { recursive: true })
-            writeFileSync(file, Buffer.from(base64, 'base64'))
-            res.statusCode = 200
-            res.end(file)
-          } catch (err) {
-            res.statusCode = 500
-            res.end(String(err))
-          }
-        })
-      })
-    },
-  }
-}
-
-/**
- * Vite copies the entire public directory by design.  Keep that source tree
- * intact for authoring and local legacy QA, then remove only non-runtime
- * public assets from the generated Pages artifact after the bundle is written.
+ * Vite copies the entire public directory by design. Keep current authoring
+ * sources in the repository, then remove non-runtime files from the Pages
+ * artifact after the bundle is written.
  */
 function submissionRuntimeAssetPruner() {
   let publicDir = resolve(process.cwd(), 'public')
@@ -88,36 +45,8 @@ export default defineConfig({
   build: {
     target: 'es2022',
     outDir: 'dist',
-    // Three.js core plus examples/postprocessing used to land in the entry
-    // chunk (~1.47 MB). Keep the initial document/runtime chunk small so the
-    // browser parses the game shell before the renderer vendor code arrives.
-    // This is a delivery optimization only; the runtime still uses one shared
-    // Three.js instance and does not duplicate geometry or materials.
-    rolldownOptions: {
-      output: {
-        codeSplitting: {
-          minSize: 20000,
-          groups: [
-            {
-              name: 'three-examples',
-              test: /[\\/]node_modules[\\/]three[\\/]examples[\\/]/,
-              maxSize: 420000,
-            },
-            {
-              name: 'three-core',
-              test: /[\\/]node_modules[\\/]three[\\/](?!examples[\\/])/,
-              maxSize: 420000,
-            },
-          ],
-        },
-      },
-    },
   },
-  // The filesystem sink is only needed during an explicit visual-QA session.
-  plugins: [
-    submissionRuntimeAssetPruner(),
-    ...(CAPTURE_ENABLED ? [screenshotSink()] : []),
-  ],
+  plugins: [submissionRuntimeAssetPruner()],
   test: {
     environment: 'node',
     include: ['test/**/*.test.js'],

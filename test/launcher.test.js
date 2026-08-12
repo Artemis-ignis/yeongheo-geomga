@@ -93,7 +93,7 @@ describe('Windows release launcher contract', () => {
       const metadata = await fetch(`http://127.0.0.1:${port}/release.json`, { signal: AbortSignal.timeout(4_000) })
       expect(metadata.status).toBe(200)
       const releaseMetadata = await metadata.json()
-      expect(releaseMetadata.releaseId).toBe('yeongheo-release-v5.3-20260810')
+      expect(releaseMetadata.releaseId).toBe('yeongheo-current-20260812')
       expect(releaseMetadata.runtimeImageAssets).toBe(SUBMISSION_RUNTIME_ASSETS.length)
     } finally {
       if (child.exitCode === null) {

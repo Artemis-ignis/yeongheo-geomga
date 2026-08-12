@@ -8,7 +8,10 @@
       "role": "runtime-environment-background",
       "tier": "scene",
       "source": "imagegen",
-      "consumers": ["styles/hud.css", "src/world/SanctuaryCinematicSet.js"],
+      "consumers": [
+        "styles/hud.css",
+        "src/runtime2d/PixiPresentation.js"
+      ],
       "maxBytes": 4000000
     },
     {
@@ -17,7 +20,9 @@
       "role": "runtime-title-and-contest-keyart",
       "tier": "scene",
       "source": "imagegen",
-      "consumers": ["styles/hud.css"],
+      "consumers": [
+        "styles/hud.css"
+      ],
       "maxBytes": 3000000
     },
     {
@@ -26,7 +31,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -35,7 +42,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -44,7 +53,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -53,7 +64,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -62,7 +75,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -71,7 +86,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -80,7 +97,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -89,7 +108,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -98,7 +119,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -107,7 +130,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -116,7 +141,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -125,7 +152,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -134,7 +163,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -143,7 +174,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -152,7 +185,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -161,7 +196,9 @@
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -170,7 +207,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -179,7 +218,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -188,7 +229,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -197,7 +240,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -206,7 +251,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -215,7 +262,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -224,7 +273,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -233,7 +284,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -242,7 +295,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -251,7 +306,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -260,7 +317,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -269,7 +328,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -278,7 +339,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -287,7 +350,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -296,7 +361,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -305,7 +372,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -314,7 +383,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -323,7 +394,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -332,7 +405,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -341,7 +416,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -350,7 +427,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -359,7 +438,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -368,7 +449,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -377,7 +460,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -386,7 +471,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -395,7 +482,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -404,7 +493,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -413,7 +504,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -422,7 +515,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -431,7 +526,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -440,7 +537,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -449,7 +548,9 @@
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
-      "consumers": ["src/ui/icons.js"],
+      "consumers": [
+        "src/ui/icons.js"
+      ],
       "maxBytes": 260000
     },
     {
@@ -458,7 +559,9 @@
       "role": "runtime-premium-stage-thumbnail",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/TitleScreen.js"],
+      "consumers": [
+        "src/ui/TitleScreen.js"
+      ],
       "maxBytes": 1500000
     },
     {
@@ -467,7 +570,9 @@
       "role": "runtime-premium-stage-thumbnail",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/TitleScreen.js"],
+      "consumers": [
+        "src/ui/TitleScreen.js"
+      ],
       "maxBytes": 1500000
     },
     {
@@ -476,7 +581,9 @@
       "role": "runtime-premium-stage-thumbnail",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
-      "consumers": ["src/ui/TitleScreen.js"],
+      "consumers": [
+        "src/ui/TitleScreen.js"
+      ],
       "maxBytes": 1500000
     },
     {
@@ -485,44 +592,10 @@
       "role": "runtime-2d-hero-sprite",
       "tier": "hero",
       "source": "imagegen-chroma-key-alpha",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 2000000
-    },
-    {
-      "id": "sprite2d.yorang.v1",
-      "path": "public/assets/sprites2d/yorang-v1.png",
-      "role": "legacy-2d-common-enemy-source",
-      "tier": "authoring",
-      "source": "imagegen-chroma-key-alpha",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
-      "maxBytes": 2000000
-    },
-    {
-      "id": "sprite2d.void-sentinel.v1",
-      "path": "public/assets/sprites2d/void-sentinel-v1.png",
-      "role": "legacy-2d-elite-enemy-source",
-      "tier": "authoring",
-      "source": "imagegen-chroma-key-alpha",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
-      "maxBytes": 2000000
-    },
-    {
-      "id": "sprite2d.jade-void-warden.v1",
-      "path": "public/assets/sprites2d/jade-void-warden-v1.png",
-      "role": "legacy-2d-boss-source",
-      "tier": "authoring",
-      "source": "imagegen-chroma-key-alpha",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
-      "maxBytes": 2500000
-    },
-    {
-      "id": "sprite2d.seolryeong.motion.v2",
-      "path": "public/assets/sprites2d/seolryeong-motion-v2.png",
-      "role": "legacy-2d-hero-motion-source",
-      "tier": "authoring",
-      "source": "imagegen-chroma-key-alpha-despill",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
-      "maxBytes": 1000000
     },
     {
       "id": "sprite2d.seolryeong.heroine-motion.v4",
@@ -530,7 +603,9 @@
       "role": "runtime-2d-hero-motion-atlas",
       "tier": "hero",
       "source": "imagegen-chroma-key-alpha-despill",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 1000000
     },
     {
@@ -539,7 +614,9 @@
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
       "source": "imagegen-chroma-key-alpha-despill-directional-v1",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 750000
     },
     {
@@ -548,7 +625,9 @@
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
       "source": "imagegen-chroma-key-alpha-despill-directional-v1",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 750000
     },
     {
@@ -557,7 +636,9 @@
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
       "source": "imagegen-chroma-key-alpha-despill-directional-v1",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 750000
     },
     {
@@ -566,7 +647,9 @@
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
       "source": "imagegen-chroma-key-alpha-despill-directional-v1",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 750000
     },
     {
@@ -575,7 +658,9 @@
       "role": "runtime-2d-common-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 1000000
     },
     {
@@ -584,7 +669,9 @@
       "role": "runtime-2d-alternate-wolf-motion-atlas",
       "tier": "world",
       "source": "imagegen-built-in-chroma-key-alpha-despill-atlas-normalize-v1",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 1000000
     },
     {
@@ -593,7 +680,9 @@
       "role": "runtime-2d-common-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v2",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 1000000
     },
     {
@@ -602,7 +691,9 @@
       "role": "runtime-2d-elite-enemy-motion-atlas",
       "tier": "near-detail",
       "source": "imagegen-chroma-key-alpha-despill",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 1000000
     },
     {
@@ -611,7 +702,9 @@
       "role": "runtime-2d-asymmetric-elite-enemy-motion-atlas",
       "tier": "near-detail",
       "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v1",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 1000000
     },
     {
@@ -620,7 +713,9 @@
       "role": "runtime-2d-boss-motion-atlas",
       "tier": "boss",
       "source": "imagegen-chroma-key-alpha-despill",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 1000000
     },
     {
@@ -629,7 +724,9 @@
       "role": "runtime-2d-prop-atlas",
       "tier": "scene",
       "source": "imagegen-chroma-key-alpha-despill",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 1000000
     },
     {
@@ -638,8 +735,13 @@
       "role": "runtime-2d-common-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
-      "qa": { "allowGreenEdge": true, "reason": "cyan spirit flames visually reviewed at original size" },
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
+      "qa": {
+        "allowGreenEdge": true,
+        "reason": "cyan spirit flames visually reviewed at original size"
+      },
       "maxBytes": 1000000
     },
     {
@@ -648,8 +750,13 @@
       "role": "runtime-2d-asymmetric-caster-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v1",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
-      "qa": { "allowGreenEdge": true, "reason": "cyan spirit flames visually reviewed at original size" },
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
+      "qa": {
+        "allowGreenEdge": true,
+        "reason": "cyan spirit flames visually reviewed at original size"
+      },
       "maxBytes": 1000000
     },
     {
@@ -658,8 +765,13 @@
       "role": "runtime-2d-charger-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
-      "qa": { "allowGreenEdge": true, "reason": "jade body color visually reviewed at original size" },
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
+      "qa": {
+        "allowGreenEdge": true,
+        "reason": "jade body color visually reviewed at original size"
+      },
       "maxBytes": 1000000
     },
     {
@@ -668,8 +780,13 @@
       "role": "runtime-2d-tank-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
-      "qa": { "allowGreenEdge": true, "reason": "jade carapace color visually reviewed at original size" },
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
+      "qa": {
+        "allowGreenEdge": true,
+        "reason": "jade carapace color visually reviewed at original size"
+      },
       "maxBytes": 1000000
     },
     {
@@ -678,8 +795,13 @@
       "role": "runtime-2d-asymmetric-tank-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v1",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
-      "qa": { "allowGreenEdge": true, "reason": "jade shard material visually reviewed at original size" },
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
+      "qa": {
+        "allowGreenEdge": true,
+        "reason": "jade shard material visually reviewed at original size"
+      },
       "maxBytes": 1000000
     },
     {
@@ -688,7 +810,9 @@
       "role": "runtime-2d-splitter-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill",
-      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
       "maxBytes": 1000000
     },
     {
@@ -697,43 +821,9 @@
       "role": "2d-sprite-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
-      "maxBytes": 2500000
-    },
-    {
-      "id": "sprite2d.source.yorang-key.v1",
-      "path": "public/assets/sprites2d/source/yorang-key-v1.png",
-      "role": "2d-sprite-chroma-source",
-      "tier": "authoring",
-      "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
-      "maxBytes": 2500000
-    },
-    {
-      "id": "sprite2d.source.void-sentinel-key.v1",
-      "path": "public/assets/sprites2d/source/void-sentinel-key-v1.png",
-      "role": "2d-sprite-chroma-source",
-      "tier": "authoring",
-      "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
-      "maxBytes": 2500000
-    },
-    {
-      "id": "sprite2d.source.jade-void-warden-key.v1",
-      "path": "public/assets/sprites2d/source/jade-void-warden-key-v1.png",
-      "role": "2d-sprite-chroma-source",
-      "tier": "authoring",
-      "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
-      "maxBytes": 2500000
-    },
-    {
-      "id": "sprite2d.source.seolryeong.motion-sheet.v2",
-      "path": "public/assets/sprites2d/source/seolryeong-motion-sheet-v2.png",
-      "role": "2d-motion-sheet-chroma-source",
-      "tier": "authoring",
-      "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -742,7 +832,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -751,7 +843,9 @@
       "role": "authoring-2d-hero-directional-motion-sheet",
       "tier": "authoring",
       "source": "imagegen-directional-source-v1",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2200000
     },
     {
@@ -760,7 +854,9 @@
       "role": "authoring-2d-hero-directional-motion-sheet",
       "tier": "authoring",
       "source": "imagegen-directional-source-v1",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2200000
     },
     {
@@ -769,7 +865,9 @@
       "role": "authoring-2d-hero-directional-motion-sheet",
       "tier": "authoring",
       "source": "imagegen-directional-source-v1",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2200000
     },
     {
@@ -778,7 +876,9 @@
       "role": "authoring-2d-hero-directional-motion-sheet",
       "tier": "authoring",
       "source": "imagegen-directional-source-v1",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2200000
     },
     {
@@ -787,7 +887,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -796,7 +898,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen-built-in",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -805,7 +909,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -814,7 +920,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen-built-in",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -823,7 +931,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -832,7 +942,9 @@
       "role": "2d-prop-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -841,7 +953,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -850,7 +964,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -859,7 +975,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -868,7 +986,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -877,7 +997,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -886,16 +1008,9 @@
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
-      "maxBytes": 2500000
-    },
-    {
-      "id": "sprite2d.source.magi-remnant.key.v1",
-      "path": "public/assets/sprites2d/source/magi-remnant-key-v1.png",
-      "role": "2d-enemy-key-chroma-source",
-      "tier": "authoring",
-      "source": "imagegen",
-      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
       "maxBytes": 2500000
     },
     {
@@ -904,7 +1019,9 @@
       "role": "runtime-character-reference",
       "tier": "hero",
       "source": "imagegen",
-      "consumers": ["src/ui/TitleScreen.js"],
+      "consumers": [
+        "src/ui/TitleScreen.js"
+      ],
       "maxBytes": 3500000
     },
     {
@@ -913,26 +1030,10 @@
       "role": "runtime-character-reference-latest",
       "tier": "hero",
       "source": "imagegen-plus-artifact-template-yeongheo-aaa-asset-brief",
-      "consumers": ["src/ui/TitleScreen.js"],
+      "consumers": [
+        "src/ui/TitleScreen.js"
+      ],
       "maxBytes": 3500000
-    },
-    {
-      "id": "character.seolryeong.turnaround.v4",
-      "path": "public/assets/characters/seolryeong-turnaround-v4.png",
-      "role": "runtime-character-turnaround-reference",
-      "tier": "hero",
-      "source": "imagegen-plus-img2threejs-multiview",
-      "consumers": ["src/art/SeolryeongImg2ThreeAdapter.js"],
-      "maxBytes": 3500000
-    },
-    {
-      "id": "model.seolryeong.trellis.v4",
-      "path": "public/assets/models/characters/seolryeong-trellis-v4.glb",
-      "role": "runtime-character-mesh-hero",
-      "tier": "hero",
-      "source": "github-img2threejs-trellis-from-imagegen-turnaround",
-      "consumers": ["src/art/SeolryeongImg2ThreeAdapter.js"],
-      "maxBytes": 4000000
     },
     {
       "id": "character.jade-void-warden.boss-reference.v2",
@@ -940,35 +1041,10 @@
       "role": "runtime-boss-reference",
       "tier": "boss",
       "source": "imagegen",
-      "consumers": ["src/entities/BossManager.js"],
+      "consumers": [
+        "src/data/bosses.js"
+      ],
       "maxBytes": 4000000
-    },
-    {
-      "id": "character.void-iron-scale-sentinel.reference.v3",
-      "path": "public/assets/characters/void-iron-scale-sentinel-reference-v3.png",
-      "role": "runtime-near-enemy-reference-latest",
-      "tier": "near-detail",
-      "source": "imagegen-plus-img2threejs-forge-authoring",
-      "consumers": ["src/art/NearEnemyModels.js"],
-      "maxBytes": 3500000
-    },
-    {
-      "id": "character.glacier-warden.reference.v1",
-      "path": "public/assets/characters/glacier-warden-reference-v1.png",
-      "role": "runtime-near-enemy-reference",
-      "tier": "near-detail",
-      "source": "imagegen-plus-img2threejs-forge-authoring",
-      "consumers": ["src/art/NearEnemyModels.js"],
-      "maxBytes": 3500000
-    },
-    {
-      "id": "material.character.moon-silk-brocade.v2",
-      "path": "public/assets/materials/characters/moon-silk-brocade-v2.png",
-      "role": "runtime-material-hero-brocade",
-      "tier": "hero",
-      "source": "imagegen",
-      "consumers": ["src/art/HeroicModels.js", "src/art/SeolryeongImg2ThreeAdapter.js"],
-      "maxBytes": 4500000
     },
     {
       "id": "material.environment.jade-pavilion-stone.v1",
@@ -976,7 +1052,9 @@
       "role": "runtime-material-wet-moonstone-pavers",
       "tier": "scene",
       "source": "imagegen",
-      "consumers": ["src/world/SanctuaryCinematicSet.js"],
+      "consumers": [
+        "src/runtime2d/PixiPresentation.js"
+      ],
       "maxBytes": 4500000
     },
     {
@@ -985,7 +1063,9 @@
       "role": "runtime-2d-jade-highland-ground",
       "tier": "scene",
       "source": "imagegen",
-      "consumers": ["src/runtime2d/PixiPresentation.js"],
+      "consumers": [
+        "src/runtime2d/PixiPresentation.js"
+      ],
       "maxBytes": 4500000
     },
     {
@@ -994,161 +1074,10 @@
       "role": "runtime-2d-jade-sanctuary-seamless-ground",
       "tier": "scene",
       "source": "imagegen",
-      "consumers": ["src/runtime2d/PixiPresentation.js"],
+      "consumers": [
+        "src/runtime2d/PixiPresentation.js"
+      ],
       "maxBytes": 4500000
-    },
-    {
-      "id": "material.guardian.jade-scale.v1",
-      "path": "public/assets/materials/guardians/jade-scale-weave-v1.png",
-      "role": "runtime-material-weave",
-      "tier": "world",
-      "source": "imagegen",
-      "consumers": ["src/art/HeroicModels.js"],
-      "maxBytes": 4500000
-    },
-    {
-      "id": "material.guardian.jade-void-armor.v1",
-      "path": "public/assets/materials/guardians/jade-void-armor-v1.png",
-      "role": "runtime-material-jade-void-armor",
-      "tier": "boss",
-      "source": "imagegen",
-      "consumers": ["src/art/NearEnemyModels.js", "src/world/SanctuaryCinematicSet.js"],
-      "maxBytes": 4500000
-    },
-    {
-      "id": "material.guardian.void-iron-scale-armor.v1",
-      "path": "public/assets/materials/guardians/void-iron-scale-armor-v1.png",
-      "role": "runtime-material-near-demon-armor",
-      "tier": "near-detail",
-      "source": "imagegen",
-      "consumers": ["src/art/NearEnemyModels.js"],
-      "maxBytes": 4500000
-    },
-    {
-      "id": "material.guardian.ember-feather.v1",
-      "path": "public/assets/materials/guardians/ember-feather-weave-v1.png",
-      "role": "runtime-material-weave",
-      "tier": "world",
-      "source": "imagegen",
-      "consumers": ["src/art/HeroicModels.js"],
-      "maxBytes": 4500000
-    },
-    {
-      "id": "pbr.seolryeong.silk.albedo",
-      "path": "public/assets/materials/img2three/seolryeong-silk_albedo.png",
-      "role": "img2three-pbr-channel",
-      "tier": "hero",
-      "source": "img2threejs",
-      "consumers": ["src/art/generated/SeolryeongImg2ThreeBlockout.ts"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.void-iron-scale-sentinel-v3.ao",
-      "path": "public/assets/materials/img2three/void-iron-scale-sentinel-v3_ao.webp",
-      "role": "img2three-pbr-channel-v3",
-      "tier": "near-detail",
-      "source": "imagegen-plus-img2threejs-forge",
-      "consumers": ["src/art/NearEnemyModels.js"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.void-iron-scale-sentinel-v3.height",
-      "path": "public/assets/materials/img2three/void-iron-scale-sentinel-v3_height.webp",
-      "role": "img2three-pbr-channel-v3",
-      "tier": "near-detail",
-      "source": "imagegen-plus-img2threejs-forge",
-      "consumers": ["src/art/NearEnemyModels.js"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.void-iron-scale-sentinel-v3.normal",
-      "path": "public/assets/materials/img2three/void-iron-scale-sentinel-v3_normal.webp",
-      "role": "img2three-pbr-channel-v3",
-      "tier": "near-detail",
-      "source": "imagegen-plus-img2threejs-forge",
-      "consumers": ["src/art/NearEnemyModels.js"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.void-iron-scale-sentinel-v3.roughness",
-      "path": "public/assets/materials/img2three/void-iron-scale-sentinel-v3_roughness.webp",
-      "role": "img2three-pbr-channel-v3",
-      "tier": "near-detail",
-      "source": "imagegen-plus-img2threejs-forge",
-      "consumers": ["src/art/NearEnemyModels.js"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.glacier-warden-v1.ao",
-      "path": "public/assets/materials/img2three/glacier-warden-v1/ao.webp",
-      "role": "img2three-pbr-channel-v1",
-      "tier": "near-detail",
-      "source": "imagegen-plus-img2threejs-forge",
-      "consumers": ["src/art/NearEnemyModels.js"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.glacier-warden-v1.height",
-      "path": "public/assets/materials/img2three/glacier-warden-v1/height.webp",
-      "role": "img2three-pbr-channel-v1",
-      "tier": "near-detail",
-      "source": "imagegen-plus-img2threejs-forge",
-      "consumers": ["src/art/NearEnemyModels.js"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.glacier-warden-v1.normal",
-      "path": "public/assets/materials/img2three/glacier-warden-v1/normal.webp",
-      "role": "img2three-pbr-channel-v1",
-      "tier": "near-detail",
-      "source": "imagegen-plus-img2threejs-forge",
-      "consumers": ["src/art/NearEnemyModels.js"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.glacier-warden-v1.roughness",
-      "path": "public/assets/materials/img2three/glacier-warden-v1/roughness.webp",
-      "role": "img2three-pbr-channel-v1",
-      "tier": "near-detail",
-      "source": "imagegen-plus-img2threejs-forge",
-      "consumers": ["src/art/NearEnemyModels.js"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.seolryeong.silk.ao",
-      "path": "public/assets/materials/img2three/seolryeong-silk_ao.png",
-      "role": "img2three-pbr-channel",
-      "tier": "hero",
-      "source": "img2threejs",
-      "consumers": ["src/art/generated/SeolryeongImg2ThreeBlockout.ts"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.seolryeong.silk.height",
-      "path": "public/assets/materials/img2three/seolryeong-silk_height.png",
-      "role": "img2three-pbr-channel",
-      "tier": "hero",
-      "source": "img2threejs",
-      "consumers": ["src/art/generated/SeolryeongImg2ThreeBlockout.ts"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.seolryeong.silk.normal",
-      "path": "public/assets/materials/img2three/seolryeong-silk_normal.png",
-      "role": "img2three-pbr-channel",
-      "tier": "hero",
-      "source": "img2threejs",
-      "consumers": ["src/art/generated/SeolryeongImg2ThreeBlockout.ts", "src/art/HeroicModels.js"],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "pbr.seolryeong.silk.roughness",
-      "path": "public/assets/materials/img2three/seolryeong-silk_roughness.png",
-      "role": "img2three-pbr-channel",
-      "tier": "hero",
-      "source": "img2threejs",
-      "consumers": ["src/art/generated/SeolryeongImg2ThreeBlockout.ts", "src/art/HeroicModels.js"],
-      "maxBytes": 1000000
     }
   ]
 }

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { WAVES, RUN_SECONDS, waveAt, BOSS_SCHEDULE, scheduleFor } from '../src/data/waves.js'
 import { ENEMIES } from '../src/data/enemies.js'
 import { STAGES } from '../src/data/stages.js'
-import { BOSSES } from '../src/entities/BossManager.js'
+import { BOSSES } from '../src/data/bosses.js'
 
 const enemyIds = new Set(ENEMIES.map((e) => e.id))
 

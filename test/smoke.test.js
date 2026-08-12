@@ -11,9 +11,9 @@ describe('project scaffold', () => {
     expect(pkg.type).toBe('module')
   })
 
-  it('ships PixiJS and keeps the retired renderer development-only', () => {
+  it('ships only the PixiJS production renderer', () => {
     expect(pkg.dependencies['pixi.js']).toBeDefined()
     expect(pkg.dependencies.three).toBeUndefined()
-    expect(pkg.devDependencies.three).toBeDefined()
+    expect(pkg.devDependencies.three).toBeUndefined()
   })
 })

@@ -8,9 +8,9 @@ export const DEFAULT_PUBLIC_DIR = path.join(WORKSPACE_ROOT, 'public')
 export const DEFAULT_OUTPUT_DIR = path.join(WORKSPACE_ROOT, 'dist')
 
 /**
- * Assets used by the shipped PixiJS 2D contest runtime.  The source public
- * tree intentionally keeps authoring references, legacy sprites, PBR maps and
- * the legacy GLB for local work; only this allowlist enters the Pages bundle.
+ * Assets used by the shipped PixiJS 2D contest runtime. The source public tree
+ * also keeps the current sprite authoring sheets; only this allowlist enters
+ * the Pages bundle.
  */
 export const SUBMISSION_RUNTIME_ASSETS = Object.freeze([
   'assets/characters/jade-void-warden-boss-reference-v2.png',

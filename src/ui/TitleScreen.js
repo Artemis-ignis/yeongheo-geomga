@@ -85,12 +85,10 @@ function blurOwnedFocus(node) {
  * release selector; future character designs are never sold as playable.
  */
 export class TitleScreen {
-  /** @param renderer Borrowed to bake the character portraits; optional. */
-  constructor(root, characters, progress, renderer = null, audio = null) {
+  constructor(root, characters, progress, audio = null) {
     this.root = root
     this.characters = characters.filter((character) => isReleasePlayableCharacter(character.id))
     this.progress = progress
-    this.renderer = renderer
     this.audio = audio
     this.focus = 0
     this.menuFocus = 0
@@ -673,14 +671,7 @@ export class TitleScreen {
     if (changed) this._uiCue('focus')
   }
 
-  /**
-   * Bake the six portraits the first time this screen is opened.
-   *
-   * Not at construction: the renderer is busy drawing the title behind this and
-   * six render-target reads in the same frame as boot is a visible hitch on the
-   * one screen a player is looking at hardest. Cached inside `portraitFor`, so
-   * this is free on every later visit.
-   */
+  /** Prepare authored portraits the first time the roster is opened. */
   _bakePortraits() {
     for (const c of this.cards) {
       const unlocked = this.progress.isUnlocked('characters', c.id)
@@ -708,26 +699,9 @@ export class TitleScreen {
         c.portrait.setAttribute('aria-label', `${c.character.name}의 공식 수사 초상`)
         continue
       }
-      // The PixiJS runtime intentionally has no Three.js renderer. Keep locked
-      // and future cultivators as styled silhouettes until their authored 2D
-      // portraits arrive instead of pulling the retired 3D graph into the web
-      // bundle merely to bake menu thumbnails.
-      if (!import.meta.env.DEV || !this.renderer) {
-        c.portrait.classList.add('path-emblem-reference')
-        continue
-      }
-      // Legacy-only portrait baking stays behind a dev constant so the
-      // production Pixi entry cannot pull Three.js into its import graph.
-      const legacyPortraitModule = '../art/portrait.js'
-      import(/* @vite-ignore */ legacyPortraitModule).then(({ portraitFor }) => {
-        const url = portraitFor(c.character, this.renderer)
-        if (!url) return
-        c.portrait.style.backgroundImage = `url(${url})`
-        c.portrait.style.backgroundSize = 'contain'
-        c.portrait.style.backgroundPosition = 'center'
-        c.artLabel.textContent = '전투 모형'
-        c.portrait.setAttribute('aria-label', `${c.character.name}의 전투 모형 초상`)
-      })
+      // Future cultivators remain styled emblems until an authored 2D portrait
+      // is admitted to the production asset manifest.
+      c.portrait.classList.add('path-emblem-reference')
     }
   }
 
