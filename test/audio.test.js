@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   PENTATONIC, MODES, intensityOf, isAnswerNote, nextDegree, noteFreq, noteInterval,
-  scaleFor, tonicFor, BEATS_PER_BAR, tempoFor, phraseAt, chordRootAt, drumsForBar,
+  scaleFor, tonicFor, BEATS_PER_BAR, tempoFor, phraseAt, drumsForBar,
 } from '../src/audio/theory.js'
 import {
   AudioEngine,
@@ -12,7 +12,7 @@ import {
 } from '../src/audio/Audio.js'
 
 describe('scale', () => {
-  it('has no semitone steps, so nothing generated against the drone can clash', () => {
+  it('has no semitone steps, so overlapping generated notes do not clash', () => {
     for (let i = 1; i < PENTATONIC.length; i++) {
       expect(PENTATONIC[i] - PENTATONIC[i - 1]).toBeGreaterThan(1)
     }
@@ -50,8 +50,8 @@ describe('조 — the mode each 비경 is in', () => {
   })
 
   it('keeps every mode free of semitone steps', () => {
-    // The whole reason live generation against a drone cannot clash. A mode that
-    // lost this would produce dissonance nothing in the engine checks for.
+    // A mode that lost this would produce dissonance nothing in the engine
+    // checks for when generated notes overlap.
     for (const [name, scale] of Object.entries(MODES)) {
       for (let i = 1; i < scale.length; i++) {
         expect(scale[i] - scale[i - 1], `${name} has a semitone step`).toBeGreaterThan(1)
@@ -275,16 +275,6 @@ describe('metre, motif and harmony', () => {
     }
   })
 
-  it('moves the bass and comes home', () => {
-    expect(chordRootAt(0)).toBe(0)
-    expect(chordRootAt(3)).toBe(0)
-    const roots = [0, 1, 2, 3].map(chordRootAt)
-    expect(new Set(roots).size).toBeGreaterThan(1)
-    // Wraps rather than running off the end, including backwards.
-    expect(chordRootAt(4)).toBe(chordRootAt(0))
-    expect(chordRootAt(-1)).toBe(chordRootAt(3))
-  })
-
   it('brings the kit in only as the run turns', () => {
     expect(drumsForBar(0.1, 0)).toHaveLength(0)
     const early = drumsForBar(0.4, 0).length
@@ -443,6 +433,16 @@ function makeLiveAudio() {
 }
 
 describe('live SFX routing and voice lifecycle', () => {
+  it('starts music without any free-running bass oscillator', () => {
+    const { audio, context } = makeLiveAudio()
+    expect(context.sources).toHaveLength(0)
+    audio.startMusic('jade')
+    expect(context.sources).toHaveLength(0)
+    expect('_drone' in audio).toBe(false)
+    audio.stopMusic()
+    audio.dispose()
+  })
+
   it('exposes fixed launch, impact, field, and status cues for every descriptor kind', () => {
     for (const [kind, row] of Object.entries(WEAPON_AUDIO_CUE_TABLE)) {
       for (const phase of ['launch', 'impact', 'field', 'status']) {

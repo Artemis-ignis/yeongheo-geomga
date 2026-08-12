@@ -1,6 +1,6 @@
 ﻿import { noiseBuffer, playBuffer, playTone, pluckBuffer } from './synth.js'
 import {
-  BEATS_PER_BAR, chordRootAt, drumsForBar, intensityOf, noteFreq,
+  BEATS_PER_BAR, drumsForBar, intensityOf, noteFreq,
   phraseAt, scaleFor, tempoFor, tonicFor,
 } from './theory.js'
 
@@ -241,10 +241,6 @@ export class AudioEngine {
     this._lastUiCueAt = new Map()
     this._lastBossDeathAt = -Infinity
     this._musicOn = false
-    this._noteTimer = 0
-    this._pulseTimer = 0
-    this._degree = 0
-    this._noteIndex = 0
     this._intensity = 0
     this._rngState = 20260730
     this._stageId = 'jade'
@@ -368,7 +364,7 @@ export class AudioEngine {
   }
 
   /**
-   * Duck the whole mix for pause/menu emphasis without destroying the drone.
+   * Duck the whole mix for pause/menu emphasis without changing saved volume.
    * `level` is the remaining master level, so 0.28 is a quiet but audible bed.
    */
   setDucked(on, level = 0.28) {
@@ -940,88 +936,15 @@ export class AudioEngine {
     this._stageId = stageId
     if (!this.ok) return
     this._musicOn = true
-    this._pulseTimer = 0
     // Where the sequencer has scheduled up to, on the audio clock. See _sequence.
     this._nextNoteTime = this.ctx.currentTime + 0.12
     this._beat = 0          // beats elapsed since the music started
     this._noteAt = 0        // index into the current phrase
     this._phraseIndex = 0
-    this._startDrone()
   }
 
   stopMusic() {
     this._musicOn = false
-    if (this._drone) {
-      const t = this.ctx.currentTime
-      try {
-        this._drone.gain.gain.cancelScheduledValues(t)
-        this._drone.gain.gain.setValueAtTime(this._drone.gain.gain.value, t)
-        this._drone.gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.2)
-        for (const o of this._drone.oscs) o.stop(t + 1.4)
-      } catch {
-        // Already stopped.
-      }
-      this._drone = null
-    }
-  }
-
-  /**
-   * A slow bed under the plucks: the tonic and its fifth, detuned against each
-   * other so the pair beats slowly. Without it the plucks sound like a demo of
-   * a plucked string rather than like music.
-   *
-   * The oscillators are pitched by `_setDroneRoot` as the progression moves, so
-   * this is a bass part rather than the single held note it used to be.
-   */
-  _startDrone() {
-    if (this._drone) return
-    const ctx = this.ctx
-    const tonic = tonicFor(this._stageId)
-    const gain = ctx.createGain()
-    gain.gain.value = 0.0001
-    gain.connect(this.musicBus)
-
-    const filter = ctx.createBiquadFilter()
-    filter.type = 'lowpass'
-    filter.frequency.value = 620
-    filter.connect(gain)
-
-    const oscs = []
-    const mults = [[0.5, -6], [0.5, 7], [0.75, 3]]
-    for (const [mult, detune] of mults) {
-      const osc = ctx.createOscillator()
-      osc.type = 'sawtooth'
-      osc.frequency.value = tonic * mult
-      osc.detune.value = detune
-      osc.connect(filter)
-      osc.start()
-      oscs.push(osc)
-    }
-    gain.gain.exponentialRampToValueAtTime(0.10, ctx.currentTime + 3)
-    this._drone = { gain, filter, oscs, mults }
-  }
-
-  /**
-   * Glide the bass to a new chord root.
-   *
-   * Glide, not jump: three detuned sawtooths re-pitched instantly click, and a
-   * bass that slides between chords is the sound this score wants anyway.
-   */
-  _setDroneRoot(degree, when, seconds) {
-    if (!this._drone) return
-    const f = noteFreq(tonicFor(this._stageId), degree, -1, this._scale())
-    for (let i = 0; i < this._drone.oscs.length; i++) {
-      const [mult] = this._drone.mults[i]
-      const target = Math.max(20, f * mult * 2)
-      const p = this._drone.oscs[i].frequency
-      try {
-        p.cancelScheduledValues(when)
-        p.setValueAtTime(p.value, when)
-        p.exponentialRampToValueAtTime(target, when + seconds)
-      } catch {
-        // A stopped oscillator; the next startMusic rebuilds it.
-      }
-    }
   }
 
   /** 장구. `deep` is the palm-struck head, `tap` the stick. */
@@ -1075,9 +998,10 @@ export class AudioEngine {
       const when = this._nextNoteTime
       const bar = Math.floor(this._beat / BEATS_PER_BAR)
 
-      // Bar boundary: move the bass, and lay in the drums for the bar ahead.
+      // Bar boundary: lay in the drums for the bar ahead. Do not start or glide
+      // a free-running bass oscillator: that layer was the repetitive low
+      // "hum" heard throughout every run.
       if (this._beat % BEATS_PER_BAR === 0) {
-        this._setDroneRoot(chordRootAt(bar), when, spb * BEATS_PER_BAR * 0.6)
         for (const [b, voice, vel] of drumsForBar(this._intensity, bar)) {
           this._drum(voice, when + b * spb, vel)
         }
@@ -1095,8 +1019,8 @@ export class AudioEngine {
         })
 
         // 편경 — a stone chime two octaves up, keeping air in a mix that is dark
-        // by construction: the drone is filtered sawtooths and a Karplus-Strong
-        // pluck is a lowpassed feedback loop. Measured, the bed carried 1-4%
+        // by construction: the Karplus-Strong pluck is a lowpassed feedback
+        // loop. Measured, the bed carried 1-4%
         // of its energy above 2.5 kHz without this.
         const lift = beats >= 2 ? 1 : 0.34
         for (const [mult, gain, decay] of [[1, 0.055, 0.7], [2.76, 0.022, 0.45]]) {
@@ -1130,13 +1054,6 @@ export class AudioEngine {
   update(dt, state = {}) {
     if (!this.ok || !this._musicOn || this.muted) return
     this._intensity = intensityOf(state)
-
-    if (this._drone) {
-      // Opens up as the run tightens, which reads as the world closing in.
-      const target = 560 + this._intensity * 900
-      const g = this._drone.filter.frequency
-      g.value += (target - g.value) * Math.min(1, dt * 0.6)
-    }
 
     // The free-running low pulse that used to live here is gone. It existed
     // because there was no beat and danger had to be signalled somehow; now the

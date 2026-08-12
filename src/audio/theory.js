@@ -10,10 +10,8 @@
 /**
  * 궁상각치우 — the five-tone scale, as semitone offsets from the tonic.
  *
- * A pentatonic scale has no semitone steps, so any two notes sound consonant
- * together. That matters here because the music is generated live against a
- * drone and nothing is checking for clashes: with this scale there are none to
- * check for.
+ * A pentatonic scale has no semitone steps, so overlapping generated notes
+ * remain consonant without a separate clash-resolution pass.
  */
 export const PENTATONIC = [0, 2, 4, 7, 9]
 
@@ -21,13 +19,13 @@ export const PENTATONIC = [0, 2, 4, 7, 9]
  * 조성 — a mode per 비경, because a tonic alone is not a different piece.
  *
  * Each arena already had its own key: A3, G3, B3. A whole tone apart, same five
- * intervals, same drone, same instruments. Nobody hears that as three
+ * intervals and the same instruments. Nobody hears that as three
  * soundtracks — they hear one piece, slightly higher. Three 비경 that look
  * nothing alike sounded identical.
  *
  * The mode is what carries character. All three keep the property the comment
  * above is about — no two adjacent degrees a semitone apart — so live generation
- * against a drone still cannot produce a clash:
+ * while overlapping generated notes still avoid semitone clashes:
  *
  *   평조   0 2 4 7 9    steps 2 2 3 2 3   open, bright
  *   계면조 0 3 5 7 10   steps 3 2 2 3 2   dark, weighted low
@@ -93,17 +91,17 @@ export function noteInterval(intensity) {
   return 1.15 - i * 0.72
 }
 
-// ---- metre, motif and harmony ----------------------------------------------
+// ---- metre and motif -------------------------------------------------------
 //
 // What was here before was a random walk over the scale, fired at intervals
-// deliberately jittered off any grid, over a drone that never moved. Every
+// deliberately jittered off any grid. Every
 // individual decision in it was defensible and the result was not music: no
 // pulse to tap, no phrase to recognise, no harmony to resolve. A player called
 // it a joke and they were right.
 //
 // Music needs three things this had none of — a beat, a tune that repeats, and
-// a chord that changes. All three are here, and all three are pure functions so
-// the suite can check them without an AudioContext.
+// a clear dynamic arc. The beat and tune are pure functions so the suite can
+// check them without an AudioContext.
 
 export const BEATS_PER_BAR = 4
 export const BARS_PER_PHRASE = 4
@@ -144,19 +142,6 @@ const FORM = [PHRASE_A, PHRASE_A, PHRASE_B, PHRASE_A]
 
 export function phraseAt(index) {
   return FORM[((index % FORM.length) + FORM.length) % FORM.length]
-}
-
-/**
- * The bass, as a scale degree per bar of the phrase.
- *
- * Tonic, sixth, fifth, tonic — a descent that leans away from home and comes
- * back. A single unchanging drone is not harmony, it is a held note, and no
- * amount of filter movement over the top of it makes it move.
- */
-const PROGRESSION = [0, 4, 3, 0]
-
-export function chordRootAt(bar) {
-  return PROGRESSION[((bar % PROGRESSION.length) + PROGRESSION.length) % PROGRESSION.length]
 }
 
 /**

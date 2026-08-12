@@ -18,7 +18,8 @@
     "windowsPortable": "yeongheo-geomga-windows-current-20260812.zip",
     "status": "local-review-candidate-only"
   },
-  "deploymentStatus": "not-deployed",
+  "deploymentStatus": "vercel-production",
+  "deploymentUrl": "https://yeongheo-geomga.vercel.app",
   "rightsEvidenceConfirmed": 0,
   "rightsGate": "BLOCKED",
   "loginRequired": false,

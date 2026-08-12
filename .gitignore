@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.vercel/
 .vite/
 __pycache__/
 *.pyc
@@ -13,3 +14,4 @@ __pycache__/
 /output/
 /tmp/
 /artifacts/
+.env*

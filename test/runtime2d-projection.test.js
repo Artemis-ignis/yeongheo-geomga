@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  cameraFollowFactor2D, cameraFollowStep2D, depthBucket, directionFor, isOnScreen, projectWorld,
+  cameraFollowFactor2D, cameraFollowStep2D, cameraTargetWithDeadZone2D,
+  depthBucket, directionFor, isOnScreen, projectWorld,
   SORT_BUCKETS, viewportPresentationScale,
 } from '../src/runtime2d/projection.js'
 
@@ -73,5 +74,16 @@ describe('runtime2d projection', () => {
     expect(at33).toBeCloseTo(at100, 8)
     expect(cameraFollowFactor2D(0)).toBe(0)
     expect(cameraFollowFactor2D(0.1)).toBeGreaterThan(0)
+  })
+
+  it('lets the player move visibly inside a screen-space camera dead zone', () => {
+    const viewport = { width: 1920, height: 1080, zoom: 1 }
+    expect(cameraTargetWithDeadZone2D(0, 0, 2, 2, viewport, true)).toEqual({ x: 0, z: 0 })
+
+    const target = cameraTargetWithDeadZone2D(0, 0, 10, 10, viewport, true)
+    const projected = projectWorld(10, 10, target.x, target.z, viewport)
+    expect(projected.x - viewport.width * 0.5).toBeCloseTo(105.6)
+    expect(projected.y - viewport.height * 0.57).toBeCloseTo(56.16)
+    expect(cameraTargetWithDeadZone2D(0, 0, 2, 2, viewport, false)).toEqual({ x: 2, z: 2 })
   })
 })

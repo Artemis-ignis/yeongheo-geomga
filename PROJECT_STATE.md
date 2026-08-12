@@ -14,7 +14,8 @@
 - 검맥·설맥·심맥 세 단계 선택과 이를 반영하는 최종 보스
 - 일반 적·정예·중간 보스·최종 보스, 진형, POI, 미니맵
 - 타이틀·준비·HUD·일시정지·성장 선택·결과·도감·상점
-- Web Audio 효과음/음악과 Windows `영허검가 실행.vbs` 실행 (`게임시작.bat` 예비 경로)
+- Web Audio 효과음/음악과 단일 Windows 진입점 `영허검가 실행.vbs`
+- Vercel 공개 웹 빌드 `https://yeongheo-geomga.vercel.app`와 GitHub `master` 자동 배포
 
 ## 저장소 정리 결과
 
@@ -27,15 +28,16 @@
 
 | 항목 | 상태 |
 |---|---|
-| 전체 자동 테스트 | PASS — 52 files, 649 tests |
+| 전체 자동 테스트 | PASS — 52 files, 651 tests |
 | production build | PASS — Vite 8.1.5, dist 110 files |
 | runtime asset audit | PASS — source 97/97 |
 | submission asset audit | PASS — runtime 78/78 |
 | Windows launcher smoke | PASS — 실제 HttpListener 응답·release metadata 확인 |
+| Vercel production | PASS — `https://yeongheo-geomga.vercel.app` |
 | 1920×1080 실제 플레이 | PASS — 타이틀·전투·HUD·성장 선택 확인 |
 | 2560×1600 레이아웃 | PASS — 타이틀 무스크롤·버튼 경계 확인 |
-| 상용 시각 품질 | REVIEW — 기존 P0 6건 수정, 장기 플레이 검수는 계속 필요 |
-| 이미지 사용 권리 | 최종 공개 전 사람이 확인해야 함; 자동 승인 없음 |
+| 상용 시각 품질 | REVIEW — 기존 P0 7건 수정, 장기 플레이 검수는 계속 필요 |
+| 이미지 사용 권리 | BLOCKED — 기술 검수용 공개와 별개로 상용·홍보 전 사람이 근거 확인 필요 |
 
 ## 실제 남은 작업
 
@@ -47,6 +49,7 @@
 4. 주인공 달리기 시트를 교체하고 발 접점·상하 흔들림·소품 대비를 실제 플레이로 교정했습니다.
 5. 화면에 보이던 미확인 표기를 자연스러운 한국어로 정리하고 대화상자 접근성 상태를 맞췄습니다.
 6. 타이틀·준비·HUD·일시정지·상점·도감·결과 화면의 여백, 스크롤, 테마를 통일했습니다.
+7. 카메라 데드존·이동 거리 기반 발걸음·소품 접지로 제자리걸음처럼 보이던 이동을 교정하고, 반복 저음을 만들던 자유 실행 드론 오실레이터를 제거했습니다.
 
 ### P1 — 게임성·연출
 

@@ -22,6 +22,7 @@ import {
   pickupVisualScale2D,
   heroDirectionFor,
   heroAnimationFrameIndex2D,
+  heroGroundedRunFrames2D,
   directionalHeroFrames,
   bossCombatHeight2D,
   heroCombatHeight2D,
@@ -86,6 +87,19 @@ describe('PixiPresentation combat bindings', () => {
     expect(hero.animations.dash).toContain(heroAnimationFrameIndex2D(hero, {
       moving: true, dashing: 0.08, attackTimer: 0.2, time: 0.14,
     }))
+  })
+
+  it('locks ordinary footfalls to world distance and omits airborne side-run cells', () => {
+    const hero = SPRITE_MANIFEST.actors.seolryeong
+    const sideRun = heroGroundedRunFrames2D(hero, 'se')
+    expect(sideRun).toEqual([0, 1, 2, 1])
+    expect(heroGroundedRunFrames2D(hero, 'n')).toEqual(hero.animations.run)
+    expect(heroAnimationFrameIndex2D(hero, {
+      moving: true, travelDistance: 0.91, time: 500, runFrames: sideRun,
+    })).toBe(sideRun[0])
+    expect(heroAnimationFrameIndex2D(hero, {
+      moving: true, travelDistance: 0.93, time: 0, runFrames: sideRun,
+    })).toBe(sideRun[1])
   })
 
   it('deterministically divides stone ghouls between two authored silhouettes', () => {

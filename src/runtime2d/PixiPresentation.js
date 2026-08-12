@@ -3,7 +3,8 @@ import {
 } from 'pixi.js'
 import { ENEMIES } from '../data/enemies.js'
 import {
-  cameraFollowStep2D, projectWorld, depthBucket, directionFor, isOnScreen, SORT_BUCKETS, viewportPresentationScale,
+  CAMERA_RECENTER_RESPONSE_2D, cameraFollowStep2D, cameraTargetWithDeadZone2D,
+  projectWorld, depthBucket, directionFor, isOnScreen, SORT_BUCKETS, viewportPresentationScale,
 } from './projection.js'
 import { SPRITE_MANIFEST } from './spriteManifest.js'
 import {
@@ -22,6 +23,7 @@ const STONE_URL = `${base}assets/materials/environment/jade-pavilion-stone-v1.pn
 const JADE_GROUND_URL = `${base}assets/materials/environment/jade-sanctuary-ground-material-v2.png`
 const JADE_GROUND_FALLBACK_URL = `${base}assets/materials/environment/jade-highland-ground-v1.png`
 const _screen = { x: 0, y: 0, unit: 24 }
+const _cameraTarget = { x: 0, z: 0 }
 const _segmentStart = { x: 0, y: 0, unit: 24 }
 const _segmentEnd = { x: 0, y: 0, unit: 24 }
 const _enemyIntentPresentation = {
@@ -898,14 +900,14 @@ const ACTOR_GROUNDING_PROFILES_2D = Object.freeze({
 })
 
 const PROP_GROUNDING_PROFILES_2D = Object.freeze([
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.46, shadowHeight: 0.085, contactWidth: 0.76, contactAlpha: 0.16, contactTint: 0xf0b85e }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.4, shadowHeight: 0.08, contactWidth: 0.66, contactAlpha: 0.11 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.35, shadowHeight: 0.078, contactWidth: 0.58, contactAlpha: 0.13 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.72, shadowHeight: 0.095, contactWidth: 0.92, contactAlpha: 0.14 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.34, shadowHeight: 0.075, contactWidth: 0.58, contactAlpha: 0.11 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.7, shadowHeight: 0.1, contactWidth: 0.92, contactAlpha: 0.1 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.82, shadowHeight: 0.075, contactWidth: 1, contactAlpha: 0.09 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.56, shadowHeight: 0.085, contactWidth: 0.82, contactAlpha: 0.17, contactTint: 0xf0b85e }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.46, shadowHeight: 0.085, contactWidth: 0.6, contactHeight: 0.12, contactLift: 0, contactAlpha: 0.09, contactTint: 0xf0b85e }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.4, shadowHeight: 0.08, contactWidth: 0.52, contactHeight: 0.1, contactLift: 0, contactAlpha: 0.06 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.35, shadowHeight: 0.078, contactWidth: 0.46, contactHeight: 0.1, contactLift: 0, contactAlpha: 0.07 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.72, shadowHeight: 0.095, contactWidth: 0.72, contactHeight: 0.12, contactLift: 0, contactAlpha: 0.08 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.34, shadowHeight: 0.075, contactWidth: 0.46, contactHeight: 0.09, contactLift: 0, contactAlpha: 0.05 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.7, shadowHeight: 0.1, contactWidth: 0.72, contactHeight: 0.09, contactLift: 0, contactAlpha: 0.04 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.82, shadowHeight: 0.075, contactWidth: 0.82, contactHeight: 0.08, contactLift: 0, contactAlpha: 0.04 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.56, shadowHeight: 0.085, contactWidth: 0.58, contactHeight: 0.12, contactLift: 0, contactAlpha: 0.1, contactTint: 0xf0b85e }),
 ])
 
 /** Material grade shared by every sanctuary prop. The atlas has brighter
@@ -3197,18 +3199,35 @@ function oneShotFrameIndex(indices, remaining, duration) {
 
 export function heroAnimationFrameIndex2D(heroDef, {
   moving = false, dashing = 0, attackTimer = 0, time = 0,
+  travelDistance = null, runFrames = null,
 } = {}) {
   const animations = heroDef?.animations ?? {}
   const idle = animations.idle ?? [0]
-  const run = animations.run ?? idle
+  const run = runFrames ?? animations.run ?? idle
   const dash = animations.dash ?? run
   const attack = animations.attack ?? idle
   if (dashing > 0) return oneShotFrameIndex(dash, dashing, 0.16)
   // Automatic attacks must not replace a locomotion cycle while the player is
   // moving; the directional slash VFX already communicates those hits.
+  if (moving && Number.isFinite(travelDistance)) {
+    const phase = Math.floor(Math.max(0, travelDistance) / HERO_RUN_FRAME_DISTANCE_2D)
+    return run[phase % run.length]
+  }
   if (moving) return loopingFrameIndex(run, time, 8)
   if (attackTimer > 0) return oneShotFrameIndex(attack, attackTimer, 0.32)
   return idle[0]
+}
+
+export const HERO_RUN_FRAME_DISTANCE_2D = 0.92
+
+export function heroGroundedRunFrames2D(heroDef, directionKey = 's') {
+  const run = heroDef?.animations?.run ?? heroDef?.animations?.idle ?? [0]
+  // The fourth east/southeast cells are authored as airborne dash poses. Using
+  // them in ordinary locomotion made both feet leave the contact shadow.
+  if ((directionKey === 'e' || directionKey === 'se') && run.length >= 4) {
+    return [run[0], run[1], run[2], run[1]]
+  }
+  return run
 }
 
 export function enemyAttackPresentationDuration2D(def, behavior = 0) {
@@ -3368,6 +3387,11 @@ export class PixiPresentation {
     this.viewport = { width: 1, height: 1, zoom: 1 }
     this.cameraX = 0
     this.cameraZ = 0
+    this.playerX = 0
+    this.playerZ = 0
+    this.heroTravelDistance = 0
+    this.heroLastWorldX = 0
+    this.heroLastWorldZ = 0
     this.time = 0
     this.runActive = false
     this.lastRenderMs = 0
@@ -4289,6 +4313,11 @@ export class PixiPresentation {
     this.heroShadow.visible = true
     this.cameraX = snapshot.player.x
     this.cameraZ = snapshot.player.z
+    this.playerX = snapshot.player.x
+    this.playerZ = snapshot.player.z
+    this.heroTravelDistance = 0
+    this.heroLastWorldX = snapshot.player.x
+    this.heroLastWorldZ = snapshot.player.z
     const stageId = snapshot.world.stage?.id ?? 'jade'
     this.mapSeed = Array.from(stageId).reduce((hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619), 2166136261) >>> 0
     this.activeMapChunkKey = ''
@@ -4399,14 +4428,16 @@ export class PixiPresentation {
         continue
       }
       const visualHeight = entry.height * this._presentationScale
-      const playerDistance = Math.hypot(entry.x - this.cameraX, entry.z - this.cameraZ)
+      const playerDistance = Math.hypot(entry.x - this.playerX, entry.z - this.playerZ)
       const playerFade = Math.max(0.22, Math.min(1, (playerDistance - 1.8) / 3.5))
       entry.sprite.anchor.y = actorFootPivot2D('prop', entry.frame)
       const materialTint = PROP_MATERIAL_TINTS_2D[entry.frame % PROP_MATERIAL_TINTS_2D.length]
       const regionTint = REGION_TERRAIN_PRESENTATION_2D[entry.regionId]?.propTint ?? materialTint
       this._placeActor(entry, entry.x, entry.z, visualHeight, playerFade, 0, blendTint2D(materialTint, regionTint, 0.18))
-      entry.sprite.rotation = entry.frame === 1 || entry.frame === 4
-        ? Math.sin(this.time * (entry.frame === 4 ? 1.7 : 1.15) + entry.phase) * 0.008 : 0
+      // Never rotate a planter or stone from its base. Only the cloth banner
+      // receives a restrained whole-cell sway; the other props stay planted.
+      entry.sprite.rotation = entry.frame === 4
+        ? Math.sin(this.time * 1.7 + entry.phase) * 0.004 : 0
       const lit = entry.frame === 0 || entry.frame === 7
       entry.glow.visible = lit && entry.sprite.visible
       if (lit) {
@@ -4416,12 +4447,16 @@ export class PixiPresentation {
         entry.glow.height = visualHeight * 0.46 * flicker
         entry.glow.alpha = 0.21 * flicker * playerFade
       }
-      entry.contact.position.set(entry.shadow.position.x, entry.shadow.position.y)
-      const footprint = entry.landmark ? 1.16 : 1
-      entry.contact.width = Math.max(38, visualHeight * 0.82) * footprint
-      entry.contact.height = Math.max(16, visualHeight * 0.25) * (entry.landmark ? 1.12 : 1)
-      entry.contact.tint = blendTint2D(0xd3dfcc, regionTint, 0.26)
-      entry.contact.alpha = playerFade * (entry.landmark ? 0.82 : 0.68)
+      const grounding = actorGroundingProfile2D('prop', entry.frame)
+      entry.contact.position.set(
+        entry.shadow.position.x,
+        entry.shadow.position.y - visualHeight * grounding.contactLift,
+      )
+      const footprint = entry.landmark ? 1.1 : 1
+      entry.contact.width = Math.max(22, visualHeight * grounding.contactWidth) * footprint
+      entry.contact.height = Math.max(6, visualHeight * grounding.contactHeight)
+      entry.contact.tint = blendTint2D(grounding.contactTint, regionTint, 0.22)
+      entry.contact.alpha = playerFade * grounding.contactAlpha * (entry.landmark ? 1.15 : 1)
       entry.contact.visible = entry.sprite.visible
       const edge = Math.min(_screen.x, this.viewport.width - _screen.x, _screen.y, this.viewport.height - _screen.y)
       const fade = Math.max(0, Math.min(1, (edge + 45) / 125))
@@ -4628,8 +4663,22 @@ export class PixiPresentation {
     const heroHeight = heroCombatHeight2D(this.viewport.height, heroDef.runtimeHeight)
     const direction = heroDirectionFor(player)
     const directionalFrames = directionalHeroFrames(this.frames, direction)
+    const worldStep = Math.hypot(
+      player.x - this.heroLastWorldX,
+      player.z - this.heroLastWorldZ,
+    )
+    if (moving && player.dashing <= 0 && !player.teleported && worldStep <= 2) {
+      this.heroTravelDistance += worldStep
+    }
+    this.heroLastWorldX = player.x
+    this.heroLastWorldZ = player.z
     const frame = heroAnimationFrameIndex2D(heroDef, {
-      moving, dashing: player.dashing, attackTimer: player.attackTimer, time: this.time,
+      moving,
+      dashing: player.dashing,
+      attackTimer: player.attackTimer,
+      time: this.time,
+      travelDistance: this.heroTravelDistance,
+      runFrames: heroGroundedRunFrames2D(heroDef, direction.key),
     })
     this.hero.texture = directionalFrames[frame]
     this.hero.anchor.y = heroFootPivot2D(direction.key, frame)
@@ -5014,8 +5063,15 @@ export class PixiPresentation {
     if (this.runActive) {
       const targetX = snapshot.player.prevX + (snapshot.player.x - snapshot.player.prevX) * alpha
       const targetZ = snapshot.player.prevZ + (snapshot.player.z - snapshot.player.prevZ) * alpha
-      this.cameraX = cameraFollowStep2D(this.cameraX, targetX, dt)
-      this.cameraZ = cameraFollowStep2D(this.cameraZ, targetZ, dt)
+      this.playerX = targetX
+      this.playerZ = targetZ
+      const moving = snapshot.player.speed01 > 0.08
+      cameraTargetWithDeadZone2D(
+        this.cameraX, this.cameraZ, targetX, targetZ, this.viewport, moving, _cameraTarget,
+      )
+      const response = moving ? undefined : CAMERA_RECENTER_RESPONSE_2D
+      this.cameraX = cameraFollowStep2D(this.cameraX, _cameraTarget.x, dt, response)
+      this.cameraZ = cameraFollowStep2D(this.cameraZ, _cameraTarget.z, dt, response)
       const shake = snapshot.world.shake
       if (shake > 0) {
         this.cameraX += Math.sin(this.time * 83) * shake * 0.035

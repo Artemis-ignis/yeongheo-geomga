@@ -6,7 +6,8 @@ export const SORT_BUCKETS = 64
  * step below is frame-rate independent: equal elapsed time converges to the
  * same point regardless of how it is partitioned into render frames.
  */
-export const CAMERA_FOLLOW_RESPONSE_2D = 9
+export const CAMERA_FOLLOW_RESPONSE_2D = 8
+export const CAMERA_RECENTER_RESPONSE_2D = 2.4
 
 export function cameraFollowFactor2D(dtSeconds, response = CAMERA_FOLLOW_RESPONSE_2D) {
   const dt = Math.max(0, Math.min(0.25, Number(dtSeconds) || 0))
@@ -59,6 +60,48 @@ export function projectWorld(x, z, cameraX, cameraZ, viewport, out = {}) {
   out.y = height * 0.57 + (z - cameraZ) * depthUnit
   out.unit = unit
   out.depthUnit = depthUnit
+  return out
+}
+
+/**
+ * Let the heroine visibly cross a compact screen-space window before the
+ * camera follows. Locking her to the exact focal point made valid world
+ * movement read like a treadmill with a video sliding underneath it.
+ */
+export function cameraTargetWithDeadZone2D(
+  cameraX,
+  cameraZ,
+  playerX,
+  playerZ,
+  viewport,
+  moving = true,
+  out = {},
+) {
+  const fromX = Number.isFinite(Number(cameraX)) ? Number(cameraX) : 0
+  const fromZ = Number.isFinite(Number(cameraZ)) ? Number(cameraZ) : 0
+  const targetX = Number.isFinite(Number(playerX)) ? Number(playerX) : fromX
+  const targetZ = Number.isFinite(Number(playerZ)) ? Number(playerZ) : fromZ
+
+  if (!moving) {
+    out.x = targetX
+    out.z = targetZ
+    return out
+  }
+
+  const screen = projectWorld(targetX, targetZ, fromX, fromZ, viewport, {})
+  const centerX = Math.max(1, viewport?.width ?? 1) * 0.5
+  const centerY = Math.max(1, viewport?.height ?? 1) * 0.57
+  const deadZoneX = clamp(centerX * 0.11, 64, 108)
+  const deadZoneY = clamp(Math.max(1, viewport?.height ?? 1) * 0.052, 34, 58)
+  const offsetX = screen.x - centerX
+  const offsetY = screen.y - centerY
+
+  out.x = fromX
+  out.z = fromZ
+  if (offsetX > deadZoneX) out.x += (offsetX - deadZoneX) / screen.unit
+  else if (offsetX < -deadZoneX) out.x += (offsetX + deadZoneX) / screen.unit
+  if (offsetY > deadZoneY) out.z += (offsetY - deadZoneY) / screen.depthUnit
+  else if (offsetY < -deadZoneY) out.z += (offsetY + deadZoneY) / screen.depthUnit
   return out
 }
 
