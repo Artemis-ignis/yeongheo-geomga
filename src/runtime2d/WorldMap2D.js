@@ -10,11 +10,11 @@ const DEFAULT_MAP_SEED = 0x51f15e
 
 export const MAP_REGION_TYPES = Object.freeze({
   spawn_grove: Object.freeze({ terrainRole: 'sanctuary-plaza', densityBand: 'authored', propVocabulary: [0, 1, 3, 4, 6] }),
-  jade_path: Object.freeze({ terrainRole: 'weathered-jade-path', densityBand: 'low', propVocabulary: [0, 2, 4, 6] }),
-  jade_grove: Object.freeze({ terrainRole: 'moss-grove', densityBand: 'medium', propVocabulary: [0, 1, 5, 7] }),
-  lantern_shrine: Object.freeze({ terrainRole: 'lantern-shrine', densityBand: 'landmark', propVocabulary: [0, 3, 4, 7] }),
-  mist_marsh: Object.freeze({ terrainRole: 'mist-marsh', densityBand: 'medium', propVocabulary: [0, 1, 5] }),
-  void_rim: Object.freeze({ terrainRole: 'void-rim', densityBand: 'medium', propVocabulary: [2, 4, 6, 7] }),
+  jade_path: Object.freeze({ terrainRole: 'weathered-jade-path', densityBand: 'low', propVocabulary: [1, 5] }),
+  jade_grove: Object.freeze({ terrainRole: 'moss-grove', densityBand: 'medium', propVocabulary: [1, 5, 0] }),
+  lantern_shrine: Object.freeze({ terrainRole: 'lantern-shrine', densityBand: 'landmark', propVocabulary: [0, 3, 6, 7] }),
+  mist_marsh: Object.freeze({ terrainRole: 'mist-marsh', densityBand: 'medium', propVocabulary: [1, 5] }),
+  void_rim: Object.freeze({ terrainRole: 'void-rim', densityBand: 'medium', propVocabulary: [2, 3, 6] }),
 })
 
 /** Deterministic integer hash so streamed chunks never change when revisited. */
@@ -182,18 +182,16 @@ function landmarkProps(chunkX, chunkZ, root) {
 function openingPlazaProps(chunkX, chunkZ) {
   const authored = {
     '-1:-1': [
-      { frame: 4, x: -15, z: -10, scale: 1.02 },
+      { frame: 1, x: -17, z: -14, scale: 1.02 },
+      { frame: 5, x: -12.5, z: -11.5, scale: 0.96 },
     ],
     '0:-1': [
-      { frame: 3, x: 12, z: -14, scale: 0.88 },
+      { frame: 0, x: 10, z: -15, scale: 0.84 },
+      { frame: 6, x: 14, z: -12, scale: 1.02 },
+      { frame: 0, x: 18, z: -15, scale: 0.84 },
     ],
-    '-1:0': [
-      { frame: 1, x: -12, z: 13, scale: 1.05 },
-      { frame: 0, x: -18, z: 18, scale: 0.86 },
-    ],
-    '0:0': [
-      { frame: 6, x: 14, z: 11, scale: 0.96 },
-    ],
+    '-1:0': [],
+    '0:0': [],
   }[`${chunkX}:${chunkZ}`]
   if (!authored) return null
   return authored.map(({ frame, x, z, scale }) => propAt(
@@ -221,13 +219,19 @@ export function propsForMapChunk(chunkX, chunkZ, seed = DEFAULT_MAP_SEED, stageI
   if (landmark) return landmarkProps(chunkX, chunkZ, root).map((prop) => ({ ...prop, regionId: region.id }))
   const count = region.densityBand === 'medium' ? 2 + (root % 5 === 0 ? 1 : 0) : 1 + (root % 3 === 0 ? 1 : 0)
   const props = []
+  const margin = 5
+  const span = MAP_CHUNK_SIZE - margin * 2
+  const anchorXHash = hashMapCell(chunkX * 7 + 3, chunkZ * 11 - 5, seed ^ 0x92d68ca2)
+  const anchorZHash = hashMapCell(chunkX * 13 - 3, chunkZ * 5 + 7, seed ^ 0x68bc21eb)
+  const anchorX = margin + unitFloat(anchorXHash) * span
+  const anchorZ = margin + unitFloat(anchorZHash) * span
   for (let i = 0; i < count; i++) {
     const hx = hashMapCell(chunkX * 7 + i * 17, chunkZ * 11 - i * 5, seed ^ 0x92d68ca2)
     const hz = hashMapCell(chunkX * 13 - i * 3, chunkZ * 5 + i * 19, seed ^ 0x68bc21eb)
-    const margin = 5
-    const span = MAP_CHUNK_SIZE - margin * 2
-    const localX = margin + unitFloat(hx) * span
-    const localZ = margin + unitFloat(hz) * span
+    const angle = unitFloat(hx) * Math.PI * 2
+    const distance = i === 0 ? 0 : 2.8 + unitFloat(hz) * 3.8
+    const localX = Math.max(margin, Math.min(MAP_CHUNK_SIZE - margin, anchorX + Math.cos(angle) * distance))
+    const localZ = Math.max(margin, Math.min(MAP_CHUNK_SIZE - margin, anchorZ + Math.sin(angle) * distance))
     const vocabulary = region.propVocabulary ?? MAP_REGION_TYPES.jade_grove.propVocabulary
     const frame = vocabulary[hashMapCell(chunkX, chunkZ, seed + i + 1) % vocabulary.length]
     props.push({

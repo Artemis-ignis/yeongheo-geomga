@@ -1,5 +1,5 @@
 /**
- * 마기의 진(陣) — set-piece spawns that arrive as a shape instead of as noise.
+ * 마기의 진형 — set-piece spawns that arrive as a shape instead of as noise.
  *
  * The wave table spawns at a uniformly random angle every pulse, forever. That
  * gives a correct average and no texture: measured over full runs, minutes go by

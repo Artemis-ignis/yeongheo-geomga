@@ -13,7 +13,7 @@ import { choosePixiBackend, probeWebGLRenderer } from './backend.js'
 import { planEffectRenderSamples, planParticlePool2D } from './ParticleBudget2D.js'
 import {
   MAP_CHUNK_SIZE, MAP_GROUND_VARIANTS, MAX_ACTIVE_MAP_CHUNKS, MAX_ACTIVE_MAP_PROPS,
-  activeMapChunks, hashMapCell, mapChunkKey, propsForMapChunk,
+  MAP_REGION_TYPES, activeMapChunks, hashMapCell, mapChunkKey, propsForMapChunk,
 } from './WorldMap2D.js'
 
 const base = import.meta.env?.BASE_URL ?? './'
@@ -38,6 +38,17 @@ const TERRAIN_BYTES_PER_PIXEL = 4
 const TERRAIN_ATLAS_BYTES = TERRAIN_ATLAS_WIDTH * TERRAIN_ATLAS_HEIGHT * TERRAIN_BYTES_PER_PIXEL
 const JADE_DECAL_EDGE_FEATHER = 88
 const JADE_WORLD_PROJECTION_ASPECT = 2.52
+const JADE_REGION_VARIANTS = 2
+
+export const JADE_REGION_TEXTURE_ORDER_2D = Object.freeze(Object.keys(MAP_REGION_TYPES))
+
+export function jadeRegionTextureIndex2D(regionId, variant = 0) {
+  const fallback = JADE_REGION_TEXTURE_ORDER_2D.indexOf('jade_grove')
+  const regionIndex = JADE_REGION_TEXTURE_ORDER_2D.indexOf(regionId)
+  const safeRegionIndex = regionIndex >= 0 ? regionIndex : Math.max(0, fallback)
+  const safeVariant = Math.abs(Math.floor(Number(variant) || 0)) % JADE_REGION_VARIANTS
+  return safeRegionIndex * JADE_REGION_VARIANTS + safeVariant
+}
 
 /**
  * Runtime-facing limits for the streamed 2D presentation. The atlas is one
@@ -1148,10 +1159,10 @@ function drawBossTelegraph2D(graphics, profile, cameraX, cameraZ, viewport, cast
   }
 }
 const POI_PRESENTATION = Object.freeze({
-  altar: Object.freeze({ frame: 7, height: 142, glyph: '祭', color: 0xf2c76f }),
-  treasure: Object.freeze({ frame: 3, height: 154, glyph: '寶', color: 0x8edcff }),
-  elite_seal: Object.freeze({ frame: 2, height: 176, glyph: '封', color: 0xe969a1 }),
-  healing_spring: Object.freeze({ frame: 5, height: 118, glyph: '泉', color: 0x73e3bd }),
+  altar: Object.freeze({ frame: 7, height: 142, glyph: '수', color: 0xf2c76f }),
+  treasure: Object.freeze({ frame: 3, height: 154, glyph: '보', color: 0x8edcff }),
+  elite_seal: Object.freeze({ frame: 2, height: 176, glyph: '봉', color: 0xe969a1 }),
+  healing_spring: Object.freeze({ frame: 5, height: 118, glyph: '회', color: 0x73e3bd }),
 })
 
 function canvasTexture(width, height, draw) {
@@ -1700,7 +1711,7 @@ function groundChunkTexture(source, seed, stageId = 'jade', authoredTerrain = fa
  * opaque base pixels and feather to zero on every edge, so neighbouring chunks
  * can overlap without rebuilding the old tiled-photo grid.
  */
-function jadeGroundDetailTexture(seed) {
+function jadeGroundDetailTexture(seed, regionId = 'jade_grove') {
   return canvasTexture(512, 512, (ctx, width, height) => {
     let state = (seed * 0x9e3779b1) >>> 0
     const random = () => {
@@ -1782,13 +1793,173 @@ function jadeGroundDetailTexture(seed) {
       ctx.restore()
     }
 
+    // Region data must be visible as geography, not merely as a tint. These
+    // motifs share one restrained stone/ink palette and sit below combat
+    // telegraphs, but are large enough to turn camera travel into recognisable
+    // paths, groves, shrines, marshes and corrupted rims.
+    const drawEllipse = (x, y, rx, ry, fill, stroke = null, lineWidth = 1) => {
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.scale(1, ry / Math.max(1, rx))
+      ctx.beginPath()
+      ctx.arc(0, 0, rx, 0, Math.PI * 2)
+      if (fill) {
+        ctx.fillStyle = fill
+        ctx.fill()
+      }
+      if (stroke) {
+        ctx.strokeStyle = stroke
+        ctx.lineWidth = lineWidth
+        ctx.stroke()
+      }
+      ctx.restore()
+    }
+
+    ctx.save()
+    ctx.globalCompositeOperation = 'source-over'
+    if (regionId === 'spawn_grove') {
+      const clearing = ctx.createRadialGradient(width * 0.5, height * 0.5, 12, width * 0.5, height * 0.5, width * 0.54)
+      clearing.addColorStop(0, 'rgba(118,144,126,.22)')
+      clearing.addColorStop(0.58, 'rgba(58,99,78,.14)')
+      clearing.addColorStop(1, 'rgba(20,52,45,0)')
+      ctx.fillStyle = clearing
+      ctx.fillRect(0, 0, width, height)
+      for (let i = 0; i < 18; i++) {
+        const angle = random() * Math.PI * 2
+        const distance = 150 + random() * 80
+        const x = width * 0.5 + Math.cos(angle) * distance
+        const y = height * 0.5 + Math.sin(angle) * distance * 0.78
+        drawEllipse(x, y, 22 + random() * 42, 12 + random() * 28, 'rgba(35,83,62,.2)')
+      }
+    } else if (regionId === 'jade_path') {
+      const phase = (seed % 2) * 1.35
+      const pathX = (y) => width * 0.5 + Math.sin((y / height) * Math.PI * 1.25 + phase) * 52
+      const tracePath = () => {
+        ctx.beginPath()
+        for (let y = -42; y <= height + 42; y += 16) {
+          const x = pathX(y)
+          if (y === -42) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        }
+      }
+      ctx.lineCap = 'round'
+      tracePath()
+      ctx.strokeStyle = 'rgba(4,15,17,.46)'
+      ctx.lineWidth = 166
+      ctx.stroke()
+      tracePath()
+      ctx.strokeStyle = 'rgba(87,108,96,.5)'
+      ctx.lineWidth = 144
+      ctx.stroke()
+      tracePath()
+      ctx.strokeStyle = 'rgba(171,184,157,.18)'
+      ctx.lineWidth = 4
+      ctx.stroke()
+      for (let y = 18; y < height; y += 42 + (seed % 2) * 8) {
+        const x = pathX(y)
+        const slope = (pathX(y + 4) - pathX(y - 4)) / 8
+        ctx.strokeStyle = 'rgba(7,22,23,.32)'
+        ctx.lineWidth = 2.2
+        ctx.beginPath()
+        ctx.moveTo(x - 58, y + slope * 58)
+        ctx.lineTo(x + 58, y - slope * 58)
+        ctx.stroke()
+        ctx.strokeStyle = 'rgba(201,211,181,.08)'
+        ctx.lineWidth = 1
+        ctx.stroke()
+      }
+    } else if (regionId === 'jade_grove') {
+      for (let i = 0; i < 8; i++) {
+        const x = 42 + random() * (width - 84)
+        const y = 42 + random() * (height - 84)
+        const radius = 52 + random() * 98
+        const moss = ctx.createRadialGradient(x, y, 0, x, y, radius)
+        moss.addColorStop(0, 'rgba(37,105,72,.36)')
+        moss.addColorStop(0.55, 'rgba(30,80,59,.2)')
+        moss.addColorStop(1, 'rgba(15,48,42,0)')
+        ctx.fillStyle = moss
+        ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2)
+      }
+      ctx.strokeStyle = 'rgba(126,188,139,.3)'
+      ctx.lineWidth = 2
+      for (let i = 0; i < 88; i++) {
+        const x = 24 + random() * (width - 48)
+        const y = 24 + random() * (height - 48)
+        const length = 7 + random() * 15
+        ctx.beginPath()
+        ctx.moveTo(x, y)
+        ctx.quadraticCurveTo(x + length * 0.15, y - length, x + length * 0.72, y - length * 0.64)
+        ctx.stroke()
+      }
+    } else if (regionId === 'lantern_shrine') {
+      drawEllipse(width * 0.5, height * 0.5, 194, 164, 'rgba(41,54,54,.56)', 'rgba(212,187,112,.2)', 5)
+      drawEllipse(width * 0.5, height * 0.5, 158, 132, 'rgba(78,91,81,.22)', 'rgba(175,196,164,.18)', 3)
+      drawEllipse(width * 0.5, height * 0.5, 90, 74, 'rgba(27,50,45,.2)', 'rgba(224,195,110,.18)', 2)
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2 + (seed % 2) * Math.PI / 8
+        const x = width * 0.5 + Math.cos(angle) * 135
+        const y = height * 0.5 + Math.sin(angle) * 112
+        drawEllipse(x, y, 15, 12, 'rgba(202,169,82,.18)', 'rgba(235,207,128,.24)', 2)
+      }
+    } else if (regionId === 'mist_marsh') {
+      for (let i = 0; i < 5; i++) {
+        const x = 70 + random() * (width - 140)
+        const y = 70 + random() * (height - 140)
+        const rx = 58 + random() * 105
+        const ry = 32 + random() * 62
+        const pool = ctx.createRadialGradient(x, y, 4, x, y, rx)
+        pool.addColorStop(0, 'rgba(72,130,126,.34)')
+        pool.addColorStop(0.66, 'rgba(30,82,84,.22)')
+        pool.addColorStop(1, 'rgba(8,38,47,0)')
+        drawEllipse(x, y, rx, ry, pool)
+        drawEllipse(x, y, rx * 0.72, ry * 0.62, null, 'rgba(144,201,191,.15)', 2)
+      }
+      ctx.strokeStyle = 'rgba(99,150,119,.26)'
+      ctx.lineWidth = 2.2
+      for (let i = 0; i < 38; i++) {
+        const x = 20 + random() * (width - 40)
+        const y = 30 + random() * (height - 60)
+        const h = 12 + random() * 27
+        ctx.beginPath()
+        ctx.moveTo(x, y)
+        ctx.quadraticCurveTo(x + 4, y - h * 0.55, x + (random() - 0.5) * 10, y - h)
+        ctx.stroke()
+      }
+    } else if (regionId === 'void_rim') {
+      const corruption = ctx.createRadialGradient(width * 0.52, height * 0.48, 0, width * 0.52, height * 0.48, width * 0.52)
+      corruption.addColorStop(0, 'rgba(34,17,48,.42)')
+      corruption.addColorStop(0.55, 'rgba(22,27,43,.25)')
+      corruption.addColorStop(1, 'rgba(10,25,33,0)')
+      ctx.fillStyle = corruption
+      ctx.fillRect(0, 0, width, height)
+      ctx.lineCap = 'round'
+      for (let i = 0; i < 12; i++) {
+        let x = width * (0.42 + random() * 0.2)
+        let y = height * (0.4 + random() * 0.2)
+        ctx.strokeStyle = i % 3 === 0 ? 'rgba(143,94,176,.28)' : 'rgba(84,178,153,.16)'
+        ctx.lineWidth = i % 3 === 0 ? 3 : 1.4
+        ctx.beginPath()
+        ctx.moveTo(x, y)
+        for (let n = 0; n < 5; n++) {
+          x += (random() - 0.5) * 90
+          y += (random() - 0.5) * 82
+          ctx.lineTo(x, y)
+        }
+        ctx.stroke()
+      }
+    }
+    ctx.restore()
+
     // A wide feather guarantees there is no first visible row or square edge.
     ctx.globalCompositeOperation = 'destination-in'
     const feather = 78
-    for (const [x0, y0, x1, y1] of [
-      [0, 0, feather, 0], [width, 0, width - feather, 0],
-      [0, 0, 0, feather], [0, height, 0, height - feather],
-    ]) {
+    const featherEdges = regionId === 'jade_path'
+      ? [[0, 0, feather, 0], [width, 0, width - feather, 0]]
+      : [
+          [0, 0, feather, 0], [width, 0, width - feather, 0],
+          [0, 0, 0, feather], [0, height, 0, height - feather],
+        ]
+    for (const [x0, y0, x1, y1] of featherEdges) {
       const mask = ctx.createLinearGradient(x0, y0, x1, y1)
       mask.addColorStop(0, 'rgba(255,255,255,0)')
       mask.addColorStop(1, 'rgba(255,255,255,1)')
@@ -1796,6 +1967,87 @@ function jadeGroundDetailTexture(seed) {
       ctx.fillRect(0, 0, width, height)
     }
     ctx.globalCompositeOperation = 'source-over'
+  })
+}
+
+/** One authored landmark at world origin gives the opening arena a readable
+ * place instead of four unrelated streamed props around an empty texture. */
+function jadeSpawnPlazaTexture() {
+  return canvasTexture(768, 768, (ctx, width, height) => {
+    ctx.clearRect(0, 0, width, height)
+    const cx = width * 0.5
+    const cy = height * 0.5
+    const outer = width * 0.43
+
+    const edge = ctx.createRadialGradient(cx, cy, outer * 0.64, cx, cy, outer)
+    edge.addColorStop(0, 'rgba(60,76,72,.76)')
+    edge.addColorStop(0.76, 'rgba(34,55,50,.62)')
+    edge.addColorStop(0.92, 'rgba(27,72,55,.26)')
+    edge.addColorStop(1, 'rgba(16,51,42,0)')
+    ctx.fillStyle = edge
+    ctx.beginPath()
+    ctx.arc(cx, cy, outer, 0, Math.PI * 2)
+    ctx.fill()
+
+    // Four worn approaches connect the plaza to the streamed regions.
+    ctx.strokeStyle = 'rgba(65,80,75,.62)'
+    ctx.lineCap = 'round'
+    ctx.lineWidth = 112
+    for (const [x, y] of [[cx, -40], [cx, height + 40], [-40, cy], [width + 40, cy]]) {
+      ctx.beginPath()
+      ctx.moveTo(cx, cy)
+      ctx.lineTo(x, y)
+      ctx.stroke()
+    }
+    ctx.strokeStyle = 'rgba(173,190,164,.12)'
+    ctx.lineWidth = 4
+    for (const [x, y] of [[cx, -40], [cx, height + 40], [-40, cy], [width + 40, cy]]) {
+      ctx.beginPath()
+      ctx.moveTo(cx, cy)
+      ctx.lineTo(x, y)
+      ctx.stroke()
+    }
+
+    ctx.lineCap = 'butt'
+    for (const [radius, color, lineWidth] of [
+      [outer * 0.78, 'rgba(8,24,25,.62)', 20],
+      [outer * 0.78, 'rgba(205,203,157,.2)', 4],
+      [outer * 0.5, 'rgba(7,21,23,.5)', 11],
+      [outer * 0.5, 'rgba(166,201,176,.18)', 3],
+      [outer * 0.24, 'rgba(218,193,112,.2)', 4],
+    ]) {
+      ctx.strokeStyle = color
+      ctx.lineWidth = lineWidth
+      ctx.beginPath()
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+      ctx.stroke()
+    }
+
+    // Radial paving seams establish scale without writing a rune or character.
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2
+      ctx.strokeStyle = i % 2 === 0 ? 'rgba(5,19,21,.4)' : 'rgba(194,207,180,.09)'
+      ctx.lineWidth = i % 2 === 0 ? 3 : 1.5
+      ctx.beginPath()
+      ctx.moveTo(cx + Math.cos(angle) * outer * 0.24, cy + Math.sin(angle) * outer * 0.24)
+      ctx.lineTo(cx + Math.cos(angle) * outer * 0.76, cy + Math.sin(angle) * outer * 0.76)
+      ctx.stroke()
+    }
+
+    // A few broken seams keep the circle architectural rather than UI-clean.
+    ctx.strokeStyle = 'rgba(8,23,24,.52)'
+    ctx.lineCap = 'round'
+    for (const points of [
+      [[cx - 210, cy - 72], [cx - 160, cy - 42], [cx - 126, cy - 66]],
+      [[cx + 104, cy + 184], [cx + 145, cy + 136], [cx + 198, cy + 148]],
+      [[cx + 152, cy - 128], [cx + 112, cy - 94], [cx + 126, cy - 54]],
+    ]) {
+      ctx.lineWidth = 5
+      ctx.beginPath()
+      ctx.moveTo(points[0][0], points[0][1])
+      for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1])
+      ctx.stroke()
+    }
   })
 }
 
@@ -2005,6 +2257,31 @@ function contactLightTexture() {
     glow.addColorStop(1, 'rgba(255,255,255,0)')
     ctx.fillStyle = glow
     ctx.fillRect(0, 0, width, height)
+  })
+}
+
+function propFootprintTexture() {
+  return canvasTexture(160, 96, (ctx, width, height) => {
+    ctx.clearRect(0, 0, width, height)
+    const soil = ctx.createRadialGradient(width * 0.5, height * 0.54, 3, width * 0.5, height * 0.54, width * 0.47)
+    soil.addColorStop(0, 'rgba(4,12,14,.72)')
+    soil.addColorStop(0.48, 'rgba(12,27,24,.5)')
+    soil.addColorStop(0.76, 'rgba(42,79,57,.24)')
+    soil.addColorStop(1, 'rgba(32,72,54,0)')
+    ctx.fillStyle = soil
+    ctx.fillRect(0, 0, width, height)
+    ctx.strokeStyle = 'rgba(109,150,104,.22)'
+    ctx.lineCap = 'round'
+    for (const [x, y, length, lean] of [
+      [22, 58, 12, -4], [35, 66, 15, 4], [55, 70, 10, -2], [104, 70, 12, 3],
+      [126, 64, 16, -4], [139, 57, 11, 2], [44, 37, 8, 3], [118, 38, 9, -3],
+    ]) {
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      ctx.quadraticCurveTo(x + lean, y - length * 0.62, x + lean * 0.4, y - length)
+      ctx.stroke()
+    }
   })
 }
 
@@ -3219,6 +3496,10 @@ export class PixiPresentation {
       this.mapDecalLayer.addChild(sprite)
       this.mapDecalPool.push({ sprite, x: 0, z: 0, active: false })
     }
+    this.spawnPlaza = new Sprite(jadeSpawnPlazaTexture())
+    this.spawnPlaza.anchor.set(0.5)
+    this.spawnPlaza.visible = false
+    this.mapDecalLayer.addChild(this.spawnPlaza)
 
     this.floorRunes = new Sprite(floorRuneTexture())
     this.floorRunes.anchor.set(0.5)
@@ -3323,6 +3604,7 @@ export class PixiPresentation {
       hit: impactTexture(),
       death: deathTexture(),
       contactLight: contactLightTexture(),
+      propFootprint: propFootprintTexture(),
       warmGlow: radialTexture('rgba(255,196,92,.34)', 'rgba(255,142,38,0)'),
       heroAura: radialTexture('rgba(187,244,255,.28)', 'rgba(76,170,210,0)'),
     }
@@ -3564,7 +3846,10 @@ export class PixiPresentation {
     this.mapDecalTextures = Array.from(
       { length: MAP_GROUND_VARIANTS },
       (_, i) => jade
-        ? jadeGroundDetailTexture(i + 11)
+        ? jadeGroundDetailTexture(
+            i + 11,
+            JADE_REGION_TEXTURE_ORDER_2D[Math.floor(i / JADE_REGION_VARIANTS)] ?? 'jade_grove',
+          )
         : groundChunkTexture(terrainSource, i + 11, stageId, false),
     )
     for (const texture of previous) texture.destroy(true)
@@ -3587,9 +3872,9 @@ export class PixiPresentation {
       glow.blendMode = 'add'
       glow.visible = false
       this.groundLightLayer.addChild(glow)
-      const contact = new Sprite(this.textures.contactLight)
+      const contact = new Sprite(this.textures.propFootprint)
       contact.anchor.set(0.5)
-      contact.blendMode = 'add'
+      contact.blendMode = 'normal'
       contact.visible = false
       this.contactLightLayer.addChild(contact)
       const entry = {
@@ -3937,7 +4222,9 @@ export class PixiPresentation {
       if (!chunk) continue
       entry.x = (chunk.x + 0.5) * MAP_CHUNK_SIZE
       entry.z = (chunk.z + 0.5) * MAP_CHUNK_SIZE
-      entry.variant = chunk.variant
+      entry.variant = this._groundStageId === 'jade'
+        ? jadeRegionTextureIndex2D(chunk.regionId, chunk.variant)
+        : chunk.variant
       entry.sprite.texture = this.mapDecalTextures[chunk.variant]
       entry.regionId = chunk.regionId
       const primaryRegion = REGION_TERRAIN_PRESENTATION_2D[chunk.regionId]
@@ -3980,6 +4267,14 @@ export class PixiPresentation {
       entry.sprite.width = MAP_CHUNK_SIZE * _screen.unit * overlap
       entry.sprite.height = MAP_CHUNK_SIZE * _screen.depthUnit * overlap
       entry.sprite.visible = isOnScreen(_screen.x, _screen.y, this.viewport, entry.sprite.width)
+    }
+    if (this.spawnPlaza) {
+      projectWorld(0, 0, this.cameraX, this.cameraZ, this.viewport, _screen)
+      this.spawnPlaza.position.set(_screen.x, _screen.y)
+      this.spawnPlaza.width = 32 * _screen.unit
+      this.spawnPlaza.height = 32 * _screen.depthUnit
+      this.spawnPlaza.visible = this._groundStageId === 'jade'
+        && isOnScreen(_screen.x, _screen.y, this.viewport, this.spawnPlaza.width * 0.58)
     }
   }
 
@@ -4034,13 +4329,12 @@ export class PixiPresentation {
         entry.glow.height = visualHeight * 0.46 * flicker
         entry.glow.alpha = 0.21 * flicker * playerFade
       }
-      const grounding = actorGroundingProfile2D('prop', entry.frame)
       entry.contact.position.set(entry.shadow.position.x, entry.shadow.position.y)
       const footprint = entry.landmark ? 1.16 : 1
-      entry.contact.width = Math.max(26, visualHeight * grounding.contactWidth) * footprint
-      entry.contact.height = Math.max(8, visualHeight * grounding.contactHeight) * (entry.landmark ? 1.08 : 1)
-      entry.contact.tint = grounding.contactTint
-      entry.contact.alpha = grounding.contactAlpha * playerFade * (entry.landmark ? 0.86 : 0.72)
+      entry.contact.width = Math.max(38, visualHeight * 0.82) * footprint
+      entry.contact.height = Math.max(16, visualHeight * 0.25) * (entry.landmark ? 1.12 : 1)
+      entry.contact.tint = blendTint2D(0xd3dfcc, regionTint, 0.26)
+      entry.contact.alpha = playerFade * (entry.landmark ? 0.82 : 0.68)
       entry.contact.visible = entry.sprite.visible
       const edge = Math.min(_screen.x, this.viewport.width - _screen.x, _screen.y, this.viewport.height - _screen.y)
       const fade = Math.max(0, Math.min(1, (edge + 45) / 125))
@@ -4083,7 +4377,7 @@ export class PixiPresentation {
       entry.marker.position.set(_screen.x, _screen.y + 5)
       entry.marker.width = (nearby ? 116 : 88) * pulse
       entry.marker.height = (nearby ? 42 : 32) * pulse
-      entry.marker.rotation = this.time * (nearby ? 0.72 : 0.25)
+      entry.marker.rotation = 0
       entry.marker.tint = config.color
       entry.marker.alpha = available ? (nearby ? 0.62 : 0.28) : 0.08
       entry.marker.visible = entry.sprite.visible
@@ -4699,7 +4993,7 @@ export class PixiPresentation {
   _releaseSceneReferences() {
     for (const key of [
       'backdrop', 'backdropWash', 'combatSky', 'combatVista', 'farMountains', 'nearMountains', 'farMist',
-      'floor', 'floorBlendMask', 'mapDecalLayer', 'mapDecalBlendMask', 'terrainMask', 'floorRunes', 'terrainGrade',
+      'floor', 'floorBlendMask', 'mapDecalLayer', 'mapDecalBlendMask', 'terrainMask', 'floorRunes', 'terrainGrade', 'spawnPlaza',
       'horizonMist', 'nearMist', 'horizonVeil', 'groundLightLayer', 'contactLightLayer', 'weaponFieldLayer', 'shadowLayer',
       'actorRoot', 'actorBuckets', 'friendlyProjectileContainer', 'hostileProjectileContainer',
       'pickupContainer', 'effectLayer', 'damageTextLayer', 'textures', 'frames', 'groundBaseTextures',

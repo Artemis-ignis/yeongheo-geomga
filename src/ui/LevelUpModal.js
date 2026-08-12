@@ -2,15 +2,15 @@ import { iconFor } from './icons.js'
 import { applyDaoVowCssVars, getDaoVowVisual } from './Hud.js'
 
 const CHOICE_KIND_PRESENTATION = Object.freeze({
-  weapon: Object.freeze({ label: '법보', mark: '寶', className: 'choice-artifact' }),
-  passive: Object.freeze({ label: '공법', mark: '訣', className: 'choice-technique' }),
-  evolution: Object.freeze({ label: '진화', mark: '化', className: 'choice-evolution' }),
-  dao: Object.freeze({ label: '도 선택', mark: '道', className: 'choice-dao' }),
-  consumable: Object.freeze({ label: '기연', mark: '緣', className: 'choice-consumable' }),
+  weapon: Object.freeze({ label: '법보', mark: '법', className: 'choice-artifact' }),
+  passive: Object.freeze({ label: '공법', mark: '공', className: 'choice-technique' }),
+  evolution: Object.freeze({ label: '진화', mark: '진', className: 'choice-evolution' }),
+  dao: Object.freeze({ label: '도 선택', mark: '도', className: 'choice-dao' }),
+  consumable: Object.freeze({ label: '기연', mark: '연', className: 'choice-consumable' }),
 })
 
 const FALLBACK_KIND_PRESENTATION = Object.freeze({
-  label: '선택', mark: '選', className: 'choice-unknown',
+  label: '선택', mark: '선', className: 'choice-unknown',
 })
 
 function escapeHtml(value) {
@@ -161,11 +161,11 @@ export class LevelUpModal {
       const name = choice.name ?? choice.id ?? '이름 없는 선택'
       const effect = choice.desc ?? '선택 즉시 효과가 적용됩니다.'
       const daoLabel = daoVisual?.vowId
-        ? `<div class="modal-dao-label">${escapeHtml(daoVisual.hanja)} ${escapeHtml(daoVisual.name)}</div>
+        ? `<div class="modal-dao-label">${escapeHtml(daoVisual.name)}</div>
         <div class="modal-dao-mark" aria-hidden="true"><span>${escapeHtml(daoVisual.glyph)}</span></div>`
         : ''
       const ariaLabel = choice.ariaLabel
-        ?? `${kind.label} · ${step} · ${daoVisual?.vowId ? `${daoVisual.hanja} ${daoVisual.name} · ` : ''}${name} · 효과: ${effect}`
+        ?? `${kind.label} · ${step} · ${daoVisual?.vowId ? `${daoVisual.name} · ` : ''}${name} · 효과: ${effect}`
       card.setAttribute('aria-label', ariaLabel)
       card.setAttribute('title', `${kind.label} · ${name}\n${step}\n${effect}`)
       card.innerHTML = `

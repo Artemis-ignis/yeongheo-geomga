@@ -5,10 +5,10 @@ import { getPassive } from '../data/passives.js'
 
 const HP_GHOST_LAG = 2.4
 export const RADAR_POI_STYLE = Object.freeze({
-  altar: Object.freeze({ color: '#f2c76f', glyph: '祭' }),
-  treasure: Object.freeze({ color: '#8edcff', glyph: '寶' }),
-  elite_seal: Object.freeze({ color: '#ef79aa', glyph: '封' }),
-  healing_spring: Object.freeze({ color: '#73e3bd', glyph: '泉' }),
+  altar: Object.freeze({ color: '#f2c76f', glyph: '수' }),
+  treasure: Object.freeze({ color: '#8edcff', glyph: '보' }),
+  elite_seal: Object.freeze({ color: '#ef79aa', glyph: '봉' }),
+  healing_spring: Object.freeze({ color: '#73e3bd', glyph: '회' }),
 })
 
 export function radarPointPosition(point, radius) {
@@ -73,17 +73,17 @@ function formatDaoGauge(value) {
  */
 const DAO_VOW_UI = Object.freeze({
   sword: Object.freeze({
-    glyph: '劍', name: '검맥', hanja: '劍脈',
+    glyph: '검', name: '검맥', hanja: '劍脈',
     palette: Object.freeze({ primary: 0xeaf6ff, secondary: 0x6f9fda, accent: 0xffffff, boss: 0x8abfff }),
     vfx: Object.freeze({ select: 'dao-sword', pledge: 'sword-fan' }),
   }),
   frost: Object.freeze({
-    glyph: '雪', name: '설맥', hanja: '雪脈',
+    glyph: '설', name: '설맥', hanja: '雪脈',
     palette: Object.freeze({ primary: 0xb8efff, secondary: 0xeffbff, accent: 0x73cfff, boss: 0x9ee8ff }),
     vfx: Object.freeze({ select: 'dao-frost', pledge: 'frost-field' }),
   }),
   spirit: Object.freeze({
-    glyph: '心', name: '심맥', hanja: '心脈',
+    glyph: '심', name: '심맥', hanja: '心脈',
     palette: Object.freeze({ primary: 0x9d71e8, secondary: 0xffd66b, accent: 0xf3b8ff, boss: 0xc98cff }),
     vfx: Object.freeze({ select: 'dao-spirit', pledge: 'spirit-overcharge' }),
   }),
@@ -108,7 +108,7 @@ const DAO_VFX_LABELS = Object.freeze({
 })
 
 const DAO_EMPTY_VISUAL = Object.freeze({
-  identity: 'dao-unselected', vowId: null, name: null, hanja: null, glyph: '道',
+  identity: 'dao-unselected', vowId: null, name: null, hanja: null, glyph: '도',
   palette: null, css: Object.freeze({
     primary: '#d8e2ec', secondary: '#708092', accent: '#e8c56a', boss: '#9aaabd',
   }), vfx: null, activeVfx: null, activeVfxLabel: '', milestone: 0,
@@ -304,7 +304,7 @@ export class Hud {
       ? 'passive'
       : definition?.evolutionOf ? 'evolution' : 'weapon'
     const kindLabel = visualKind === 'passive' ? '공법' : visualKind === 'evolution' ? '진화 법보' : '법보'
-    const kindMark = visualKind === 'passive' ? '訣' : visualKind === 'evolution' ? '化' : '寶'
+    const kindMark = visualKind === 'passive' ? '공' : visualKind === 'evolution' ? '진' : '법'
     const name = item.name ?? definition?.name ?? item.id
     const effect = item.desc ?? definition?.desc ?? ''
     const maxLevel = slotKind === 'passive' ? definition?.max : definition?.levels?.length
@@ -415,7 +415,7 @@ export class Hud {
     const daoVisual = getDaoVowVisual(state.daoVow)
     const hasDao = Boolean(daoVisual.vowId && daoVisual.name)
     const daoText = hasDao
-      ? `${daoVisual.hanja} ${daoVisual.name} · ${daoVisual.milestone}/3`
+      ? `${daoVisual.name} · ${daoVisual.milestone}/3`
       : ''
     const daoKey = hasDao
       ? `${daoVisual.identity}|${daoVisual.milestone}|${daoVisual.activeVfx ?? ''}`
@@ -425,7 +425,7 @@ export class Hud {
       this.dao.hidden = !hasDao
       this.dao.style.display = hasDao ? '' : 'none'
       this.daoGlyph.textContent = hasDao ? daoVisual.glyph : ''
-      this.daoLabel.textContent = hasDao ? `${daoVisual.hanja} ${daoVisual.name}` : ''
+      this.daoLabel.textContent = hasDao ? daoVisual.name : ''
       this.daoProgress.textContent = hasDao ? `${daoVisual.milestone}/3` : ''
       this.daoVfx.textContent = hasDao ? daoVisual.activeVfxLabel : ''
       this.dao.dataset.daoIdentity = hasDao ? daoVisual.identity : 'dao-unselected'

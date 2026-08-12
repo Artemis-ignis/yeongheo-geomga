@@ -224,11 +224,11 @@ export class ResultScreen {
     const dao = hasDao ? `
       <section class="result-dao dao-${daoVisual.vowId}" data-dao-identity="${daoVisual.identity}"
          data-dao-vfx="${escapeHtml(daoVisual.activeVfx ?? '')}" role="status"
-         aria-label="이번 생의 도 ${escapeHtml(daoVisual.hanja)} ${escapeHtml(daoVisual.name)}; ${escapeHtml(selectedDaoChoices || '맹세 정보 없음')}">
+         aria-label="이번 생의 도 ${escapeHtml(daoVisual.name)}; ${escapeHtml(selectedDaoChoices || '맹세 정보 없음')}">
         <div class="result-dao-mark" aria-hidden="true"><span>${daoVisual.glyph}</span></div>
         <div class="result-dao-copy">
           <span>이번 생의 도 · ${escapeHtml(daoVisual.activeVfxLabel || '맹세의 결')}</span>
-          <b>${escapeHtml(daoVisual.hanja)} ${escapeHtml(daoVisual.name)}</b>
+          <b>${escapeHtml(daoVisual.name)}</b>
           <em>${escapeHtml(selectedDaoChoices || '맹세 정보 없음')}</em>
         </div>
         <div class="result-dao-vfx" aria-hidden="true"></div>

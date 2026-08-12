@@ -1474,7 +1474,7 @@ body {
   font-family: var(--font-display);
   font-size: clamp(15px, 1vw, 23px);
   font-weight: 700;
-  letter-spacing: 0.34em;
+  letter-spacing: 0.12em;
   text-shadow: 0 2px 8px #000, 0 0 15px rgba(111, 213, 176, 0.2);
 }
 
@@ -1640,7 +1640,7 @@ body {
 .title-action-label { margin-top: 3px; }
 
 .title-menu::before {
-  content: '◇  玄門  ◇' / '';
+  content: '◇  검가  ◇' / '';
   position: absolute;
   left: 50%;
   bottom: calc(100% + 12px);
@@ -2592,7 +2592,7 @@ img.stage-art {
 }
 
 .hud-top::before {
-  content: '◇  玄  ◇' / '';
+  content: '◇  수련  ◇' / '';
   position: absolute;
   top: -9px;
   left: 50%;
@@ -2766,8 +2766,8 @@ img.stage-art {
   letter-spacing: 0.2em;
 }
 
-.hud-vitals::before { content: '氣血' / ''; }
-.hud-slots::before { content: '法寶 · 心法' / ''; }
+.hud-vitals::before { content: '체력' / ''; }
+.hud-slots::before { content: '법보 · 공법' / ''; }
 
 .hud-hp {
   height: clamp(28px, 1.48vw, 38px);

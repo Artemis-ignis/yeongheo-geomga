@@ -119,7 +119,7 @@ export class TitleScreen {
         <div class="title-brand">
           <div class="title-eyebrow">선협 생존 액션</div>
           <h1 class="title-mark">영허검가</h1>
-          <div class="title-sub">靈虛劍歌</div>
+          <div class="title-sub">검의 맹세 · 칠 분의 천겁</div>
           <div class="title-tag">네가 고른 도가, 네가 맞설 천겁을 만든다</div>
         </div>
 
@@ -336,7 +336,7 @@ export class TitleScreen {
       const pip = document.createElement('button')
       pip.type = 'button'
       pip.className = 'trial-pip clickable'
-      pip.innerHTML = `<span class="trial-name">${t.name}</span><span class="trial-hanja">${t.hanja}</span>`
+      pip.innerHTML = `<span class="trial-name">${t.name}</span>`
       pip.addEventListener('click', () => {
         this._uiCue('confirm')
         this.pickTrial(t.id)

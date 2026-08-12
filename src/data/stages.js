@@ -1,5 +1,5 @@
 ﻿/**
- * 비경(秘境) — the arenas a run can take place in.
+ * 비경 — the arenas a run can take place in.
  *
  * A stage is entirely data: a palette that drives terrain, sky and grass, a
  * roster that filters which enemies the wave table may draw, a boss pair, and a

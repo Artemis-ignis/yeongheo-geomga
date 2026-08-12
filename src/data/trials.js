@@ -24,31 +24,31 @@
  */
 export const TRIALS = [
   {
-    id: 0, name: '평지', hanja: '平地',
+    id: 0, name: '평지',
     desc: '있는 그대로의 비경.',
     hp: 1, damage: 1, speed: 1, density: 1, stones: 1,
     unlockSeconds: 0,
   },
   {
-    id: 1, name: '역풍', hanja: '逆風',
+    id: 1, name: '역풍',
     desc: '마기가 짙다. 요괴가 질기고 수가 늘어난다.',
     hp: 1.8, damage: 1.15, speed: 1.05, density: 1.35, stones: 1.4,
     unlockSeconds: 300,
   },
   {
-    id: 2, name: '탁류', hanja: '濁流',
+    id: 2, name: '탁류',
     desc: '흐름이 탁하다. 밀려오는 것을 베어낼 수 없다.',
     hp: 3.2, damage: 1.35, speed: 1.1, density: 1.8, stones: 2.0,
     unlockSeconds: 420,
   },
   {
-    id: 3, name: '겁화', hanja: '劫火',
+    id: 3, name: '겁화',
     desc: '겁의 불길. 한 순간도 멈춰 설 수 없다.',
     hp: 5.5, damage: 1.6, speed: 1.16, density: 2.4, stones: 2.8,
     unlockSeconds: 540,
   },
   {
-    id: 4, name: '멸도', hanja: '滅道',
+    id: 4, name: '멸도',
     desc: '길이 끊긴 자리. 여기서 살아 돌아온 자는 없다.',
     hp: 9.0, damage: 1.9, speed: 1.22, density: 3.2, stones: 4.0,
     unlockSeconds: 660,

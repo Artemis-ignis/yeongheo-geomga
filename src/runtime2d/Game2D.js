@@ -727,7 +727,7 @@ export class Game2D {
         daoPalette: daoPresentation.palette,
         daoVfx: daoPresentation.activeVfx,
         daoGlyph: daoPresentation.glyph,
-        ariaLabel: `${milestoneName} 선택 · ${pledge ? `${option.hanja} ${option.name}` : `${snapshot.vowHanja} ${snapshot.vowName}`} · ${option.name} · ${option.description ?? ''}`,
+        ariaLabel: `${milestoneName} 선택 · ${pledge ? option.name : snapshot.vowName} · ${option.name} · ${option.description ?? ''}`,
       }
     })
     this._lastGrowthChoiceAt = this.world.runTime
@@ -1366,7 +1366,7 @@ export class Game2D {
       }
       this._lastActualRenderAt = now
       this._flushHitPresentation()
-      this.presentation.render(this.world?.snapshot ?? null, this.clock.alpha, dt)
+      this.presentation.render(this.world?.snapshot ?? null, this.clock.alpha, this._presentedDt)
       this._perf.drawMs = performance.now() - drawStart
       this._needsStaticRender = false
     }

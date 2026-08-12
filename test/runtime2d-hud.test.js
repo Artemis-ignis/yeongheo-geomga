@@ -9,11 +9,12 @@ describe('2D HUD radar', () => {
 
   it('keeps authored POI symbols distinct from hostile radar dots', () => {
     expect(RADAR_POI_STYLE).toMatchObject({
-      altar: { color: '#f2c76f', glyph: '祭' },
-      treasure: { color: '#8edcff', glyph: '寶' },
-      elite_seal: { color: '#ef79aa', glyph: '封' },
-      healing_spring: { color: '#73e3bd', glyph: '泉' },
+      altar: { color: '#f2c76f', glyph: '수' },
+      treasure: { color: '#8edcff', glyph: '보' },
+      elite_seal: { color: '#ef79aa', glyph: '봉' },
+      healing_spring: { color: '#73e3bd', glyph: '회' },
     })
+    expect(Object.values(RADAR_POI_STYLE).map(({ glyph }) => glyph).join('')).not.toMatch(/[\u3400-\u9fff]/u)
   })
 })
 

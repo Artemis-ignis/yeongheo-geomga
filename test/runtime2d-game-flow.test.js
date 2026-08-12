@@ -515,6 +515,33 @@ describe('Game2D run-state integration', () => {
     }
   })
 
+  it('advances presentation motion by the elapsed render interval on high-refresh displays', () => {
+    const { game } = makeFrameGame('playing')
+    game._lastFrameAt = 1016.67
+    game._lastPresentedAt = 1016.67
+    game._lastActualRenderAt = 1000
+    game._renderBudgetMs = 0
+    game._needsStaticRender = false
+
+    const previousRaf = globalThis.requestAnimationFrame
+    const previousDocument = globalThis.document
+    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1))
+    vi.stubGlobal('document', { hidden: false })
+
+    try {
+      Game2D.prototype._frame.call(game, 1033.34)
+
+      expect(game.presentation.render).toHaveBeenCalledTimes(1)
+      expect(game._presentedDt).toBeCloseTo(0.03334, 4)
+      expect(game.presentation.render.mock.calls[0][2]).toBe(game._presentedDt)
+    } finally {
+      if (previousRaf === undefined) delete globalThis.requestAnimationFrame
+      else globalThis.requestAnimationFrame = previousRaf
+      if (previousDocument === undefined) delete globalThis.document
+      else globalThis.document = previousDocument
+    }
+  })
+
   it('resumes audio before handling the M mute edge when the run began muted', () => {
     const { game, input } = makeFrameGame('playing')
     const audio = game.audio

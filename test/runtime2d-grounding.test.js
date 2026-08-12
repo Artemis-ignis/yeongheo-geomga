@@ -5,6 +5,7 @@ import {
   HERO_READABILITY_RIM_2D,
   BOSS_MIN_SCREEN_HEIGHT_RATIO_2D,
   JADE_GROUND_COMPOSITION_2D,
+  JADE_REGION_TEXTURE_ORDER_2D,
   PROP_MATERIAL_TINTS_2D,
   REGION_TERRAIN_PRESENTATION_2D,
   TERRAIN_GRADE_2D,
@@ -16,6 +17,7 @@ import {
   heroCombatHeight2D,
   heroFootPivot2D,
   jadeGroundCropPlan2D,
+  jadeRegionTextureIndex2D,
 } from '../src/runtime2d/PixiPresentation.js'
 
 describe('runtime 2D grounding and terrain integration', () => {
@@ -48,6 +50,28 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(Math.min(...plans.map((plan) => plan.crop))).toBeGreaterThanOrEqual(Math.round(1254 * 0.58))
     expect(Math.max(...plans.map((plan) => plan.crop))).toBeLessThanOrEqual(Math.round(1254 * 0.96))
     expect(new Set(plans.map((plan) => plan.crop)).size).toBeGreaterThanOrEqual(8)
+  })
+
+  it('assigns every semantic jade region two stable texture slots', () => {
+    expect(JADE_REGION_TEXTURE_ORDER_2D).toEqual([
+      'spawn_grove',
+      'jade_path',
+      'jade_grove',
+      'lantern_shrine',
+      'mist_marsh',
+      'void_rim',
+    ])
+
+    const slots = JADE_REGION_TEXTURE_ORDER_2D.flatMap((regionId) => [
+      jadeRegionTextureIndex2D(regionId, 0),
+      jadeRegionTextureIndex2D(regionId, 1),
+    ])
+
+    expect(new Set(slots).size).toBe(12)
+    expect(Math.min(...slots)).toBe(0)
+    expect(Math.max(...slots)).toBe(11)
+    expect(jadeRegionTextureIndex2D('unknown-region', 0))
+      .toBe(jadeRegionTextureIndex2D('jade_grove', 0))
   })
 
   it('anchors every high-variance family to its sampled opaque contact row', () => {

@@ -23,25 +23,25 @@
 export const ACHIEVEMENTS = [
   // ---- first steps -------------------------------------------------------
   {
-    id: 'firstBlood', name: '첫 베기', hanja: '初斬',
+    id: 'firstBlood', name: '첫 베기',
     desc: '요괴를 100마리 쓰러뜨린다.',
     scope: 'run', stones: 40,
     test: (r) => r.kills >= 100,
   },
   {
-    id: 'survive5', name: '오분지기', hanja: '五分之氣',
+    id: 'survive5', name: '오분지기',
     desc: '한 번의 런에서 5분을 버틴다.',
     scope: 'run', stones: 60,
     test: (r) => r.runTime >= 300,
   },
   {
-    id: 'survive10', name: '반각', hanja: '半刻',
+    id: 'survive10', name: '반각',
     desc: '한 번의 런에서 10분을 버틴다.',
     scope: 'run', stones: 140,
     test: (r) => r.runTime >= 600,
   },
   {
-    id: 'clear', name: '출도', hanja: '出道',
+    id: 'clear', name: '출도',
     desc: '비경을 하나 완주한다.',
     scope: 'run', stones: 250,
     test: (r) => r.victory === true,
@@ -49,25 +49,25 @@ export const ACHIEVEMENTS = [
 
   // ---- build ------------------------------------------------------------
   {
-    id: 'firstEvolution', name: '법보 진화', hanja: '法寶進化',
+    id: 'firstEvolution', name: '법보 진화',
     desc: '법보를 하나 진화시킨다.',
     scope: 'run', stones: 120,
     test: (r) => r.evolutions >= 1,
   },
   {
-    id: 'threeEvolutions', name: '삼보재세', hanja: '三寶在世',
+    id: 'threeEvolutions', name: '삼보재세',
     desc: '한 런에서 법보 셋을 진화시킨다.',
     scope: 'run', stones: 320,
     test: (r) => r.evolutions >= 3,
   },
   {
-    id: 'fullArsenal', name: '만법구족', hanja: '萬法具足',
+    id: 'fullArsenal', name: '만법구족',
     desc: '법보 여섯 자리를 모두 채운다.',
     scope: 'run', stones: 160,
     test: (r) => r.weaponCount >= 6,
   },
   {
-    id: 'level30', name: '경지', hanja: '境地',
+    id: 'level30', name: '경지',
     desc: '한 런에서 30경지에 이른다.',
     scope: 'run', stones: 180,
     test: (r) => r.level >= 30,
@@ -75,25 +75,25 @@ export const ACHIEVEMENTS = [
 
   // ---- mastery ----------------------------------------------------------
   {
-    id: 'untouched', name: '무흔', hanja: '無痕',
+    id: 'untouched', name: '무흔',
     desc: '기혈을 한 번도 잃지 않고 3분을 버틴다.',
     scope: 'run', stones: 220,
     test: (r) => r.runTime >= 180 && r.damageTaken === 0,
   },
   {
-    id: 'bossSlayer', name: '요괴 토벌', hanja: '妖怪討伐',
+    id: 'bossSlayer', name: '요괴 토벌',
     desc: '한 런에서 보스 둘을 쓰러뜨린다.',
     scope: 'run', stones: 200,
     test: (r) => r.bossKills >= 2,
   },
   {
-    id: 'trialRunner', name: '역풍을 거슬러', hanja: '逆風',
+    id: 'trialRunner', name: '역풍을 거슬러',
     desc: '시련 2단계 이상에서 5분을 버틴다.',
     scope: 'run', stones: 300,
     test: (r) => r.trial >= 2 && r.runTime >= 300,
   },
   {
-    id: 'noSkip', name: '일도양단', hanja: '一刀兩斷',
+    id: 'noSkip', name: '일도양단',
     desc: '점괘도 봉인도 쓰지 않고 비경을 완주한다.',
     scope: 'run', stones: 400,
     test: (r) => r.victory === true && r.rerollsUsed === 0 && r.banishesUsed === 0,
@@ -101,25 +101,25 @@ export const ACHIEVEMENTS = [
 
   // ---- career -----------------------------------------------------------
   {
-    id: 'veteran', name: '백전', hanja: '百戰',
+    id: 'veteran', name: '백전',
     desc: '런을 20번 치른다.',
     scope: 'career', stones: 200,
     test: (c) => c.runs >= 20,
   },
   {
-    id: 'slayer1000', name: '천참', hanja: '千斬',
+    id: 'slayer1000', name: '천참',
     desc: '누적 1000마리를 쓰러뜨린다.',
     scope: 'career', stones: 260,
     test: (c) => c.totalKills >= 1000,
   },
   {
-    id: 'allCharacters', name: '동행', hanja: '同行',
+    id: 'allCharacters', name: '동행',
     desc: '여섯 수행자를 모두 해금한다.',
     scope: 'career', stones: 350,
     test: (c) => c.unlockedCharacters >= 6,
   },
   {
-    id: 'allStages', name: '삼경답파', hanja: '三境踏破',
+    id: 'allStages', name: '삼경답파',
     desc: '세 비경을 모두 완주한다.',
     scope: 'career', stones: 600,
     test: (c) => c.stagesCleared >= 3,

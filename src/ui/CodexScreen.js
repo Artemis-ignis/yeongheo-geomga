@@ -168,7 +168,7 @@ export class CodexScreen {
       const got = done.includes(a.id)
       return `
         <div class="codex-ach${got ? ' earned' : ''}">
-          <b>${a.name} <i>${a.hanja}</i></b>
+          <b>${a.name}</b>
           <span>${a.desc}</span>
           <em>${got ? '달성' : `+${a.stones}`}</em>
         </div>`

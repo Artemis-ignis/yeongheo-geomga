@@ -473,8 +473,9 @@ describe('Dao identity surfaces', () => {
     expect(dao).not.toBeNull()
     expect(dao.dataset.daoIdentity).toBe('dao-spirit')
     expect(dao.dataset.daoVfx).toBe(snapshot.presentation.activeVfx)
-    expect(screen.node.innerHTML).toContain('心')
-    expect(dao.getAttribute('aria-label')).toContain('心脈 심맥')
+    expect(screen.node.innerHTML).toContain('심')
+    expect(screen.node.innerHTML).not.toMatch(/[\u3400-\u9fff]/u)
+    expect(dao.getAttribute('aria-label')).toContain('심맥')
     expect(dao.getAttribute('aria-label')).toContain('이번 생의 도')
     expect(dao.style['--dao-primary']).toBe('#9d71e8')
 

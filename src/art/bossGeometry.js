@@ -59,7 +59,7 @@ function wolfKing() {
     parts.push([new THREE.ConeGeometry(0.16, 0.5, 5), { x: side * 0.28, y: 1.88, z: 1.35, rx: -0.35, rz: side * 0.2 }, WOLF_DARK])
   }
 
-  // Crown of spikes over the shoulders — the read that this is the 妖王.
+  // Crown of spikes over the shoulders gives the boss a sovereign silhouette.
   for (let i = 0; i < 11; i++) {
     const a = -0.75 + i * 0.15
     const len = 0.55 + Math.cos(a) * 0.35

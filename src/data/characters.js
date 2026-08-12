@@ -97,7 +97,7 @@ export const CHARACTERS = [
     id: 'baengno',
     name: '백로',
     path: '천음각 율사',
-    desc: '금(琴) 한 줄로 산을 울린다는 천음각의 율사.',
+    desc: '거문고 한 줄로 산을 울린다는 천음각의 율사.',
     traits: ['획득 범위 +50%', '경험치 +20%'],
     startWeapon: 'bellToll',
     palette: { hair: 0xf3e3b8, hairRoot: 0x8d6c38, accent: 0xffd98a, cloth: 0xc9a94e, trim: 0xfff2c8, eye: 0xf0b840, skin: 0xfbe3d6 },

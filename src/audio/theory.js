@@ -18,7 +18,7 @@
 export const PENTATONIC = [0, 2, 4, 7, 9]
 
 /**
- * 조(調) — a mode per 비경, because a tonic alone is not a different piece.
+ * 조성 — a mode per 비경, because a tonic alone is not a different piece.
  *
  * Each arena already had its own key: A3, G3, B3. A whole tone apart, same five
  * intervals, same drone, same instruments. Nobody hears that as three

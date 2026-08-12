@@ -29,8 +29,8 @@ export class PauseScreen {
     this.node.style.display = 'none'
     this.node.innerHTML = `
       <div class="screen-inner pause-inner">
-        <div class="pause-title">조식 <span class="pause-title-sub">調息</span></div>
-        <div class="pause-sub">숨을 고른다.</div>
+        <div class="pause-title">잠시 멈춤</div>
+        <div class="pause-sub">숨을 고르고 현재 수련을 확인합니다.</div>
 
         <div class="pause-stats"></div>
 
