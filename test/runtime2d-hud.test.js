@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { formatHpReadout, RADAR_POI_STYLE, radarPointPosition } from '../src/ui/Hud.js'
+import {
+  formatHpReadout, RADAR_POI_STYLE, radarHeadingRotation, radarPointPosition,
+} from '../src/ui/Hud.js'
 
 describe('2D HUD radar', () => {
-  it('maps player-forward world +Z to the top of the radar and clamps the edge', () => {
-    expect(radarPointPosition({ x: 0, z: 1 }, 40)).toEqual({ x: 0, y: -40 })
-    expect(radarPointPosition({ x: 1.8, z: -2 }, 40)).toEqual({ x: 40, y: 40 })
+  it('keeps world points and heading aligned with the combat screen', () => {
+    expect(radarPointPosition({ x: 0, z: 1 }, 40)).toEqual({ x: 0, y: 40 })
+    expect(radarPointPosition({ x: 1.8, z: -2 }, 40)).toEqual({ x: 40, y: -40 })
+    expect(radarHeadingRotation(0)).toBeCloseTo(Math.PI)
+    expect(radarHeadingRotation(Math.PI / 2)).toBeCloseTo(Math.PI / 2)
+    expect(radarHeadingRotation(Math.PI)).toBeCloseTo(0)
   })
 
   it('keeps authored POI symbols distinct from hostile radar dots', () => {

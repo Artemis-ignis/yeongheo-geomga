@@ -26,10 +26,14 @@ export class PauseScreen {
 
     this.node = document.createElement('div')
     this.node.className = 'screen pause-screen'
+    this.node.setAttribute('role', 'dialog')
+    this.node.setAttribute('aria-modal', 'true')
+    this.node.setAttribute('aria-labelledby', 'pause-screen-title')
+    this.node.setAttribute('aria-hidden', 'true')
     this.node.style.display = 'none'
     this.node.innerHTML = `
       <div class="screen-inner pause-inner">
-        <div class="pause-title">잠시 멈춤</div>
+        <div class="pause-title" id="pause-screen-title">잠시 멈춤</div>
         <div class="pause-sub">숨을 고르고 현재 수련을 확인합니다.</div>
 
         <div class="pause-stats"></div>
@@ -130,6 +134,7 @@ export class PauseScreen {
   /** @param snapshot The same shape `Game._hudState()` builds. */
   show(snapshot, loadout) {
     this.node.style.display = ''
+    this.node.setAttribute('aria-hidden', 'false')
     this._uiFocusTarget = null
     const quit = this.node.querySelector('[data-act="quit"]')
     quit.dataset.armed = '0'
@@ -142,6 +147,7 @@ export class PauseScreen {
 
   hide() {
     this.node.style.display = 'none'
+    this.node.setAttribute('aria-hidden', 'true')
   }
 
   _syncVolumes() {

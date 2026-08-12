@@ -271,4 +271,9 @@ try {
     Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
     try { Wait-Process -Id $server.Id -Timeout 3 -ErrorAction SilentlyContinue } catch { }
   }
+  foreach ($logPath in @($serverLog, $serverErrLog)) {
+    if ($logPath) {
+      Remove-Item -LiteralPath $logPath -Force -ErrorAction SilentlyContinue
+    }
+  }
 }

@@ -3722,3 +3722,205 @@ img.stage-art {
   .result-loadout-item { min-width: 148px; grid-template-columns: 52px minmax(0, 1fr); }
   .result-loadout-item img { width: 52px; height: 52px; }
 }
+
+/* ========================================================================== */
+/*  실제 플레이 시각 QA 교정                                                   */
+
+/* 결과 화면은 바깥 화면만 스크롤한다. 짧은 뷰포트에서 screen-inner까지
+ * 스크롤되며 흰 운영체제 막대가 두 겹으로 생기던 구조를 제거한다. */
+.result-screen {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 213, 183, 0.72) rgba(3, 12, 16, 0.74);
+}
+
+.result-screen .screen-inner {
+  max-height: none;
+  overflow: visible;
+  scrollbar-gutter: auto;
+}
+
+.result-screen::-webkit-scrollbar,
+.shop-scroll::-webkit-scrollbar,
+.pause-screen .screen-inner::-webkit-scrollbar { width: 8px; }
+.result-screen::-webkit-scrollbar-track,
+.shop-scroll::-webkit-scrollbar-track,
+.pause-screen .screen-inner::-webkit-scrollbar-track { background: rgba(3, 12, 16, 0.72); }
+.result-screen::-webkit-scrollbar-thumb,
+.shop-scroll::-webkit-scrollbar-thumb,
+.pause-screen .screen-inner::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(3, 12, 16, 0.72);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #d9be71, #62b99a);
+}
+
+/* 일시정지는 전장을 가리는 별도 정적 배경이 아니라 현재 장면 위에
+ * 놓이는 반투명 막이다. 플레이 맥락과 현재 위협을 잃지 않는다. */
+.pause-screen {
+  background: rgba(2, 8, 12, 0.68);
+  -webkit-backdrop-filter: blur(5px) saturate(0.72);
+  backdrop-filter: blur(5px) saturate(0.72);
+}
+
+.pause-screen .screen-inner {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 213, 183, 0.72) rgba(3, 12, 16, 0.74);
+}
+
+/* 상점과 도감은 하나의 고정 프레임 안에서 목록만 움직인다. */
+.shop-screen .shop-inner,
+.codex-screen .shop-inner {
+  width: min(1080px, 93vw);
+  height: min(860px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  padding: clamp(20px, 2.4vw, 38px);
+  border: 1px solid rgba(231, 198, 111, 0.62);
+  background: linear-gradient(150deg, rgba(7, 26, 27, 0.98), rgba(3, 10, 15, 0.98));
+  box-shadow: var(--ui-frame-shadow);
+}
+
+.shop-screen .shop-scroll,
+.codex-screen .shop-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 213, 183, 0.72) rgba(3, 12, 16, 0.74);
+}
+
+.shop-card:disabled:not(.maxed) { opacity: 0.76; }
+.shop-card.maxed { opacity: 0.72; }
+.shop-card:disabled .shop-desc { color: #b4c4c0; }
+.codex-cell.unknown .codex-icon { filter: brightness(0.38) saturate(0.38); }
+.codex-cell.unknown .codex-name { color: #879892; }
+
+/* 용량을 보여 주는 빈 열두 칸이 전투 화면의 1/4을 차지하고 있었다.
+ * 전투 중에는 실제 장착 항목만 남기고, 상세 슬롯 수는 결과/도감에서
+ * 확인하도록 정보 위계를 분리한다. */
+.hud-slot:not(.filled) { display: none; }
+.hud-slot-row:not(:has(.filled)) { display: none; }
+.hud-slots { min-width: 0; }
+
+/* 타이틀에는 브라우저/운영체제 스크롤바가 나타나지 않는다. 데스크톱
+ * 최저 높이에서는 아래 압축 규칙으로 모든 조작을 한 화면에 맞춘다. */
+.title-screen .screen-inner { scrollbar-width: none; }
+.title-screen .screen-inner::-webkit-scrollbar { display: none; }
+
+@media (min-width: 761px) and (max-height: 760px) {
+  .title-screen {
+    place-items: center;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .title-screen .screen-inner,
+  .title-screen:not([data-view='menu']) .screen-inner,
+  .title-screen[data-view='menu'] .screen-inner {
+    max-height: none;
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+
+  .title-screen[data-view='menu'] .screen-inner {
+    width: min(680px, 88vw);
+    padding: 8px 24px;
+  }
+
+  .title-eyebrow { font-size: 11px; }
+  .title-mark { font-size: 46px; }
+  .title-sub { margin-top: 1px; font-size: 14px; }
+  .title-tag { margin-top: 6px; padding: 4px 11px 5px; font-size: 12px; }
+  .title-promise { margin-top: 7px; padding: 7px 12px; }
+  .title-promise-title { font-size: 13px; }
+  .title-promise-copy { margin-top: 2px; font-size: 11px; line-height: 1.35; }
+  .title-menu { width: 300px; margin-top: 18px; gap: 5px; }
+  .title-menu::before { bottom: calc(100% + 3px); font-size: 8px; }
+  .title-menu .btn { min-height: 36px; padding: 6px 18px; font-size: 13px; }
+  .title-menu .title-quickstart { min-height: 47px; }
+  .title-action-kicker { font-size: 9px; }
+  .title-action-label { margin-top: 1px; }
+  .title-stones { margin-top: 6px; padding: 3px 10px; font-size: 11px; }
+  .controls-legend { margin-top: 5px; padding-block: 3px; font-size: 11px; }
+
+  .title-screen:not([data-view='menu']) .screen-inner {
+    width: min(1180px, 94vw);
+    padding: 9px 22px 10px;
+  }
+  .title-screen:not([data-view='menu']) .setup-steps {
+    gap: 6px;
+    margin: 0 auto 4px;
+    padding: 3px 12px;
+    font-size: 11px !important;
+  }
+  .select-kicker { font-size: 11px !important; }
+  .select-heading { margin: 3px 0 2px; font-size: 20px !important; }
+  .select-intro { font-size: 12px !important; line-height: 1.35; }
+  .char-cards, .stage-cards { margin-top: 6px; }
+  .title-screen[data-view='select'] .char-cards { margin-top: 13px; }
+  .btn-back { min-height: 36px; margin-top: 6px; padding-block: 6px; }
+  .setup-status { min-height: 1em; margin-top: 4px; font-size: 11px !important; }
+
+  .title-screen[data-view='select'] .char-cards.is-single {
+    grid-template-columns: minmax(560px, 700px);
+  }
+  .title-screen[data-view='select'] .char-cards.is-single .char-card {
+    grid-template-columns: 210px minmax(260px, 1fr);
+    min-height: 210px;
+    padding: 10px 18px;
+    column-gap: 22px;
+  }
+  .title-screen[data-view='select'] .char-cards.is-single .char-portrait {
+    height: 190px;
+  }
+  .title-screen[data-view='select'] .char-cards.is-single .char-name {
+    margin-top: 16px;
+    font-size: 25px;
+  }
+  .title-screen[data-view='select'] .char-cards.is-single .char-path { margin-top: 3px; font-size: 13px; }
+  .title-screen[data-view='select'] .char-cards.is-single .char-start { margin-top: 9px; font-size: 13px; }
+  .title-screen[data-view='select'] .char-cards.is-single .char-start img { width: 38px; height: 38px; }
+  .title-screen[data-view='select'] .char-cards.is-single .char-traits {
+    margin-top: 7px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .stage-select .select-intro,
+  .confirm-select .select-intro { margin-bottom: 5px; }
+  .stage-card { padding: 8px 10px; }
+  .stage-card .stage-swatch { height: 84px; max-height: 84px; }
+  .stage-card .char-name { margin-top: 4px; font-size: 17px; }
+  .stage-card .char-path,
+  .stage-card .char-traits,
+  .stage-rules { font-size: 11px; }
+  .trial-row { margin-top: 6px; padding-block: 5px; }
+  .trial-pip { min-height: 36px; padding-block: 3px; }
+  .trial-desc { margin-top: 3px; font-size: 11px; }
+
+  .confirm-visual {
+    min-height: 138px;
+    padding: 13px 45% 13px 17px;
+  }
+  .confirm-character-art.is-hero-cutout { bottom: -29%; height: 154%; }
+  .confirm-visual-title { font-size: 21px; white-space: nowrap; overflow-wrap: normal; }
+  .confirm-visual-meta { font-size: 11px; line-height: 1.35; }
+  .confirm-summary { gap: 7px; margin-top: 7px; }
+  .confirm-choice { gap: 3px; padding: 7px 9px; }
+  .confirm-choice span { font-size: 9px; }
+  .confirm-choice b { font-size: 13px; }
+  .confirm-actions .btn { min-height: 36px; margin-top: 6px; padding-block: 6px; }
+
+  .result-screen { padding: 8px 0; }
+  .result-screen .screen-inner { padding: 10px 18px 16px; }
+  .result-hero-reward { height: 178px; margin-top: 8px; }
+  .result-reward-copy { padding-block: 13px; }
+
+  .shop-screen .shop-inner,
+  .codex-screen .shop-inner {
+    height: calc(100dvh - 20px);
+    max-height: calc(100dvh - 20px);
+    padding: 15px 20px;
+  }
+}

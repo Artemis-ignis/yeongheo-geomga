@@ -14,9 +14,15 @@ export const RADAR_POI_STYLE = Object.freeze({
 export function radarPointPosition(point, radius) {
   const x = Number.isFinite(point?.x) ? Math.max(-1, Math.min(1, point.x)) : 0
   const z = Number.isFinite(point?.z) ? Math.max(-1, Math.min(1, point.z)) : 0
-  // World +Z is the player's forward direction at heading 0, which is the top
-  // of the radar. Keeping that convention makes the heading marker useful.
-  return { x: x * radius, y: -z * radius }
+  // The combat projection draws world +Z toward the bottom of the screen.
+  // Keep the radar screen-aligned so moving up/down never appears reversed.
+  return { x: x * radius, y: z * radius }
+}
+
+export function radarHeadingRotation(heading = 0) {
+  // The authored marker points up. In world space heading 0 is +Z, which the
+  // combat projection displays down, hence the half-turn offset.
+  return Math.PI - (Number.isFinite(heading) ? heading : 0)
 }
 
 /**
@@ -226,7 +232,7 @@ export class Hud {
     this.radarCanvas.height = 176
     this.radarCtx = this.radarCanvas.getContext('2d')
     this.radarCanvas.setAttribute('role', 'img')
-    this.radarCanvas.setAttribute('aria-label', '영맥 감지 레이더. 중앙은 현재 위치이며 위쪽은 진행 방향입니다.')
+    this.radarCanvas.setAttribute('aria-label', '영맥 감지 레이더. 중앙은 현재 위치이며 화면과 같은 방향으로 표시됩니다.')
     this.radarLabel = el('div', 'hud-radar-label', radar)
     this.radarLabel.textContent = '영맥 감지'
     this.objective = el('div', 'hud-objective', this.node)
@@ -684,7 +690,7 @@ export class Hud {
     // Player marker and heading cone.
     ctx.save()
     ctx.translate(cx, cy)
-    ctx.rotate(heading)
+    ctx.rotate(radarHeadingRotation(heading))
     ctx.fillStyle = '#dffff1'
     ctx.strokeStyle = '#7fd6b5'
     ctx.lineWidth = 1.5

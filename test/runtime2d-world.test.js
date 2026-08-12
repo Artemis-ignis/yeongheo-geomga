@@ -6,6 +6,7 @@ import { getStage } from '../src/data/stages.js'
 import { DaoVows2D } from '../src/runtime2d/DaoVows2D.js'
 import {
   CombatWorld2D, FINAL_BOSS_PHASE_GATE_SECONDS_2D, FINAL_BOSS_WAVE_DENSITY_2D,
+  enemyPresentationFacing2D,
   HIT_EFFECT_MERGE_RADIUS_2D, MAX_ENEMIES_2D, MAX_PICKUPS_2D, MAX_PROJECTILES_2D,
   PICKUP_MERGE_RADIUS_2D,
 } from '../src/runtime2d/CombatWorld2D.js'
@@ -34,6 +35,15 @@ function pickupTotals(pickups) {
 }
 
 describe('CombatWorld2D', () => {
+  it('faces actual locomotion while preserving target-facing attacks', () => {
+    expect(enemyPresentationFacing2D({
+      aimX: -1, aimZ: 0, moveX: 1, moveZ: 0,
+    })).toBeCloseTo(Math.PI / 2)
+    expect(enemyPresentationFacing2D({
+      aimX: -1, aimZ: 0, moveX: 1, moveZ: 0, attacking: true,
+    })).toBeCloseTo(-Math.PI / 2)
+  })
+
   it('coalesces only nearby same-element hit flashes without extending their fade', () => {
     const world = makeWorld()
     world.effects.spawn(1, 0, 0, 0.18, 1.1, 0xb98cff)

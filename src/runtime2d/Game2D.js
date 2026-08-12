@@ -419,11 +419,13 @@ export class Game2D {
       onShop: () => {
         if (this.state !== 'title') return
         this.state = 'shop'
+        this.title.hide()
         this.shop.show(() => { this.state = 'title'; this.title.show() })
       },
       onCodex: () => {
         if (this.state !== 'title') return
         this.state = 'codex'
+        this.title.hide()
         this.codex.show(() => { this.state = 'title'; this.title.show() })
       },
     })

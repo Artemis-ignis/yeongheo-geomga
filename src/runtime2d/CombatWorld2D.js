@@ -303,6 +303,21 @@ export function contactIntentLeadDistance2D(speed) {
   )
 }
 
+/**
+ * Visual facing follows actual locomotion unless the enemy is actively
+ * telegraphing or attacking. This prevents retreating and strafing actors from
+ * sliding sideways/backwards while preserving target-facing combat reads.
+ */
+export function enemyPresentationFacing2D({
+  aimX = 0, aimZ = 0, moveX = 0, moveZ = 0, attacking = false, fallback = 0,
+} = {}) {
+  const movement = Math.hypot(moveX, moveZ)
+  if (!attacking && movement > 0.00001) return Math.atan2(moveX, moveZ)
+  const aim = Math.hypot(aimX, aimZ)
+  if (aim > 0.00001) return Math.atan2(aimX, aimZ)
+  return Number.isFinite(fallback) ? fallback : 0
+}
+
 function copyAt(fields, from, to) {
   for (const field of fields) field[to] = field[from]
 }
@@ -1152,7 +1167,6 @@ class EnemyField2D {
       let dx = player.x - this.x[i]
       let dz = player.z - this.z[i]
       let dist = Math.hypot(dx, dz) || 0.001
-      this.facing[i] = Math.atan2(dx, dz)
       const behavior = this.behavior[i]
       const def = ENEMIES[this.type[i]] ?? ENEMIES[0]
       let move = 1
@@ -1247,6 +1261,18 @@ class EnemyField2D {
         this.x[i] += (sx / separation) * push
         this.z[i] += (sz / separation) * push
       }
+      const finalAimX = player.x - this.x[i]
+      const finalAimZ = player.z - this.z[i]
+      this.facing[i] = enemyPresentationFacing2D({
+        aimX: finalAimX,
+        aimZ: finalAimZ,
+        moveX: this.x[i] - this.prevX[i],
+        moveZ: this.z[i] - this.prevZ[i],
+        attacking: this.attackTimer[i] > 0
+          || this.contactIntentTimer[i] > 0
+          || this.windup[i] > 0,
+        fallback: this.facing[i],
+      })
       this.grid.insert(i, this.x[i], this.z[i])
     }
   }

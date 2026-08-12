@@ -9,7 +9,7 @@ export const SPRITE_MANIFEST = Object.freeze({
   maxAtlasSize: 4096,
   actors: Object.freeze({
     seolryeong: Object.freeze({
-      url: `${base}assets/sprites2d/seolryeong-heroine-motion-v4.png`,
+      url: `${base}assets/sprites2d/seolryeong-heroine-motion-v5.png`,
       portraitUrl: `${base}assets/sprites2d/seolryeong-combat-v1.png`,
       // Five runtime directions share the same 4x2 authored animation contract.
       // Approval remains pending until original-size play review is complete.

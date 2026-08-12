@@ -34,12 +34,16 @@ export class CodexScreen {
     this.onClose = null
 
     this.node = document.createElement('div')
-    this.node.className = 'screen'
+    this.node.className = 'screen codex-screen'
+    this.node.setAttribute('role', 'dialog')
+    this.node.setAttribute('aria-modal', 'true')
+    this.node.setAttribute('aria-labelledby', 'codex-screen-title')
+    this.node.setAttribute('aria-hidden', 'true')
     this.node.style.display = 'none'
     this.node.innerHTML = `
       <div class="screen-inner shop-inner">
         <div class="shop-head">
-          <div class="shop-title">도감</div>
+          <div class="shop-title" id="codex-screen-title">도감</div>
           <div class="shop-stones codex-progress"></div>
         </div>
         <div class="shop-scroll">
@@ -140,6 +144,7 @@ export class CodexScreen {
   show(onClose) {
     this.onClose = onClose
     this.node.style.display = ''
+    this.node.setAttribute('aria-hidden', 'false')
     this.refresh()
     // Open on the first thing they have actually met, so the panel is never an
     // empty box on arrival.
@@ -154,7 +159,7 @@ export class CodexScreen {
       const known = this.progress.hasSeen(e.kind, e.id)
       if (known) seen++
       e.cell.classList.toggle('unknown', !known)
-      e.nameNode.textContent = known ? e.name : '???'
+      e.nameNode.textContent = known ? e.name : '미발견'
       e.cell.title = known ? e.name : '아직 만나지 못했다'
     }
     this.progressLabel.textContent = `${seen} / ${this.entries.length}`
@@ -198,6 +203,7 @@ export class CodexScreen {
   /** Close without invoking the title callback while a run is taking ownership. */
   hide() {
     this.node.style.display = 'none'
+    this.node.setAttribute('aria-hidden', 'true')
     this.onClose = null
   }
 

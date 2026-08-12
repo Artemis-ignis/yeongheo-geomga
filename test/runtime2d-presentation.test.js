@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   PixiPresentation,
+  actorMirrorForFacing2D,
   COMBAT_HORIZON_PRESENTATION_2D,
   HOSTILE_PROJECTILE_PRESENTATION,
   ORBIT_PROJECTILE_RENDER_CAP_2D,
@@ -20,6 +21,7 @@ import {
   pickupVisualAlpha2D,
   pickupVisualScale2D,
   heroDirectionFor,
+  heroAnimationFrameIndex2D,
   directionalHeroFrames,
   bossCombatHeight2D,
   heroCombatHeight2D,
@@ -47,6 +49,7 @@ import {
   MAX_WEAPON_FIELDS_2D,
 } from '../src/runtime2d/CombatWorld2D.js'
 import { WEAPON_BEHAVIOR_IDS_2D, getWeaponBehavior2D } from '../src/runtime2d/WeaponBehaviors2D.js'
+import { SPRITE_MANIFEST } from '../src/runtime2d/spriteManifest.js'
 import { EVOLUTIONS } from '../src/data/weapons.js'
 
 function fakeParticle() {
@@ -64,6 +67,27 @@ function fakePool(count) {
 }
 
 describe('PixiPresentation combat bindings', () => {
+  it('mirrors each single-direction atlas from its authored baseline', () => {
+    expect(actorMirrorForFacing2D('yorang', Math.PI / 2)).toBe(true)
+    expect(actorMirrorForFacing2D('yorang', -Math.PI / 2)).toBe(false)
+    expect(actorMirrorForFacing2D('jadeSerpent', Math.PI / 2)).toBe(false)
+    expect(actorMirrorForFacing2D('jadeSerpent', -Math.PI / 2)).toBe(true)
+    expect(actorMirrorForFacing2D('wisp', Math.PI / 2)).toBe(false)
+  })
+
+  it('keeps locomotion frames active during automatic attacks', () => {
+    const hero = SPRITE_MANIFEST.actors.seolryeong
+    expect(heroAnimationFrameIndex2D(hero, {
+      moving: true, attackTimer: 0.2, time: 0.14,
+    })).toBe(hero.animations.run[1])
+    expect(hero.animations.attack).toContain(heroAnimationFrameIndex2D(hero, {
+      moving: false, attackTimer: 0.2, time: 0.14,
+    }))
+    expect(hero.animations.dash).toContain(heroAnimationFrameIndex2D(hero, {
+      moving: true, dashing: 0.08, attackTimer: 0.2, time: 0.14,
+    }))
+  })
+
   it('deterministically divides stone ghouls between two authored silhouettes', () => {
     const variants = Array.from({ length: 64 }, (_, index) => (
       enemyTextureKey2D('stoneGhoul', index + 1)

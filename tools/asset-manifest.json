@@ -604,6 +604,17 @@
       "tier": "hero",
       "source": "imagegen-chroma-key-alpha-despill",
       "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
+      "maxBytes": 1000000
+    },
+    {
+      "id": "sprite2d.seolryeong.heroine-motion.v5",
+      "path": "public/assets/sprites2d/seolryeong-heroine-motion-v5.png",
+      "role": "runtime-2d-hero-motion-atlas",
+      "tier": "hero",
+      "source": "imagegen-edit-chroma-key-alpha-despill-composite",
+      "consumers": [
         "src/runtime2d/spriteManifest.js"
       ],
       "maxBytes": 1000000

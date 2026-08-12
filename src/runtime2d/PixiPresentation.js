@@ -732,6 +732,19 @@ export function directionalHeroFrames(frames, direction) {
   }[direction?.key] ?? frames?.seolryeongS ?? frames?.seolryeong
 }
 
+export function actorMirrorForFacing2D(actorKey, facing = 0) {
+  const actor = SPRITE_MANIFEST.actors[actorKey]
+  if (!actor?.mirrorWest) return false
+  const authoredDirection = actor.directions?.[0] ?? 's'
+  const horizontal = Math.sin(Number.isFinite(facing) ? facing : 0)
+  // Single-direction atlases are authored either toward screen-left (SW) or
+  // screen-right (SE). Mirror from that authored baseline, not from a global
+  // assumption that was backwards for every SW atlas.
+  if (authoredDirection.endsWith('w')) return horizontal > 0.15
+  if (authoredDirection.endsWith('e')) return horizontal < -0.15
+  return false
+}
+
 export const HERO_COMBAT_HEIGHT_TARGETS_2D = Object.freeze({
   baselineViewportHeight: 1080,
   baselineHeight: 176,
@@ -1780,17 +1793,25 @@ function jadeGroundDetailTexture(seed, regionId = 'jade_grove') {
     }
 
     if (seed % 5 === 0) {
-      ctx.save()
-      ctx.translate(width * (0.34 + random() * 0.32), height * (0.34 + random() * 0.32))
-      ctx.rotate(random() * Math.PI)
-      ctx.strokeStyle = 'rgba(112,213,180,.11)'
-      ctx.lineWidth = 3
-      for (const radius of [44, 78]) {
+      // Mineral fractures read as part of the terrain. Repeated partial rings
+      // looked like debug radii once several streamed chunks were visible.
+      const startX = width * (0.3 + random() * 0.4)
+      const startY = height * (0.28 + random() * 0.44)
+      ctx.strokeStyle = 'rgba(112,213,180,.1)'
+      ctx.lineCap = 'round'
+      for (let branch = 0; branch < 3; branch++) {
+        let x = startX
+        let y = startY
+        ctx.lineWidth = 1.4 + branch * 0.65
         ctx.beginPath()
-        ctx.arc(0, 0, radius, 0.22, Math.PI * 1.72)
+        ctx.moveTo(x, y)
+        for (let step = 0; step < 4; step++) {
+          x += (random() - 0.34) * 72
+          y += (random() - 0.5) * 66
+          ctx.lineTo(x, y)
+        }
         ctx.stroke()
       }
-      ctx.restore()
     }
 
     // Region data must be visible as geography, not merely as a tint. These
@@ -1844,29 +1865,35 @@ function jadeGroundDetailTexture(seed, regionId = 'jade_grove') {
       }
       ctx.lineCap = 'round'
       tracePath()
-      ctx.strokeStyle = 'rgba(4,15,17,.46)'
-      ctx.lineWidth = 166
+      ctx.strokeStyle = 'rgba(4,15,17,.25)'
+      ctx.lineWidth = 82
       ctx.stroke()
       tracePath()
-      ctx.strokeStyle = 'rgba(87,108,96,.5)'
-      ctx.lineWidth = 144
+      ctx.strokeStyle = 'rgba(87,108,96,.22)'
+      ctx.lineWidth = 62
       ctx.stroke()
-      tracePath()
-      ctx.strokeStyle = 'rgba(171,184,157,.18)'
-      ctx.lineWidth = 4
-      ctx.stroke()
-      for (let y = 18; y < height; y += 42 + (seed % 2) * 8) {
-        const x = pathX(y)
-        const slope = (pathX(y + 4) - pathX(y - 4)) / 8
-        ctx.strokeStyle = 'rgba(7,22,23,.32)'
-        ctx.lineWidth = 2.2
+      // Uneven flagstone fragments communicate a trail without the continuous
+      // parallel bands that looked like editor splines or navigation guides.
+      for (let y = 12; y < height; y += 28 + random() * 26) {
+        const x = pathX(y) + (random() - 0.5) * 28
+        const halfWidth = 16 + random() * 24
+        const halfHeight = 6 + random() * 9
+        ctx.save()
+        ctx.translate(x, y)
+        ctx.rotate((random() - 0.5) * 0.52)
+        ctx.fillStyle = random() < 0.28 ? 'rgba(34,88,63,.2)' : 'rgba(105,116,102,.2)'
+        ctx.strokeStyle = 'rgba(8,25,25,.26)'
+        ctx.lineWidth = 1.6
         ctx.beginPath()
-        ctx.moveTo(x - 58, y + slope * 58)
-        ctx.lineTo(x + 58, y - slope * 58)
+        ctx.moveTo(-halfWidth, -halfHeight * 0.45)
+        ctx.lineTo(-halfWidth * 0.58, -halfHeight)
+        ctx.lineTo(halfWidth * 0.82, -halfHeight * 0.72)
+        ctx.lineTo(halfWidth, halfHeight * 0.5)
+        ctx.lineTo(-halfWidth * 0.72, halfHeight)
+        ctx.closePath()
+        ctx.fill()
         ctx.stroke()
-        ctx.strokeStyle = 'rgba(201,211,181,.08)'
-        ctx.lineWidth = 1
-        ctx.stroke()
+        ctx.restore()
       }
     } else if (regionId === 'jade_grove') {
       for (let i = 0; i < 8; i++) {
@@ -1892,15 +1919,50 @@ function jadeGroundDetailTexture(seed, regionId = 'jade_grove') {
         ctx.stroke()
       }
     } else if (regionId === 'lantern_shrine') {
-      drawEllipse(width * 0.5, height * 0.5, 194, 164, 'rgba(41,54,54,.56)', 'rgba(212,187,112,.2)', 5)
-      drawEllipse(width * 0.5, height * 0.5, 158, 132, 'rgba(78,91,81,.22)', 'rgba(175,196,164,.18)', 3)
-      drawEllipse(width * 0.5, height * 0.5, 90, 74, 'rgba(27,50,45,.2)', 'rgba(224,195,110,.18)', 2)
-      for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2 + (seed % 2) * Math.PI / 8
-        const x = width * 0.5 + Math.cos(angle) * 135
-        const y = height * 0.5 + Math.sin(angle) * 112
-        drawEllipse(x, y, 15, 12, 'rgba(202,169,82,.18)', 'rgba(235,207,128,.24)', 2)
+      // A collapsed shrine terrace replaces the old three concentric rings and
+      // eight evenly spaced nodes, which read exactly like debug radii.
+      ctx.fillStyle = 'rgba(43,58,55,.38)'
+      ctx.strokeStyle = 'rgba(203,181,111,.14)'
+      ctx.lineWidth = 3
+      ctx.beginPath()
+      ctx.moveTo(82, 176)
+      ctx.lineTo(206, 86)
+      ctx.lineTo(424, 112)
+      ctx.lineTo(458, 316)
+      ctx.lineTo(330, 424)
+      ctx.lineTo(116, 382)
+      ctx.closePath()
+      ctx.fill()
+      for (let i = 0; i < 22; i++) {
+        const x = 100 + random() * 344
+        const y = 106 + random() * 292
+        const w = 22 + random() * 58
+        const h = 10 + random() * 24
+        ctx.save()
+        ctx.translate(x, y)
+        ctx.rotate((random() - 0.5) * 0.82)
+        ctx.fillStyle = i % 5 === 0 ? 'rgba(36,91,65,.24)' : 'rgba(92,103,92,.2)'
+        ctx.strokeStyle = 'rgba(10,29,27,.28)'
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ctx.moveTo(-w * 0.5, -h * 0.2)
+        ctx.lineTo(-w * 0.25, -h * 0.5)
+        ctx.lineTo(w * 0.5, -h * 0.32)
+        ctx.lineTo(w * 0.38, h * 0.5)
+        ctx.lineTo(-w * 0.44, h * 0.38)
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+        ctx.restore()
       }
+      ctx.strokeStyle = 'rgba(8,25,24,.4)'
+      ctx.lineWidth = 4
+      ctx.beginPath()
+      ctx.moveTo(154, 142)
+      ctx.lineTo(236, 194)
+      ctx.lineTo(212, 264)
+      ctx.lineTo(312, 338)
+      ctx.stroke()
     } else if (regionId === 'mist_marsh') {
       for (let i = 0; i < 5; i++) {
         const x = 70 + random() * (width - 140)
@@ -1912,7 +1974,12 @@ function jadeGroundDetailTexture(seed, regionId = 'jade_grove') {
         pool.addColorStop(0.66, 'rgba(30,82,84,.22)')
         pool.addColorStop(1, 'rgba(8,38,47,0)')
         drawEllipse(x, y, rx, ry, pool)
-        drawEllipse(x, y, rx * 0.72, ry * 0.62, null, 'rgba(144,201,191,.15)', 2)
+        ctx.strokeStyle = 'rgba(144,201,191,.1)'
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ctx.moveTo(x - rx * 0.45, y)
+        ctx.bezierCurveTo(x - rx * 0.18, y - ry * 0.16, x + rx * 0.14, y + ry * 0.1, x + rx * 0.48, y - ry * 0.08)
+        ctx.stroke()
       }
       ctx.strokeStyle = 'rgba(99,150,119,.26)'
       ctx.lineWidth = 2.2
@@ -1936,14 +2003,18 @@ function jadeGroundDetailTexture(seed, regionId = 'jade_grove') {
       for (let i = 0; i < 12; i++) {
         let x = width * (0.42 + random() * 0.2)
         let y = height * (0.4 + random() * 0.2)
-        ctx.strokeStyle = i % 3 === 0 ? 'rgba(143,94,176,.28)' : 'rgba(84,178,153,.16)'
-        ctx.lineWidth = i % 3 === 0 ? 3 : 1.4
+        ctx.strokeStyle = i % 3 === 0 ? 'rgba(125,83,153,.17)' : 'rgba(84,168,143,.11)'
+        ctx.lineWidth = i % 3 === 0 ? 2.4 : 1.2
         ctx.beginPath()
         ctx.moveTo(x, y)
-        for (let n = 0; n < 5; n++) {
-          x += (random() - 0.5) * 90
-          y += (random() - 0.5) * 82
-          ctx.lineTo(x, y)
+        for (let n = 0; n < 4; n++) {
+          const nextX = x + (random() - 0.5) * 88
+          const nextY = y + (random() - 0.5) * 76
+          const controlX = (x + nextX) * 0.5 + (random() - 0.5) * 24
+          const controlY = (y + nextY) * 0.5 + (random() - 0.5) * 22
+          ctx.quadraticCurveTo(controlX, controlY, nextX, nextY)
+          x = nextX
+          y = nextY
         }
         ctx.stroke()
       }
@@ -1970,79 +2041,79 @@ function jadeGroundDetailTexture(seed, regionId = 'jade_grove') {
   })
 }
 
-/** One authored landmark at world origin gives the opening arena a readable
- * place instead of four unrelated streamed props around an empty texture. */
+/** A weathered origin clearing establishes place without drawing a debug
+ * circle, world-axis cross, range ring, or radial measurement spokes. */
 function jadeSpawnPlazaTexture() {
   return canvasTexture(768, 768, (ctx, width, height) => {
     ctx.clearRect(0, 0, width, height)
-    const cx = width * 0.5
-    const cy = height * 0.5
-    const outer = width * 0.43
+    const cx = width * 0.48
+    const cy = height * 0.53
+    let state = 0x4f1bbcdc
+    const random = () => {
+      state = (Math.imul(state ^ (state >>> 15), 0x85ebca6b) + 0xc2b2ae35) >>> 0
+      return state / 4294967296
+    }
 
-    const edge = ctx.createRadialGradient(cx, cy, outer * 0.64, cx, cy, outer)
-    edge.addColorStop(0, 'rgba(60,76,72,.76)')
-    edge.addColorStop(0.76, 'rgba(34,55,50,.62)')
-    edge.addColorStop(0.92, 'rgba(27,72,55,.26)')
-    edge.addColorStop(1, 'rgba(16,51,42,0)')
-    ctx.fillStyle = edge
+    // An asymmetrical clearing, clipped to a hand-broken perimeter.
+    const clearing = ctx.createRadialGradient(cx - 38, cy - 24, 40, cx, cy, width * 0.39)
+    clearing.addColorStop(0, 'rgba(70,86,79,.66)')
+    clearing.addColorStop(0.6, 'rgba(43,65,57,.52)')
+    clearing.addColorStop(0.86, 'rgba(28,67,52,.2)')
+    clearing.addColorStop(1, 'rgba(16,51,42,0)')
+    ctx.fillStyle = clearing
     ctx.beginPath()
-    ctx.arc(cx, cy, outer, 0, Math.PI * 2)
+    ctx.moveTo(cx - 272, cy - 72)
+    ctx.bezierCurveTo(cx - 238, cy - 244, cx - 58, cy - 286, cx + 62, cy - 244)
+    ctx.bezierCurveTo(cx + 248, cy - 216, cx + 286, cy - 58, cx + 254, cy + 68)
+    ctx.bezierCurveTo(cx + 216, cy + 226, cx + 42, cy + 274, cx - 98, cy + 242)
+    ctx.bezierCurveTo(cx - 266, cy + 212, cx - 310, cy + 62, cx - 272, cy - 72)
+    ctx.closePath()
     ctx.fill()
 
-    // Four worn approaches connect the plaza to the streamed regions.
-    ctx.strokeStyle = 'rgba(65,80,75,.62)'
+    // Two offset, curved approaches imply travel without forming a crosshair.
     ctx.lineCap = 'round'
-    ctx.lineWidth = 112
-    for (const [x, y] of [[cx, -40], [cx, height + 40], [-40, cy], [width + 40, cy]]) {
-      ctx.beginPath()
-      ctx.moveTo(cx, cy)
-      ctx.lineTo(x, y)
-      ctx.stroke()
-    }
-    ctx.strokeStyle = 'rgba(173,190,164,.12)'
-    ctx.lineWidth = 4
-    for (const [x, y] of [[cx, -40], [cx, height + 40], [-40, cy], [width + 40, cy]]) {
-      ctx.beginPath()
-      ctx.moveTo(cx, cy)
-      ctx.lineTo(x, y)
-      ctx.stroke()
-    }
-
-    ctx.lineCap = 'butt'
-    for (const [radius, color, lineWidth] of [
-      [outer * 0.78, 'rgba(8,24,25,.62)', 20],
-      [outer * 0.78, 'rgba(205,203,157,.2)', 4],
-      [outer * 0.5, 'rgba(7,21,23,.5)', 11],
-      [outer * 0.5, 'rgba(166,201,176,.18)', 3],
-      [outer * 0.24, 'rgba(218,193,112,.2)', 4],
-    ]) {
+    for (const [widthPx, color] of [[76, 'rgba(48,66,60,.46)'], [3, 'rgba(178,198,174,.1)']]) {
       ctx.strokeStyle = color
-      ctx.lineWidth = lineWidth
+      ctx.lineWidth = widthPx
       ctx.beginPath()
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+      ctx.moveTo(-48, cy - 184)
+      ctx.bezierCurveTo(cx - 236, cy - 154, cx - 136, cy - 70, cx - 44, cy - 28)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(cx + 74, cy + 38)
+      ctx.bezierCurveTo(cx + 178, cy + 84, cx + 202, cy + 190, width + 44, height - 84)
       ctx.stroke()
     }
 
-    // Radial paving seams establish scale without writing a rune or character.
-    for (let i = 0; i < 16; i++) {
-      const angle = (i / 16) * Math.PI * 2
-      ctx.strokeStyle = i % 2 === 0 ? 'rgba(5,19,21,.4)' : 'rgba(194,207,180,.09)'
-      ctx.lineWidth = i % 2 === 0 ? 3 : 1.5
+    // Irregular flagstones and moss islands break the clearing into natural
+    // scale cues; none repeat around a shared radius.
+    for (let i = 0; i < 24; i++) {
+      const x = cx + (random() - 0.5) * 490
+      const y = cy + (random() - 0.5) * 390
+      const rx = 18 + random() * 44
+      const ry = 10 + random() * 24
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.rotate((random() - 0.5) * 1.2)
+      ctx.fillStyle = i % 4 === 0 ? 'rgba(31,87,63,.26)' : 'rgba(78,91,82,.28)'
+      ctx.strokeStyle = 'rgba(10,29,28,.34)'
+      ctx.lineWidth = 2 + random() * 2
       ctx.beginPath()
-      ctx.moveTo(cx + Math.cos(angle) * outer * 0.24, cy + Math.sin(angle) * outer * 0.24)
-      ctx.lineTo(cx + Math.cos(angle) * outer * 0.76, cy + Math.sin(angle) * outer * 0.76)
-      ctx.stroke()
+      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2)
+      ctx.fill()
+      if (i % 3 !== 0) ctx.stroke()
+      ctx.restore()
     }
 
-    // A few broken seams keep the circle architectural rather than UI-clean.
-    ctx.strokeStyle = 'rgba(8,23,24,.52)'
+    ctx.strokeStyle = 'rgba(8,23,24,.48)'
     ctx.lineCap = 'round'
     for (const points of [
-      [[cx - 210, cy - 72], [cx - 160, cy - 42], [cx - 126, cy - 66]],
-      [[cx + 104, cy + 184], [cx + 145, cy + 136], [cx + 198, cy + 148]],
-      [[cx + 152, cy - 128], [cx + 112, cy - 94], [cx + 126, cy - 54]],
+      [[cx - 220, cy - 58], [cx - 166, cy - 24], [cx - 118, cy - 52], [cx - 82, cy - 32]],
+      [[cx + 62, cy + 178], [cx + 118, cy + 126], [cx + 176, cy + 142]],
+      [[cx + 164, cy - 142], [cx + 106, cy - 102], [cx + 128, cy - 58]],
+      [[cx - 42, cy + 82], [cx - 10, cy + 52], [cx + 34, cy + 64]],
     ]) {
-      ctx.lineWidth = 5
+      ctx.lineWidth = 3.5
       ctx.beginPath()
       ctx.moveTo(points[0][0], points[0][1])
       for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1])
@@ -3122,6 +3193,22 @@ function loopingFrame(frames, indices, time, fps, phase = 0) {
 function oneShotFrameIndex(indices, remaining, duration) {
   const progress = Math.max(0, Math.min(0.999, 1 - remaining / duration))
   return indices[Math.floor(progress * indices.length)]
+}
+
+export function heroAnimationFrameIndex2D(heroDef, {
+  moving = false, dashing = 0, attackTimer = 0, time = 0,
+} = {}) {
+  const animations = heroDef?.animations ?? {}
+  const idle = animations.idle ?? [0]
+  const run = animations.run ?? idle
+  const dash = animations.dash ?? run
+  const attack = animations.attack ?? idle
+  if (dashing > 0) return oneShotFrameIndex(dash, dashing, 0.16)
+  // Automatic attacks must not replace a locomotion cycle while the player is
+  // moving; the directional slash VFX already communicates those hits.
+  if (moving) return loopingFrameIndex(run, time, 8)
+  if (attackTimer > 0) return oneShotFrameIndex(attack, attackTimer, 0.32)
+  return idle[0]
 }
 
 export function enemyAttackPresentationDuration2D(def, behavior = 0) {
@@ -4271,8 +4358,8 @@ export class PixiPresentation {
     if (this.spawnPlaza) {
       projectWorld(0, 0, this.cameraX, this.cameraZ, this.viewport, _screen)
       this.spawnPlaza.position.set(_screen.x, _screen.y)
-      this.spawnPlaza.width = 32 * _screen.unit
-      this.spawnPlaza.height = 32 * _screen.depthUnit
+      this.spawnPlaza.width = 22 * _screen.unit
+      this.spawnPlaza.height = 22 * _screen.depthUnit
       this.spawnPlaza.visible = this._groundStageId === 'jade'
         && isOnScreen(_screen.x, _screen.y, this.viewport, this.spawnPlaza.width * 0.58)
     }
@@ -4282,7 +4369,7 @@ export class PixiPresentation {
     projectWorld(x, z, this.cameraX, this.cameraZ, this.viewport, _screen)
     const sprite = entry.sprite
     const shadow = entry.shadow
-    const mirror = Math.sin(facing) < -0.15
+    const mirror = actorMirrorForFacing2D(entry.groundingKey ?? entry.key, facing)
     setHeight(sprite, height, mirror)
     sprite.position.set(_screen.x, _screen.y + bob)
     sprite.zIndex = _screen.y
@@ -4433,8 +4520,8 @@ export class PixiPresentation {
           : SPRITE_MANIFEST.actors.voidSentinel.runtimeHeight * (field.elite[i] ? 1.06 : 0.9)
       const motionPhase = motion.phase * Math.PI * 2
       const stride = Math.sin(this.time * (wolfActor ? 12 : 8.5) * motion.tempo + motionPhase)
-      const locomotionBob = wolfActor ? -Math.abs(stride) * 2.4
-        : key === 'voidSentinel' || key === 'shadowSealDuelist' ? -Math.abs(stride) * 1.2 : 0
+      const locomotionBob = wolfActor ? -Math.abs(stride) * 0.45
+        : key === 'voidSentinel' || key === 'shadowSealDuelist' ? -Math.abs(stride) * 0.3 : 0
       const pulse = key === 'wisp'
         ? Math.sin(this.time * 5 * motion.tempo + motionPhase) * 4 * motion.bobScale
         : key === 'talismanRevenant' || key === 'maskedSealRevenant'
@@ -4541,19 +4628,14 @@ export class PixiPresentation {
     const heroHeight = heroCombatHeight2D(this.viewport.height, heroDef.runtimeHeight)
     const direction = heroDirectionFor(player)
     const directionalFrames = directionalHeroFrames(this.frames, direction)
-    let frame = heroDef.animations.idle[0]
-    if (player.attackTimer > 0) {
-      frame = oneShotFrameIndex(heroDef.animations.attack, player.attackTimer, 0.32)
-    } else if (player.dashing > 0) {
-      frame = oneShotFrameIndex(heroDef.animations.dash, player.dashing, 0.16)
-    } else if (moving) {
-      frame = loopingFrameIndex(heroDef.animations.run, this.time, 10)
-    }
+    const frame = heroAnimationFrameIndex2D(heroDef, {
+      moving, dashing: player.dashing, attackTimer: player.attackTimer, time: this.time,
+    })
     this.hero.texture = directionalFrames[frame]
     this.hero.anchor.y = heroFootPivot2D(direction.key, frame)
     // Grounded locomotion may lift a foot, but the body must never oscillate
     // below the sampled contact row. Idle motion is carried by the breath scale.
-    const bob = moving ? -Math.abs(Math.sin(this.time * 10)) * 0.85 : 0
+    const bob = 0
     setHeight(this.hero, heroHeight, direction.mirror)
     if (!moving && player.attackTimer <= 0 && player.dashing <= 0) {
       const breath = Math.sin(this.time * 2.2)
@@ -4669,13 +4751,14 @@ export class PixiPresentation {
     this.boss.texture = bossFrames[frame]
     const groundingKey = wolfBoss ? 'yorang' : 'jadeVoidWarden'
     this.boss.anchor.set(0.5, actorFootPivot2D(groundingKey, frame))
-    const mirror = boss.x > this.cameraX
+    const bossFacing = Math.atan2(this.cameraX - boss.x, this.cameraZ - boss.z)
+    const mirror = actorMirrorForFacing2D(groundingKey, bossFacing)
     const authoredHeight = wolfBoss
       ? Math.max(220, bossDef.runtimeHeight * 2.55)
       : boss.def.id === 'jadeVoidWarden' ? bossDef.runtimeHeight : 210
     const height = bossCombatHeight2D(this.viewport.height, authoredHeight, this._presentationScale)
     setHeight(this.boss, height, mirror)
-    this.boss.position.set(_screen.x, _screen.y - Math.abs(Math.sin(this.time * 2.1)) * 1.2)
+    this.boss.position.set(_screen.x, _screen.y - Math.abs(Math.sin(this.time * 2.1)) * 0.35)
     this.boss.tint = boss.hitFlash > 0
       ? 0xffffff
       : wolfBoss

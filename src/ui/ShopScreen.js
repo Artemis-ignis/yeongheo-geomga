@@ -17,12 +17,16 @@ export class ShopScreen {
     this.onClose = null
 
     this.node = document.createElement('div')
-    this.node.className = 'screen'
+    this.node.className = 'screen shop-screen'
+    this.node.setAttribute('role', 'dialog')
+    this.node.setAttribute('aria-modal', 'true')
+    this.node.setAttribute('aria-labelledby', 'shop-screen-title')
+    this.node.setAttribute('aria-hidden', 'true')
     this.node.style.display = 'none'
     this.node.innerHTML = `
       <div class="screen-inner shop-inner">
         <div class="shop-head">
-          <div class="shop-title">단전</div>
+          <div class="shop-title" id="shop-screen-title">단전</div>
           <div class="shop-stones"></div>
         </div>
         <div class="shop-scroll">
@@ -90,6 +94,7 @@ export class ShopScreen {
   show(onClose) {
     this.onClose = onClose
     this.node.style.display = ''
+    this.node.setAttribute('aria-hidden', 'false')
     this.refresh()
   }
 
@@ -143,6 +148,7 @@ export class ShopScreen {
   /** Close without invoking the title callback while a run is taking ownership. */
   hide() {
     this.node.style.display = 'none'
+    this.node.setAttribute('aria-hidden', 'true')
     this.onClose = null
   }
 

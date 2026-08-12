@@ -21,6 +21,7 @@ $releaseMetadataPath = Join-Path $gameRoot 'public\release.json'
 
 $requiredFiles = @(
   (Join-Path $distRoot 'index.html'),
+  (Join-Path $gameRoot '영허검가 실행.vbs'),
   (Join-Path $gameRoot '게임시작.bat'),
   (Join-Path $PSScriptRoot 'start-game.ps1'),
   (Join-Path $PSScriptRoot 'serve-dist.ps1'),
@@ -168,6 +169,7 @@ New-ReleaseZip -TargetPath $webPath -Entries $webEntries
 $packageRoot = 'Yeongheo-Geomga'
 $windowsEntries = @(
   Get-TreeEntries -SourceRoot $distRoot -EntryPrefix "$packageRoot\dist"
+  [pscustomobject]@{ Source = Join-Path $gameRoot '영허검가 실행.vbs'; Name = "$packageRoot\영허검가 실행.vbs" }
   [pscustomobject]@{ Source = Join-Path $gameRoot '게임시작.bat'; Name = "$packageRoot\게임시작.bat" }
   [pscustomobject]@{ Source = Join-Path $PSScriptRoot 'start-game.ps1'; Name = "$packageRoot\tools\start-game.ps1" }
   [pscustomobject]@{ Source = Join-Path $PSScriptRoot 'serve-dist.ps1'; Name = "$packageRoot\tools\serve-dist.ps1" }
@@ -181,11 +183,12 @@ $firstRead = @"
 영허검가 Windows 휴대용 빌드
 
 1. ZIP 전체를 원하는 폴더에 압축 해제합니다.
-2. 압축을 푼 Yeongheo-Geomga 폴더의 게임시작.bat를 더블클릭합니다.
-3. 검은 실행 창을 닫으면 로컬 게임 서버도 함께 종료됩니다.
+2. 압축을 푼 Yeongheo-Geomga 폴더의 영허검가 실행.vbs를 더블클릭합니다.
+3. 최소화된 실행 창을 닫으면 로컬 게임 서버도 함께 종료됩니다.
 
 Node, npm, 별도 설치는 필요하지 않습니다. index.html을 직접 열면 브라우저
-보안 정책 때문에 실행되지 않으므로 반드시 게임시작.bat를 사용하십시오.
+보안 정책 때문에 실행되지 않습니다. Windows Script Host가 차단된 PC에서는
+게임시작.bat를 예비 실행 경로로 사용하십시오.
 자세한 조작법은 PLAY_GUIDE_KO.txt를 확인하십시오.
 "@
 New-ReleaseZip -TargetPath $windowsPath -Entries $windowsEntries -TextEntries @{ "$packageRoot\README_FIRST_KO.txt" = $firstRead }
