@@ -44,7 +44,7 @@
 - FormationDirector2D: 75초·140초·215초·290초·365초의 ring·wall·pincer 진을 한 번씩 생성하고, 용량 부족 시 같은 이벤트를 재시도한다.
 - WorldInteractions2D: seed·비경·청크에 따라 재현되는 제단·보물·정예 봉인·회복 샘 POI와 E 상호작용·보상.
 
-다만 이 연결은 제출 완료 선언이 아닙니다. 원클릭 quickStart는 showcase seed `3185791507`로 POI·진·선택·보스 경로를 재현하며, 상세 시작은 저장 진행과 새 seed를 유지합니다. 권위 타임라인은 첫 맹세 0:20, POI 강조 2:00, 맹세 심화 2:45, 중간 보스 3:00, 맹세 완성 4:30, 최종 보스 5:30, 승천/좌화 결과 7:00입니다. 현재 exact commit `6516321`에서 무치트 420초 승천·결과→재도전·이동까지 실제 Chrome 한 탭 검증을 통과했습니다. 공개 URL과 대표자 권리 확인 게이트는 여전히 남아 있으며, 최신 세부 근거는 [PROJECT_STATE.md](PROJECT_STATE.md)를 기준으로 합니다.
+다만 이 연결은 제출 완료 선언이 아닙니다. 원클릭 quickStart는 showcase seed `3185791507`로 POI·진·선택·보스 경로를 재현하며, 상세 시작은 저장 진행과 새 seed를 유지합니다. 권위 타임라인은 첫 맹세 0:20, POI 강조 2:00, 맹세 심화 2:45, 중간 보스 3:00, 맹세 완성 4:30, 최종 보스 5:30, 승천/좌화 결과 7:00입니다. 최근 actual combat checkpoint `4be14c6`에서 시간 점프·피해 무효화·강제 보스/레벨 없이 420초 승천(대승 35층·2,919처치)과 결과→2560×1600 재도전·이동까지 실제 Chrome 한 세션으로 통과했습니다. 이후 `f2b9254`는 결과 화면의 정보 순서·반응형 배치만 수정했고 별도의 실제 ResultScreen 레이아웃 검증을 통과했습니다. 공개 URL과 대표자 권리 확인 게이트는 여전히 남아 있으며, 최신 세부 근거는 [PROJECT_STATE.md](PROJECT_STATE.md)를 기준으로 합니다.
 
 ## 현재 상태
 
@@ -52,20 +52,20 @@
 
 - npm test: 67개 테스트 파일, 775개 테스트 통과
 - npm audit: 알려진 취약점 0
-- npm run build: 통과. Game2D bundle은 564.65 kB, gzip은 167.64 kB입니다.
+- npm run build: 통과. Game2D bundle은 564.82 kB, gzip은 167.67 kB입니다.
 - npm run assets:audit: 통과. 매니페스트 127개와 실제 파일 127개가 일치합니다.
 - npm run assets:build-audit: 런타임 78/78, 누락·예상 밖 파일 0입니다.
 - `YEONGHEO_NO_BROWSER=1` launcher의 실제 smoke를 통과했습니다.
 - 420초 pacing, DaoVows2D, BossPatterns2D, FormationDirector2D, WorldInteractions2D의 구조·로직 계약이 현재 테스트 묶음에 포함되어 통과합니다.
 - 최종 실행 청크 `Game2D-CfY6A-CR.js`(SHA-256 `4e9f58de…add29b0a`)를 담은 새 Web ZIP에서 일반 피해 조건, 실제 이동·축지법·선택으로 정확히 07:00 승천(레벨 33·2,394처치·보스 2·도가 3/3)을 확인했습니다. 같은 최신 패키지의 결과 화면→재도전 UI 회귀와, 동일 실행 청크의 별도 실플레이에서 일시정지·재개까지 확인했습니다.
-- Windows Chromium 정확한 1920×1080·2560×1600에서 title/combat·level-up DOM을 확인했고 console error는 0이었습니다. title visual과 최신 enemy contact는 PASS입니다.
+- Windows Chrome 정확한 1920×1080·2560×1600에서 title→420초 전투→결과→재도전을 확인했고 console error는 0이었습니다. 결과 화면은 1080p에서 보상·CTA·통계·11개 빌드를 첫 화면에 보이고, 1600p에서는 상세 효과를 유지하며 업적·은행·seed까지 스크롤로 도달합니다.
 - Web ZIP 104개 entry와 Windows portable ZIP 113개 entry를 만들고, 각각 재추출해 source dist와 104/104 SHA 일치를 확인했습니다.
 - v5.3 Web ZIP을 다시 실제 플레이해 타이틀·첫 10초·중간보스·완성 도가·최종보스·07:00 승천을 담은 166.468초 1920×1080 영상 `output/releases/yeongheo-geomga-submission-video-v5.3-1080p-audio-166s-20260810.webm`을 봉인했습니다. 실제 WebAudio만 사용했고 콘솔·페이지·디코드·인코더 타임스탬프 오류는 0입니다. 이전 v5 176.01초 영상은 역사 후보일 뿐 v5.3 제출본이 아닙니다.
 - 자동 테스트·빌드·자산 감사와 격리 자동 완주는 외부 일반 사용자 테스트나 대표자의 권리 승인을 대신하지 않습니다.
-- 반복 지속 장판의 겹침·화면 공간 기울기와 보스 전조 공존 focused 결함은 `c9ce389`에서 1920×1080·2560×1600 실제 Chrome 화면으로 닫았습니다. 전체 commercial visual gate는 **strict FAIL**입니다. 후반 적 군집이 같은 색·크기·방향으로 뭉쳐 반복적으로 보이는 문제가 남습니다.
+- 반복 지속 장판·악귀 수사·일반 늑대·결과 정보 위계의 focused 결함은 각각 닫았습니다. 전체 commercial visual gate는 **strict FAIL**입니다. 실제 7분 런에서 35층까지 반복되는 대형 선택 모달의 흐름 단절, 후반 군집의 색·실루엣 반복, 지면의 평면감이 여전히 남습니다.
 - rights audit는 **BLOCKED**이며 법적 증거는 0/78입니다. 3D 모델·ImageGen·TRELLIS 산출물은 개발/자산 QA 증거이며, contest용 AAA 최종 모델이나 권리 clearance로 홍보하지 않습니다.
 
-따라서 지금의 정확한 상태는 **PixiJS 2D production 경로의 구조·빌드·자산·런처와 이전 무치트 7분 루프, 반복 지면 장판·악귀 수사·일반 늑대 군집의 focused 수정은 확인됐지만, `ashRaven`의 늑대 실루엣 재사용과 새 build의 무치트 7분 전체 회귀가 남아 commercial visual은 strict FAIL이고 법적 권리 증거·번들 경고 정리가 남은 로컬 QA 후보**입니다. release approval, A-grade, rights clearance, 공식 제출 승인은 선언하지 않습니다.
+따라서 지금의 정확한 상태는 **PixiJS 2D production 경로의 구조·빌드·자산·런처, actual combat checkpoint의 무치트 7분 루프, 반복 지면 장판·악귀 수사·일반 늑대·결과 화면 focused 수정은 확인됐지만, 현재 공개 범위인 옥산 비경의 선택 빈도·후반 군집·지면 깊이는 추가 개선이 필요해 commercial visual은 strict FAIL이고 법적 권리 증거·번들 경고 정리가 남은 로컬 QA 후보**입니다. 늑대를 재사용하는 `ashRaven`은 잠긴 염화 비경 콘텐츠의 P1 결함으로 추적합니다. release approval, A-grade, rights clearance, 공식 제출 승인은 선언하지 않습니다.
 
 ## 실행
 
@@ -192,7 +192,7 @@ public/assets/             production 2D 스프라이트·환경·재질·마케
 3. 실제 런타임 PASS: Windows Chromium에서 입력·상태·프레임·화면을 확인
 4. contest 출품 PASS: 천겁의 맹세 Gate 1–6과 제출 자료를 모두 확인
 
-현재 구조/로직·빌드·자산·런처와 이전 build의 무치트 7분 전체 루프는 확인됐지만, 전체 commercial visual은 strict FAIL입니다. contest 출품 PASS, release approval, A-grade를 선언하지 않으며, rights audit는 법적 증거 0/78로 BLOCKED이고 새 build의 무치트 전체 회귀·공개 URL·마스터의 시청각 승인·공식 제출도 남아 있습니다.
+현재 구조/로직·빌드·자산·런처와 `4be14c6` actual combat checkpoint의 무치트 7분 전체 루프, `f2b9254` 결과 화면 회귀는 확인됐지만, 전체 commercial visual은 strict FAIL입니다. contest 출품 PASS, release approval, A-grade를 선언하지 않으며, rights audit는 법적 증거 0/78로 BLOCKED이고 현재 옥산 비경의 선택 빈도·후반 군집·지면 깊이, 공개 URL·마스터의 시청각 승인·공식 제출도 남아 있습니다.
 
 오류가 나면 boot fallback 패널과 콘솔 로그를 먼저 확인하십시오. F3에서 renderer, FPS, frame/simulation/draw 시간, 엔티티 수, 품질 배율을 볼 수 있지만, 실제 성능 보고서에는 p95 실측과 브라우저·해상도·build ID를 함께 기록해야 합니다.
 
