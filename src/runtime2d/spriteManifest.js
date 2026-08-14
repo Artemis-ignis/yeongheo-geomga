@@ -9,26 +9,26 @@ export const SPRITE_MANIFEST = Object.freeze({
   maxAtlasSize: 4096,
   actors: Object.freeze({
     seolryeong: Object.freeze({
-      url: `${base}assets/sprites2d/seolryeong-heroine-southeast-motion-v2.webp`,
+      url: `${base}assets/sprites2d/seolryeong-heroine-southeast-motion-v4.webp`,
       portraitUrl: `${base}assets/sprites2d/seolryeong-combat-v1.webp`,
       // Five runtime directions share one identity and one 16-frame contract:
       // eight grounded run poses followed by eight sword-attack poses.
       // Approval remains pending until original-size play review is complete.
       directionalRuntime: Object.freeze({
         east: Object.freeze({
-          url: `${base}assets/sprites2d/seolryeong-heroine-east-motion-v2.webp`,
+          url: `${base}assets/sprites2d/seolryeong-heroine-east-motion-v4.webp`,
           status: 'runtime-candidate',
         }),
         north: Object.freeze({
-          url: `${base}assets/sprites2d/seolryeong-heroine-north-motion-v3.webp`,
+          url: `${base}assets/sprites2d/seolryeong-heroine-north-motion-v4.webp`,
           status: 'runtime-candidate',
         }),
         northeast: Object.freeze({
-          url: `${base}assets/sprites2d/seolryeong-heroine-northeast-motion-v2.webp`,
+          url: `${base}assets/sprites2d/seolryeong-heroine-northeast-motion-v4.webp`,
           status: 'runtime-candidate',
         }),
         south: Object.freeze({
-          url: `${base}assets/sprites2d/seolryeong-heroine-south-motion-v3.webp`,
+          url: `${base}assets/sprites2d/seolryeong-heroine-south-motion-v4.webp`,
           status: 'runtime-candidate',
         }),
       }),

@@ -30,9 +30,15 @@ export const MAX_EFFECTS_2D = 256
 export const MAX_WEAPON_FIELDS_2D = 128
 export const RUN_SECONDS_2D = CONTEST_PACING_DURATION_SECONDS
 
-const SPAWN_MIN = 20
-const SPAWN_MAX = 25
-const DESPAWN_RADIUS = 39
+const SPAWN_FRONTIER_X_MIN = 36
+const SPAWN_FRONTIER_X_MAX = 43
+const SPAWN_FRONTIER_FAR_Z_MIN = 52
+const SPAWN_FRONTIER_FAR_Z_MAX = 60
+const SPAWN_FRONTIER_NEAR_Z_MIN = 44
+const SPAWN_FRONTIER_NEAR_Z_MAX = 51
+const SPAWN_LANE_HALF_WIDTH = 15
+const DESPAWN_RADIUS = 76
+const OFFSCREEN_INGRESS_DENSITY = 1.4
 const CONTACT_COOLDOWN = 0.72
 export const CONTACT_INTENT_SECONDS_2D = 0.24
 export const CONTACT_INTENT_MIN_MARGIN_2D = 0.72
@@ -60,7 +66,7 @@ export const FINAL_BOSS_WAVE_DENSITY_2D = 0.12
 // The legacy record challenge uses a bounded clock. Its final boss owns the
 // last ninety seconds instead of evaporating in a late-game damage stack at
 // 6:04. Each floor guarantees a readable authored phase; the final five
-// seconds after a successful kill are a protected victory lap before 7:00.
+// seconds after a successful kill are a protected victory lap before judgment.
 export const FINAL_BOSS_PHASE_GATE_SECONDS_2D = Object.freeze([25, 55, 85])
 // Each authored phase change is also a readable breath in the duel. A real
 // keyboard playtest using the normal 3.05s dash cadence reached 6:31 with a
@@ -1127,10 +1133,25 @@ class EnemyField2D {
     return true
   }
 
-  _spawnRing(player, runTime, id) {
-    const angle = this.rng.angle()
-    const radius = this.rng.range(SPAWN_MIN, SPAWN_MAX)
-    this.spawn(id, player.x + Math.cos(angle) * radius, player.z + Math.sin(angle) * radius, runTime)
+  _spawnFromFrontier(player, runTime, id, side, laneIndex = 0, laneCount = 1) {
+    const laneT = laneCount <= 1 ? 0 : laneIndex / Math.max(1, laneCount - 1) * 2 - 1
+    const lane = laneT * SPAWN_LANE_HALF_WIDTH + this.rng.range(-2.4, 2.4)
+    let x = player.x
+    let z = player.z
+    if (side === 0) {
+      x -= this.rng.range(SPAWN_FRONTIER_X_MIN, SPAWN_FRONTIER_X_MAX)
+      z += lane
+    } else if (side === 1) {
+      x += this.rng.range(SPAWN_FRONTIER_X_MIN, SPAWN_FRONTIER_X_MAX)
+      z += lane
+    } else if (side === 2) {
+      x += lane
+      z -= this.rng.range(SPAWN_FRONTIER_FAR_Z_MIN, SPAWN_FRONTIER_FAR_Z_MAX)
+    } else {
+      x += lane
+      z += this.rng.range(SPAWN_FRONTIER_NEAR_Z_MIN, SPAWN_FRONTIER_NEAR_Z_MAX)
+    }
+    this.spawn(id, x, z, runTime)
   }
 
   _spawnWave(dt, runTime, player) {
@@ -1143,7 +1164,10 @@ class EnemyField2D {
     const encounterDensity = finalEncounter
       ? FINAL_BOSS_WAVE_DENSITY_2D
       : activeBoss ? BOSS_WAVE_DENSITY_2D : 1
-    const requested = Math.max(1, Math.round(wave.perSpawn * TRIAL.density * encounterDensity))
+    const requested = Math.max(1, Math.round(
+      wave.perSpawn * TRIAL.density * encounterDensity
+        * (finalEncounter ? 1 : OFFSCREEN_INGRESS_DENSITY),
+    ))
     const available = MAX_ENEMIES_2D - this.count
     const count = Math.min(requested, available, 64)
     const types = rosterFor(this.world.stage, wave.types)
@@ -1151,7 +1175,23 @@ class EnemyField2D {
     // three types. Rotate through the weighted roster so each pack has a clear
     // visual composition while the seeded offset keeps successive packs varied.
     const offset = this.rng.int(types.length)
-    for (let n = 0; n < count; n++) this._spawnRing(player, runTime, types[(offset + n) % types.length])
+    const primarySide = this.rng.int(4)
+    const primaryCount = Math.max(1, Math.ceil(count * 0.72))
+    const secondaryCount = count - primaryCount
+    const secondarySide = (primarySide + (this.rng.chance(0.5) ? 1 : 3)) % 4
+    for (let n = 0; n < count; n++) {
+      const primary = n < primaryCount
+      const laneIndex = primary ? n : n - primaryCount
+      const laneCount = primary ? primaryCount : secondaryCount
+      this._spawnFromFrontier(
+        player,
+        runTime,
+        types[(offset + n) % types.length],
+        primary ? primarySide : secondarySide,
+        laneIndex,
+        laneCount,
+      )
+    }
   }
 
   update(dt, runTime, player) {
@@ -1215,17 +1255,19 @@ class EnemyField2D {
       const speedMul = behavior === 5
         ? this.windup[i] > 0 ? 0.12 : this.burstTimer[i] > 0 ? (def.chargeSpeed ?? 2.15) : 1
         : lumberRamp
-      this.x[i] += ((dx / dist) * move + (-dz / dist) * tangent) * this.speed[i] * speedMul * statusSpeedMul * dt
-      this.z[i] += ((dz / dist) * move + (dx / dist) * tangent) * this.speed[i] * speedMul * statusSpeedMul * dt
+      this.x[i] += ((dx / dist) * move + (-dz / dist) * tangent)
+        * this.speed[i] * speedMul * statusSpeedMul * dt
+      this.z[i] += ((dz / dist) * move + (dx / dist) * tangent)
+        * this.speed[i] * speedMul * statusSpeedMul * dt
 
       dx = player.x - this.x[i]
       dz = player.z - this.z[i]
       dist = Math.hypot(dx, dz) || 0.001
       if (dist > DESPAWN_RADIUS) {
-        const angle = this.rng.angle()
-        const radius = this.rng.range(SPAWN_MIN, SPAWN_MAX)
-        this.x[i] = this.prevX[i] = player.x + Math.cos(angle) * radius
-        this.z[i] = this.prevZ[i] = player.z + Math.sin(angle) * radius
+        const last = --this.count
+        if (i !== last) copyAt(this._fields, last, i)
+        i--
+        continue
       }
 
       if (behavior === 1 && this.shotCd[i] <= 0 && dist < 14) {
@@ -2147,7 +2189,7 @@ export class CombatWorld2D {
     if (boss.def.id === this.finalBossId) {
       this.victory = true
       if (scheduledFinal && this.runTime < RUN_SECONDS_2D) {
-        // The authored run ends at exactly 7:00. Once the judge has defeated
+        // The authored record challenge ends at its fixed judgment boundary. Once the judge has defeated
         // the final boss, make the brief remaining beat a safe victory lap
         // instead of allowing a stray horde projectile to steal the result.
         this.player.invulnTimer = Math.max(
@@ -2156,7 +2198,7 @@ export class CombatWorld2D {
         )
       } else {
         // Manual QA spawns and an edge-case kill on the boundary still resolve
-        // immediately; only the scheduled contest encounter waits for 7:00.
+        // immediately; only the scheduled contest encounter waits for judgment.
         this._pendingEnd = true
       }
     }

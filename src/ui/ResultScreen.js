@@ -187,7 +187,7 @@ export class ResultScreen {
           kicker: '비경 탐사의 결말',
           victoryTitle: '비경 귀환',
           defeatTitle: '탐사 중단',
-          victoryFlavor: '영맥을 바로잡고 비경의 문서를 거두어 영허전으로 귀환했다.',
+          victoryFlavor: '영맥을 바로잡고 비경의 문서를 거두어 검가의 수행처로 귀환했다.',
           defeatFlavor: '목숨을 보전하기 위해 검을 거두고 비경에서 물러났다.',
           rewardSuccess: '탐사 완수',
           restart: '다시 탐사한다',
@@ -279,8 +279,8 @@ export class ResultScreen {
         <span>${escapeHtml(result.journey.indexLabel ?? '본편')}</span>
         <div>
           <b>${escapeHtml(result.journey.title ?? '비경 탐사')}</b>
-          <p>${escapeHtml(result.victory ? result.journey.completionCopy : '이번 탐사에서 회수한 기록은 영허전에 보존됩니다.')}</p>
-          <em>다음 목표 · ${escapeHtml(result.journey.nextGoal ?? '영허전에서 다음 검로를 확인하십시오.')}</em>
+          <p>${escapeHtml(result.victory ? result.journey.completionCopy : '이번 탐사에서 회수한 기록은 검가에 보존됩니다.')}</p>
+          <em>다음 목표 · ${escapeHtml(result.journey.nextGoal ?? '처음 화면에서 다음 검로를 확인하십시오.')}</em>
           ${result.journey.legacy ? `<p class="result-journey-legacy">이어진 전승 · <b>${escapeHtml(result.journey.legacy.name)}</b> · ${escapeHtml(result.journey.legacy.summary)}</p>` : ''}
           ${journeyDecisions ? `<ul class="result-journey-decisions" aria-label="이번 장의 결단">${journeyDecisions}</ul>` : ''}
         </div>
@@ -320,7 +320,7 @@ export class ResultScreen {
         ${dao}
         <div class="result-actions">
           <button type="button" class="btn clickable" data-action="restart"><span>${outcome.restart}</span><small>${outcome.restartDetail}</small></button>
-          <button type="button" class="btn btn-alt clickable" data-action="menu">영허전으로 돌아가기</button>
+          <button type="button" class="btn btn-alt clickable" data-action="menu">처음 화면으로 돌아가기</button>
         </div>
         <div class="result-stats">
           <div><span>${outcome.timeLabel}</span><b>${escapeHtml(time)}${result.bests?.time ? ' <em>신기록</em>' : ''}</b></div>

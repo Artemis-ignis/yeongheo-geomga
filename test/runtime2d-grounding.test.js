@@ -238,7 +238,7 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(INVESTIGATION_TRACE_PRESENTATION_2D['beast-trail'].width).toBeGreaterThanOrEqual(130)
   })
 
-  it('keeps scenery contact shadows while the upper sprite fades around the heroine', () => {
+  it('keeps sprite and contact shadow opacity on one grounding contract', () => {
     const sprite = {
       texture: { height: 256 }, scale: { set: vi.fn() }, position: { set: vi.fn() },
       visible: false, parent: null,
@@ -253,6 +253,6 @@ describe('runtime 2D grounding and terrain integration', () => {
     presentation._placeActor({
       sprite, shadow, bucket: -1, key: 'prop', groundingKey: 'prop', frame: 1,
     }, 0, 0, 100, 0.22, 0, 0xffffff)
-    expect(shadow.alpha).toBeCloseTo(actorGroundingProfile2D('prop', 1).shadowAlpha * 0.72)
+    expect(shadow.alpha).toBeCloseTo(actorGroundingProfile2D('prop', 1).shadowAlpha * 0.22)
   })
 })

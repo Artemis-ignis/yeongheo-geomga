@@ -559,7 +559,6 @@ describe('Game2D run-state integration', () => {
       modal: { close: vi.fn() },
       shop: { hide: vi.fn(), show: vi.fn() },
       codex: { hide: vi.fn(), show: vi.fn() },
-      sanctum: { hide: vi.fn(), show: vi.fn() },
       audio: {
         muted: false,
         unlock: vi.fn(),
@@ -593,7 +592,8 @@ describe('Game2D run-state integration', () => {
     expect(game.presentation.showTitle).toHaveBeenCalled()
     expect(game.shop.hide).toHaveBeenCalled()
     expect(game.codex.hide).toHaveBeenCalled()
-    expect(typeof titleHandlers.onEnter).toBe('function')
+    expect(typeof titleHandlers.onExpedition).toBe('function')
+    expect(typeof titleHandlers.onCultivation).toBe('function')
     expect(typeof titleHandlers.onCodex).toBe('function')
     expect(oldWorld.onEnd).toBeNull()
     expect(oldWorld.onWeaponAudio).toBeNull()
@@ -602,7 +602,6 @@ describe('Game2D run-state integration', () => {
     game.state = 'playing'
     titleHandlers.onCodex()
     expect(game.state).toBe('playing')
-    expect(game.sanctum.show).not.toHaveBeenCalled()
     expect(game.shop.show).not.toHaveBeenCalled()
     expect(game.codex.show).not.toHaveBeenCalled()
     expect(game._banner).toHaveBeenLastCalledWith(

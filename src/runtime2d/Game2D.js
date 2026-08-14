@@ -19,7 +19,6 @@ import { Hud, getDaoVowVisual } from '../ui/Hud.js'
 import { LevelUpModal } from '../ui/LevelUpModal.js'
 import { PauseScreen } from '../ui/PauseScreen.js'
 import { ResultScreen } from '../ui/ResultScreen.js'
-import { SanctumScreen } from '../ui/SanctumScreen.js'
 import { ShopScreen } from '../ui/ShopScreen.js'
 import { TitleScreen } from '../ui/TitleScreen.js'
 import { CombatWorld2D } from './CombatWorld2D.js'
@@ -452,7 +451,6 @@ export class Game2D {
     this.hud = new Hud(hudRoot)
     this.modal = new LevelUpModal(hudRoot, this.audio)
     this.title = new TitleScreen(hudRoot, CHARACTERS, this.progress, this.audio)
-    this.sanctum = new SanctumScreen(hudRoot, this.progress, this.audio)
     this.result = new ResultScreen(hudRoot, this.audio)
     this.shop = new ShopScreen(hudRoot, this.progress, () => this._persist())
     this.codex = new CodexScreen(hudRoot, this.progress)
@@ -633,7 +631,6 @@ export class Game2D {
     // or title transition takes ownership of the screen.
     this.shop?.hide?.()
     this.codex?.hide?.()
-    this.sanctum?.hide?.()
     this.audio.stopMusic?.()
     this.audio.setDucked?.(false)
     if (this.canvas?.style) this.canvas.style.cursor = ''
@@ -652,51 +649,32 @@ export class Game2D {
     this.result.hide()
     this.presentation.showTitle()
     this.title.show({
-      onEnter: () => this._showSanctum(),
+      onExpedition: () => this._showRunSetup(EXPEDITION_RUN_MODE_2D),
+      onSurvival: () => this._showRunSetup(SURVIVAL_RUN_MODE_2D),
+      onCultivation: () => {
+        if (this.state !== 'title') return
+        this.state = 'shop'
+        this.title.hide()
+        this.shop.show(() => this._showTitle())
+      },
       onCodex: () => {
         if (this.state !== 'title') return
         this.state = 'codex'
         this.title.hide()
-        this.codex.show(() => { this.state = 'title'; this.title.show() })
+        this.codex.show(() => this._showTitle())
       },
-    })
-    this._needsStaticRender = true
-  }
-
-  _showSanctum() {
-    this._clearRunSession({ clearSelection: true })
-    this.state = 'sanctum'
-    this.title.hide()
-    this.result.hide()
-    this.presentation.showTitle()
-    this.sanctum.show({
-      expedition: () => this._showRunSetup(EXPEDITION_RUN_MODE_2D),
-      survival: () => this._showRunSetup(SURVIVAL_RUN_MODE_2D),
-      cultivation: () => {
-        if (this.state !== 'sanctum') return
-        this.state = 'shop'
-        this.sanctum.hide()
-        this.shop.show(() => this._showSanctum())
-      },
-      codex: () => {
-        if (this.state !== 'sanctum') return
-        this.state = 'codex'
-        this.sanctum.hide()
-        this.codex.show(() => this._showSanctum())
-      },
-      title: () => this._showTitle(),
     })
     this._needsStaticRender = true
   }
 
   _showRunSetup(mode) {
-    if (this.state !== 'sanctum') return
+    if (this.state !== 'title') return
     this.state = 'setup'
-    this.sanctum.hide()
+    this.title.hide()
     this.title.showSetup({
       onStart: (id, stageId, options) => this._startRun(id, stageId, options),
       onUnlock: () => this._persist(),
-      onBack: () => this._showSanctum(),
+      onBack: () => this._showTitle(),
     }, { mode })
     this._needsStaticRender = true
   }
@@ -1623,7 +1601,7 @@ export class Game2D {
       onRestart: () => this._startRun(
         restartCharacterId, restartStageId, retryOptions2D(replay.mode, replay.seed),
       ),
-      onMenu: () => this._showSanctum(),
+      onMenu: () => this._showTitle(),
     })
     this._needsStaticRender = true
   }
@@ -1643,7 +1621,6 @@ export class Game2D {
     if (this.input.moveX > 0.5) dir = 1
     else if (this.input.moveX < -0.5) dir = -1
     if (this.state === 'title' || this.state === 'setup') this.title.handleKey(slot, confirm, this._edge(dir))
-    else if (this.state === 'sanctum') this.sanctum.handleKey(slot, confirm, this._edge(dir))
     else if (modalOwnsConfirm) this.modal.handleKey(slot, confirm, this._edge(dir))
     else if (this.state === 'result') this.result.handleKey(confirm, this._edge(dir))
     else if (this.state === 'shop') this.shop.handleKey(confirm)
@@ -2139,7 +2116,6 @@ export class Game2D {
     this.hud.dispose()
     this.modal.dispose()
     this.title.dispose()
-    this.sanctum?.dispose?.()
     this.result.dispose()
     this.shop.dispose()
     this.codex.dispose()

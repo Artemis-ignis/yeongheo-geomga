@@ -76,14 +76,14 @@ export const ACHIEVEMENTS = [
 
   // ---- optional heavenly trial -----------------------------------------
   {
-    id: 'survive5', name: '오분지기',
-    desc: '천겁 기록전에서 5분을 버틴다.',
+    id: 'survive5', name: '천겁의 초입',
+    desc: '천겁 기록전의 첫 대공세를 돌파한다.',
     scope: 'run', stones: 60,
     test: (r) => r.mode !== 'expedition' && r.runTime >= 300,
   },
   {
     // Keep the legacy id so existing saves do not lose an earned badge.
-    id: 'survive10', name: '칠분지기',
+    id: 'survive10', name: '천겁 완수',
     desc: '천겁 기록전의 극한 공세를 끝까지 버틴다.',
     scope: 'run', stones: 140,
     test: (r) => r.mode !== 'expedition' && r.runTime >= 420,

@@ -3605,6 +3605,8 @@ export class PixiPresentation {
     this.viewport = { width: 1, height: 1, zoom: 1 }
     this.cameraX = 0
     this.cameraZ = 0
+    this.cameraTargetX = 0
+    this.cameraTargetZ = 0
     this.playerX = 0
     this.playerZ = 0
     this.heroTravelDistance = 0
@@ -4691,6 +4693,8 @@ export class PixiPresentation {
     this.heroShadow.visible = true
     this.cameraX = snapshot.player.x
     this.cameraZ = snapshot.player.z
+    this.cameraTargetX = snapshot.player.x
+    this.cameraTargetZ = snapshot.player.z
     this.playerX = snapshot.player.x
     this.playerZ = snapshot.player.z
     this.heroTravelDistance = 0
@@ -4801,13 +4805,7 @@ export class PixiPresentation {
     shadow.position.set(_screen.x, _screen.y + grounding.shadowOffsetY)
     shadow.width = Math.max(grounding.minShadowWidth, height * grounding.shadowWidth)
     shadow.height = Math.max(grounding.minShadowHeight, height * grounding.shadowHeight)
-    // A prop fading because it overlaps the heroine must not also erase its
-    // contact shadow. Doing so leaves a fully visible upper silhouette with no
-    // floor contact and makes the scenery appear to hover.
-    const shadowVisibility = (entry.groundingKey === 'prop' || entry.groundingKey === 'poi')
-      ? Math.max(0.72, alpha)
-      : alpha
-    shadow.alpha = shadowVisibility * grounding.shadowAlpha
+    shadow.alpha = alpha * grounding.shadowAlpha
     shadow.visible = sprite.visible
     const bucket = depthBucket(_screen.y, this.viewport.height)
     if (entry.bucket !== bucket) {
@@ -4826,12 +4824,10 @@ export class PixiPresentation {
         continue
       }
       const visualHeight = entry.height * this._presentationScale
-      const playerDistance = Math.hypot(entry.x - this.playerX, entry.z - this.playerZ)
-      const playerFade = Math.max(0.22, Math.min(1, (playerDistance - 1.8) / 3.5))
       entry.sprite.anchor.y = actorFootPivot2D('prop', entry.frame)
       const materialTint = PROP_MATERIAL_TINTS_2D[entry.frame % PROP_MATERIAL_TINTS_2D.length]
       const regionTint = REGION_TERRAIN_PRESENTATION_2D[entry.regionId]?.propTint ?? materialTint
-      this._placeActor(entry, entry.x, entry.z, visualHeight, playerFade, 0, blendTint2D(materialTint, regionTint, 0.18))
+      this._placeActor(entry, entry.x, entry.z, visualHeight, 1, 0, blendTint2D(materialTint, regionTint, 0.18))
       // Never rotate a planter or stone from its base. Only the cloth banner
       // receives a restrained whole-cell sway; the other props stay planted.
       entry.sprite.rotation = entry.frame === 4
@@ -4843,7 +4839,7 @@ export class PixiPresentation {
         const flicker = 0.9 + Math.sin(this.time * 6.7 + entry.phase) * 0.1
         entry.glow.width = visualHeight * 1.02 * flicker
         entry.glow.height = visualHeight * 0.46 * flicker
-        entry.glow.alpha = 0.21 * flicker * playerFade
+        entry.glow.alpha = 0.21 * flicker
       }
       const grounding = actorGroundingProfile2D('prop', entry.frame)
       entry.contact.position.set(
@@ -4854,7 +4850,7 @@ export class PixiPresentation {
       entry.contact.width = Math.max(22, visualHeight * grounding.contactWidth) * footprint
       entry.contact.height = Math.max(6, visualHeight * grounding.contactHeight)
       entry.contact.tint = blendTint2D(grounding.contactTint, regionTint, 0.22)
-      entry.contact.alpha = playerFade * grounding.contactAlpha * (entry.landmark ? 1.15 : 1)
+      entry.contact.alpha = grounding.contactAlpha * (entry.landmark ? 1.15 : 1)
       entry.contact.visible = entry.sprite.visible && grounding.contactAlpha > 0
       const edge = Math.min(_screen.x, this.viewport.width - _screen.x, _screen.y, this.viewport.height - _screen.y)
       const fade = Math.max(0, Math.min(1, (edge + 45) / 125))
@@ -5576,14 +5572,20 @@ export class PixiPresentation {
       this.playerX = targetX
       this.playerZ = targetZ
       const moving = snapshot.player.speed01 > 0.08
-      cameraTargetWithDeadZone2D(
-        this.cameraX, this.cameraZ, targetX, targetZ, this.viewport, moving, _cameraTarget,
-      )
-      // Never pull the world back underneath a stationary heroine. Applying
-      // the same dead zone after movement stops preserves her visible travel
-      // and prevents the floor/props from sliding while she stands still.
-      this.cameraX = cameraFollowStep2D(this.cameraX, _cameraTarget.x, dt)
-      this.cameraZ = cameraFollowStep2D(this.cameraZ, _cameraTarget.z, dt)
+      if (moving) {
+        cameraTargetWithDeadZone2D(
+          this.cameraTargetX, this.cameraTargetZ, targetX, targetZ, this.viewport, true, _cameraTarget,
+        )
+        this.cameraTargetX = _cameraTarget.x
+        this.cameraTargetZ = _cameraTarget.z
+      } else {
+        // A released movement key cancels the remainder of a page pan. Nothing
+        // in the world is allowed to keep sliding under a stationary heroine.
+        this.cameraTargetX = this.cameraX
+        this.cameraTargetZ = this.cameraZ
+      }
+      this.cameraX = cameraFollowStep2D(this.cameraX, this.cameraTargetX, dt)
+      this.cameraZ = cameraFollowStep2D(this.cameraZ, this.cameraTargetZ, dt)
       const shake = snapshot.world.shake
       if (shake > 0) {
         this.cameraX += Math.sin(this.time * 83) * shake * 0.035

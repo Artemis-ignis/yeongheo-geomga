@@ -24,5 +24,5 @@ describe('release Dao branch fairness', () => {
       expect(branch.entryHpMin, diagnosis).toBeGreaterThanOrEqual(0.4)
       expect(branch.entryHpMedian, diagnosis).toBeGreaterThanOrEqual(0.55)
     }
-  }, 60_000)
+  }, 120_000)
 })

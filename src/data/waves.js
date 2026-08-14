@@ -5,10 +5,10 @@
 export const RUN_SECONDS = 420
 
 /**
- * Seven-minute pressure curve. It starts with readable packs that teach
+ * Optional 천겁 기록전 pressure curve. It starts with readable packs that teach
  * movement and combat immediately, introduces silhouettes gradually, and
  * grows every band without turning the authored actors into an indistinct
- * debug stress crowd. Density and the shorter entry ring in
+ * debug stress crowd. Density and the off-screen ingress frontier in
  * `CombatWorld2D` are tuned together; changing one requires replaying both the
  * fresh-save and progressed-save paths.
  */

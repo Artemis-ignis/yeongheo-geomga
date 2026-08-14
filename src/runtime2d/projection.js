@@ -6,11 +6,10 @@ export const SORT_BUCKETS = 64
  * step below is frame-rate independent: equal elapsed time converges to the
  * same point regardless of how it is partitioned into render frames.
  */
-// A very stiff follow (the previous value was 8) pinned the heroine to the
-// edge of a small dead zone almost immediately. World coordinates were moving,
-// but the floor did most of the visible travelling and locomotion read like a
-// treadmill. Let the authored stride lead the camera, then catch up smoothly.
-export const CAMERA_FOLLOW_RESPONSE_2D = 5.2
+// Camera motion is now a short page transition, not a permanent chase. Once
+// the heroine crosses a broad outer gate, this response settles the next world
+// anchor quickly enough that most play happens against a stable environment.
+export const CAMERA_FOLLOW_RESPONSE_2D = 4.8
 
 export function cameraFollowFactor2D(dtSeconds, response = CAMERA_FOLLOW_RESPONSE_2D) {
   const dt = Math.max(0, Math.min(0.25, Number(dtSeconds) || 0))
@@ -79,9 +78,10 @@ export function unprojectScreen(screenX, screenY, cameraX, cameraZ, viewport, ou
 }
 
 /**
- * Let the heroine visibly cross a compact screen-space window before the
- * camera follows. Locking her to the exact focal point made valid world
- * movement read like a treadmill with a video sliding underneath it.
+ * Resolve a stable world-page anchor. The heroine traverses most of the screen
+ * while the camera stays still. Crossing an outer gate advances the anchor far
+ * enough to place her on the opposite inner guide, producing one short pan and
+ * another long stretch of visible on-screen travel.
  */
 export function cameraTargetWithDeadZone2D(
   cameraX,
@@ -97,9 +97,8 @@ export function cameraTargetWithDeadZone2D(
   const targetX = Number.isFinite(Number(playerX)) ? Number(playerX) : fromX
   const targetZ = Number.isFinite(Number(playerZ)) ? Number(playerZ) : fromZ
 
-  // Once the player releases movement, freeze the presentation camera where
-  // it is. Finishing the previous follow interpolation after the heroine has
-  // stopped makes only the floor and props drift for several more frames.
+  // The presentation owns whether an in-flight page pan may continue. This
+  // pure helper keeps a stopped anchor unchanged.
   if (!moving) {
     out.x = fromX
     out.z = fromZ
@@ -109,22 +108,21 @@ export function cameraTargetWithDeadZone2D(
   const screen = projectWorld(targetX, targetZ, fromX, fromZ, viewport, {})
   const centerX = Math.max(1, viewport?.width ?? 1) * 0.5
   const centerY = Math.max(1, viewport?.height ?? 1) * 0.57
-  // The heroine must visibly traverse the arena before the camera moves. The
-  // former 114px horizontal / 61px vertical window at the real Chrome viewport
-  // was exhausted in a fraction of a stride and recreated the exact
-  // "stationary actor over a scrolling video" failure reported in play.
-  // These bounds still retain the full robe and sword inside compact windows.
-  const deadZoneX = clamp(centerX * 0.26, 136, 260)
-  const deadZoneY = clamp(Math.max(1, viewport?.height ?? 1) * 0.14, 72, 150)
+  const width = Math.max(1, viewport?.width ?? 1)
+  const height = Math.max(1, viewport?.height ?? 1)
+  const outerX = clamp(width * 0.41, 280, 1050)
+  const outerY = clamp(height * 0.34, 156, 540)
+  const innerX = clamp(width * 0.22, 112, 560)
+  const innerY = clamp(height * 0.18, 62, 260)
   const offsetX = screen.x - centerX
   const offsetY = screen.y - centerY
 
   out.x = fromX
   out.z = fromZ
-  if (offsetX > deadZoneX) out.x += (offsetX - deadZoneX) / screen.unit
-  else if (offsetX < -deadZoneX) out.x += (offsetX + deadZoneX) / screen.unit
-  if (offsetY > deadZoneY) out.z += (offsetY - deadZoneY) / screen.depthUnit
-  else if (offsetY < -deadZoneY) out.z += (offsetY + deadZoneY) / screen.depthUnit
+  if (offsetX > outerX) out.x += (offsetX - innerX) / screen.unit
+  else if (offsetX < -outerX) out.x += (offsetX + innerX) / screen.unit
+  if (offsetY > outerY) out.z += (offsetY - innerY) / screen.depthUnit
+  else if (offsetY < -outerY) out.z += (offsetY + innerY) / screen.depthUnit
   return out
 }
 

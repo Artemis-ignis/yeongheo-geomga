@@ -11,7 +11,7 @@
       "tier": "scene",
       "source": "imagegen",
       "consumers": [
-        "styles/ink-ui.css",
+        "src/data/journey.js",
         "src/runtime2d/PixiPresentation.js"
       ],
       "maxBytes": 4000000
@@ -634,47 +634,47 @@
       "maxBytes": 2000000
     },
     {
-      "id": "sprite2d.seolryeong.heroine-east.motion.v2",
-      "path": "public/assets/sprites2d/seolryeong-heroine-east-motion-v2.webp",
+      "id": "sprite2d.seolryeong.heroine-east.motion.v4",
+      "path": "public/assets/sprites2d/seolryeong-heroine-east-motion-v4.webp",
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
-      "source": "imagegen-alpha-normalized-16-frame-v2",
+      "source": "imagegen-identity-preserve-chroma-alpha-normalized-16-frame-v4",
       "consumers": ["src/runtime2d/spriteManifest.js"],
       "maxBytes": 1500000
     },
     {
-      "id": "sprite2d.seolryeong.heroine-southeast.motion.v2",
-      "path": "public/assets/sprites2d/seolryeong-heroine-southeast-motion-v2.webp",
+      "id": "sprite2d.seolryeong.heroine-southeast.motion.v4",
+      "path": "public/assets/sprites2d/seolryeong-heroine-southeast-motion-v4.webp",
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
-      "source": "imagegen-alpha-normalized-16-frame-v2",
+      "source": "imagegen-identity-preserve-chroma-alpha-normalized-16-frame-v4",
       "consumers": ["src/runtime2d/spriteManifest.js"],
       "maxBytes": 1500000
     },
     {
-      "id": "sprite2d.seolryeong.heroine-north.motion.v3",
-      "path": "public/assets/sprites2d/seolryeong-heroine-north-motion-v3.webp",
+      "id": "sprite2d.seolryeong.heroine-north.motion.v4",
+      "path": "public/assets/sprites2d/seolryeong-heroine-north-motion-v4.webp",
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
-      "source": "imagegen-chroma-normalized-run-v3-plus-approved-attack-v2",
+      "source": "imagegen-identity-preserve-chroma-alpha-normalized-16-frame-v4",
       "consumers": ["src/runtime2d/spriteManifest.js"],
       "maxBytes": 1500000
     },
     {
-      "id": "sprite2d.seolryeong.heroine-northeast.motion.v2",
-      "path": "public/assets/sprites2d/seolryeong-heroine-northeast-motion-v2.webp",
+      "id": "sprite2d.seolryeong.heroine-northeast.motion.v4",
+      "path": "public/assets/sprites2d/seolryeong-heroine-northeast-motion-v4.webp",
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
-      "source": "imagegen-alpha-normalized-16-frame-v2",
+      "source": "imagegen-identity-preserve-chroma-alpha-normalized-16-frame-v4",
       "consumers": ["src/runtime2d/spriteManifest.js"],
       "maxBytes": 1500000
     },
     {
-      "id": "sprite2d.seolryeong.heroine-south.motion.v3",
-      "path": "public/assets/sprites2d/seolryeong-heroine-south-motion-v3.webp",
+      "id": "sprite2d.seolryeong.heroine-south.motion.v4",
+      "path": "public/assets/sprites2d/seolryeong-heroine-south-motion-v4.webp",
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
-      "source": "imagegen-chroma-normalized-run-v3-plus-approved-attack-v2",
+      "source": "imagegen-identity-preserve-chroma-alpha-normalized-16-frame-v4",
       "consumers": ["src/runtime2d/spriteManifest.js"],
       "maxBytes": 1500000
     },
@@ -1060,38 +1060,38 @@
       "maxBytes": 2500000
     },
     {
-      "id": "sprite2d.source.seolryeong.east.run.v3",
-      "path": "assets-source/sprites2d/seolryeong-east-run-sheet-v3.png",
+      "id": "sprite2d.source.seolryeong.east.run.v4",
+      "path": "assets-source/sprites2d/seolryeong-east-run-sheet-v4.png",
       "role": "authoring-2d-hero-directional-run-sheet",
       "tier": "authoring", "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
     },
     {
-      "id": "sprite2d.source.seolryeong.east.attack.v3",
-      "path": "assets-source/sprites2d/seolryeong-east-attack-sheet-v3.png",
+      "id": "sprite2d.source.seolryeong.east.attack.v4",
+      "path": "assets-source/sprites2d/seolryeong-east-attack-sheet-v4.png",
       "role": "authoring-2d-hero-directional-attack-sheet",
       "tier": "authoring", "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
     },
     {
-      "id": "sprite2d.source.seolryeong.southeast.run.v2",
-      "path": "assets-source/sprites2d/seolryeong-southeast-run-sheet-v2.png",
+      "id": "sprite2d.source.seolryeong.southeast.run.v4",
+      "path": "assets-source/sprites2d/seolryeong-southeast-run-sheet-v4.png",
       "role": "authoring-2d-hero-directional-run-sheet",
       "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
     },
     {
-      "id": "sprite2d.source.seolryeong.southeast.attack.v2",
-      "path": "assets-source/sprites2d/seolryeong-southeast-attack-sheet-v2.png",
+      "id": "sprite2d.source.seolryeong.southeast.attack.v4",
+      "path": "assets-source/sprites2d/seolryeong-southeast-attack-sheet-v4.png",
       "role": "authoring-2d-hero-directional-attack-sheet",
       "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
     },
     {
-      "id": "sprite2d.source.seolryeong.south.run.v3",
-      "path": "assets-source/sprites2d/seolryeong-south-run-sheet-v3.png",
+      "id": "sprite2d.source.seolryeong.south.run.v4",
+      "path": "assets-source/sprites2d/seolryeong-south-run-sheet-v4.png",
       "role": "authoring-2d-hero-directional-run-sheet",
       "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
     },
     {
-      "id": "sprite2d.source.seolryeong.south.attack.v2",
-      "path": "assets-source/sprites2d/seolryeong-south-attack-sheet-v2.png",
+      "id": "sprite2d.source.seolryeong.south.attack.v4",
+      "path": "assets-source/sprites2d/seolryeong-south-attack-sheet-v4.png",
       "role": "authoring-2d-hero-directional-attack-sheet",
       "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
     },
@@ -1126,26 +1126,26 @@
       "tier": "authoring", "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
     },
     {
-      "id": "sprite2d.source.seolryeong.northeast.run.v2",
-      "path": "assets-source/sprites2d/seolryeong-northeast-run-sheet-v2.png",
+      "id": "sprite2d.source.seolryeong.northeast.run.v4",
+      "path": "assets-source/sprites2d/seolryeong-northeast-run-sheet-v4.png",
       "role": "authoring-2d-hero-directional-run-sheet",
       "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
     },
     {
-      "id": "sprite2d.source.seolryeong.northeast.attack.v2",
-      "path": "assets-source/sprites2d/seolryeong-northeast-attack-sheet-v2.png",
+      "id": "sprite2d.source.seolryeong.northeast.attack.v4",
+      "path": "assets-source/sprites2d/seolryeong-northeast-attack-sheet-v4.png",
       "role": "authoring-2d-hero-directional-attack-sheet",
       "tier": "authoring", "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
     },
     {
-      "id": "sprite2d.source.seolryeong.north.run.v3",
-      "path": "assets-source/sprites2d/seolryeong-north-run-sheet-v3.png",
+      "id": "sprite2d.source.seolryeong.north.run.v4",
+      "path": "assets-source/sprites2d/seolryeong-north-run-sheet-v4.png",
       "role": "authoring-2d-hero-directional-run-sheet",
       "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
     },
     {
-      "id": "sprite2d.source.seolryeong.north.attack.v2",
-      "path": "assets-source/sprites2d/seolryeong-north-attack-sheet-v2.png",
+      "id": "sprite2d.source.seolryeong.north.attack.v4",
+      "path": "assets-source/sprites2d/seolryeong-north-attack-sheet-v4.png",
       "role": "authoring-2d-hero-directional-attack-sheet",
       "tier": "authoring", "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
     },

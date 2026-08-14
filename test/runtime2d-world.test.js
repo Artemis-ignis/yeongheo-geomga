@@ -89,11 +89,13 @@ describe('CombatWorld2D', () => {
     expect(world.weaponCache).toEqual([{ id: 'flyingSword', level: 1 }])
   })
 
-  it('runs the canonical opening wave and weapon on a fixed tick', () => {
+  it('lets the canonical opening wave enter the field before the first weapon cast', () => {
     const world = makeWorld()
     for (let i = 0; i < 120; i++) world.update(1 / 60, idleInput)
     expect(world.runTime).toBeCloseTo(2)
     expect(world.enemies.count).toBeGreaterThan(0)
+    expect(world.projectiles.count).toBe(0)
+    for (let i = 0; i < 300 && world.projectiles.count === 0; i++) world.update(1 / 60, idleInput)
     expect(world.projectiles.count).toBeGreaterThan(0)
     world.player.attackTimer = 0
     world._fireWeapon('flyingSword', 1)
@@ -221,6 +223,38 @@ describe('CombatWorld2D', () => {
     const moving = { moveX: 1, moveZ: 0, consumeDash: () => false }
     for (let i = 0; i < 600; i++) world.player.update(1 / 60, moving)
     expect(world.player.x).toBeGreaterThan(42)
+  })
+
+  it('introduces enemy packs beyond the visible frontier instead of around the player', () => {
+    const world = makeWorld(211)
+    world.player.x = 18
+    world.player.z = -9
+
+    world.enemies._spawnWave(0, world.runTime, world.player)
+
+    expect(world.enemies.count).toBeGreaterThan(0)
+    for (let i = 0; i < world.enemies.count; i++) {
+      const dx = world.enemies.x[i] - world.player.x
+      const dz = world.enemies.z[i] - world.player.z
+      const radius = Math.hypot(dx, dz)
+      expect(
+        Math.abs(dx) >= 36 || dz <= -52 || dz >= 44,
+        `enemy ${i} spawned inside the visible play field at (${dx}, ${dz})`,
+      ).toBe(true)
+      expect(radius).toBeGreaterThan(35)
+    }
+  })
+
+  it('retires distant enemies instead of teleporting them back beside the player', () => {
+    const world = makeWorld(212)
+    world.enemies.spawnTimer = 999
+    world.enemies.spawn('wolf', world.player.x + 80, world.player.z, world.runTime)
+
+    world.enemies.update(1 / 60, world.runTime, world.player)
+
+    expect(world.enemies.count).toBe(0)
+    expect(world.enemies.killCount).toBe(0)
+    expect(world.pickups.count).toBe(0)
   })
 
   it('spawns the authored jade boss without importing the 3D manager', () => {

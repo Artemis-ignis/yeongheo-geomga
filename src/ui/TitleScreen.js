@@ -4,10 +4,9 @@ import { isReleasePlayableCharacter } from '../data/characters.js'
 import { unlockCost } from '../data/unlocks.js'
 import { STAGES, isReleaseStage } from '../data/stages.js'
 import { TRIALS, getTrial } from '../data/trials.js'
-import { getJourneyChapterForStage, journeyLegacyFor } from '../data/journey.js'
+import { getJourneyChapterForStage, journeyLegacyFor, journeyProgressFor } from '../data/journey.js'
 
 const TITLE_ART = 'assets/marketing/yeongheo-ink-title-v1.webp'
-const SETUP_ART = 'assets/environment/jade-sanctuary-environment-v2.webp'
 const SEOLRYEONG_ART = 'assets/sprites2d/seolryeong-combat-v1.webp'
 
 // The stage cards use dedicated 1024×448 environment thumbnails. Keeping this
@@ -120,11 +119,22 @@ export class TitleScreen {
             <div class="title-sub">검의 맹세 · 영허의 길</div>
           </div>
 
-          <nav class="title-menu" aria-label="시작 메뉴">
-            <button type="button" class="btn clickable title-enter" data-act="enter" aria-label="영허전으로 들어가기">
-              <span class="title-action-label">영허전으로 들어가기</span>
-              <span class="title-action-meta">설령의 수행을 이어갑니다</span>
+          <section class="title-route" aria-label="현재 검로">
+            <span class="title-route-chapter">제1장</span>
+            <strong class="title-route-name">옥산에 번지는 마기</strong>
+            <small class="title-route-objective">검흔을 판독하고 봉인 문서를 회수하십시오</small>
+          </section>
+
+          <nav class="title-menu" aria-label="영허검가 수행 메뉴">
+            <button type="button" class="btn clickable title-enter" data-act="expedition" aria-label="옥산 사건 출정">
+              <span class="title-action-label">옥산으로 출정</span>
+              <span class="title-action-meta">조사 · 추적 · 결단 · 봉인</span>
             </button>
+            <button type="button" class="btn btn-alt clickable" data-act="survival">
+              <span class="title-action-label">천겁 기록전</span>
+              <span class="title-action-meta">제1장 완수 후 개방</span>
+            </button>
+            <button type="button" class="btn btn-alt clickable" data-act="cultivation">수련과 전승</button>
             <button type="button" class="btn btn-alt clickable" data-act="codex">천하록</button>
           </nav>
 
@@ -147,7 +157,7 @@ export class TitleScreen {
             <div class="trial-pips"></div>
             <div class="trial-desc"></div>
           </div>
-          <button type="button" class="btn btn-alt btn-back clickable" data-act="stageBack">← 영허전으로 돌아가기</button>
+          <button type="button" class="btn btn-alt btn-back clickable" data-act="stageBack">← 처음 화면으로 돌아가기</button>
         </section>
 
         <section class="char-select" style="display:none" aria-labelledby="char-select-title">
@@ -205,9 +215,19 @@ export class TitleScreen {
     this.confirmStartButton = this.node.querySelector('[data-act="confirmStart"]')
     this.confirmBackButton = this.node.querySelector('[data-act="confirmBack"]')
 
-    this.node.querySelector('[data-act="enter"]').addEventListener('click', () => {
+    this.node.querySelector('[data-act="expedition"]').addEventListener('click', () => {
       this._uiCue('confirm')
-      this.handlers.onEnter?.()
+      this.handlers.onExpedition?.()
+    })
+    this.survivalButton = this.node.querySelector('[data-act="survival"]')
+    this.survivalButton.addEventListener('click', () => {
+      if (this.survivalButton.disabled) return
+      this._uiCue('confirm')
+      this.handlers.onSurvival?.()
+    })
+    this.node.querySelector('[data-act="cultivation"]').addEventListener('click', () => {
+      this._uiCue('confirm')
+      this.handlers.onCultivation?.()
     })
     this.node.querySelector('[data-act="codex"]').addEventListener('click', () => {
       this._uiCue('confirm')
@@ -399,16 +419,12 @@ export class TitleScreen {
 
   _applyViewPresentation(view) {
     const menuView = view === 'menu'
-    const image = assetUrl(menuView ? TITLE_ART : SETUP_ART)
+    const image = assetUrl(TITLE_ART)
     this.node.style.backgroundImage = menuView
       ? `linear-gradient(180deg, rgba(244, 239, 220, 0.02), rgba(14, 13, 11, 0.10)), url("${image}")`
-      : `linear-gradient(180deg, rgba(4, 11, 19, 0.76), rgba(4, 8, 13, 0.94)), url("${image}")`
-    this.node.style.backgroundPosition = menuView
-      ? 'center, center'
-      : 'center, center 48%'
-    this.node.style.backgroundSize = menuView
-      ? 'cover, cover'
-      : 'cover, cover'
+      : `linear-gradient(90deg, rgba(232, 224, 204, 0.94), rgba(232, 224, 204, 0.82) 58%, rgba(232, 224, 204, 0.38)), url("${image}")`
+    this.node.style.backgroundPosition = 'center, center'
+    this.node.style.backgroundSize = 'cover, cover'
     this.node.style.backgroundRepeat = 'no-repeat, no-repeat'
 
     this.titleMenuView.style.display = menuView ? '' : 'none'
@@ -448,7 +464,7 @@ export class TitleScreen {
     this._showMenu()
   }
 
-  /** Open route selection from the sanctum instead of the title facade. */
+  /** Open route selection inside the single home screen. */
   showSetup(handlers, { mode = 'expedition' } = {}) {
     if (handlers) this.handlers = handlers
     this.setupMode = mode === 'survival' ? 'survival' : 'expedition'
@@ -475,6 +491,33 @@ export class TitleScreen {
     this.stageView.style.display = 'none'
     this.confirmView.style.display = 'none'
     this.stonesLabel.textContent = `보유 영석 ${this.progress.stones}`
+    const journey = journeyProgressFor(this.progress)
+    const chapter = journey.current
+    const decisions = typeof this.progress.journeyDecisions === 'function'
+      ? this.progress.journeyDecisions(chapter.id)
+      : [...(this.progress.state.journey?.decisions?.[chapter.id] ?? [])]
+    this.node.querySelector('.title-route-chapter').textContent = journey.complete ? '제1장 완수' : chapter.indexLabel
+    this.node.querySelector('.title-route-name').textContent = journey.complete ? chapter.nextGoal : chapter.title
+    this.node.querySelector('.title-route-objective').textContent = journey.complete
+      ? chapter.completionCopy
+      : chapter.objective
+    const expedition = this.node.querySelector('[data-act="expedition"]')
+    const expeditionLabel = expedition?.querySelector('.title-action-label')
+    const expeditionMeta = expedition?.querySelector('.title-action-meta')
+    if (expeditionLabel) expeditionLabel.textContent = journey.complete ? '옥산 재탐사' : chapter.entryLabel
+    if (expeditionMeta) expeditionMeta.textContent = journey.complete
+      ? '남은 검흔과 인연을 다시 추적합니다'
+      : '조사 · 추적 · 결단 · 봉인'
+    const survival = this.survivalButton
+    const survivalMeta = survival?.querySelector('.title-action-meta')
+    if (survival) {
+      survival.disabled = !journey.complete
+      survival.setAttribute('aria-disabled', journey.complete ? 'false' : 'true')
+    }
+    if (survivalMeta) survivalMeta.textContent = journey.complete
+      ? '완성한 검로의 한계를 시험하는 극한 도전'
+      : `${chapter.indexLabel} 완수 후 개방`
+    this.node.dataset.decisions = String(decisions.length)
     this._announce('')
     this.setMenuFocus(0)
   }
@@ -696,7 +739,7 @@ export class TitleScreen {
       : '옥산 사건 출정'
     this.confirmBackButton.textContent = this.setupMode === 'survival'
       ? '← 비경 다시 고르기'
-      : '← 영허전으로 돌아가기'
+      : '← 처음 화면으로 돌아가기'
     this._announce(this.setupMode === 'survival'
       ? `${character.name}, ${stage.name}, ${trial.name} 시련을 선택했습니다.`
       : `${character.name}의 옥산 사건 출정 준비가 끝났습니다.`)
@@ -804,9 +847,12 @@ export class TitleScreen {
       if (dir) { this.setMenuFocus(this.menuFocus + dir); return }
       const index = slot > 0 ? slot - 1 : this.menuFocus
       if (confirm || slot > 0) {
+        if (this.menuButtons[index]?.disabled) return
         this._uiCue('confirm')
-        if (index === 0) this.handlers.onEnter?.()
-        else if (index === 1) this.handlers.onCodex?.()
+        if (index === 0) this.handlers.onExpedition?.()
+        else if (index === 1) this.handlers.onSurvival?.()
+        else if (index === 2) this.handlers.onCultivation?.()
+        else if (index === 3) this.handlers.onCodex?.()
       }
       return
     }

@@ -84,14 +84,14 @@ describe('runtime2d projection', () => {
     expect(world.z).toBeCloseTo(-6.5)
   })
 
-  it('lets the player move visibly inside a screen-space camera dead zone', () => {
+  it('holds a stable world page until the player crosses a broad screen gate', () => {
     const viewport = { width: 1920, height: 1080, zoom: 1 }
-    expect(cameraTargetWithDeadZone2D(0, 0, 2, 2, viewport, true)).toEqual({ x: 0, z: 0 })
+    expect(cameraTargetWithDeadZone2D(0, 0, 12, 12, viewport, true)).toEqual({ x: 0, z: 0 })
 
-    const target = cameraTargetWithDeadZone2D(0, 0, 20, 20, viewport, true)
-    const projected = projectWorld(20, 20, target.x, target.z, viewport)
-    expect(projected.x - viewport.width * 0.5).toBeCloseTo(249.6)
-    expect(projected.y - viewport.height * 0.57).toBeCloseTo(150)
+    const target = cameraTargetWithDeadZone2D(0, 0, 26, 32, viewport, true)
+    const projected = projectWorld(26, 32, target.x, target.z, viewport)
+    expect(projected.x - viewport.width * 0.5).toBeCloseTo(422.4)
+    expect(projected.y - viewport.height * 0.57).toBeCloseTo(194.4)
     expect(cameraTargetWithDeadZone2D(0, 0, 2, 2, viewport, false)).toEqual({ x: 0, z: 0 })
   })
 

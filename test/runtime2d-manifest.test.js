@@ -28,12 +28,9 @@ describe('runtime2d sprite contract', () => {
     expect(hero.sheet).toEqual([4, 4])
     expect(hero.animations.run).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
     expect(hero.animations.attack).toEqual([8, 9, 10, 11, 12, 13, 14, 15])
-    expect(hero.url).toContain('seolryeong-heroine-southeast-motion-v2.webp')
-    for (const direction of ['east', 'northeast']) {
-      expect(hero.directionalRuntime[direction].url).toContain('-motion-v2.webp')
-    }
-    for (const direction of ['north', 'south']) {
-      expect(hero.directionalRuntime[direction].url).toContain('-motion-v3.webp')
+    expect(hero.url).toContain('seolryeong-heroine-southeast-motion-v4.webp')
+    for (const direction of ['east', 'northeast', 'north', 'south']) {
+      expect(hero.directionalRuntime[direction].url).toContain('-motion-v4.webp')
     }
     expect(Object.keys(hero.reactionRuntime).sort()).toEqual([
       'east', 'north', 'northeast', 'south', 'southeast',

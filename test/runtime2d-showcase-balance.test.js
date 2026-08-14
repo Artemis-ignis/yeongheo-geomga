@@ -178,7 +178,7 @@ describe('showcase damage-path balance', () => {
     expect(stoneBalance).toBeCloseTo(0, 4)
   })
 
-  it('survives the exact slower browser-playtest input cadence through 7:00', () => {
+  it('survives the exact slower browser-playtest input cadence through final judgment', () => {
     const { world } = runShowcase(RUN_SECONDS_2D, {
       directionSeconds: 6.5,
       dashSeconds: 3.05,

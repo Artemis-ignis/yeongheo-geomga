@@ -17,8 +17,6 @@ $serveScript = Join-Path $PSScriptRoot 'serve-dist.ps1'
 $gameUrl = "http://127.0.0.1:$Port/"
 $publicGameUrl = 'https://yeongheo-geomga.vercel.app/'
 $server = $null
-$serverLog = $null
-$serverErrLog = $null
 
 function Get-PowerShellExecutable {
   $candidate = Join-Path $PSHOME 'powershell.exe'
@@ -174,17 +172,6 @@ function Open-GameOnce {
   Write-Host '  브라우저를 한 번 열었습니다.'
 }
 
-function Read-ServerLog {
-  $parts = @()
-  foreach ($file in @($serverLog, $serverErrLog)) {
-    if ($file -and (Test-Path -LiteralPath $file -PathType Leaf)) {
-      $content = Get-Content -LiteralPath $file -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
-      if ($content) { $parts += $content.Trim() }
-    }
-  }
-  return ($parts -join "`n")
-}
-
 try {
   Write-Host ''
   Write-Host '  영허검가를 실행합니다...'
@@ -219,11 +206,6 @@ try {
   }
 
   $powershell = Get-PowerShellExecutable
-  $tempRoot = [IO.Path]::GetTempPath()
-  $serverLog = Join-Path $tempRoot ("yeongheo-geomga-server-$PID.log")
-  $serverErrLog = Join-Path $tempRoot ("yeongheo-geomga-server-$PID.err.log")
-  Remove-Item -LiteralPath $serverLog, $serverErrLog -Force -ErrorAction SilentlyContinue
-
   Write-Host '  Node/npm 없이 dist 폴더를 정적 서버로 준비합니다.'
   Write-Host "  게임 주소: $gameUrl"
   $arguments = @(
@@ -234,7 +216,7 @@ try {
     '-Port', [string]$Port,
     '-ParentPid', [string]$PID
   )
-  $server = Start-Process -FilePath $powershell -ArgumentList $arguments -WorkingDirectory $gameRoot -WindowStyle Hidden -RedirectStandardOutput $serverLog -RedirectStandardError $serverErrLog -PassThru
+  $server = Start-Process -FilePath $powershell -ArgumentList $arguments -WorkingDirectory $gameRoot -WindowStyle Hidden -PassThru
 
   $deadline = (Get-Date).AddSeconds(30)
   $ready = $false
@@ -246,14 +228,10 @@ try {
   }
 
   if ($server.HasExited) {
-    $log = Read-ServerLog
-    $extra = if ($log) { "`n서버 로그:`n$log" } else { '' }
-    throw "게임 서버가 시작 중 종료되었습니다. 종료 코드: $($server.ExitCode)$extra"
+    throw "게임 서버가 시작 중 종료되었습니다. 종료 코드: $($server.ExitCode)"
   }
   if (-not $ready) {
-    $log = Read-ServerLog
-    $extra = if ($log) { "`n서버 로그:`n$log" } else { '' }
-    throw "30초 안에 게임 서버가 응답하지 않았습니다.$extra"
+    throw '30초 안에 게임 서버가 응답하지 않았습니다.'
   }
 
   Write-Host '  준비 완료.'
@@ -276,10 +254,5 @@ try {
   if ($server -and -not $server.HasExited) {
     Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
     try { Wait-Process -Id $server.Id -Timeout 3 -ErrorAction SilentlyContinue } catch { }
-  }
-  foreach ($logPath in @($serverLog, $serverErrLog)) {
-    if ($logPath) {
-      Remove-Item -LiteralPath $logPath -Force -ErrorAction SilentlyContinue
-    }
   }
 }
