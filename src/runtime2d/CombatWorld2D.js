@@ -1525,6 +1525,7 @@ class EnemyField2D {
       const shatter = this.shatterDamage[i]
       onDeath?.({
         id: this.uid[i], enemyId: def.id, x, z, elite: Boolean(elite),
+        facing: this.facing[i],
         frozen: this.freezeTimer[i] > 0 || shatter > 0,
       })
       if (shatter > 0) {

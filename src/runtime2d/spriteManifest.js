@@ -1,6 +1,6 @@
 const base = import.meta.env?.BASE_URL ?? './'
 
-export const SPRITE_MANIFEST_VERSION = 3
+export const SPRITE_MANIFEST_VERSION = 4
 
 const pending = Object.freeze({ visualApproval: 'pending', productionReady: false })
 
@@ -65,9 +65,25 @@ export const SPRITE_MANIFEST = Object.freeze({
           status: 'runtime-candidate',
         }),
       }),
+      reactionRuntime: Object.freeze({
+        default: Object.freeze({
+          url: `${base}assets/sprites2d/yorang-reaction-v1.webp`,
+          status: 'runtime-candidate',
+        }),
+        north: Object.freeze({
+          url: `${base}assets/sprites2d/yorang-north-reaction-v1.webp`,
+          status: 'runtime-candidate',
+        }),
+        south: Object.freeze({
+          url: `${base}assets/sprites2d/yorang-south-reaction-v1.webp`,
+          status: 'runtime-candidate',
+        }),
+      }),
       cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.86], runtimeHeight: 92,
+      reactionCell: [256, 256], reactionSheet: [4, 2], reactionPivot: [0.5, 232 / 256],
       directions: ['sw'], mirrorWest: true,
       animations: Object.freeze({ walk: [0, 1, 2, 3], attack: [4, 5, 6, 7] }),
+      reactionAnimations: Object.freeze({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] }),
       animationMode: 'authored-frames', ...pending,
     }),
     jadeRidgeHound: Object.freeze({
@@ -202,7 +218,10 @@ export function validateSpriteManifest(manifest = SPRITE_MANIFEST) {
       if (!Array.isArray(actor.reactionPivot) || actor.reactionPivot.length !== 2) {
         errors.push(`${id}: invalid reaction pivot`)
       }
-      for (const direction of ['east', 'southeast', 'north', 'northeast', 'south']) {
+      const requiredReactionDirections = id === 'seolryeong' || actor.role === 'hero'
+        ? ['east', 'southeast', 'north', 'northeast', 'south']
+        : ['default', ...Object.keys(actor.directionalRuntime ?? {})]
+      for (const direction of requiredReactionDirections) {
         if (!actor.reactionRuntime?.[direction]?.url) errors.push(`${id}: missing ${direction} reaction runtime`)
       }
       for (const [name, frames] of Object.entries(actor.reactionAnimations ?? {})) {

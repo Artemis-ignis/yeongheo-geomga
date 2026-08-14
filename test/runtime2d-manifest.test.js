@@ -51,6 +51,10 @@ describe('runtime2d sprite contract', () => {
     expect(yorang.directionalRuntime.south.url).toContain('yorang-south-motion-v4.webp')
     expect(yorang.animations.walk).toEqual([0, 1, 2, 3])
     expect(yorang.animations.attack).toEqual([4, 5, 6, 7])
+    expect(Object.keys(yorang.reactionRuntime).sort()).toEqual(['default', 'north', 'south'])
+    expect(yorang.reactionCell).toEqual([256, 256])
+    expect(yorang.reactionSheet).toEqual([4, 2])
+    expect(yorang.reactionAnimations).toEqual({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] })
   })
 
   it('ships north and south candidates for common jade enemies', () => {

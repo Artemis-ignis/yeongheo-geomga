@@ -824,6 +824,7 @@ export class Game2D {
       this.audio.play('dash', { pan: this._panAt(event?.toX ?? this.world?.player?.x ?? 0) })
     }
     this.world.onEnemyDeath = (event) => {
+      this.presentation?.spawnEnemyDeath?.(event)
       this.audio.play('kill', {
         pan: this._panAt(event?.x ?? this.world?.player?.x ?? 0),
         priority: event?.elite ? 58 : 46,

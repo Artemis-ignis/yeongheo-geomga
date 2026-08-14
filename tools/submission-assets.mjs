@@ -104,6 +104,9 @@ export const SUBMISSION_RUNTIME_ASSETS = Object.freeze([
   'assets/sprites2d/yorang-motion-v2.webp',
   'assets/sprites2d/yorang-north-motion-v5.webp',
   'assets/sprites2d/yorang-south-motion-v4.webp',
+  'assets/sprites2d/yorang-reaction-v1.webp',
+  'assets/sprites2d/yorang-north-reaction-v1.webp',
+  'assets/sprites2d/yorang-south-reaction-v1.webp',
 ])
 
 export const SUBMISSION_RUNTIME_ASSET_SET = new Set(SUBMISSION_RUNTIME_ASSETS)

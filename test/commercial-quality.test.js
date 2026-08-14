@@ -29,13 +29,14 @@ describe('commercial quality gate', () => {
     expect(report.blockers).toContain('actor:seolryeong: visual approval pending')
   })
 
-  it('requires vertical views plus separate hurt and death motion for enemies', () => {
+  it('accepts completed yorang reactions while retaining unresolved enemy motion blockers', () => {
     const report = auditCommercialQuality()
     expect(report.blockers).toEqual(expect.arrayContaining([
       'motion:wisp.directions: 1/3 authored views',
-      'motion:yorang.hurt: 0/2 frames',
-      'motion:yorang.death: 0/3 frames',
+      'motion:jadeRidgeHound.hurt: 0/2 frames',
+      'motion:jadeRidgeHound.death: 0/3 frames',
     ]))
+    expect(report.blockers.some((item) => item.startsWith('motion:yorang.'))).toBe(false)
   })
 
   it('can pass only with closed blockers, complete evidence, approved assets and rights', () => {

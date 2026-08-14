@@ -30,6 +30,10 @@ function enemyMotionLength(actor, kind) {
     return Math.max(animationLength(actor, 'walk'), animationLength(actor, 'hover'), animationLength(actor, 'idle'))
   }
   if (kind === 'attack') return Math.max(animationLength(actor, 'attack'), animationLength(actor, 'cast'))
+  if (kind === 'hurt' || kind === 'death') {
+    const frames = actor?.reactionAnimations?.[kind]
+    if (Array.isArray(frames)) return frames.length
+  }
   return animationLength(actor, kind)
 }
 

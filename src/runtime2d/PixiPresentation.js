@@ -787,12 +787,54 @@ export function directionalEnemyFrames2D(frames, actorKey, facing = 0) {
   })
 }
 
+function enemyReactionTextureKeyForDirection2D(actorKey, directionName = 'default') {
+  if (!SPRITE_MANIFEST.actors[actorKey]?.reactionRuntime?.[directionName]?.url) return null
+  if (directionName === 'north') return `${actorKey}ReactionN`
+  if (directionName === 'south') return `${actorKey}ReactionS`
+  return `${actorKey}Reaction`
+}
+
+export function enemyReactionTextureKey2D(actorKey, directionKey) {
+  const directionName = directionKey === 'n' ? 'north' : directionKey === 's' ? 'south' : 'default'
+  return enemyReactionTextureKeyForDirection2D(actorKey, directionName)
+    ?? enemyReactionTextureKeyForDirection2D(actorKey, 'default')
+}
+
+export function directionalEnemyReactionFrames2D(frames, actorKey, facing = 0) {
+  const direction = directionFor(Number.isFinite(facing) ? facing : 0)
+  const reactionKey = enemyReactionTextureKey2D(actorKey, direction.key)
+  if (!reactionKey || !Array.isArray(frames?.[reactionKey]) || !frames[reactionKey].length) return null
+  const directional = reactionKey.endsWith('ReactionN') || reactionKey.endsWith('ReactionS')
+  return Object.freeze({
+    frames: frames[reactionKey], directionKey: direction.key,
+    pivotKey: actorKey, mirror: directional ? false : actorMirrorForFacing2D(actorKey, facing),
+  })
+}
+
+export function enemyReactionFrameIndex2D(actor, state, remaining, duration) {
+  const frames = actor?.reactionAnimations?.[state]
+  if (!Array.isArray(frames) || frames.length === 0) return null
+  return oneShotFrameIndex(frames, Math.max(0, Number(remaining) || 0), Math.max(0.001, Number(duration) || 0.001))
+}
+
 const ENEMY_DIRECTIONAL_RUNTIME_ASSETS_2D = Object.freeze(
   Object.entries(SPRITE_MANIFEST.actors).flatMap(([actorKey, actor]) => {
     if (actorKey === 'seolryeong') return []
     return Object.entries(actor.directionalRuntime ?? {}).flatMap(([directionName, entry]) => {
       const directionKey = directionName === 'north' ? 'n' : directionName === 'south' ? 's' : null
       const textureKey = directionKey ? enemyDirectionalTextureKey2D(actorKey, directionKey) : null
+      return textureKey && entry?.url
+        ? [Object.freeze({ actorKey, actor, directionName, textureKey, url: entry.url })]
+        : []
+    })
+  }),
+)
+
+const ENEMY_REACTION_RUNTIME_ASSETS_2D = Object.freeze(
+  Object.entries(SPRITE_MANIFEST.actors).flatMap(([actorKey, actor]) => {
+    if (actorKey === 'seolryeong') return []
+    return Object.entries(actor.reactionRuntime ?? {}).flatMap(([directionName, entry]) => {
+      const textureKey = enemyReactionTextureKeyForDirection2D(actorKey, directionName)
       return textureKey && entry?.url
         ? [Object.freeze({ actorKey, actor, directionName, textureKey, url: entry.url })]
         : []
@@ -3507,6 +3549,17 @@ export function enemyActorTint2D(color, textureKey = 'wisp', hitFlash = false, v
   return blendTint2D(baseTint, target, amount)
 }
 
+function enemyRuntimeBaseHeight2D(key, elite = false) {
+  const actor = SPRITE_MANIFEST.actors[key]
+  if (!actor) return 80
+  if (key === 'wisp') return WISP_THREAT_PRESENTATION_2D.baseHeight
+  if (isWolfActorKey2D(key)) return actor.runtimeHeight * (elite ? 1.18 : 1)
+  if (key === 'shadowSealDuelist' || key === 'voidSentinel') {
+    return actor.runtimeHeight * (elite ? 1.06 : 0.9)
+  }
+  return actor.runtimeHeight
+}
+
 class ParticlePool {
   constructor(container, texture, maximum) {
     this.container = container
@@ -3569,6 +3622,8 @@ export class PixiPresentation {
     this.backendLabel = 'PixiJS WebGL'
     this.gpuLabel = 'unknown'
     this.enemyPool = []
+    this.enemyDeathPool = []
+    this.enemyDeathCursor = 0
     this.effectPool = []
     this.weaponFieldPool = []
     this.weaponFieldVisualPlan = []
@@ -3991,6 +4046,7 @@ export class PixiPresentation {
     // Prewarm enough objects for the first several waves. Later additions are
     // created in small batches instead of allocating a 900-object horde at boot.
     this._ensureEnemies(160)
+    this._ensureEnemyDeaths(48)
     this.friendlyProjectilePool.ensure(256)
     this.hostileProjectilePool.ensure(128)
     this.pickupPool.ensure(256)
@@ -4026,6 +4082,7 @@ export class PixiPresentation {
         SPRITE_MANIFEST.actors.wisp.url,
         SPRITE_MANIFEST.actors.yorang.url,
         ...ENEMY_DIRECTIONAL_RUNTIME_ASSETS_2D.map((entry) => entry.url),
+        ...ENEMY_REACTION_RUNTIME_ASSETS_2D.map((entry) => entry.url),
         SPRITE_MANIFEST.actors.jadeRidgeHound.url,
         SPRITE_MANIFEST.actors.jadeSerpent.url,
         SPRITE_MANIFEST.actors.jadeStoneGhoul.url,
@@ -4048,6 +4105,9 @@ export class PixiPresentation {
       this.textures.wisp = Texture.from(SPRITE_MANIFEST.actors.wisp.url)
       this.textures.yorang = Texture.from(SPRITE_MANIFEST.actors.yorang.url)
       for (const entry of ENEMY_DIRECTIONAL_RUNTIME_ASSETS_2D) {
+        this.textures[entry.textureKey] = Texture.from(entry.url)
+      }
+      for (const entry of ENEMY_REACTION_RUNTIME_ASSETS_2D) {
         this.textures[entry.textureKey] = Texture.from(entry.url)
       }
       this.textures.jadeRidgeHound = Texture.from(SPRITE_MANIFEST.actors.jadeRidgeHound.url)
@@ -4089,6 +4149,12 @@ export class PixiPresentation {
       this.frames.yorang = sliceFrames(this.textures.yorang, SPRITE_MANIFEST.actors.yorang)
       for (const entry of ENEMY_DIRECTIONAL_RUNTIME_ASSETS_2D) {
         this.frames[entry.textureKey] = sliceFrames(this.textures[entry.textureKey], entry.actor)
+      }
+      for (const entry of ENEMY_REACTION_RUNTIME_ASSETS_2D) {
+        this.frames[entry.textureKey] = sliceFrames(this.textures[entry.textureKey], {
+          cell: entry.actor.reactionCell,
+          sheet: entry.actor.reactionSheet,
+        })
       }
       this.frames.jadeRidgeHound = sliceFrames(
         this.textures.jadeRidgeHound, SPRITE_MANIFEST.actors.jadeRidgeHound,
@@ -4265,6 +4331,11 @@ export class PixiPresentation {
       entry.contact.visible = running && entry.active
     }
     if (!running) {
+      for (const entry of this.enemyDeathPool) {
+        entry.life = 0
+        entry.sprite.visible = false
+        entry.shadow.visible = false
+      }
       for (const entry of this.poiPool) {
         entry.sprite.visible = false
         entry.trace.visible = false
@@ -4301,6 +4372,97 @@ export class PixiPresentation {
       }
       this.actorBuckets[0].addChild(sprite)
       this.enemyPool.push(entry)
+    }
+  }
+
+  _ensureEnemyDeaths(count) {
+    const target = Math.min(Math.max(0, count), 96)
+    while (this.enemyDeathPool.length < target) {
+      const shadow = new Sprite(this.textures.shadow)
+      shadow.anchor.set(0.5)
+      shadow.visible = false
+      this.shadowLayer.addChild(shadow)
+      const sprite = new Sprite(this.textures.wisp)
+      sprite.anchor.set(0.5, 0.9)
+      sprite.visible = false
+      const entry = {
+        sprite, shadow, bucket: 0, key: '', groundingKey: '', frame: 0,
+        enemyId: '', x: 0, z: 0, facing: 0, elite: false, frozen: false,
+        life: 0, maxLife: 0.78, motion: enemyMotionProfile2D(0, 'wisp'),
+      }
+      this.actorBuckets[0].addChild(sprite)
+      this.enemyDeathPool.push(entry)
+    }
+  }
+
+  spawnEnemyDeath(event) {
+    if (!this.runActive || !this._runAssetsReady || !event || this.enemyDeathPool.length === 0) return false
+    let key = ''
+    try {
+      key = enemyTextureKey2D(event.enemyId, event.id)
+    } catch {
+      return false
+    }
+    const actor = SPRITE_MANIFEST.actors[key]
+    if (!actor?.reactionAnimations?.death?.length || !actor.reactionRuntime) return false
+    let slot = this.enemyDeathPool.findIndex((entry) => entry.life <= 0)
+    if (slot < 0) slot = this.enemyDeathCursor++ % this.enemyDeathPool.length
+    const entry = this.enemyDeathPool[slot]
+    entry.key = key
+    entry.groundingKey = key
+    entry.enemyId = event.enemyId
+    entry.x = Number(event.x) || 0
+    entry.z = Number(event.z) || 0
+    entry.facing = Number.isFinite(event.facing) ? event.facing : 0
+    entry.elite = Boolean(event.elite)
+    entry.frozen = Boolean(event.frozen)
+    entry.life = entry.maxLife = 0.78
+    entry.motion = enemyMotionProfile2D(event.id, key)
+    entry.frame = actor.reactionAnimations.death[0]
+    entry.sprite.visible = true
+    entry.shadow.visible = true
+    return true
+  }
+
+  _renderEnemyDeaths(dt) {
+    for (const entry of this.enemyDeathPool) {
+      if (entry.life <= 0) {
+        entry.sprite.visible = false
+        entry.shadow.visible = false
+        continue
+      }
+      entry.life = Math.max(0, entry.life - Math.max(0, Number(dt) || 0))
+      if (entry.life <= 0) {
+        entry.sprite.visible = false
+        entry.shadow.visible = false
+        continue
+      }
+      const actor = SPRITE_MANIFEST.actors[entry.key]
+      const directional = directionalEnemyReactionFrames2D(this.frames, entry.key, entry.facing)
+      if (!actor || !directional) {
+        entry.life = 0
+        entry.sprite.visible = false
+        entry.shadow.visible = false
+        continue
+      }
+      entry.frame = enemyReactionFrameIndex2D(actor, 'death', entry.life, entry.maxLife)
+        ?? actor.reactionAnimations.death.at(-1)
+      entry.sprite.texture = directional.frames[entry.frame]
+      entry.sprite.anchor.set(actor.reactionPivot[0], actor.reactionPivot[1])
+      const def = ENEMIES.find((candidate) => candidate.id === entry.enemyId)
+        ?? ENEMIES[0]
+      const grounding = actorGroundingProfile2D(entry.key, entry.frame)
+      const visualHeight = enemyRuntimeBaseHeight2D(entry.key, entry.elite)
+        * this._presentationScale * (def?.scale ?? 1) * grounding.visualScale * entry.motion.scale
+      const fade = Math.min(1, entry.life / (entry.maxLife * 0.18))
+      const tint = entry.frozen
+        ? blendTint2D(enemyActorTint2D(def?.color, entry.key, false, entry.motion.palette), 0xd8f7ff, 0.42)
+        : enemyActorTint2D(def?.color, entry.key, false, entry.motion.palette)
+      this._placeActor(entry, entry.x, entry.z, visualHeight, fade, entry.facing, tint, 0, directional.mirror)
+      entry.sprite.blendMode = 'normal'
+      entry.sprite.rotation = 0
+      entry.sprite.scale.x *= entry.motion.aspect
+      entry.shadow.alpha *= 0.88 * fade
     }
   }
 
@@ -4499,6 +4661,11 @@ export class PixiPresentation {
       entry.contact.visible = false
       entry.intent.visible = false
     }
+    for (const entry of this.enemyDeathPool) {
+      entry.life = 0
+      entry.sprite.visible = false
+      entry.shadow.visible = false
+    }
     for (const entry of this.damageTextPool) {
       entry.life = 0
       entry.label.visible = false
@@ -4533,6 +4700,11 @@ export class PixiPresentation {
     this.heroBlendElapsed = 1
     this.heroBlendStartedAt = Number.NEGATIVE_INFINITY
     this.heroMovementSettle = 0
+    for (const entry of this.enemyDeathPool) {
+      entry.life = 0
+      entry.sprite.visible = false
+      entry.shadow.visible = false
+    }
     const stageId = snapshot.world.stage?.id ?? 'jade'
     this.mapSeed = Array.from(stageId).reduce((hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619), 2166136261) >>> 0
     this.activeMapChunkKey = ''
@@ -4803,30 +4975,33 @@ export class PixiPresentation {
       const actor = SPRITE_MANIFEST.actors[key]
       const wolfActor = isWolfActorKey2D(key)
       const attacking = intentPresentation.visible
+      const hurt = field.flash[i] > 0 && actor.reactionAnimations?.hurt?.length > 0
       const locomotion = actor.animations.walk ?? actor.animations.hover ?? actor.animations.idle
       const attack = actor.animations.attack ?? actor.animations.cast ?? locomotion
-      entry.frame = attacking
-        ? oneShotFrameIndex(attack, intentPresentation.remaining, intentPresentation.duration)
-        : enemyLocomotionFrame2D(locomotion, this.time, wolfActor ? 9 : 7, motion)
+      entry.frame = hurt
+        ? enemyReactionFrameIndex2D(actor, 'hurt', field.flash[i], 0.14)
+        : attacking
+          ? oneShotFrameIndex(attack, intentPresentation.remaining, intentPresentation.duration)
+          : enemyLocomotionFrame2D(locomotion, this.time, wolfActor ? 9 : 7, motion)
       const x = field.prevX[i] + (field.x[i] - field.prevX[i]) * alpha
       const z = field.prevZ[i] + (field.z[i] - field.prevZ[i]) * alpha
       const facing = field.facing[i]
-      const directional = directionalEnemyFrames2D(this.frames, key, facing)
-      entry.sprite.texture = directional.frames[entry.frame] ?? this.frames[key][entry.frame]
-      entry.sprite.anchor.set(0.5, actorFootPivot2D(directional.pivotKey, entry.frame))
-      const baseHeight = key === 'wisp' ? WISP_THREAT_PRESENTATION_2D.baseHeight
-        : wolfActor ? actor.runtimeHeight * (field.elite[i] ? 1.18 : 1)
-          : key === 'jadeSerpent' ? SPRITE_MANIFEST.actors.jadeSerpent.runtimeHeight
-          : key === 'jadeStoneGhoul' ? SPRITE_MANIFEST.actors.jadeStoneGhoul.runtimeHeight
-          : key === 'jadeShardGuardian' ? SPRITE_MANIFEST.actors.jadeShardGuardian.runtimeHeight
-          : key === 'bloodScorpion' ? SPRITE_MANIFEST.actors.bloodScorpion.runtimeHeight
-          : key === 'talismanRevenant' ? SPRITE_MANIFEST.actors.talismanRevenant.runtimeHeight
-          : key === 'maskedSealRevenant' ? SPRITE_MANIFEST.actors.maskedSealRevenant.runtimeHeight
-          : key === 'shadowSealDuelist' ? SPRITE_MANIFEST.actors.shadowSealDuelist.runtimeHeight * (field.elite[i] ? 1.06 : 0.9)
-          : SPRITE_MANIFEST.actors.voidSentinel.runtimeHeight * (field.elite[i] ? 1.06 : 0.9)
+      const directional = hurt
+        ? directionalEnemyReactionFrames2D(this.frames, key, facing)
+        : directionalEnemyFrames2D(this.frames, key, facing)
+      const normalDirectional = directionalEnemyFrames2D(this.frames, key, facing)
+      const resolvedDirectional = directional ?? normalDirectional
+      entry.sprite.texture = resolvedDirectional.frames[entry.frame]
+        ?? normalDirectional.frames[entry.frame]
+        ?? this.frames[key][entry.frame]
+      entry.sprite.anchor.set(
+        hurt ? actor.reactionPivot?.[0] ?? 0.5 : 0.5,
+        hurt ? actor.reactionPivot?.[1] ?? actor.pivot[1] : actorFootPivot2D(resolvedDirectional.pivotKey, entry.frame),
+      )
+      const baseHeight = enemyRuntimeBaseHeight2D(key, Boolean(field.elite[i]))
       const motionPhase = motion.phase * Math.PI * 2
       const stride = Math.sin(this.time * (wolfActor ? 12 : 8.5) * motion.tempo + motionPhase)
-      const locomotionBob = wolfActor ? -Math.abs(stride) * 0.45
+      const locomotionBob = hurt ? 0 : wolfActor ? -Math.abs(stride) * 0.45
         : key === 'voidSentinel' || key === 'shadowSealDuelist' ? -Math.abs(stride) * 0.3 : 0
       const pulse = key === 'wisp'
         ? Math.sin(this.time * 5 * motion.tempo + motionPhase) * 4 * motion.bobScale
@@ -4841,7 +5016,7 @@ export class PixiPresentation {
         * motion.scale * (0.78 + spawnEase * 0.22)
       this._placeActor(entry, x, z, visualHeight,
         (field.dead[i] ? 0.25 : 1) * spawnEase,
-        facing, tint, pulse, directional.mirror)
+        facing, tint, pulse, resolvedDirectional.mirror)
       // During a boss encounter the boss silhouette is the current objective.
       // Fade only ordinary mobs in its local radius; distant enemies and elite
       // variants retain their authored opacity so the arena does not turn into
@@ -4887,12 +5062,12 @@ export class PixiPresentation {
         entry.sprite.scale.y *= 1 - Math.abs(wispSway) * 0.12
       } else {
         entry.sprite.blendMode = 'normal'
-        const attackKick = field.attackTimer[i] > 0
+        const attackKick = !hurt && field.attackTimer[i] > 0
           ? Math.sin((field.attackTimer[i] / attackDuration) * Math.PI) * 0.055
           : 0
-        entry.sprite.rotation = stride * (wolfActor ? 0.018 : 0.01) + attackKick + motion.lean
-        entry.sprite.scale.x *= (1 + stride * (wolfActor ? 0.026 : 0.012)) * motion.aspect
-        entry.sprite.scale.y *= 1 - stride * (wolfActor ? 0.018 : 0.008)
+        entry.sprite.rotation = hurt ? 0 : stride * (wolfActor ? 0.018 : 0.01) + attackKick + motion.lean
+        entry.sprite.scale.x *= (hurt ? 1 : 1 + stride * (wolfActor ? 0.026 : 0.012)) * motion.aspect
+        entry.sprite.scale.y *= hurt ? 1 : 1 - stride * (wolfActor ? 0.018 : 0.008)
         if (field.flash[i] > 0) {
           entry.sprite.scale.x *= 1.055
           entry.sprite.scale.y *= 1.055
@@ -5437,6 +5612,7 @@ export class PixiPresentation {
       this._renderProps()
       this._renderPois(snapshot.world.interactionsSnapshot, snapshot.world.nearbyPoiId)
       this._renderEnemies(snapshot.enemies, alpha)
+      this._renderEnemyDeaths(dt)
       this._renderHero(snapshot.player, alpha)
       this._renderBoss(snapshot.world.boss, alpha)
       this._renderProjectiles(snapshot.projectiles, alpha)
@@ -5480,6 +5656,8 @@ export class PixiPresentation {
     this.bossCastPill?.remove()
     this.bossCastPill = null
     this.enemyPool = []
+    this.enemyDeathPool = []
+    this.enemyDeathCursor = 0
     this.effectPool = []
     this.weaponFieldPool = []
     this.weaponFieldVisualPlan = []

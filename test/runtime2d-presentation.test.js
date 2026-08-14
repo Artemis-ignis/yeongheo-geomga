@@ -3,7 +3,10 @@ import {
   PixiPresentation,
   actorMirrorForFacing2D,
   directionalEnemyFrames2D,
+  directionalEnemyReactionFrames2D,
   enemyDirectionalTextureKey2D,
+  enemyReactionFrameIndex2D,
+  enemyReactionTextureKey2D,
   COMBAT_HORIZON_PRESENTATION_2D,
   HOSTILE_PROJECTILE_PRESENTATION,
   ORBIT_PROJECTILE_RENDER_CAP_2D,
@@ -109,6 +112,31 @@ describe('PixiPresentation combat bindings', () => {
     expect(enemyDirectionalTextureKey2D('yorang', 'e')).toBeNull()
     expect(enemyDirectionalTextureKey2D('jadeRidgeHound', 'n')).toBe('jadeRidgeHoundN')
     expect(enemyDirectionalTextureKey2D('jadeSerpent', 's')).toBe('jadeSerpentS')
+  })
+
+  it('binds yorang hit and death reactions to the same three grounded directions', () => {
+    const actor = SPRITE_MANIFEST.actors.yorang
+    const frames = {
+      yorangReaction: Array.from({ length: 8 }, (_, frame) => `side-${frame}`),
+      yorangReactionN: Array.from({ length: 8 }, (_, frame) => `north-${frame}`),
+      yorangReactionS: Array.from({ length: 8 }, (_, frame) => `south-${frame}`),
+    }
+    expect(directionalEnemyReactionFrames2D(frames, 'yorang', 0)).toMatchObject({
+      frames: frames.yorangReactionS, directionKey: 's', mirror: false,
+    })
+    expect(directionalEnemyReactionFrames2D(frames, 'yorang', Math.PI / 2)).toMatchObject({
+      frames: frames.yorangReaction, directionKey: 'e', mirror: true,
+    })
+    expect(directionalEnemyReactionFrames2D(frames, 'yorang', Math.PI)).toMatchObject({
+      frames: frames.yorangReactionN, directionKey: 'n', mirror: false,
+    })
+    expect(enemyReactionTextureKey2D('yorang', 'n')).toBe('yorangReactionN')
+    expect(enemyReactionTextureKey2D('yorang', 's')).toBe('yorangReactionS')
+    expect(enemyReactionTextureKey2D('yorang', 'e')).toBe('yorangReaction')
+    expect(enemyReactionFrameIndex2D(actor, 'hurt', 0.14, 0.14)).toBe(0)
+    expect(enemyReactionFrameIndex2D(actor, 'hurt', 0.001, 0.14)).toBe(1)
+    expect(enemyReactionFrameIndex2D(actor, 'death', 0.78, 0.78)).toBe(2)
+    expect(enemyReactionFrameIndex2D(actor, 'death', 0.001, 0.78)).toBe(7)
   })
 
   it('keeps locomotion frames active during automatic attacks', () => {

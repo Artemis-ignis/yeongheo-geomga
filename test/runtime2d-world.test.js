@@ -122,10 +122,12 @@ describe('CombatWorld2D', () => {
     expect(feedback.heal).toEqual([{ amount: 7, source: 'spring' }])
 
     world.enemies.spawn('wolf', 3, 0, world.runTime)
+    world.enemies.facing[0] = Math.PI / 2
     world.enemies.dead[0] = 1
     world.flushEnemyDeaths()
     expect(feedback.death).toHaveLength(1)
     expect(feedback.death[0]).toMatchObject({ enemyId: 'wolf', elite: false })
+    expect(feedback.death[0].facing).toBeCloseTo(Math.PI / 2)
   })
 
   it('opens with a readable mixed pack instead of six repeated silhouettes', () => {
