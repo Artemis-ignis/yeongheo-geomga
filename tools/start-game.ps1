@@ -15,6 +15,7 @@ $distRoot = Join-Path $gameRoot 'dist'
 $distIndex = Join-Path $distRoot 'index.html'
 $serveScript = Join-Path $PSScriptRoot 'serve-dist.ps1'
 $gameUrl = "http://127.0.0.1:$Port/"
+$publicGameUrl = 'https://yeongheo-geomga.vercel.app/'
 $server = $null
 $serverLog = $null
 $serverErrLog = $null
@@ -159,6 +160,8 @@ function Get-GameServerInfo {
 }
 
 function Open-GameOnce {
+  param([string] $Url = $gameUrl)
+
   if ($env:YEONGHEO_NO_BROWSER -eq '1') {
     Write-Host '  YEONGHEO_NO_BROWSER=1 이므로 브라우저를 열지 않습니다.'
     return
@@ -167,7 +170,7 @@ function Open-GameOnce {
   # Keep this as the only browser-launching call in the entire release path.
   # Vite/serve-dist never auto-opens a browser, so one launcher invocation
   # produces exactly one navigation.
-  Start-Process -FilePath 'explorer.exe' -ArgumentList @($gameUrl) | Out-Null
+  Start-Process -FilePath 'explorer.exe' -ArgumentList @($Url) | Out-Null
   Write-Host '  브라우저를 한 번 열었습니다.'
 }
 
@@ -188,7 +191,10 @@ try {
   Write-Host ''
 
   if (-not (Test-Path -LiteralPath $distIndex -PathType Leaf)) {
-    throw "게임 빌드가 없습니다: $distIndex`n개발 환경에서 npm run build를 실행한 뒤 배포 폴더를 함께 전달해 주세요."
+    Write-Host '  로컬 dist 빌드가 없어 최신 공개 빌드를 엽니다.'
+    Write-Host "  공개 게임 주소: $publicGameUrl"
+    Open-GameOnce -Url $publicGameUrl
+    exit 0
   }
   if (-not (Test-Path -LiteralPath $serveScript -PathType Leaf)) {
     throw "정적 서버 실행기가 없습니다: $serveScript"
