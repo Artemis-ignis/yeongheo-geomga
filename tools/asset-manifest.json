@@ -988,6 +988,41 @@
       "maxBytes": 1000000
     },
     {
+      "id": "sprite2d.jade-stone-ghoul.north.motion.v2",
+      "path": "public/assets/sprites2d/jade-stone-ghoul-north-motion-v2.webp",
+      "role": "runtime-2d-tank-enemy-directional-motion-atlas",
+      "tier": "world", "source": "imagegen-chroma-key-alpha-valley-normalized-v2",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.jade-stone-ghoul.south.motion.v2",
+      "path": "public/assets/sprites2d/jade-stone-ghoul-south-motion-v2.webp",
+      "role": "runtime-2d-tank-enemy-directional-motion-atlas",
+      "tier": "world", "source": "imagegen-chroma-key-alpha-valley-normalized-v2",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.jade-stone-ghoul.reaction.v1",
+      "path": "public/assets/sprites2d/jade-stone-ghoul-reaction-v1.webp",
+      "role": "runtime-2d-tank-enemy-directional-reaction-atlas",
+      "tier": "world", "source": "imagegen-chroma-key-alpha-valley-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.jade-stone-ghoul.north.reaction.v1",
+      "path": "public/assets/sprites2d/jade-stone-ghoul-north-reaction-v1.webp",
+      "role": "runtime-2d-tank-enemy-directional-reaction-atlas",
+      "tier": "world", "source": "imagegen-adaptive-chroma-alpha-valley-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.jade-stone-ghoul.south.reaction.v1",
+      "path": "public/assets/sprites2d/jade-stone-ghoul-south-reaction-v1.webp",
+      "role": "runtime-2d-tank-enemy-directional-reaction-atlas",
+      "tier": "world", "source": "imagegen-adaptive-chroma-alpha-valley-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
+    },
+    {
       "id": "sprite2d.jade-shard-guardian.motion.v1",
       "path": "public/assets/sprites2d/jade-shard-guardian-motion-v1.webp",
       "role": "runtime-2d-asymmetric-tank-enemy-motion-atlas",
@@ -1339,6 +1374,36 @@
         "tools/yeongheo/sprite-authoring-manifest.json"
       ],
       "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-stone-ghoul.north.motion-sheet.v2",
+      "path": "assets-source/sprites2d/jade-stone-ghoul-north-motion-sheet-v2.png",
+      "role": "authoring-2d-tank-enemy-directional-motion-sheet", "tier": "authoring",
+      "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-stone-ghoul.south.motion-sheet.v2",
+      "path": "assets-source/sprites2d/jade-stone-ghoul-south-motion-sheet-v2.png",
+      "role": "authoring-2d-tank-enemy-directional-motion-sheet", "tier": "authoring",
+      "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-stone-ghoul.reaction.v1",
+      "path": "assets-source/sprites2d/jade-stone-ghoul-reaction-sheet-v1.png",
+      "role": "authoring-2d-tank-enemy-directional-reaction-sheet", "tier": "authoring",
+      "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-stone-ghoul.north.reaction.v1",
+      "path": "assets-source/sprites2d/jade-stone-ghoul-north-reaction-sheet-v1.png",
+      "role": "authoring-2d-tank-enemy-directional-reaction-sheet", "tier": "authoring",
+      "source": "imagegen-identity-preserve-cleanup", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-stone-ghoul.south.reaction.v1",
+      "path": "assets-source/sprites2d/jade-stone-ghoul-south-reaction-sheet-v1.png",
+      "role": "authoring-2d-tank-enemy-directional-reaction-sheet", "tier": "authoring",
+      "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
     },
     {
       "id": "sprite2d.source.jade-shard-guardian.motion-sheet.v1",

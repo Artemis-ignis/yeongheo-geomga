@@ -29,16 +29,17 @@ describe('commercial quality gate', () => {
     expect(report.blockers).toContain('actor:seolryeong: visual approval pending')
   })
 
-  it('accepts completed yorang, hound and serpent reactions while retaining unresolved enemy motion blockers', () => {
+  it('accepts completed yorang, hound, serpent and stone ghoul reactions while retaining unresolved enemy motion blockers', () => {
     const report = auditCommercialQuality()
     expect(report.blockers).toEqual(expect.arrayContaining([
       'motion:wisp.directions: 1/3 authored views',
-      'motion:jadeStoneGhoul.hurt: 0/2 frames',
-      'motion:jadeStoneGhoul.death: 0/3 frames',
+      'motion:jadeShardGuardian.hurt: 0/2 frames',
+      'motion:jadeShardGuardian.death: 0/3 frames',
     ]))
     expect(report.blockers.some((item) => item.startsWith('motion:yorang.'))).toBe(false)
     expect(report.blockers.some((item) => item.startsWith('motion:jadeRidgeHound.'))).toBe(false)
     expect(report.blockers.some((item) => item.startsWith('motion:jadeSerpent.'))).toBe(false)
+    expect(report.blockers.some((item) => item.startsWith('motion:jadeStoneGhoul.'))).toBe(false)
   })
 
   it('can pass only with closed blockers, complete evidence, approved assets and rights', () => {

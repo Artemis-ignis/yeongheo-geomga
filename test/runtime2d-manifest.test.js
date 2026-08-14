@@ -61,6 +61,7 @@ describe('runtime2d sprite contract', () => {
     for (const [key, slug] of [
       ['jadeRidgeHound', 'jade-ridge-hound'],
       ['jadeSerpent', 'jade-serpent'],
+      ['jadeStoneGhoul', 'jade-stone-ghoul'],
     ]) {
       const actor = SPRITE_MANIFEST.actors[key]
       expect(actor.directionalRuntime.north.url).toContain(`${slug}-north-motion-v2.webp`)
@@ -74,6 +75,9 @@ describe('runtime2d sprite contract', () => {
     expect(serpent.reactionCell).toEqual([256, 256])
     expect(serpent.reactionSheet).toEqual([4, 2])
     expect(serpent.reactionAnimations).toEqual({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] })
+    const ghoul = SPRITE_MANIFEST.actors.jadeStoneGhoul
+    expect(Object.keys(ghoul.reactionRuntime).sort()).toEqual(['default', 'north', 'south'])
+    expect(ghoul.reactionAnimations).toEqual({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] })
   })
 
   it('does not admit unreleased chapter-two candidates to the global runtime manifest', () => {

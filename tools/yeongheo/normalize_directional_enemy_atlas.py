@@ -30,6 +30,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--baseline", type=int, default=232)
     parser.add_argument("--source-gutter", type=int, default=4)
     parser.add_argument(
+        "--row-leading-overlap",
+        type=int,
+        default=0,
+        help="Extend non-first rows upward to retain poses that cross the nominal row boundary.",
+    )
+    parser.add_argument(
+        "--row-trailing-trim",
+        type=int,
+        default=0,
+        help="Trim non-last rows above the nominal boundary to exclude lower-row overlap.",
+    )
+    parser.add_argument(
+        "--alpha-activity-threshold",
+        type=int,
+        default=0,
+        help="Ignore chroma fringe at or below this alpha when finding gutters and crop bounds.",
+    )
+    parser.add_argument(
         "--auto-column-cuts",
         action="store_true",
         help="Find each row's real frame gutters from transparent alpha valleys.",
@@ -43,12 +61,14 @@ def _auto_column_bounds(
     row_y1: int,
     cols: int,
     minimum_gap: int,
+    alpha_activity_threshold: int,
 ) -> list[tuple[int, int]]:
     """Return frame bounds split at the widest transparent gutters in a row."""
 
     alpha = source.getchannel("A")
     active = [
-        alpha.crop((x, row_y0, x + 1, row_y1)).getbbox() is not None
+        alpha.crop((x, row_y0, x + 1, row_y1)).getextrema()[1]
+        > alpha_activity_threshold
         for x in range(source.width)
     ]
     active_x = [x for x, present in enumerate(active) if present]
@@ -99,6 +119,7 @@ def main() -> None:
                 row_y1,
                 args.cols,
                 max(3, args.source_gutter * 2),
+                max(0, min(254, args.alpha_activity_threshold)),
             )
             if args.auto_column_cuts
             else [
@@ -112,10 +133,17 @@ def main() -> None:
         for col in range(args.cols):
             x0 = column_bounds[col][0] + args.source_gutter
             x1 = column_bounds[col][1] - args.source_gutter
-            y0 = row_y0 + args.source_gutter
-            y1 = row_y1 - args.source_gutter
+            leading_overlap = args.row_leading_overlap if row > 0 else 0
+            y0 = max(0, row_y0 - max(0, leading_overlap)) + args.source_gutter
+            trailing_trim = args.row_trailing_trim if row < args.rows - 1 else 0
+            y1 = min(source.height, row_y1 - max(0, trailing_trim)) - args.source_gutter
             tile = source.crop((x0, y0, x1, y1))
-            bounds = tile.getchannel("A").getbbox()
+            alpha = tile.getchannel("A")
+            if args.alpha_activity_threshold > 0:
+                alpha = alpha.point(
+                    lambda value: 255 if value > args.alpha_activity_threshold else 0
+                )
+            bounds = alpha.getbbox()
             if bounds is None:
                 raise SystemExit(f"empty source cell row={row} col={col}")
             tile = tile.crop(bounds)

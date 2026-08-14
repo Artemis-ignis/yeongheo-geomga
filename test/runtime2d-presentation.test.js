@@ -112,6 +112,7 @@ describe('PixiPresentation combat bindings', () => {
     expect(enemyDirectionalTextureKey2D('yorang', 'e')).toBeNull()
     expect(enemyDirectionalTextureKey2D('jadeRidgeHound', 'n')).toBe('jadeRidgeHoundN')
     expect(enemyDirectionalTextureKey2D('jadeSerpent', 's')).toBe('jadeSerpentS')
+    expect(enemyDirectionalTextureKey2D('jadeStoneGhoul', 'n')).toBe('jadeStoneGhoulN')
   })
 
   it('binds yorang hit and death reactions to the same three grounded directions', () => {
@@ -170,6 +171,23 @@ describe('PixiPresentation combat bindings', () => {
     })
     expect(directionalEnemyReactionFrames2D(frames, 'jadeSerpent', -Math.PI / 2)).toMatchObject({
       frames: frames.jadeSerpentReaction, mirror: true,
+    })
+  })
+
+  it('resolves jade stone ghoul reactions through all authored views', () => {
+    const frames = {
+      jadeStoneGhoulReaction: ['side'],
+      jadeStoneGhoulReactionN: ['north'],
+      jadeStoneGhoulReactionS: ['south'],
+    }
+    expect(directionalEnemyReactionFrames2D(frames, 'jadeStoneGhoul', 0)).toMatchObject({
+      frames: frames.jadeStoneGhoulReactionS, mirror: false,
+    })
+    expect(directionalEnemyReactionFrames2D(frames, 'jadeStoneGhoul', Math.PI)).toMatchObject({
+      frames: frames.jadeStoneGhoulReactionN, mirror: false,
+    })
+    expect(directionalEnemyReactionFrames2D(frames, 'jadeStoneGhoul', -Math.PI / 2)).toMatchObject({
+      frames: frames.jadeStoneGhoulReaction, mirror: true,
     })
   })
 

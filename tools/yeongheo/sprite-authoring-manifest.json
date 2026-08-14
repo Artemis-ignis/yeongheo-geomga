@@ -33,7 +33,10 @@
     { "actor": "talisman-revenant", "source": "talisman-revenant-motion-sheet-v1.png", "outputs": ["talisman-revenant-motion-v1.webp"] },
     { "actor": "masked-seal-revenant", "source": "masked-seal-revenant-motion-sheet-v1.png", "outputs": ["masked-seal-revenant-motion-v1.webp"] },
     { "actor": "jade-serpent", "sources": ["jade-serpent-motion-sheet-v1.png", "jade-serpent-north-motion-sheet-v2.png", "jade-serpent-south-motion-sheet-v2.png"], "outputs": ["jade-serpent-motion-v1.webp", "jade-serpent-north-motion-v2.webp", "jade-serpent-south-motion-v2.webp"] },
-    { "actor": "jade-stone-ghoul", "source": "jade-stone-ghoul-motion-sheet-v1.png", "outputs": ["jade-stone-ghoul-motion-v1.webp"] },
+    { "actor": "jade-stone-ghoul", "sources": ["jade-stone-ghoul-motion-sheet-v1.png", "jade-stone-ghoul-north-motion-sheet-v2.png", "jade-stone-ghoul-south-motion-sheet-v2.png"], "outputs": ["jade-stone-ghoul-motion-v1.webp", "jade-stone-ghoul-north-motion-v2.webp", "jade-stone-ghoul-south-motion-v2.webp"] },
+    { "actor": "jade-stone-ghoul-reaction", "source": "jade-stone-ghoul-reaction-sheet-v1.png", "outputs": ["jade-stone-ghoul-reaction-v1.webp"] },
+    { "actor": "jade-stone-ghoul-north-reaction", "source": "jade-stone-ghoul-north-reaction-sheet-v1.png", "outputs": ["jade-stone-ghoul-north-reaction-v1.webp"] },
+    { "actor": "jade-stone-ghoul-south-reaction", "source": "jade-stone-ghoul-south-reaction-sheet-v1.png", "outputs": ["jade-stone-ghoul-south-reaction-v1.webp"] },
     { "actor": "magma-brute", "source": "magma-brute-motion-sheet-v1.png", "outputRoot": "assets-source/sprites2d", "outputs": ["magma-brute-motion-v1.webp"] },
     { "actor": "jade-shard-guardian", "source": "jade-shard-guardian-motion-sheet-v1.png", "outputs": ["jade-shard-guardian-motion-v1.webp"] },
     { "actor": "blood-scorpion", "source": "blood-scorpion-motion-sheet-v1.png", "outputs": ["blood-scorpion-motion-v1.webp"] }

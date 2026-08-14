@@ -131,9 +131,20 @@ export const SPRITE_MANIFEST = Object.freeze({
     }),
     jadeStoneGhoul: Object.freeze({
       url: `${base}assets/sprites2d/jade-stone-ghoul-motion-v1.webp`,
+      directionalRuntime: Object.freeze({
+        north: Object.freeze({ url: `${base}assets/sprites2d/jade-stone-ghoul-north-motion-v2.webp`, status: 'runtime-candidate' }),
+        south: Object.freeze({ url: `${base}assets/sprites2d/jade-stone-ghoul-south-motion-v2.webp`, status: 'runtime-candidate' }),
+      }),
+      reactionRuntime: Object.freeze({
+        default: Object.freeze({ url: `${base}assets/sprites2d/jade-stone-ghoul-reaction-v1.webp`, status: 'runtime-candidate' }),
+        north: Object.freeze({ url: `${base}assets/sprites2d/jade-stone-ghoul-north-reaction-v1.webp`, status: 'runtime-candidate' }),
+        south: Object.freeze({ url: `${base}assets/sprites2d/jade-stone-ghoul-south-reaction-v1.webp`, status: 'runtime-candidate' }),
+      }),
       cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.91], runtimeHeight: 104,
+      reactionCell: [256, 256], reactionSheet: [4, 2], reactionPivot: [0.5, 232 / 256],
       directions: ['se'], mirrorWest: true,
       animations: Object.freeze({ walk: [0, 1, 2, 3], attack: [4, 5, 6, 7] }),
+      reactionAnimations: Object.freeze({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] }),
       animationMode: 'authored-frames', ...pending,
     }),
     jadeShardGuardian: Object.freeze({
