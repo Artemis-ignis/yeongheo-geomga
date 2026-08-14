@@ -139,6 +139,23 @@ describe('PixiPresentation combat bindings', () => {
     expect(enemyReactionFrameIndex2D(actor, 'death', 0.001, 0.78)).toBe(7)
   })
 
+  it('resolves jade ridge hound reactions through the shared enemy contract', () => {
+    const frames = {
+      jadeRidgeHoundReaction: ['side'],
+      jadeRidgeHoundReactionN: ['north'],
+      jadeRidgeHoundReactionS: ['south'],
+    }
+    expect(directionalEnemyReactionFrames2D(frames, 'jadeRidgeHound', 0)).toMatchObject({
+      frames: frames.jadeRidgeHoundReactionS, mirror: false,
+    })
+    expect(directionalEnemyReactionFrames2D(frames, 'jadeRidgeHound', Math.PI)).toMatchObject({
+      frames: frames.jadeRidgeHoundReactionN, mirror: false,
+    })
+    expect(directionalEnemyReactionFrames2D(frames, 'jadeRidgeHound', Math.PI / 2)).toMatchObject({
+      frames: frames.jadeRidgeHoundReaction, mirror: true,
+    })
+  })
+
   it('keeps locomotion frames active during automatic attacks', () => {
     const hero = SPRITE_MANIFEST.actors.seolryeong
     expect(heroAnimationFrameIndex2D(hero, {

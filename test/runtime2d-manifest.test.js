@@ -66,6 +66,9 @@ describe('runtime2d sprite contract', () => {
       expect(actor.directionalRuntime.north.url).toContain(`${slug}-north-motion-v2.webp`)
       expect(actor.directionalRuntime.south.url).toContain(`${slug}-south-motion-v2.webp`)
     }
+    const hound = SPRITE_MANIFEST.actors.jadeRidgeHound
+    expect(Object.keys(hound.reactionRuntime).sort()).toEqual(['default', 'north', 'south'])
+    expect(hound.reactionAnimations).toEqual({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] })
   })
 
   it('does not admit unreleased chapter-two candidates to the global runtime manifest', () => {

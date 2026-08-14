@@ -92,9 +92,16 @@ export const SPRITE_MANIFEST = Object.freeze({
         north: Object.freeze({ url: `${base}assets/sprites2d/jade-ridge-hound-north-motion-v2.webp`, status: 'runtime-candidate' }),
         south: Object.freeze({ url: `${base}assets/sprites2d/jade-ridge-hound-south-motion-v2.webp`, status: 'runtime-candidate' }),
       }),
+      reactionRuntime: Object.freeze({
+        default: Object.freeze({ url: `${base}assets/sprites2d/jade-ridge-hound-reaction-v1.webp`, status: 'runtime-candidate' }),
+        north: Object.freeze({ url: `${base}assets/sprites2d/jade-ridge-hound-north-reaction-v1.webp`, status: 'runtime-candidate' }),
+        south: Object.freeze({ url: `${base}assets/sprites2d/jade-ridge-hound-south-reaction-v1.webp`, status: 'runtime-candidate' }),
+      }),
       cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.86], runtimeHeight: 92,
+      reactionCell: [256, 256], reactionSheet: [4, 2], reactionPivot: [0.5, 232 / 256],
       directions: ['sw'], mirrorWest: true,
       animations: Object.freeze({ walk: [0, 1, 2, 3], attack: [4, 5, 6, 7] }),
+      reactionAnimations: Object.freeze({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] }),
       animationMode: 'authored-frames', ...pending,
     }),
     wisp: Object.freeze({

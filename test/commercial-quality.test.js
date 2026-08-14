@@ -33,10 +33,11 @@ describe('commercial quality gate', () => {
     const report = auditCommercialQuality()
     expect(report.blockers).toEqual(expect.arrayContaining([
       'motion:wisp.directions: 1/3 authored views',
-      'motion:jadeRidgeHound.hurt: 0/2 frames',
-      'motion:jadeRidgeHound.death: 0/3 frames',
+      'motion:jadeSerpent.hurt: 0/2 frames',
+      'motion:jadeSerpent.death: 0/3 frames',
     ]))
     expect(report.blockers.some((item) => item.startsWith('motion:yorang.'))).toBe(false)
+    expect(report.blockers.some((item) => item.startsWith('motion:jadeRidgeHound.'))).toBe(false)
   })
 
   it('can pass only with closed blockers, complete evidence, approved assets and rights', () => {

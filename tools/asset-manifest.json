@@ -805,6 +805,27 @@
       "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 1000000
     },
     {
+      "id": "sprite2d.jade-ridge-hound.reaction.v1",
+      "path": "public/assets/sprites2d/jade-ridge-hound-reaction-v1.webp",
+      "role": "runtime-2d-common-enemy-directional-reaction-atlas",
+      "tier": "world", "source": "imagegen-chroma-key-alpha-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.jade-ridge-hound.north.reaction.v1",
+      "path": "public/assets/sprites2d/jade-ridge-hound-north-reaction-v1.webp",
+      "role": "runtime-2d-common-enemy-directional-reaction-atlas",
+      "tier": "world", "source": "imagegen-chroma-key-alpha-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.jade-ridge-hound.south.reaction.v1",
+      "path": "public/assets/sprites2d/jade-ridge-hound-south-reaction-v1.webp",
+      "role": "runtime-2d-common-enemy-directional-reaction-atlas",
+      "tier": "world", "source": "imagegen-chroma-key-alpha-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
+    },
+    {
       "id": "sprite2d.jade-serpent.north.motion.v2",
       "path": "public/assets/sprites2d/jade-serpent-north-motion-v2.webp",
       "role": "runtime-2d-common-enemy-directional-motion-atlas",
@@ -1150,6 +1171,24 @@
       "path": "assets-source/sprites2d/jade-ridge-hound-south-motion-sheet-v2.png",
       "role": "2d-directional-motion-sheet-chroma-source", "tier": "authoring",
       "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-ridge-hound.reaction.v1",
+      "path": "assets-source/sprites2d/jade-ridge-hound-reaction-sheet-v1.png",
+      "role": "authoring-2d-common-enemy-directional-reaction-sheet", "tier": "authoring",
+      "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-ridge-hound.north.reaction.v1",
+      "path": "assets-source/sprites2d/jade-ridge-hound-north-reaction-sheet-v1.png",
+      "role": "authoring-2d-common-enemy-directional-reaction-sheet", "tier": "authoring",
+      "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-ridge-hound.south.reaction.v1",
+      "path": "assets-source/sprites2d/jade-ridge-hound-south-reaction-sheet-v1.png",
+      "role": "authoring-2d-common-enemy-directional-reaction-sheet", "tier": "authoring",
+      "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
     },
     {
       "id": "sprite2d.source.jade-serpent.north.motion-sheet.v2",

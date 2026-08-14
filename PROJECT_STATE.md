@@ -24,7 +24,7 @@
 
 - 구형 Three.js 엔진, 3D 아트/GLB, img2three 도구 복사본과 산출물을 삭제했습니다.
 - 구버전 목표·감사·인계·릴리스 문서와 v5/v5.3 전용 QA 스크립트를 삭제했습니다.
-- 현재 배포·제작 에셋 135개와 감사 대상 제작 파이프라인 28개를 `public/assets`와 `assets-source`로 분리해 보존했습니다.
+- 현재 배포·제작 에셋 141개와 감사 대상 제작 파이프라인 31개를 `public/assets`와 `assets-source`로 분리해 보존했습니다.
 - 실제로 로드되지 않던 3,701줄 구형 `styles/hud.css`와 구형 타이틀 키아트를 제거하고 패키지 잠금 기준을 npm 하나로 통일했습니다.
 - 임시 브라우저 프로필·캡처·영상·변환 캐시는 저장소와 최종 소스 폴더에 남기지 않습니다.
 
@@ -32,13 +32,13 @@
 
 | 항목 | 상태 |
 |---|---|
-| 전체 자동 테스트 | PASS — 54 files, 714 tests |
-| production build | PASS — npm lock 기준 Vite 8.1.5, dist 111 files |
-| runtime·authoring asset audit | PASS — asset 135/135, authoring pipeline 28 |
-| submission asset audit | PASS — runtime 94/94, dist 111 files / 35,232,146 bytes |
+| 전체 자동 테스트 | PASS — 54 files, 715 tests |
+| production build | PASS — npm lock 기준 Vite 8.1.5, dist 114 files |
+| runtime·authoring asset audit | PASS — asset 141/141, authoring pipeline 31 |
+| submission asset audit | PASS — runtime 97/97, dist 114 files / 36,002,733 bytes |
 | Windows launcher smoke | PASS — 실제 HttpListener 응답·release metadata 확인 |
-| Vercel production | PASS — `dpl_3JQTRAAT6wpnEtH7B4Q2ZgDoDRhu`, `https://yeongheo-geomga.vercel.app` 공개 별칭에 runtime 94 에셋을 배포하고, 같은 Chrome 탭에서 새 요랑 반응 시트 3개 HTTP 200·정확한 바이트·release runtime 94와 타이틀 DOM 표시·히트 영역을 확인했습니다. Chrome 캡처 표면이 DOM 레이어를 누락한 세션 문제 때문에 공개 타이틀의 새 시각 캡처 승인은 보류합니다. |
-| 현재 Chrome 실제 플레이 | PARTIAL — 실제 사용자 Chrome 1422×739 CSS / 2560×1330 물리 production에서 부팅→타이틀→영허전→출정 확인→전투 시작→좌클릭 이동과 군세·자동 공격을 같은 탭에서 재검증했습니다. 앞선 동일 Chrome 검증에서 경지 성장·법보/공법 선택·첫 검흔 도달·흔적 1/3·정지 후 카메라 무드리프트도 확인했고, local dev에서는 설령의 5방향 피격·사망과 요랑의 남·측면·북 피격 포즈, 실제 피해 판정 뒤 6프레임 사망·접지를 확인했습니다. 첫 장 완주·1920×1080·2560×1600 전체 화면 재검증은 미완료 |
+| Vercel production | PASS — `dpl_GhY1DW7QX3yRDjrZY1613s9ftFYV`, `https://yeongheo-geomga.vercel.app` 공개 별칭에 runtime 97 에셋을 배포했습니다. 같은 Chrome 탭에서 요랑 반응 시트와 옥령산견 반응 시트 3개의 HTTP 200·정확한 바이트, release runtime 97, 타이틀 DOM 표시·히트 영역을 확인했습니다. Chrome 캡처 표면이 DOM 레이어를 누락한 세션 문제 때문에 공개 타이틀의 새 시각 캡처 승인은 보류합니다. |
+| 현재 Chrome 실제 플레이 | PARTIAL — 실제 사용자 Chrome 1422×739 CSS / 2560×1330 물리 production에서 부팅→타이틀→영허전→출정 확인→전투 시작→좌클릭 이동과 군세·자동 공격을 같은 탭에서 재검증했습니다. 앞선 동일 Chrome 검증에서 경지 성장·법보/공법 선택·첫 검흔 도달·흔적 1/3·정지 후 카메라 무드리프트도 확인했고, local dev에서는 설령의 5방향 피격·사망과 요랑·옥령산견 각각의 남·측면·북 피격 포즈, 실제 피해 판정 뒤 6프레임 사망·1px 접지를 확인했습니다. 첫 장 완주·1920×1080·2560×1600 전체 화면 재검증은 미완료 |
 | 상용 시각 품질 | BLOCKED — 주인공 모션의 표준 해상도 전체 런 승인·적 모션·사람 시각 승인 미완료 |
 | 전체 작품 구조 | BLOCKED — 현재 한 비경 수직 슬라이스이며 복수 비경·사건·문파 진행·장기 목표·결말 미완료 |
 | 이미지 사용 권리 | BLOCKED — 기술 검수용 공개와 별개로 상용·홍보 전 사람이 근거 확인 필요 |
@@ -64,6 +64,7 @@
 15. 공개 첫 방문의 검은 대기 화면을 이미지 다운로드 전 즉시 보이는 수묵식 정식 로딩 화면으로 교체했습니다.
 16. 설령의 남·남동·동·북동·북 5방향 대기·피격·사망 시트를 별도 제작 파이프라인으로 정규화해 런타임에 연결하고, 사망 연출이 끝나기 전에 결과 화면으로 끊기지 않도록 전환을 지연했습니다.
 17. 요랑의 남·측면·북 3방향 피격·사망 시트를 별도 제작 파이프라인으로 정규화하고, 피격 플래시와 실제 사망 이벤트를 지면 접지 렌더 풀에 연결해 적이 맞자마자 증발하던 첫 핵심 사례를 교정했습니다.
+18. 옥령산견도 기존 비취 갑편·검은 털 정체성을 유지한 남·측면·북 피격·사망 시트를 제작해 같은 런타임 계약에 연결하고, 실제 Chrome 전투 장면에서 붕괴 순서와 접지를 확인했습니다.
 
 ### P1 — 게임성·연출
 
