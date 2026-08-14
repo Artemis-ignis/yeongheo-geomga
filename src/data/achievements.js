@@ -21,33 +21,34 @@
  */
 
 export const ACHIEVEMENTS = [
-  // ---- first steps -------------------------------------------------------
+  // ---- main journey ------------------------------------------------------
+  {
+    id: 'firstMeridian', name: '영맥의 첫 숨',
+    desc: '옥산 본편에서 영맥 하나를 복원한다.',
+    scope: 'run', stones: 45,
+    test: (r) => r.mode === 'expedition' && r.objectivesCompleted >= 1,
+  },
+  {
+    id: 'sealedDecision', name: '남겨진 결단',
+    desc: '봉인 문서의 진실을 마주하고 자신의 선택을 남긴다.',
+    scope: 'run', stones: 90,
+    test: (r) => r.mode === 'expedition' && r.decisionCount >= 1,
+  },
+  {
+    // Keep the legacy id so old saves retain the earned record.
+    id: 'clear', name: '옥산 귀환',
+    desc: '옥산에 번지는 마기 제1장을 완수한다.',
+    scope: 'run', stones: 250,
+    test: (r) => r.mode === 'expedition' && r.victory === true,
+  },
+
+  // ---- combat craft ------------------------------------------------------
   {
     id: 'firstBlood', name: '첫 베기',
     desc: '요괴를 100마리 쓰러뜨린다.',
     scope: 'run', stones: 40,
     test: (r) => r.kills >= 100,
   },
-  {
-    id: 'survive5', name: '오분지기',
-    desc: '한 번의 런에서 5분을 버틴다.',
-    scope: 'run', stones: 60,
-    test: (r) => r.runTime >= 300,
-  },
-  {
-    id: 'survive10', name: '반각',
-    desc: '한 번의 런에서 10분을 버틴다.',
-    scope: 'run', stones: 140,
-    test: (r) => r.runTime >= 600,
-  },
-  {
-    id: 'clear', name: '출도',
-    desc: '비경을 하나 완주한다.',
-    scope: 'run', stones: 250,
-    test: (r) => r.victory === true,
-  },
-
-  // ---- build ------------------------------------------------------------
   {
     id: 'firstEvolution', name: '법보 진화',
     desc: '법보를 하나 진화시킨다.',
@@ -56,7 +57,7 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'threeEvolutions', name: '삼보재세',
-    desc: '한 런에서 법보 셋을 진화시킨다.',
+    desc: '한 출정에서 법보 셋을 진화시킨다.',
     scope: 'run', stones: 320,
     test: (r) => r.evolutions >= 3,
   },
@@ -68,9 +69,24 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'level30', name: '경지',
-    desc: '한 런에서 30경지에 이른다.',
+    desc: '한 출정에서 30경지에 이른다.',
     scope: 'run', stones: 180,
     test: (r) => r.level >= 30,
+  },
+
+  // ---- optional heavenly trial -----------------------------------------
+  {
+    id: 'survive5', name: '오분지기',
+    desc: '천겁 기록전에서 5분을 버틴다.',
+    scope: 'run', stones: 60,
+    test: (r) => r.mode !== 'expedition' && r.runTime >= 300,
+  },
+  {
+    // Keep the legacy id so existing saves do not lose an earned badge.
+    id: 'survive10', name: '칠분지기',
+    desc: '천겁 기록전의 극한 공세를 끝까지 버틴다.',
+    scope: 'run', stones: 140,
+    test: (r) => r.mode !== 'expedition' && r.runTime >= 420,
   },
 
   // ---- mastery ----------------------------------------------------------
@@ -90,7 +106,7 @@ export const ACHIEVEMENTS = [
     id: 'trialRunner', name: '역풍을 거슬러',
     desc: '시련 2단계 이상에서 5분을 버틴다.',
     scope: 'run', stones: 300,
-    test: (r) => r.trial >= 2 && r.runTime >= 300,
+    test: (r) => r.mode !== 'expedition' && r.trial >= 2 && r.runTime >= 300,
   },
   {
     id: 'noSkip', name: '일도양단',
@@ -102,7 +118,7 @@ export const ACHIEVEMENTS = [
   // ---- career -----------------------------------------------------------
   {
     id: 'veteran', name: '백전',
-    desc: '런을 20번 치른다.',
+    desc: '출정을 20번 마친다.',
     scope: 'career', stones: 200,
     test: (c) => c.runs >= 20,
   },
@@ -113,16 +129,18 @@ export const ACHIEVEMENTS = [
     test: (c) => c.totalKills >= 1000,
   },
   {
-    id: 'allCharacters', name: '동행',
-    desc: '여섯 수행자를 모두 해금한다.',
+    // The contest release ships one authored cultivator. Its long-form
+    // collection goal is therefore the complete released weapon roster.
+    id: 'allCharacters', name: '만법전승',
+    desc: '해금 가능한 법보 열네 가지를 모두 얻는다.',
     scope: 'career', stones: 350,
-    test: (c) => c.unlockedCharacters >= 6,
+    test: (c) => c.unlockedWeapons >= 14,
   },
   {
-    id: 'allStages', name: '삼경답파',
-    desc: '세 비경을 모두 완주한다.',
+    id: 'allStages', name: '삼귀',
+    desc: '비경 출정을 세 번 완수해 서로 다른 검로를 시험한다.',
     scope: 'career', stones: 600,
-    test: (c) => c.stagesCleared >= 3,
+    test: (c) => c.expeditionVictories >= 3,
   },
 ]
 

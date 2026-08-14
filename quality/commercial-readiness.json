@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "target": "paid-commercial-candidate",
+  "commercialStatus": "BLOCKED",
+  "lastAuditDate": "2026-08-14",
+  "evidence": {
+    "immutableRunId": null,
+    "buildHash": null,
+    "chrome1920x1080": null,
+    "chrome2560x1600": null,
+    "currentExpeditionFullRun": null,
+    "completeGameStructure": null,
+    "contentCompleteness": null,
+    "performance": null,
+    "rightsLedger": null,
+    "humanVisualApproval": null
+  },
+  "blockers": [
+    {
+      "id": "CQ-P0-PRODUCT-001",
+      "area": "whole-game-structure",
+      "severity": "P0",
+      "status": "OPEN",
+      "summary": "현재 빌드는 미소녀 선협 뱀서류 로그라이크의 주 출정 안에 청람비경 제1장 사건, 요괴 군세, 런 중 성장, 중간보스, 귀환과 다음 출정 전승을 통합했지만 복수 비경·인물 관계·문파 변화·장기 목표·결말을 잇는 전체 작품 구조는 아직 완성되지 않았다."
+    },
+    {
+      "id": "CQ-P0-MOTION-001",
+      "area": "hero-motion",
+      "severity": "P0",
+      "status": "OPEN",
+      "summary": "설령의 5방향 이동·공격·대기·피격·사망 시퀀스와 접지, 사망 연출 뒤 결과 전환 지연을 런타임에 연결하고 같은 Chrome 실장면에서 방향 선택과 쓰러짐 순서를 확인했다. 다만 1920×1080·2560×1600 전체 런의 사람 시각 승인과 모션 간 전환·타이밍 최종 조정이 남아 있어 상용 완료로 닫지 않는다."
+    },
+    {
+      "id": "CQ-P0-MOTION-002",
+      "area": "enemy-motion",
+      "severity": "P0",
+      "status": "OPEN",
+      "summary": "적 다수가 단일 방향 원화와 좌우 반전에 의존하며 이동·공격이 연속 동작으로 승인되지 않았다."
+    },
+    {
+      "id": "CQ-P0-UI-001",
+      "area": "ui-system",
+      "severity": "P0",
+      "status": "CLOSED",
+      "summary": "주요·탐색·보조·위험 행동을 서로 다른 먹·부적·장부 문법으로 분리했다.",
+      "resolution": "타이틀, 준비, 돌파, 상점, 도감, 결과 화면과 버튼 위계를 전면 재구성했다.",
+      "evidence": "2026-08-14 Chrome 실제 화면에서 돌파 선택지·상점·도감·결과의 첫 화면 적합성과 내부 스크롤·고정 복귀 동작을 확인."
+    },
+    {
+      "id": "CQ-P0-RIGHTS-001",
+      "area": "asset-rights",
+      "severity": "P0",
+      "status": "OPEN",
+      "summary": "배포 이미지의 상용 사용 근거가 자산별 원장으로 확인되지 않았다."
+    }
+  ]
+}

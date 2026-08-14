@@ -69,7 +69,7 @@ const PULSE_THRESHOLD = 0.42
  * in intensity is heard within a bar rather than after one.
  */
 const SCHEDULE_AHEAD = 0.35
-const AUDIO_SETTINGS_VERSION = 2
+const AUDIO_SETTINGS_VERSION = 3
 // Keep the release stinger out of the boss's final impact tail. The boss death
 // voice is intentionally heavy (its saw body lasts just under a second), so a
 // same-tick victory chord would otherwise read as clipped overlap rather than a
@@ -221,18 +221,23 @@ export class AudioEngine {
    * AudioContext is not constructed until the player has actually interacted
    * with the page — browsers refuse to start one before a gesture.
    */
-  constructor({ contextFactory = null, storage = undefined, maxActiveSfxVoices = MAX_ACTIVE_SFX_VOICES } = {}) {
+  constructor({
+    contextFactory = null,
+    storage = undefined,
+    maxActiveSfxVoices = MAX_ACTIVE_SFX_VOICES,
+    silentOnly = false,
+  } = {}) {
     this._factory = contextFactory ?? (() => {
       const Ctor = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext)
       return Ctor ? new Ctor() : null
     })
     this.ctx = null
     this.ok = false
-    // Sound is part of the first-ten-second experience. The title click is a
-    // user gesture, so browsers allow us to unlock the graph without forcing a
-    // new player to discover a hidden mute toggle first. A saved explicit mute
-    // choice is still restored below.
-    this.muted = false
+    // The production game can lock this engine to silence without deleting the
+    // independently tested synthesis implementation. In that mode no setting,
+    // shortcut or stale localStorage value can open an audible route.
+    this.silentOnly = Boolean(silentOnly)
+    this.muted = true
     this.masterVolume = 0.75
     this.musicVolume = 0.5
     this.sfxVolume = 0.9
@@ -268,6 +273,7 @@ export class AudioEngine {
    * later calls only resume a suspended context.
    */
   unlock() {
+    if (this.silentOnly) return false
     if (!this.ctx) {
       try {
         this.ctx = this._factory()
@@ -345,12 +351,13 @@ export class AudioEngine {
   }
 
   setMuted(on) {
-    this.muted = Boolean(on)
+    this.muted = this.silentOnly ? true : Boolean(on)
     this._applyVolumes()
     this._saveSettings()
   }
 
   toggleMute() {
+    if (this.silentOnly) return true
     this.setMuted(!this.muted)
     return this.muted
   }
@@ -448,7 +455,7 @@ export class AudioEngine {
       if (!raw || typeof raw !== 'object') return
       // Only this schema represents an explicit player choice. Older blobs are
       // ignored so a stale migration value cannot silently disable the score.
-      if (raw.version === AUDIO_SETTINGS_VERSION && typeof raw.muted === 'boolean') {
+      if (!this.silentOnly && raw.version === AUDIO_SETTINGS_VERSION && typeof raw.muted === 'boolean') {
         this.muted = raw.muted
       }
       if (Number.isFinite(raw.master)) this.masterVolume = Math.min(1, Math.max(0, raw.master))

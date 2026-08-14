@@ -187,6 +187,15 @@ export const STAGES = [
   },
 ]
 
+// The current release has one fully authored arena. Future stage definitions
+// stay available to simulation and authoring tests, but are not offered as
+// purchasable player content until their presentation receives the same pass.
+export const RELEASE_STAGE_IDS = Object.freeze(['jade'])
+
+export function isReleaseStage(id) {
+  return RELEASE_STAGE_IDS.includes(id)
+}
+
 export const STAGE_INDEX = new Map(STAGES.map((s, i) => [s.id, i]))
 
 export function getStage(id) {

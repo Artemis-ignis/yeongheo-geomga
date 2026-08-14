@@ -6,8 +6,11 @@ export const SORT_BUCKETS = 64
  * step below is frame-rate independent: equal elapsed time converges to the
  * same point regardless of how it is partitioned into render frames.
  */
-export const CAMERA_FOLLOW_RESPONSE_2D = 8
-export const CAMERA_RECENTER_RESPONSE_2D = 2.4
+// A very stiff follow (the previous value was 8) pinned the heroine to the
+// edge of a small dead zone almost immediately. World coordinates were moving,
+// but the floor did most of the visible travelling and locomotion read like a
+// treadmill. Let the authored stride lead the camera, then catch up smoothly.
+export const CAMERA_FOLLOW_RESPONSE_2D = 5.2
 
 export function cameraFollowFactor2D(dtSeconds, response = CAMERA_FOLLOW_RESPONSE_2D) {
   const dt = Math.max(0, Math.min(0.25, Number(dtSeconds) || 0))
@@ -63,6 +66,18 @@ export function projectWorld(x, z, cameraX, cameraZ, viewport, out = {}) {
   return out
 }
 
+/** Exact inverse used by click-to-move and visual contract tests. */
+export function unprojectScreen(screenX, screenY, cameraX, cameraZ, viewport, out = {}) {
+  const width = Math.max(1, viewport.width)
+  const height = Math.max(1, viewport.height)
+  const zoom = clamp(viewport.zoom ?? 1, 0.85, 1.25)
+  const unit = clamp(width / 60, 19, 46) * zoom
+  const depthUnit = clamp(height / 90, 7.5, 18) * zoom
+  out.x = cameraX + (screenX - width * 0.5) / unit
+  out.z = cameraZ + (screenY - height * 0.57) / depthUnit
+  return out
+}
+
 /**
  * Let the heroine visibly cross a compact screen-space window before the
  * camera follows. Locking her to the exact focal point made valid world
@@ -82,17 +97,25 @@ export function cameraTargetWithDeadZone2D(
   const targetX = Number.isFinite(Number(playerX)) ? Number(playerX) : fromX
   const targetZ = Number.isFinite(Number(playerZ)) ? Number(playerZ) : fromZ
 
+  // Once the player releases movement, freeze the presentation camera where
+  // it is. Finishing the previous follow interpolation after the heroine has
+  // stopped makes only the floor and props drift for several more frames.
   if (!moving) {
-    out.x = targetX
-    out.z = targetZ
+    out.x = fromX
+    out.z = fromZ
     return out
   }
 
   const screen = projectWorld(targetX, targetZ, fromX, fromZ, viewport, {})
   const centerX = Math.max(1, viewport?.width ?? 1) * 0.5
   const centerY = Math.max(1, viewport?.height ?? 1) * 0.57
-  const deadZoneX = clamp(centerX * 0.11, 64, 108)
-  const deadZoneY = clamp(Math.max(1, viewport?.height ?? 1) * 0.052, 34, 58)
+  // The heroine must visibly traverse the arena before the camera moves. The
+  // former 114px horizontal / 61px vertical window at the real Chrome viewport
+  // was exhausted in a fraction of a stride and recreated the exact
+  // "stationary actor over a scrolling video" failure reported in play.
+  // These bounds still retain the full robe and sword inside compact windows.
+  const deadZoneX = clamp(centerX * 0.26, 136, 260)
+  const deadZoneY = clamp(Math.max(1, viewport?.height ?? 1) * 0.14, 72, 150)
   const offsetX = screen.x - centerX
   const offsetY = screen.y - centerY
 

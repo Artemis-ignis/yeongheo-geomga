@@ -7,6 +7,7 @@ import { DaoVows2D } from '../src/runtime2d/DaoVows2D.js'
 import {
   CombatWorld2D, FINAL_BOSS_PHASE_GATE_SECONDS_2D, FINAL_BOSS_WAVE_DENSITY_2D,
   enemyPresentationFacing2D,
+  HERO_DEATH_REACTION_SECONDS_2D, HERO_HURT_REACTION_SECONDS_2D,
   HIT_EFFECT_MERGE_RADIUS_2D, MAX_ENEMIES_2D, MAX_PICKUPS_2D, MAX_PROJECTILES_2D,
   PICKUP_MERGE_RADIUS_2D,
 } from '../src/runtime2d/CombatWorld2D.js'
@@ -35,6 +36,24 @@ function pickupTotals(pickups) {
 }
 
 describe('CombatWorld2D', () => {
+  it('keeps hurt and defeat reactions visible before publishing the result state', () => {
+    const world = makeWorld()
+    let ended = null
+    world.onEnd = (victory) => { ended = victory }
+    world.player.hp = 1
+    expect(world.player.takeDamage(999)).toBe(true)
+    expect(world.player.alive).toBe(false)
+    expect(world.player.hurtTimer).toBe(HERO_HURT_REACTION_SECONDS_2D)
+    expect(world.player.deathTimer).toBe(HERO_DEATH_REACTION_SECONDS_2D)
+
+    world.update(HERO_DEATH_REACTION_SECONDS_2D * 0.5, idleInput)
+    expect(world.ended).toBe(false)
+    expect(ended).toBeNull()
+    world.update(HERO_DEATH_REACTION_SECONDS_2D * 0.51, idleInput)
+    expect(world.ended).toBe(true)
+    expect(ended).toBe(false)
+  })
+
   it('faces actual locomotion while preserving target-facing attacks', () => {
     expect(enemyPresentationFacing2D({
       aimX: -1, aimZ: 0, moveX: 1, moveZ: 0,
@@ -209,6 +228,18 @@ describe('CombatWorld2D', () => {
     expect(world.boss.maxHp).toBe(14000)
   })
 
+  it('keeps a moving boss facing the player instead of the lagging camera', () => {
+    const world = makeWorld()
+    world.spawnBoss('blueWolfKing')
+    world._updateBoss(1 / 60)
+    const dx = world.player.x - world.boss.x
+    const dz = world.player.z - world.boss.z
+    const distance = Math.hypot(dx, dz)
+    const facingX = Math.sin(world.boss.facing)
+    const facingZ = Math.cos(world.boss.facing)
+    expect((facingX * dx + facingZ * dz) / distance).toBeGreaterThan(0.999)
+  })
+
   it('bounds ambient adds and suppresses overlapping formations during the final duel', () => {
     const world = makeWorld()
     world.runTime = 330
@@ -216,11 +247,11 @@ describe('CombatWorld2D', () => {
     expect(FINAL_BOSS_WAVE_DENSITY_2D).toBeLessThan(0.2)
 
     world.enemies._spawnWave(0, world.runTime, world.player)
-    expect(world.enemies.count).toBe(2)
+    expect(world.enemies.count).toBe(1)
 
     const accepted = world._spawnFormation({ count: 22 })
     expect(accepted).toBe(true)
-    expect(world.enemies.count).toBe(2)
+    expect(world.enemies.count).toBe(1)
   })
 
   it('keeps the scheduled final boss alive long enough to show all three phases', () => {
@@ -445,6 +476,8 @@ describe('CombatWorld2D', () => {
     world._fireWeapon('flyingSword', 1)
     world.projectiles.update(0.1)
     expect(events.map((event) => event.stage)).toEqual(['hit', 'death'])
+    expect(events.every((event) => event.bossId === 'jadeVoidWarden'
+      && event.bossName === '옥허진장')).toBe(true)
     expect(events.every((event) => Number.isFinite(event.damage)
       && typeof event.crit === 'boolean' && event.final === true)).toBe(true)
   })
@@ -660,6 +693,42 @@ describe('CombatWorld2D', () => {
     expect(first.dropped).toBe(0)
     expect(first.collectedXp + first.totals.xp).toBeCloseTo(first.spawnedXp)
     expect(first.collectedStones + first.totals.stones).toBeCloseTo(first.spawnedStones)
+  })
+
+  it('does not apply the record-challenge time boundary to a story expedition', () => {
+    const world = new CombatWorld2D({
+      character: getCharacter('seolryeong'), stage: getStage('jade'),
+      progress: { trial: 0, statMods: [], reviveCharges: 0 }, rng: new RNG(2026),
+      mode: 'expedition',
+    })
+    world.enemies.update = () => {}
+    world._updateBoss = () => {}
+    world._updateWeapons = () => {}
+    world.projectiles.update = () => {}
+    world.weaponFields.update = () => {}
+    world.effects.update = () => {}
+    world.player.takeDamage = () => false
+    world.runTime = 419.99
+
+    world.update(0.02, idleInput)
+
+    expect(world.runTime).toBeGreaterThan(420)
+    expect(world.ended).toBe(false)
+    expect(world.bossSchedule).toEqual([])
+    expect(world.pacing).toBeNull()
+    expect(world.formations).not.toBeNull()
+  })
+
+  it('keeps horde pressure and formations in story expeditions without a hard clock', () => {
+    const world = new CombatWorld2D({
+      character: getCharacter('seolryeong'), stage: getStage('jade'),
+      progress: { trial: 0, statMods: [], reviveCharges: 0 }, rng: new RNG(2027),
+      mode: 'expedition',
+    })
+    world.update(1 / 60, idleInput)
+    expect(world.enemies.count).toBeGreaterThan(0)
+    expect(world.formations).not.toBeNull()
+    expect(world.pacing).toBeNull()
   })
 
   it('keeps all pools inside the declared stress limits', () => {

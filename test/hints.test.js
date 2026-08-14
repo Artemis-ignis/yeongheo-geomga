@@ -7,7 +7,7 @@ import { HintOverlay } from '../src/ui/HintOverlay.js'
 /** A state where nothing has happened yet. */
 function fresh(over = {}) {
   return {
-    runTime: 0, level: 1, kills: 0, stones: 0, hpFraction: 1,
+    mode: 'survival', runTime: 0, level: 1, kills: 0, stones: 0, hpFraction: 1,
     qiOnGround: 0, nearbyEnemies: 0, bossAlive: false,
     formationSeen: false, maxedWeapon: null, ...over,
   }
@@ -49,7 +49,8 @@ describe('hint table', () => {
 
   it('teaches movement and Space dash in the first hint', () => {
     const move = HINTS.find((hint) => hint.id === 'move')
-    expect(move.text).toBe('WASD·방향키 이동 | Space 축지법 | 공격 자동')
+    expect(textOf(move, fresh())).toBe('WASD·방향키 이동 | Space 축지법 | 공격 자동')
+    expect(textOf(move, fresh({ mode: 'expedition' }))).toBe('WASD·방향키 / 좌클릭 이동 | E 조사')
     expect(move.hold).toBeGreaterThanOrEqual(6)
     expect(move.hold).toBeLessThanOrEqual(8)
   })
@@ -61,6 +62,13 @@ describe('hint table', () => {
     expect(pickup.when(fresh({ qiOnGround: 1 }))).toBe(true)
     expect(textOf(pickup, fresh())).toContain('영기 구슬')
     expect(textOf(pickup, fresh())).toContain('자동으로')
+  })
+
+  it('keeps timed survival onboarding out of the authored journey', () => {
+    const journey = fresh({ mode: 'expedition', runTime: 6, qiOnGround: 4 })
+    expect(HINTS.find((hint) => hint.id === 'auto').when(journey)).toBe(false)
+    expect(HINTS.find((hint) => hint.id === 'qi').when(journey)).toBe(false)
+    expect(HINTS.find((hint) => hint.id === 'journeyTrack').when(journey)).toBe(true)
   })
 
   it('gives every hint text and a readable dwell', () => {
@@ -171,7 +179,8 @@ describe('hint sequencing', () => {
     const shown = new Set()
     // A generous run that trips every condition at some point.
     const states = [
-      fresh(), fresh({ runTime: 6, kills: 3 }), fresh({ runTime: 8, qiOnGround: 9 }),
+      fresh(), fresh({ mode: 'expedition', runTime: 6 }),
+      fresh({ runTime: 6, kills: 3 }), fresh({ runTime: 8, qiOnGround: 9 }),
       fresh({ runTime: 15, level: 3 }), fresh({ runTime: 30 }),
       fresh({ runTime: 60, nearbyEnemies: 30 }), fresh({ runTime: 90, hpFraction: 0.2 }),
       fresh({ runTime: 120, stones: 90 }), fresh({ runTime: 480, bossAlive: true }),

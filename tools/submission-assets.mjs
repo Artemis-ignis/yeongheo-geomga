@@ -8,89 +8,102 @@ export const DEFAULT_PUBLIC_DIR = path.join(WORKSPACE_ROOT, 'public')
 export const DEFAULT_OUTPUT_DIR = path.join(WORKSPACE_ROOT, 'dist')
 
 /**
- * Assets used by the shipped PixiJS 2D contest runtime. The source public tree
- * also keeps the current sprite authoring sheets; only this allowlist enters
- * the Pages bundle.
+ * Assets used by the shipped PixiJS 2D runtime. Authoring sheets live under
+ * assets-source outside Vite's public tree; this allowlist independently pins
+ * every static file admitted to the web bundle.
  */
 export const SUBMISSION_RUNTIME_ASSETS = Object.freeze([
-  'assets/characters/jade-void-warden-boss-reference-v2.png',
-  'assets/characters/seolryeong-character-reference-v2.png',
-  'assets/characters/seolryeong-character-reference-v3.png',
-  'assets/environment/jade-sanctuary-environment-v2.png',
-  'assets/marketing/yeongheo-contest-keyart-v1.png',
-  'assets/ui/skill-icons-v1/area-formation.png',
-  'assets/ui/skill-icons-v1/attack-seal.png',
-  'assets/ui/skill-icons-v1/bagua-array.png',
-  'assets/ui/skill-icons-v1/cooldown-hourglass.png',
-  'assets/ui/skill-icons-v1/dao-lotus.png',
-  'assets/ui/skill-icons-v1/fire-talisman.png',
-  'assets/ui/skill-icons-v1/flying-sword.png',
-  'assets/ui/skill-icons-v1/frost-palm.png',
-  'assets/ui/skill-icons-v1/healing-core.png',
-  'assets/ui/skill-icons-v1/qi-shield.png',
-  'assets/ui/skill-icons-v1/soul-eye.png',
-  'assets/ui/skill-icons-v1/spirit-butterfly.png',
-  'assets/ui/skill-icons-v1/thunder-orb.png',
-  'assets/ui/skill-icons-v1/twin-blades.png',
-  'assets/ui/skill-icons-v1/vajra.png',
-  'assets/ui/skill-icons-v1/windstep.png',
-  'assets/ui/skill-icons-v2/clone-art.png',
-  'assets/ui/skill-icons-v2/destined-bond.png',
-  'assets/ui/skill-icons-v2/earth-dragon-spikes.png',
-  'assets/ui/skill-icons-v2/echoing-heart.png',
-  'assets/ui/skill-icons-v2/frost-line.png',
-  'assets/ui/skill-icons-v2/frost-oath.png',
-  'assets/ui/skill-icons-v2/frost-shards.png',
-  'assets/ui/skill-icons-v2/frozen-sky.png',
-  'assets/ui/skill-icons-v2/heal.png',
-  'assets/ui/skill-icons-v2/heart-method.png',
-  'assets/ui/skill-icons-v2/heavenly-lightning.png',
-  'assets/ui/skill-icons-v2/hidden-needles.png',
-  'assets/ui/skill-icons-v2/ice-wall.png',
-  'assets/ui/skill-icons-v2/inferno-sea.png',
-  'assets/ui/skill-icons-v2/myriad-swords.png',
-  'assets/ui/skill-icons-v2/needle-storm.png',
-  'assets/ui/skill-icons-v2/piercing-edge.png',
-  'assets/ui/skill-icons-v2/plague-tide.png',
-  'assets/ui/skill-icons-v2/purge.png',
-  'assets/ui/skill-icons-v2/purifying-heart.png',
-  'assets/ui/skill-icons-v2/returning-edge.png',
-  'assets/ui/skill-icons-v2/shadow-copy.png',
-  'assets/ui/skill-icons-v2/spirit-bell.png',
-  'assets/ui/skill-icons-v2/spirit-oath.png',
-  'assets/ui/skill-icons-v2/spirit-stones.png',
-  'assets/ui/skill-icons-v2/sword-oath.png',
-  'assets/ui/skill-icons-v2/sword-riding.png',
-  'assets/ui/skill-icons-v2/sword-ring.png',
-  'assets/ui/skill-icons-v2/venom-palm.png',
-  'assets/ui/skill-icons-v2/violet-thunder.png',
-  'assets/ui/skill-icons-v2/void-orb.png',
-  'assets/ui/skill-icons-v2/wind-blades.png',
-  'assets/ui/stage-thumbnails-v1/ember.png',
-  'assets/ui/stage-thumbnails-v1/frost.png',
-  'assets/ui/stage-thumbnails-v1/jade.png',
-  'assets/materials/environment/jade-highland-ground-v1.png',
-  'assets/materials/environment/jade-sanctuary-ground-material-v2.png',
-  'assets/materials/environment/jade-pavilion-stone-v1.png',
-  'assets/sprites2d/blood-scorpion-motion-v1.png',
-  'assets/sprites2d/jade-sanctuary-props-v1.png',
-  'assets/sprites2d/jade-serpent-motion-v1.png',
-  'assets/sprites2d/jade-shard-guardian-motion-v1.png',
-  'assets/sprites2d/jade-stone-ghoul-motion-v1.png',
-  'assets/sprites2d/jade-void-warden-motion-v2.png',
-  'assets/sprites2d/magi-remnant-motion-v2.png',
-  'assets/sprites2d/masked-seal-revenant-motion-v1.png',
-  'assets/sprites2d/seolryeong-combat-v1.png',
-  'assets/sprites2d/seolryeong-heroine-east-motion-v1.png',
-  'assets/sprites2d/seolryeong-heroine-motion-v5.png',
-  'assets/sprites2d/seolryeong-heroine-northeast-motion-v1.png',
-  'assets/sprites2d/seolryeong-heroine-north-motion-v1.png',
-  'assets/sprites2d/seolryeong-heroine-south-motion-v1.png',
-  'assets/sprites2d/talisman-revenant-motion-v1.png',
-  'assets/sprites2d/shadow-seal-duelist-motion-v1.png',
-  'assets/sprites2d/void-sentinel-motion-v2.png',
-  'assets/sprites2d/jade-ridge-hound-motion-v1.png',
-  'assets/sprites2d/yorang-motion-v2.png',
+  'assets/characters/jade-void-warden-boss-reference-v2.webp',
+  'assets/characters/seolryeong-character-reference-v2.webp',
+  'assets/characters/seolryeong-character-reference-v3.webp',
+  'assets/environment/jade-sanctuary-environment-v2.webp',
+  'assets/brand/yeongheo-seal-v1.svg',
+  'assets/marketing/yeongheo-ink-title-v1.webp',
+  'assets/ui/ink-paper-texture-v1.svg',
+  'assets/ui/skill-icons-v1/area-formation.webp',
+  'assets/ui/skill-icons-v1/attack-seal.webp',
+  'assets/ui/skill-icons-v1/bagua-array.webp',
+  'assets/ui/skill-icons-v1/cooldown-hourglass.webp',
+  'assets/ui/skill-icons-v1/dao-lotus.webp',
+  'assets/ui/skill-icons-v1/fire-talisman.webp',
+  'assets/ui/skill-icons-v1/flying-sword.webp',
+  'assets/ui/skill-icons-v1/frost-palm.webp',
+  'assets/ui/skill-icons-v1/healing-core.webp',
+  'assets/ui/skill-icons-v1/qi-shield.webp',
+  'assets/ui/skill-icons-v1/soul-eye.webp',
+  'assets/ui/skill-icons-v1/spirit-butterfly.webp',
+  'assets/ui/skill-icons-v1/thunder-orb.webp',
+  'assets/ui/skill-icons-v1/twin-blades.webp',
+  'assets/ui/skill-icons-v1/vajra.webp',
+  'assets/ui/skill-icons-v1/windstep.webp',
+  'assets/ui/skill-icons-v2/clone-art.webp',
+  'assets/ui/skill-icons-v2/destined-bond.webp',
+  'assets/ui/skill-icons-v2/earth-dragon-spikes.webp',
+  'assets/ui/skill-icons-v2/echoing-heart.webp',
+  'assets/ui/skill-icons-v2/frost-line.webp',
+  'assets/ui/skill-icons-v2/frost-oath.webp',
+  'assets/ui/skill-icons-v2/frost-shards.webp',
+  'assets/ui/skill-icons-v2/frozen-sky.webp',
+  'assets/ui/skill-icons-v2/heal.webp',
+  'assets/ui/skill-icons-v2/heart-method.webp',
+  'assets/ui/skill-icons-v2/heavenly-lightning.webp',
+  'assets/ui/skill-icons-v2/hidden-needles.webp',
+  'assets/ui/skill-icons-v2/ice-wall.webp',
+  'assets/ui/skill-icons-v2/inferno-sea.webp',
+  'assets/ui/skill-icons-v2/myriad-swords.webp',
+  'assets/ui/skill-icons-v2/needle-storm.webp',
+  'assets/ui/skill-icons-v2/piercing-edge.webp',
+  'assets/ui/skill-icons-v2/plague-tide.webp',
+  'assets/ui/skill-icons-v2/purge.webp',
+  'assets/ui/skill-icons-v2/purifying-heart.webp',
+  'assets/ui/skill-icons-v2/returning-edge.webp',
+  'assets/ui/skill-icons-v2/shadow-copy.webp',
+  'assets/ui/skill-icons-v2/spirit-bell.webp',
+  'assets/ui/skill-icons-v2/spirit-oath.webp',
+  'assets/ui/skill-icons-v2/spirit-stones.webp',
+  'assets/ui/skill-icons-v2/sword-oath.webp',
+  'assets/ui/skill-icons-v2/sword-riding.webp',
+  'assets/ui/skill-icons-v2/sword-ring.webp',
+  'assets/ui/skill-icons-v2/venom-palm.webp',
+  'assets/ui/skill-icons-v2/violet-thunder.webp',
+  'assets/ui/skill-icons-v2/void-orb.webp',
+  'assets/ui/skill-icons-v2/wind-blades.webp',
+  'assets/ui/stage-thumbnails-v1/ember.webp',
+  'assets/ui/stage-thumbnails-v1/frost.webp',
+  'assets/ui/stage-thumbnails-v1/jade.webp',
+  'assets/materials/environment/jade-highland-ground-v1.webp',
+  'assets/materials/environment/jade-sanctuary-ground-material-v2.webp',
+  'assets/materials/environment/jade-pavilion-stone-v1.webp',
+  'assets/sprites2d/blood-scorpion-motion-v1.webp',
+  'assets/sprites2d/jade-sanctuary-props-v1.webp',
+  'assets/sprites2d/jade-serpent-motion-v1.webp',
+  'assets/sprites2d/jade-shard-guardian-motion-v1.webp',
+  'assets/sprites2d/jade-stone-ghoul-motion-v1.webp',
+  'assets/sprites2d/jade-void-warden-motion-v2.webp',
+  'assets/sprites2d/magi-remnant-motion-v2.webp',
+  'assets/sprites2d/masked-seal-revenant-motion-v1.webp',
+  'assets/sprites2d/seolryeong-combat-v1.webp',
+  'assets/sprites2d/seolryeong-heroine-east-motion-v2.webp',
+  'assets/sprites2d/seolryeong-heroine-east-reaction-v1.webp',
+  'assets/sprites2d/seolryeong-heroine-southeast-motion-v2.webp',
+  'assets/sprites2d/seolryeong-heroine-southeast-reaction-v1.webp',
+  'assets/sprites2d/seolryeong-heroine-northeast-motion-v2.webp',
+  'assets/sprites2d/seolryeong-heroine-northeast-reaction-v1.webp',
+  'assets/sprites2d/seolryeong-heroine-north-motion-v3.webp',
+  'assets/sprites2d/seolryeong-heroine-north-reaction-v1.webp',
+  'assets/sprites2d/seolryeong-heroine-south-motion-v3.webp',
+  'assets/sprites2d/seolryeong-heroine-south-reaction-v1.webp',
+  'assets/sprites2d/talisman-revenant-motion-v1.webp',
+  'assets/sprites2d/shadow-seal-duelist-motion-v1.webp',
+  'assets/sprites2d/void-sentinel-motion-v2.webp',
+  'assets/sprites2d/jade-ridge-hound-motion-v1.webp',
+  'assets/sprites2d/jade-ridge-hound-north-motion-v2.webp',
+  'assets/sprites2d/jade-ridge-hound-south-motion-v2.webp',
+  'assets/sprites2d/jade-serpent-north-motion-v2.webp',
+  'assets/sprites2d/jade-serpent-south-motion-v2.webp',
+  'assets/sprites2d/yorang-motion-v2.webp',
+  'assets/sprites2d/yorang-north-motion-v5.webp',
+  'assets/sprites2d/yorang-south-motion-v4.webp',
 ])
 
 export const SUBMISSION_RUNTIME_ASSET_SET = new Set(SUBMISSION_RUNTIME_ASSETS)
@@ -100,6 +113,16 @@ export const SUBMISSION_RUNTIME_ASSET_SET = new Set(SUBMISSION_RUNTIME_ASSETS)
 const STATIC_ASSET_EXTENSIONS = new Set([
   '.avif', '.bin', '.gif', '.glb', '.gltf', '.jpeg', '.jpg', '.mp3', '.ogg',
   '.png', '.svg', '.wav', '.webp',
+])
+
+// Product builds must not contain developer control surfaces, even as hidden
+// DOM or dead-looking strings. Vite should erase DEV-only branches entirely.
+export const PRODUCTION_DEBUG_MARKERS = Object.freeze([
+  '__game2dDiagnostics',
+  '__forceBoss',
+  '__forceLevelUp',
+  '__stress2d',
+  'debug-overlay',
 ])
 
 function normalize(value) {
@@ -142,6 +165,20 @@ function walkFiles(root) {
 
 function relativeFiles(root) {
   return walkFiles(root).map((file) => normalize(path.relative(root, file))).sort()
+}
+
+export function findProductionDebugMarkers(outDir = DEFAULT_OUTPUT_DIR) {
+  const outputRoot = path.resolve(outDir)
+  const inspectable = relativeFiles(outputRoot).filter((relativePath) =>
+    ['.css', '.html', '.js'].includes(path.extname(relativePath).toLowerCase()))
+  const matches = []
+  for (const relativePath of inspectable) {
+    const content = fs.readFileSync(path.join(outputRoot, relativePath), 'utf8')
+    for (const marker of PRODUCTION_DEBUG_MARKERS) {
+      if (content.includes(marker)) matches.push({ path: relativePath, marker })
+    }
+  }
+  return matches
 }
 
 function isInside(root, target) {
@@ -249,13 +286,18 @@ export function auditSubmissionAssets({
     outputRoot,
     outputStaticAssets.filter((relativePath) => SUBMISSION_RUNTIME_ASSET_SET.has(relativePath)),
   )
+  const productionDebugMarkers = findProductionDebugMarkers(outputRoot)
 
   return {
-    ok: sourceMissing.length === 0 && outputMissing.length === 0 && unexpectedOutputAssets.length === 0,
+    ok: sourceMissing.length === 0
+      && outputMissing.length === 0
+      && unexpectedOutputAssets.length === 0
+      && productionDebugMarkers.length === 0,
     requiredAssetCount: SUBMISSION_RUNTIME_ASSETS.length,
     sourceMissing,
     outputMissing,
     unexpectedOutputAssets,
+    productionDebugMarkers,
     sourceStatic: sourceStats,
     outputStatic: outputStats,
     outputRuntime: runtimeOutputStats,
@@ -273,6 +315,7 @@ export function formatSubmissionAssetReport(report) {
     `sourceMissing=${report.sourceMissing?.length ?? 0}`,
     `outputMissing=${report.outputMissing?.length ?? 0}`,
     `unexpected=${report.unexpectedOutputAssets?.length ?? 0}`,
+    `debugMarkers=${report.productionDebugMarkers?.length ?? 0}`,
   ]
   if (report.removedFileCount != null) fields.push(`removed=${report.removedFileCount} files/${report.removedBytes ?? 0} bytes`)
   return fields.join(' ')

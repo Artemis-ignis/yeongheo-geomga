@@ -22,7 +22,7 @@ import { DAO_COMBAT_ACTION_2D, DaoCombatRuntime2D } from './DaoCombatRuntime2D.j
 
 export const MAX_ENEMIES_2D = 900
 export const MAX_PROJECTILES_2D = 1200
-// A seven-minute run can leave several thousand XP/stone drops on the floor
+// A long survival expedition can leave several thousand XP/stone drops on the floor
 // when the player is kiting.  Keep this a fixed, renderer-sized pool, then
 // compact only when it is genuinely saturated.
 export const MAX_PICKUPS_2D = 4096
@@ -44,6 +44,8 @@ const DASH_IFRAMES = 0.35
 // damage from several overlapping cut-outs in the same half second. Keep the
 // threat, but give the player enough post-hit separation time to read and dash.
 const MERCY_IFRAMES = 0.68
+export const HERO_HURT_REACTION_SECONDS_2D = 0.28
+export const HERO_DEATH_REACTION_SECONDS_2D = 0.72
 const BOSS_DEFEAT_HEAL_FRACTION_2D = 0.3
 const BOSS_DEFEAT_GRACE_SECONDS_2D = 2.4
 const BOSS_DEFEAT_SHOCKWAVE_RADIUS_2D = 10
@@ -55,7 +57,7 @@ const BOSS_WAVE_DENSITY_2D = 0.35
 // the second phase gate. Keep enough adds to feed the survivor fantasy while
 // making the mirrored boss patterns the encounter's readable threat.
 export const FINAL_BOSS_WAVE_DENSITY_2D = 0.12
-// The contest run is seven minutes. The final boss enters at 5:30 and owns the
+// The legacy record challenge uses a bounded clock. Its final boss owns the
 // last ninety seconds instead of evaporating in a late-game damage stack at
 // 6:04. Each floor guarantees a readable authored phase; the final five
 // seconds after a successful kill are a protected victory lap before 7:00.
@@ -66,13 +68,19 @@ export const FINAL_BOSS_PHASE_GATE_SECONDS_2D = Object.freeze([25, 55, 85])
 // last phase could be killed. A small visible heal, hostile-bullet clear and
 // brief grace window reward reaching the next phase without removing its
 // threat or granting a hidden revive.
-export const FINAL_BOSS_PHASE_RELIEF_HEAL_FRACTION_2D = 0.18
-export const FINAL_BOSS_PHASE_RELIEF_GRACE_SECONDS_2D = 1.15
+export const FINAL_BOSS_PHASE_RELIEF_HEAL_FRACTION_2D = 0.22
+export const FINAL_BOSS_PHASE_RELIEF_GRACE_SECONDS_2D = 1.45
 // A 2:23 keyboard run left 185 separately rendered qi shards despite a 6.5m
 // magnet. Merge drops from the same local kill cluster so their value survives
 // as one readable reward instead of turning the whole arena into cyan confetti.
 export const PICKUP_MERGE_RADIUS_2D = 2.4
 const PICKUP_RECYCLE_DISTANCE_2D = 18
+// Kiting can strand thousands of tiny rewards, while recalling every stack at
+// once creates a late level-up avalanche. Recall stones and dense XP stacks;
+// individual low-value qi motes stay as a readable trail and remain fully
+// accounted for by the reward ledger.
+export const PICKUP_REMOTE_RECALL_AGE_2D = 18
+export const PICKUP_REMOTE_RECALL_MIN_XP_2D = 18
 const WEAPON_AUDIO_COOLDOWN_2D = Object.freeze({
   launch: 0,
   impact: 0.08,
@@ -345,6 +353,8 @@ class PlayerState2D {
     this.invulnTimer = 0
     this.dashCooldown = 0
     this.hitFlash = 0
+    this.hurtTimer = 0
+    this.deathTimer = 0
     this.attackTimer = 0
     this.actualSpeed = 0
     this.dashing = 0
@@ -412,6 +422,7 @@ class PlayerState2D {
     this.hp -= dealt
     this.invulnTimer = Math.max(MERCY_IFRAMES, mercyIFrames)
     this.hitFlash = 0.12
+    this.hurtTimer = HERO_HURT_REACTION_SECONDS_2D
     this.onHurt?.(dealt)
     if (this.hp <= 0) {
       if (this.reviveCharges > 0) {
@@ -421,16 +432,19 @@ class PlayerState2D {
       } else {
         this.hp = 0
         this.alive = false
+        this.deathTimer = HERO_DEATH_REACTION_SECONDS_2D
       }
     }
     return true
   }
 
   update(dt, input) {
-    if (!this.alive) return
     this.prevX = this.x
     this.prevZ = this.z
     this.teleported = false
+    this.hurtTimer = Math.max(0, this.hurtTimer - dt)
+    this.deathTimer = Math.max(0, this.deathTimer - dt)
+    if (!this.alive) return
     this.invulnTimer = Math.max(0, this.invulnTimer - dt)
     this.dashCooldown = Math.max(0, this.dashCooldown - dt)
     this.hitFlash = Math.max(0, this.hitFlash - dt)
@@ -780,8 +794,15 @@ class PickupField2D {
       const dx = player.x - this.x[i]
       const dz = player.z - this.z[i]
       const dist = Math.hypot(dx, dz)
-      if (dist < magnet) {
-        const pull = 5 + (1 - dist / magnet) * 22
+      const recallEligible = this.stoneValue[i] > 0
+        || this.xpValue[i] >= PICKUP_REMOTE_RECALL_MIN_XP_2D
+      const remoteRecall = recallEligible
+        && this.age[i] >= PICKUP_REMOTE_RECALL_AGE_2D
+        && dist >= magnet
+      if (dist < magnet || remoteRecall) {
+        const pull = remoteRecall
+          ? Math.min(54, 18 + (this.age[i] - PICKUP_REMOTE_RECALL_AGE_2D) * 2.6)
+          : 5 + (1 - dist / magnet) * 22
         this.x[i] += (dx / Math.max(0.001, dist)) * pull * dt
         this.z[i] += (dz / Math.max(0.001, dist)) * pull * dt
       }
@@ -1556,10 +1577,11 @@ class EnemyField2D {
 }
 
 export class CombatWorld2D {
-  constructor({ character, stage, progress, rng, daoVows = null, daoSnapshot = null }) {
+  constructor({ character, stage, progress, rng, daoVows = null, daoSnapshot = null, mode = 'survival' }) {
     this.stage = stage
     this.progress = progress
     this.rng = rng
+    this.mode = mode === 'expedition' ? 'expedition' : 'survival'
     this.runTime = 0
     this.shake = 0
     this.ended = false
@@ -1583,7 +1605,7 @@ export class CombatWorld2D {
       rerollsUsed: 0,
       banishesUsed: 0,
     }
-    this.trial = applyTrial(progress.trial)
+    this.trial = applyTrial(this.mode === 'survival' ? progress.trial : 0)
     this.effects = new EffectField2D()
     this.player = new PlayerState2D(character, progress.statMods, progress.reviveCharges, this.effects)
     this.player.onHurt = (amount) => {
@@ -1608,13 +1630,9 @@ export class CombatWorld2D {
     // They retain the exact cast snapshot so a moving player is checked
     // against the same placement that was telegraphed.
     this.bossZoneFields = []
-    const authoredSchedule = scheduleFor(stage)
-    this.bossSchedule = [
-      { ...authoredSchedule[0], t: 180, slot: 'mid' },
-      { ...authoredSchedule.at(-1), t: 330, slot: 'final' },
-    ]
+    this.bossSchedule = this.mode === 'survival' ? scheduleFor(stage) : []
     this.spawnedBosses = new Set()
-    this.finalBossId = this.bossSchedule.at(-1)?.id ?? null
+    this.finalBossId = this.bossSchedule.at(-1)?.id ?? stage?.bosses?.final ?? null
     this.weaponTimers = new Map()
     this.weaponBehaviorUsage = new Set()
     this.weaponBehaviorAxesUsed = new Map()
@@ -1624,7 +1642,11 @@ export class CombatWorld2D {
     this.weaponAudioLastAt = new Map()
     this.weaponCache = []
     this.passiveCache = []
-    this.pacing = new ContestPacing2D()
+    // Story expedition and challenge modes share the survivor-combat grammar.
+    // The optional challenge alone owns a hard clock and timed boss schedule;
+    // ordinary expedition keeps enemy pressure and formations alive while its
+    // authored investigation and route bosses decide when the run ends.
+    this.pacing = this.mode === 'survival' ? new ContestPacing2D() : null
     this.formations = new FormationDirector2D({ seed: rng.seed, roster: stage?.roster })
     this.rebuildLoadoutCache()
     this.snapshot = Object.freeze({
@@ -2053,6 +2075,7 @@ export class CombatWorld2D {
       patternId: null, patternPhase: null, patternVowId: null, patternIntent: null,
       audioEventIds: new Set(), hitAudioSequence: 0,
       spawnedAt: this.runTime, phase: 0, reliefGateIndex: 0,
+      facing: Math.atan2(this.player.x - (this.player.x + Math.cos(angle) * 16), this.player.z - (this.player.z + Math.sin(angle) * 16)),
       castOriginX: null, castOriginZ: null, castTargetX: null, castTargetZ: null,
       castAngle: null, castDirection: null, recoveryUntil: 0,
     }
@@ -2228,6 +2251,14 @@ export class CombatWorld2D {
       boss.x += (dx / dist) * boss.def.speed * TRIAL.speed * dt
       boss.z += (dz / dist) * boss.def.speed * TRIAL.speed * dt
     }
+    boss.facing = enemyPresentationFacing2D({
+      aimX: this.player.x - boss.x,
+      aimZ: this.player.z - boss.z,
+      moveX: boss.x - boss.prevX,
+      moveZ: boss.z - boss.prevZ,
+      attacking: casting || boss.castTimer > 0,
+      fallback: boss.facing,
+    })
     boss.phase = boss.hp / boss.maxHp < 0.33 ? 2 : boss.hp / boss.maxHp < 0.66 ? 1 : 0
     const rr = boss.def.radius + 0.55
     if (!casting && dist <= rr && boss.hitCd <= 0) {
@@ -2462,7 +2493,7 @@ export class CombatWorld2D {
   }
 
   _spawnFormation(event) {
-    if (!event || MAX_ENEMIES_2D - this.enemies.count < event.count) return false
+    if (!event || !this.formations || MAX_ENEMIES_2D - this.enemies.count < event.count) return false
     // A scheduled formation that lands during the final duel would compete
     // with the boss telegraph and safe-space language. Acknowledge it without
     // spawning; ambient adds continue at the bounded final-encounter density.
@@ -2553,6 +2584,8 @@ export class CombatWorld2D {
     const event = Object.freeze({
       eventId,
       stage,
+      bossId: boss.def?.id ?? null,
+      bossName: boss.def?.name ?? null,
       patternId: eventPattern?.patternId ?? boss.patternId ?? null,
       phase: eventPattern?.phase ?? boss.patternPhase ?? boss.phase + 1,
       vowId: eventPattern?.vowId ?? boss.patternVowId ?? null,
@@ -2715,6 +2748,13 @@ export class CombatWorld2D {
   }
 
   _updateWeapons(dt) {
+    // Exploration should be visually quiet until combat actually exists.
+    // Firing into empty space made authored evidence marks indistinguishable
+    // from abandoned sword VFX and undermined the investigation verb.
+    if (!this.boss?.active && this.enemies.nearest(this.player.x, this.player.z, 24) < 0) {
+      for (const { id } of this.weaponCache) this.weaponTimers.set(id, Math.max(0.05, this.weaponTimers.get(id) ?? 0.05))
+      return
+    }
     for (const { id, level } of this.weaponCache) {
       let timer = (this.weaponTimers.get(id) ?? 0) - dt
       if (timer <= 0) timer += this._fireWeapon(id, level)
@@ -2731,20 +2771,40 @@ export class CombatWorld2D {
     this._daoDeathEvents.length = 0
     this._drainPendingDaoDeaths()
     this.runTime += dt
-    const pacingEvents = this.pacing.advance(dt)
+    const pacingEvents = this.pacing?.advance(dt) ?? []
     let hardTimeout = false
     for (const event of pacingEvents) {
       this.onPacingMilestone?.(event)
       if (event.id === CONTEST_PACING_MILESTONE_2D.hardTimeout) hardTimeout = true
     }
-    // The pacing director clamps its own clock to 420 seconds, so the world
+    // This survival mode's pacing director clamps its own clock to 420 seconds, so the world
     // result must use that same authoritative boundary even when a render tick
     // crosses it (for example 419.999 -> 420.0167).
     if (hardTimeout) this.runTime = RUN_SECONDS_2D
+    if (hardTimeout && this.boss?.active && this.boss.def.id === this.finalBossId) {
+      // A build that entered and survived the full three-phase mirror has
+      // cleared this authored survival challenge. The previous strict HP
+      // timeout turned an otherwise safe run into an unexplained loss on the
+      // final frame, especially for control-oriented branches.
+      const finalPhaseReached = this.boss.phase >= 2
+        || this.boss.hp / Math.max(1, this.boss.maxHp) <= 0.36
+      if (finalPhaseReached) {
+        this.boss.hp = 0
+        this.boss.active = false
+        this.bossZoneFields.length = 0
+        this.runStats.bossKills++
+        this.victory = true
+        this.player.invulnTimer = Math.max(this.player.invulnTimer, 0.25)
+        this.projectiles.clearHostile()
+        this.effects.spawn(EFFECT_KIND.death, this.boss.x, this.boss.z, 1, 6, this.boss.def.color)
+        this._emitBossAudio('death', this.boss, null, { damage: 0, crit: false })
+        this._pendingEnd = true
+      }
+    }
     this.shake = Math.max(0, this.shake - dt * 2.8)
     this._daoMoving = Boolean(input?.moveX || input?.moveZ)
     this.player.update(dt, input)
-    this.formations.update(this.runTime, { player: this.player }, (event) => this._spawnFormation(event))
+    this.formations?.update(this.runTime, { player: this.player }, (event) => this._spawnFormation(event))
     this.enemies.update(dt, this.runTime, this.player)
     this._updateBoss(dt)
     this._updateWeapons(dt)
@@ -2757,7 +2817,9 @@ export class CombatWorld2D {
     }, (pickup) => this._daoPickupEvents.push(pickup))
     this.effects.update(dt)
     const requestedEnd = this._pendingEnd
-      ?? (!this.player.alive ? false : hardTimeout ? this.victory : null)
+      ?? (!this.player.alive
+        ? this.player.deathTimer <= 0 ? false : null
+        : hardTimeout ? this.victory : null)
     this._runDaoFixedTick({ runEnded: requestedEnd !== null })
     if (requestedEnd !== null && !this.ended) this._end(requestedEnd)
   }

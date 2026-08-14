@@ -2,12 +2,13 @@ import { iconFor } from './icons.js'
 import { getWeapon } from '../data/weapons.js'
 import { isReleasePlayableCharacter } from '../data/characters.js'
 import { unlockCost } from '../data/unlocks.js'
-import { STAGES } from '../data/stages.js'
+import { STAGES, isReleaseStage } from '../data/stages.js'
 import { TRIALS, getTrial } from '../data/trials.js'
+import { getJourneyChapterForStage, journeyLegacyFor } from '../data/journey.js'
 
-const TITLE_ART = 'assets/marketing/yeongheo-contest-keyart-v1.png'
-const SETUP_ART = 'assets/environment/jade-sanctuary-environment-v2.png'
-const SEOLRYEONG_ART = 'assets/sprites2d/seolryeong-combat-v1.png'
+const TITLE_ART = 'assets/marketing/yeongheo-ink-title-v1.webp'
+const SETUP_ART = 'assets/environment/jade-sanctuary-environment-v2.webp'
+const SEOLRYEONG_ART = 'assets/sprites2d/seolryeong-combat-v1.webp'
 
 // The stage cards use dedicated 1024×448 environment thumbnails. Keeping this
 // mapping beside the copy makes it impossible for a new 비경 to silently fall
@@ -17,8 +18,8 @@ const STAGE_PRESENTATION = Object.freeze({
     index: '제1경',
     tone: '옥산 고원 · 균형형',
     kind: '비경 실경',
-    image: 'assets/ui/stage-thumbnails-v1/jade.png',
-    emblem: 'assets/ui/skill-icons-v1/bagua-array.png',
+    image: 'assets/ui/stage-thumbnails-v1/jade.webp',
+    emblem: 'assets/ui/skill-icons-v1/bagua-array.webp',
     overlay: 'linear-gradient(180deg, rgba(5, 20, 27, 0.06), rgba(3, 11, 16, 0.88))',
     position: 'center',
     accent: '#7fe2c3',
@@ -27,8 +28,8 @@ const STAGE_PRESENTATION = Object.freeze({
     index: '제2경',
     tone: '잿불 황야 · 고위험',
     kind: '비경 실경',
-    image: 'assets/ui/stage-thumbnails-v1/ember.png',
-    emblem: 'assets/ui/skill-icons-v1/fire-talisman.png',
+    image: 'assets/ui/stage-thumbnails-v1/ember.webp',
+    emblem: 'assets/ui/skill-icons-v1/fire-talisman.webp',
     overlay: 'linear-gradient(180deg, rgba(72, 13, 5, 0.04), rgba(19, 4, 3, 0.86))',
     position: 'center',
     accent: '#ff9a63',
@@ -37,8 +38,8 @@ const STAGE_PRESENTATION = Object.freeze({
     index: '제3경',
     tone: '만년설 고봉 · 극한',
     kind: '비경 실경',
-    image: 'assets/ui/stage-thumbnails-v1/frost.png',
-    emblem: 'assets/ui/skill-icons-v1/frost-palm.png',
+    image: 'assets/ui/stage-thumbnails-v1/frost.webp',
+    emblem: 'assets/ui/skill-icons-v1/frost-palm.webp',
     overlay: 'linear-gradient(180deg, rgba(8, 23, 43, 0.04), rgba(4, 10, 23, 0.88))',
     position: 'center',
     accent: '#b9eaff',
@@ -77,17 +78,17 @@ function blurOwnedFocus(node) {
 }
 
 /**
- * Title, main menu, and the run setup flow.
+ * Title and expedition setup flow.
  *
- * The run setup deliberately has three stops — cultivator, 비경, and a final
- * confirmation — so a click or a controller press cannot launch the wrong
- * loadout. Only heroines with a matching authored combat sprite set enter the
- * release selector; future character designs are never sold as playable.
+ * The current release has one authored cultivator, so detailed setup begins at
+ * the meaningful choice: 비경/시련. The character selector remains available
+ * for a future release with more than one authored combat sprite set.
  */
 export class TitleScreen {
   constructor(root, characters, progress, audio = null) {
     this.root = root
     this.characters = characters.filter((character) => isReleasePlayableCharacter(character.id))
+    this.stages = STAGES.filter((stage) => isReleaseStage(stage.id))
     this.progress = progress
     this.audio = audio
     this.focus = 0
@@ -98,62 +99,55 @@ export class TitleScreen {
     this.handlers = {}
     this.chosenCharacter = null
     this.chosenStage = null
+    this.setupMode = 'expedition'
     this._bakedPortraitIds = new Set()
 
     this.node = document.createElement('div')
     this.node.className = 'screen title-screen'
     this.node.dataset.view = this.view
     this.node.dataset.titleArt = TITLE_ART
-    // Keep the key art's feet clear of the viewport edge on the 16:9 release
-    // capture.  The wide-screen rule below gives taller 2560x1600 canvases a
-    // little more breathing room without introducing a second image asset.
-    this.node.dataset.titleSafeCrop = '22px'
     this.node.setAttribute('role', 'dialog')
     this.node.setAttribute('aria-modal', 'true')
     this.node.setAttribute('aria-label', '영허검가 출정 준비')
     this.node.style.display = 'none'
     this.node.innerHTML = `
       <div class="screen-inner">
-        <div class="title-brand">
-          <div class="title-eyebrow">선협 생존 액션</div>
-          <h1 class="title-mark">영허검가</h1>
-          <div class="title-sub">검의 맹세 · 칠 분의 천겁</div>
-          <div class="title-tag">네가 고른 도가, 네가 맞설 천겁을 만든다</div>
-        </div>
+        <div class="title-menu-view">
+          <div class="title-brand">
+            <span class="title-seal" aria-hidden="true">劍</span>
+            <div class="title-eyebrow">끊어진 영맥 끝에 감춰진 검가의 진실</div>
+            <h1 class="title-mark"><span>영허</span><span>검가</span></h1>
+            <div class="title-sub">검의 맹세 · 영허의 길</div>
+          </div>
 
-        <div class="title-promise">
-          <strong class="title-promise-title">월하 옥산 · 약 7분의 천겁</strong>
-          <span class="title-promise-copy">설령의 비검을 키우고 비경의 군세를 베어 마존과 결착을 내십시오.</span>
-        </div>
+          <nav class="title-menu" aria-label="시작 메뉴">
+            <button type="button" class="btn clickable title-enter" data-act="enter" aria-label="영허전으로 들어가기">
+              <span class="title-action-label">영허전으로 들어가기</span>
+              <span class="title-action-meta">설령의 수행을 이어갑니다</span>
+            </button>
+            <button type="button" class="btn btn-alt clickable" data-act="codex">천하록</button>
+          </nav>
 
-        <div class="title-menu">
-          <button type="button" class="btn clickable title-quickstart" data-act="start" aria-label="설령과 옥산 고원으로 바로 출정">
-            <span class="title-action-kicker">추천 · 약 7분</span>
-            <span class="title-action-label">빠른 출정</span>
-          </button>
-          <button type="button" class="btn btn-alt clickable title-setup" data-act="setup">
-            <span class="title-action-kicker">출정 준비</span>
-            <span class="title-action-label">수사 · 비경 고르기</span>
-          </button>
-          <button type="button" class="btn btn-alt clickable" data-act="shop">단전 · 해금</button>
-          <button type="button" class="btn btn-alt clickable" data-act="codex">도감 · 기록</button>
+          <div class="title-footer">
+            <span class="title-stones"></span>
+            <span class="title-controls">방향키 선택 · Enter 확인</span>
+          </div>
         </div>
-        <div class="title-stones"></div>
 
         <section class="stage-select" style="display:none" aria-labelledby="stage-select-title">
-          <div class="setup-steps" aria-label="출정 준비 2단계">
-            <span>01 수사</span><span aria-hidden="true">—</span><strong class="setup-step-current">02 비경</strong><span aria-hidden="true">—</span><span>03 출정</span>
+          <div class="setup-steps" aria-label="출정 준비 1단계">
+            <strong class="setup-step-current">01 사건</strong><span aria-hidden="true">—</span><span>02 출정</span>
           </div>
-          <div class="select-kicker">비경 선택</div>
-          <h2 class="select-heading" id="stage-select-title">천겁이 내릴 비경을 고르십시오</h2>
-          <p class="select-intro">비경마다 적의 생태와 기혈, 영석 보상이 달라집니다.</p>
+          <div class="select-kicker">선협 생존 출정 · 제1장</div>
+          <h2 class="select-heading" id="stage-select-title">옥산에 번지는 마기</h2>
+          <p class="select-intro stage-select-intro">비경의 영맥과 사건, 수호자를 조사합니다.</p>
           <div class="stage-cards"></div>
           <div class="trial-row">
             <div class="trial-heading">시련 강도 · 보상 배율</div>
             <div class="trial-pips"></div>
             <div class="trial-desc"></div>
           </div>
-          <button type="button" class="btn btn-alt btn-back clickable" data-act="stageBack">← 수사 다시 고르기</button>
+          <button type="button" class="btn btn-alt btn-back clickable" data-act="stageBack">← 영허전으로 돌아가기</button>
         </section>
 
         <section class="char-select" style="display:none" aria-labelledby="char-select-title">
@@ -168,12 +162,12 @@ export class TitleScreen {
         </section>
 
         <section class="confirm-select" style="display:none" aria-labelledby="confirm-select-title">
-          <div class="setup-steps" aria-label="출정 준비 3단계">
-            <span>01 수사</span><span aria-hidden="true">—</span><span>02 비경</span><span aria-hidden="true">—</span><strong class="setup-step-current">03 출정</strong>
+          <div class="setup-steps" aria-label="출정 준비 2단계">
+            <span class="confirm-step-kind">01 사건</span><span aria-hidden="true">—</span><strong class="setup-step-current">02 출정</strong>
           </div>
           <div class="select-kicker">출정 확인</div>
-          <h2 class="select-heading" id="confirm-select-title">천겁에 들 준비가 끝났습니다</h2>
-          <p class="select-intro">선택한 수사와 비경, 시련을 마지막으로 확인하십시오.</p>
+          <h2 class="select-heading" id="confirm-select-title">출정 준비가 끝났습니다</h2>
+          <p class="select-intro">설령이 좇는 사건과 이번 수행의 목적을 마지막으로 확인하십시오.</p>
           <div class="confirm-visual">
             <img class="confirm-character-art" alt="" />
             <div class="confirm-visual-copy"></div>
@@ -196,7 +190,7 @@ export class TitleScreen {
     this.menu = this.node.querySelector('.title-menu')
     this.menuButtons = [...this.node.querySelectorAll('.title-menu .btn')]
     this.titleBrand = this.node.querySelector('.title-brand')
-    this.titlePromise = this.node.querySelector('.title-promise')
+    this.titleMenuView = this.node.querySelector('.title-menu-view')
     this.stonesLabel = this.node.querySelector('.title-stones')
     this.selectView = this.node.querySelector('.char-select')
     this.statusLabel = this.node.querySelector('.setup-status')
@@ -211,17 +205,9 @@ export class TitleScreen {
     this.confirmStartButton = this.node.querySelector('[data-act="confirmStart"]')
     this.confirmBackButton = this.node.querySelector('[data-act="confirmBack"]')
 
-    this.node.querySelector('[data-act="start"]').addEventListener('click', () => {
+    this.node.querySelector('[data-act="enter"]').addEventListener('click', () => {
       this._uiCue('confirm')
-      this.quickStart()
-    })
-    this.node.querySelector('[data-act="setup"]').addEventListener('click', () => {
-      this._uiCue('confirm')
-      this._showSelect()
-    })
-    this.node.querySelector('[data-act="shop"]').addEventListener('click', () => {
-      this._uiCue('confirm')
-      this.handlers.onShop?.()
+      this.handlers.onEnter?.()
     })
     this.node.querySelector('[data-act="codex"]').addEventListener('click', () => {
       this._uiCue('confirm')
@@ -233,8 +219,8 @@ export class TitleScreen {
     })
     this.node.querySelector('[data-act="stageBack"]').addEventListener('click', () => {
       this._uiCue('confirm')
-      if (this.chosenCharacter) this._showSelect()
-      else this._showMenu()
+      if (this.characters.length > 1) this._showSelect()
+      else this._exitSetup()
     })
     this.confirmStartButton.addEventListener('click', () => {
       this._uiCue('confirm')
@@ -242,7 +228,8 @@ export class TitleScreen {
     })
     this.confirmBackButton.addEventListener('click', () => {
       this._uiCue('confirm')
-      this._showStages()
+      if (this.setupMode === 'expedition') this._exitSetup()
+      else this._showStages()
     })
     for (const [index, button] of [this.confirmStartButton, this.confirmBackButton].entries()) {
       button.addEventListener('mouseenter', () => this.setConfirmFocus(index, false))
@@ -283,7 +270,7 @@ export class TitleScreen {
     this.node.addEventListener('keydown', this._onKeyDown)
 
     const stageHost = this.node.querySelector('.stage-cards')
-    this.stageCards = STAGES.map((s, i) => {
+    this.stageCards = this.stages.map((s, i) => {
       const presentation = stagePresentation(s)
       const card = document.createElement('button')
       card.type = 'button'
@@ -324,6 +311,7 @@ export class TitleScreen {
         presentation,
       }
     })
+    stageHost.classList.toggle('is-single', this.stageCards.length === 1)
 
     // 시련 sits with the 비경 because both are choices about the run rather than
     // about the cultivator. Locked tiers stay visible with the time that opens
@@ -413,18 +401,17 @@ export class TitleScreen {
     const menuView = view === 'menu'
     const image = assetUrl(menuView ? TITLE_ART : SETUP_ART)
     this.node.style.backgroundImage = menuView
-      ? `linear-gradient(90deg, rgba(3, 10, 21, 0.90) 0%, rgba(4, 12, 24, 0.72) 40%, rgba(3, 8, 16, 0.10) 72%, rgba(3, 7, 14, 0.24) 100%), url("${image}")`
+      ? `linear-gradient(180deg, rgba(244, 239, 220, 0.02), rgba(14, 13, 11, 0.10)), url("${image}")`
       : `linear-gradient(180deg, rgba(4, 11, 19, 0.76), rgba(4, 8, 13, 0.94)), url("${image}")`
     this.node.style.backgroundPosition = menuView
-      ? 'center, center bottom var(--title-art-safe-bottom, 22px)'
+      ? 'center, center'
       : 'center, center 48%'
     this.node.style.backgroundSize = menuView
-      ? 'cover, auto calc(100% - var(--title-art-safe-bottom, 22px))'
+      ? 'cover, cover'
       : 'cover, cover'
     this.node.style.backgroundRepeat = 'no-repeat, no-repeat'
 
-    this.titleBrand.style.display = menuView ? '' : 'none'
-    this.titlePromise.style.display = menuView ? '' : 'none'
+    this.titleMenuView.style.display = menuView ? '' : 'none'
     for (const [name, element] of [
       ['menu', this.menu],
       ['select', this.selectView],
@@ -433,10 +420,14 @@ export class TitleScreen {
     ]) element.setAttribute('aria-hidden', name === view ? 'false' : 'true')
 
     const legends = {
-      menu: '빠른 출정은 약 7분  ·  직접 준비에서 수사·비경·시련을 고릅니다  ·  전투는 자동 공격',
+      menu: '',
       select: '방향키로 수사를 살피고 Enter로 선택  ·  봉인된 수사는 단전에서 영석으로 해금',
-      stage: '방향키로 비경과 시련을 고르고 Enter로 선택  ·  봉인된 비경은 영석으로 개방',
-      confirm: '선택 내용을 확인하고 전투에 진입  ·  돌아가면 비경과 시련을 다시 고를 수 있습니다',
+      stage: this.setupMode === 'survival'
+        ? '방향키로 비경과 시련을 고르고 Enter로 선택'
+        : '옥산 사건과 탐사 목적을 확인하고 Enter로 출정 준비',
+      confirm: this.setupMode === 'survival'
+        ? '선택 내용을 확인하고 천겁에 진입  ·  돌아가면 비경과 시련을 다시 고를 수 있습니다'
+        : '요괴 군세 속에서 설령의 사건 목표를 추적하는 생존 출정에 진입합니다',
     }
     this.controlsLegend.textContent = legends[view] ?? legends.menu
   }
@@ -455,6 +446,15 @@ export class TitleScreen {
     this.node.style.display = ''
     this.node.setAttribute('aria-hidden', 'false')
     this._showMenu()
+  }
+
+  /** Open route selection from the sanctum instead of the title facade. */
+  showSetup(handlers, { mode = 'expedition' } = {}) {
+    if (handlers) this.handlers = handlers
+    this.setupMode = mode === 'survival' ? 'survival' : 'expedition'
+    this.node.style.display = ''
+    this.node.setAttribute('aria-hidden', 'false')
+    this._openSetup()
   }
 
   hide() {
@@ -480,6 +480,9 @@ export class TitleScreen {
   }
 
   _showStages() {
+    if (!this.chosenCharacter && this.characters.length === 1) {
+      this.chosenCharacter = this.characters[0].id
+    }
     this.view = 'stage'
     this.node.dataset.view = this.view
     this._applyViewPresentation(this.view)
@@ -495,18 +498,55 @@ export class TitleScreen {
       c.lock.textContent = unlocked ? '' : `🔒 영석 ${unlockCost('stages', c.id) ?? '?'}`
       const cost = unlockCost('stages', c.id) ?? '?'
       c.card.setAttribute('aria-label', unlocked
-        ? `${c.stage.name}. ${c.presentation.tone}. ${c.stage.desc}`
+        ? this.setupMode === 'survival'
+          ? `${c.stage.name}. ${c.presentation.tone}. ${c.stage.desc}`
+          : `${c.presentation.index} 선협 생존 출정. ${c.stage.name}. ${c.stage.desc}. 요괴 군세를 돌파하며 검흔을 판독하고 봉인 문서를 회수해 옥허진장에게 이릅니다.`
         : `${c.stage.name}, 봉인됨. 영석 ${cost} 필요. 선택하면 보유 영석으로 개방을 시도합니다. ${c.stage.desc}`)
       c.badge.textContent = unlocked
-        ? `${c.presentation.index} · ${c.id === 'jade' ? '초행 추천' : '개방됨'}`
+        ? `${c.presentation.index} · ${this.setupMode === 'survival' ? (c.id === 'jade' ? '초행 추천' : '개방됨') : '생존 출정'}`
         : `${c.presentation.index} · 봉인`
     }
     const chosen = this.stageCards.findIndex((c) => c.id === this.chosenStage)
     const first = this.stageCards.findIndex((c) => this.progress.isUnlocked('stages', c.id))
     this.setStageFocus(chosen >= 0 ? chosen : (first === -1 ? 0 : first))
     this._renderTrials()
+    const intro = this.node.querySelector('.stage-select-intro')
+    if (intro) intro.textContent = this.setupMode === 'survival'
+      ? '천겁의 파상 공세를 견디고 마지막 마존과 결전을 치릅니다.'
+      : '현장의 흔적을 판독하고 봉인 문서를 회수해 비경의 진실을 추적합니다.'
+    const kicker = this.stageView.querySelector('.select-kicker')
+    const heading = this.stageView.querySelector('.select-heading')
+    const firstStep = this.stageView.querySelector('.setup-step-current')
+    if (kicker) kicker.textContent = this.setupMode === 'survival' ? '극한 도전 · 천겁 기록전' : '선협 생존 출정 · 제1장'
+    if (heading) heading.textContent = this.setupMode === 'survival' ? '천겁을 치를 비경' : '옥산에 번지는 마기'
+    if (firstStep) firstStep.textContent = this.setupMode === 'survival' ? '01 시련' : '01 사건'
     const character = this.characters.find((entry) => entry.id === this.chosenCharacter)
-    this._announce(character ? `${character.name}의 출정지를 고르십시오.` : '출정할 비경을 고르십시오.')
+    this._announce(this.setupMode === 'survival'
+      ? `${character?.name ?? '수사'}가 천겁을 치를 비경을 고르십시오.`
+      : `${character?.name ?? '수사'}이 추적할 옥산 사건을 확인하십시오.`)
+  }
+
+  _openSetup() {
+    if (this.setupMode === 'expedition') {
+      const character = this.characters.find((entry) => isReleasePlayableCharacter(entry.id))
+      const stage = this.stages.find((entry) => entry.id === 'jade') ?? this.stages[0]
+      if (!character || !stage) return
+      this.chosenCharacter = character.id
+      this.chosenStage = stage.id
+      this._showConfirm()
+      return
+    }
+    if (this.characters.length === 1) {
+      this.chosenCharacter = this.characters[0].id
+      this._showStages()
+      return
+    }
+    this._showSelect()
+  }
+
+  _exitSetup() {
+    this.hide()
+    this.handlers.onBack?.()
   }
 
   _renderTrials() {
@@ -518,8 +558,9 @@ export class TitleScreen {
       p.pip.setAttribute('aria-disabled', p.id > max ? 'true' : 'false')
       p.pip.setAttribute('aria-pressed', p.id === chosen ? 'true' : 'false')
     }
-    // A row where every tier but one is locked is noise on a first run.
-    this.node.querySelector('.trial-row').style.display = max > 0 ? '' : 'none'
+    // Trial tiers belong only to the dedicated survival challenge. Exploration
+    // has its own route and event difficulty rather than inheriting a timer.
+    this.node.querySelector('.trial-row').style.display = this.setupMode === 'survival' && max > 0 ? '' : 'none'
     this._describeTrial(chosen)
   }
 
@@ -597,23 +638,9 @@ export class TitleScreen {
     this._announce('수사의 도가와 시작 법보를 비교한 뒤 선택하십시오.')
   }
 
-  /** Contest judges reach the authored seven-minute run with one deliberate click. */
-  quickStart() {
-    if (!this.isOpen || this.view !== 'menu') return
-    const character = this.characters.find((entry) => entry.id === 'seolryeong')
-      ?? this.characters.find((entry) => this.progress.isUnlocked('characters', entry.id))
-    const stage = STAGES.find((entry) => entry.id === 'jade')
-    if (!character || !stage) return
-    this.chosenCharacter = character.id
-    this.chosenStage = stage.id
-    const cb = this.handlers.onStart
-    this.hide()
-    cb?.(character.id, stage.id, { mode: 'showcase' })
-  }
-
   _showConfirm() {
     const character = this.characters.find((c) => c.id === this.chosenCharacter)
-    const stage = STAGES.find((s) => s.id === this.chosenStage)
+    const stage = this.stages.find((s) => s.id === this.chosenStage)
     if (!character || !stage) return
 
     this.view = 'confirm'
@@ -624,9 +651,15 @@ export class TitleScreen {
     this.selectView.style.display = 'none'
     this.stageView.style.display = 'none'
     this.confirmView.style.display = ''
+    const confirmStepKind = this.confirmView.querySelector('.confirm-step-kind')
+    if (confirmStepKind) confirmStepKind.textContent = this.setupMode === 'survival' ? '01 시련' : '01 사건'
     const trial = getTrial(this.progress.trial)
     const weapon = getWeapon(character.startWeapon)
     const presentation = stagePresentation(stage)
+    const chapter = this.setupMode === 'expedition' ? getJourneyChapterForStage(stage.id) : null
+    const legacy = chapter
+      ? journeyLegacyFor(chapter, this.progress.journeyDecisions?.(chapter.id))
+      : null
     this.confirmVisual.style.backgroundImage = `linear-gradient(90deg, rgba(3, 10, 17, 0.88), rgba(3, 9, 15, 0.20) 66%, rgba(3, 8, 14, 0.48)), url("${assetUrl(presentation.image)}")`
     this.confirmVisual.style.backgroundSize = 'cover, cover'
     this.confirmVisual.style.backgroundPosition = `center, ${presentation.position}`
@@ -643,22 +676,30 @@ export class TitleScreen {
     this.confirmVisualCopy.innerHTML = `
       <span class="confirm-visual-stage">${presentation.index} · ${presentation.tone}</span>
       <strong class="confirm-visual-title">${character.name} × ${stage.name}</strong>
-      <span class="confirm-visual-meta">${character.path}<br />${weapon?.name ?? '법보 미상'}로 천겁을 맞습니다.</span>`
+      <span class="confirm-visual-meta">${character.path}<br />${weapon?.name ?? '법보 미상'}${this.setupMode === 'survival' ? '로 천겁을 맞습니다.' : '을 들고 봉인 문서를 추적합니다.'}</span>`
     this.confirmSummary.innerHTML = `
       <div class="confirm-choice">
         <span>수사 · 도가</span><b>${character.name}</b>
         <em class="confirm-choice-detail">${character.path}</em>
       </div>
       <div class="confirm-choice">
-        <span>비경 · 보상</span><b>${stage.name}</b>
-        <em class="confirm-choice-detail">영석 ×${stage.stoneScale.toFixed(2)}</em>
+        <span>${this.setupMode === 'survival' ? '비경 · 보상' : '사건 · 지역'}</span><b>${this.setupMode === 'survival' ? stage.name : '옥산에 번지는 마기'}</b>
+        <em class="confirm-choice-detail">${this.setupMode === 'survival' ? `영석 ×${stage.stoneScale.toFixed(2)}` : `${stage.name} · 봉인 문서 추적`}</em>
       </div>
       <div class="confirm-choice">
-        <span>시련 · 난도</span><b>${trial.name}</b>
-        <em class="confirm-choice-detail">${trial.desc}</em>
-      </div>`
-    this.confirmStartButton.textContent = `${stage.name} 진입`
-    this._announce(`${character.name}, ${stage.name}, ${trial.name} 시련을 선택했습니다.`)
+        <span>${this.setupMode === 'survival' ? '시련 · 난도' : '수행 · 목적'}</span><b>${this.setupMode === 'survival' ? trial.name : '검흔 판독과 문서 회수'}</b>
+        <em class="confirm-choice-detail">${this.setupMode === 'survival' ? trial.desc : '요왕 창랑을 베고 옥허진장의 봉인으로 향합니다.'}</em>
+      </div>
+      ${legacy ? `<div class="confirm-choice confirm-legacy"><span>결단 · 전승</span><b>${legacy.name}</b><em class="confirm-choice-detail">${legacy.summary}</em></div>` : ''}`
+    this.confirmStartButton.textContent = this.setupMode === 'survival'
+      ? `${stage.name} 천겁 시작`
+      : '옥산 사건 출정'
+    this.confirmBackButton.textContent = this.setupMode === 'survival'
+      ? '← 비경 다시 고르기'
+      : '← 영허전으로 돌아가기'
+    this._announce(this.setupMode === 'survival'
+      ? `${character.name}, ${stage.name}, ${trial.name} 시련을 선택했습니다.`
+      : `${character.name}의 옥산 사건 출정 준비가 끝났습니다.`)
     this.setConfirmFocus(0)
   }
 
@@ -687,8 +728,8 @@ export class TitleScreen {
       // trigger another render-target bake for the hero.
       if (c.id === 'seolryeong') {
         const base = import.meta.env?.BASE_URL ?? '/'
-        const latest = `${base}assets/characters/seolryeong-character-reference-v3.png`
-        const legacy = `${base}assets/characters/seolryeong-character-reference-v2.png`
+        const latest = `${base}assets/characters/seolryeong-character-reference-v3.webp`
+        const legacy = `${base}assets/characters/seolryeong-character-reference-v2.webp`
         // Keep the previous approved portrait as a real CSS fallback while the
         // new v3 reference is being fetched on a cold cache.
         c.portrait.style.backgroundImage = `url(${latest}), url(${legacy})`
@@ -740,11 +781,11 @@ export class TitleScreen {
   confirmStart() {
     if (!this.isOpen || this.view !== 'confirm') return
     const character = this.characters.find((c) => c.id === this.chosenCharacter)
-    const stage = STAGES.find((s) => s.id === this.chosenStage)
+    const stage = this.stages.find((s) => s.id === this.chosenStage)
     if (!character || !stage) return
     const cb = this.handlers.onStart
     this.hide()
-    if (cb) cb(character.id, stage.id)
+    if (cb) cb(character.id, stage.id, { mode: this.setupMode })
   }
 
   setConfirmFocus(i, focusDom = true) {
@@ -761,18 +802,11 @@ export class TitleScreen {
     if (!this.isOpen) return
     if (this.view === 'menu') {
       if (dir) { this.setMenuFocus(this.menuFocus + dir); return }
-      if (slot === 1 || (confirm && this.menuFocus === 0)) {
+      const index = slot > 0 ? slot - 1 : this.menuFocus
+      if (confirm || slot > 0) {
         this._uiCue('confirm')
-        this.quickStart()
-      } else if (slot === 4 || (confirm && this.menuFocus === 1)) {
-        this._uiCue('confirm')
-        this._showSelect()
-      } else if (slot === 2 || (confirm && this.menuFocus === 2)) {
-        this._uiCue('confirm')
-        this.handlers.onShop?.()
-      } else if (slot === 3 || (confirm && this.menuFocus === 3)) {
-        this._uiCue('confirm')
-        this.handlers.onCodex?.()
+        if (index === 0) this.handlers.onEnter?.()
+        else if (index === 1) this.handlers.onCodex?.()
       }
       return
     }
@@ -784,7 +818,8 @@ export class TitleScreen {
       }
       if (slot === 2 || (confirm && this.confirmFocus === 1)) {
         this._uiCue('confirm')
-        this._showStages()
+        if (this.setupMode === 'expedition') this._exitSetup()
+        else this._showStages()
         return
       }
       if (dir) this.setConfirmFocus(this.confirmFocus + dir)

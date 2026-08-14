@@ -131,9 +131,9 @@ describe('enemy scaling', () => {
     expect(hpRatio).toBeGreaterThan(dmgRatio)
   })
 
-  it('makes the 15-minute horde meaningfully tougher', () => {
+  it('makes the record-challenge horde meaningfully tougher', () => {
     const e = getEnemy('wisp')
-    expect(scaledHp(e, 15) / e.hp).toBeGreaterThan(9)
+    expect(scaledHp(e, 7) / e.hp).toBeGreaterThan(4)
   })
 
   it('returns whole numbers of XP', () => {

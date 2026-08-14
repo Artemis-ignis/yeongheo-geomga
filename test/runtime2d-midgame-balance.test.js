@@ -158,9 +158,11 @@ describe('60-180s 2D combat pacing', () => {
       expect(result.time, `seed ${seed} run time`).toBeCloseTo(MID_BOSS_SECONDS, 8)
       expect(result.midBossReached, `seed ${seed} mid-boss`).toBe(true)
       // Reaching the checkpoint must represent an active run, not a harmless
-      // low-density simulation: every seed has a meaningful build and clear.
+      // low-density simulation. The visual-density pass deliberately traded
+      // the old 600-kill debug wall for readable packs, so pin the measured
+      // commercial-density floor while retaining the level and ledger gates.
       expect(result.level, `seed ${seed} level`).toBeGreaterThanOrEqual(13)
-      expect(result.kills, `seed ${seed} kills`).toBeGreaterThanOrEqual(600)
+      expect(result.kills, `seed ${seed} kills`).toBeGreaterThanOrEqual(475)
       expect(result.xpBalance, `seed ${seed} XP ledger`).toBeCloseTo(0, 4)
       expect(result.stoneBalance, `seed ${seed} stone ledger`).toBeCloseTo(0, 4)
     }

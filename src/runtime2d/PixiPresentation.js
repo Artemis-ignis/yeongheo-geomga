@@ -3,12 +3,13 @@ import {
 } from 'pixi.js'
 import { ENEMIES } from '../data/enemies.js'
 import {
-  CAMERA_RECENTER_RESPONSE_2D, cameraFollowStep2D, cameraTargetWithDeadZone2D,
+  cameraFollowStep2D, cameraTargetWithDeadZone2D,
   projectWorld, depthBucket, directionFor, isOnScreen, SORT_BUCKETS, viewportPresentationScale,
 } from './projection.js'
 import { SPRITE_MANIFEST } from './spriteManifest.js'
 import {
-  CONTACT_INTENT_SECONDS_2D, MAX_PROJECTILES_2D, MAX_PICKUPS_2D, MAX_WEAPON_FIELDS_2D,
+  CONTACT_INTENT_SECONDS_2D, HERO_DEATH_REACTION_SECONDS_2D, HERO_HURT_REACTION_SECONDS_2D,
+  MAX_PROJECTILES_2D, MAX_PICKUPS_2D, MAX_WEAPON_FIELDS_2D,
 } from './CombatWorld2D.js'
 import { choosePixiBackend, probeWebGLRenderer } from './backend.js'
 import { planEffectRenderSamples, planParticlePool2D } from './ParticleBudget2D.js'
@@ -18,10 +19,10 @@ import {
 } from './WorldMap2D.js'
 
 const base = import.meta.env?.BASE_URL ?? './'
-const ENVIRONMENT_URL = `${base}assets/environment/jade-sanctuary-environment-v2.png`
-const STONE_URL = `${base}assets/materials/environment/jade-pavilion-stone-v1.png`
-const JADE_GROUND_URL = `${base}assets/materials/environment/jade-sanctuary-ground-material-v2.png`
-const JADE_GROUND_FALLBACK_URL = `${base}assets/materials/environment/jade-highland-ground-v1.png`
+const ENVIRONMENT_URL = `${base}assets/environment/jade-sanctuary-environment-v2.webp`
+const STONE_URL = `${base}assets/materials/environment/jade-pavilion-stone-v1.webp`
+const JADE_GROUND_URL = `${base}assets/materials/environment/jade-sanctuary-ground-material-v2.webp`
+const JADE_GROUND_FALLBACK_URL = `${base}assets/materials/environment/jade-highland-ground-v1.webp`
 const _screen = { x: 0, y: 0, unit: 24 }
 const _cameraTarget = { x: 0, z: 0 }
 const _segmentStart = { x: 0, y: 0, unit: 24 }
@@ -79,23 +80,23 @@ export const RUNTIME2D_RENDER_BUDGET = Object.freeze({
  * seams break the wallpaper read without exposing square image islands.
  */
 export const JADE_GROUND_COMPOSITION_2D = Object.freeze({
-  base: 'procedural-authored-material-composite',
+  base: 'continuous-authored-material',
   baseAsset: 'jade-sanctuary-ground-material-v2',
   fallbackAsset: 'jade-highland-ground-v1',
   authoredDetail: 'world-anchored-procedural-region-decals',
   repeatsAuthoredPlate: false,
-  baseTiling: 'periodic-wrapped-material-islands',
+  baseTiling: 'full-authored-material-period',
   synthesisSize: 1536,
-  authoredCropMode: 'multi-crop-rotated-soft-islands',
+  authoredCropMode: 'full-plate-no-crops',
   landmarkMotifs: 'seed-specific-procedural',
   // Keep the material below actor scale. At the previous 1.55 scale a single
   // synthesized period was wider than a 1920px viewport, so the arena still
   // read as one large ground image even though the source crops were blended.
   // A 0.4 Y/X ratio preserves the world's oblique projection while showing
   // enough independent material structure during camera travel.
-  floorTileScale: Object.freeze({ x: 0.9, y: 0.36 }),
-  decalAlpha: 0.96,
-  decalOverlap: 1.1,
+  floorTileScale: Object.freeze({ x: 1.45, y: 0.58 }),
+  decalAlpha: 0.22,
+  decalOverlap: 1.04,
   decalEdgeFeather: 78,
 })
 
@@ -143,7 +144,7 @@ export const RUNTIME2D_POOL_LIMITS = Object.freeze({
 // opposite motion language: compact faceted gems that rotate continuously.
 export const WISP_THREAT_PRESENTATION_2D = Object.freeze({
   silhouette: 'upright-eyed-wraith',
-  baseHeight: 80,
+  baseHeight: 84,
   rotationAmplitude: 0.065,
   rotationRate: 2.1,
   alphaBase: 0.93,
@@ -734,6 +735,24 @@ export function directionalHeroFrames(frames, direction) {
   }[direction?.key] ?? frames?.seolryeongS ?? frames?.seolryeong
 }
 
+export function directionalHeroReactionFrames(frames, direction) {
+  return {
+    n: frames?.seolryeongReactionN,
+    ne: frames?.seolryeongReactionNe,
+    e: frames?.seolryeongReactionE,
+    se: frames?.seolryeongReaction,
+    s: frames?.seolryeongReactionS,
+  }[direction?.key] ?? frames?.seolryeongReactionS ?? frames?.seolryeongReaction
+}
+
+/** Resolve the streamed ground texture without discarding semantic regions. */
+export function mapDecalTextureIndex2D(stageId, chunk) {
+  if (!chunk) return 0
+  return stageId === 'jade'
+    ? jadeRegionTextureIndex2D(chunk.regionId, chunk.variant)
+    : Math.max(0, Math.floor(Number(chunk.variant) || 0))
+}
+
 export function actorMirrorForFacing2D(actorKey, facing = 0) {
   const actor = SPRITE_MANIFEST.actors[actorKey]
   if (!actor?.mirrorWest) return false
@@ -747,12 +766,46 @@ export function actorMirrorForFacing2D(actorKey, facing = 0) {
   return false
 }
 
+export function enemyDirectionalTextureKey2D(actorKey, directionKey) {
+  const directionName = directionKey === 'n' ? 'north' : directionKey === 's' ? 'south' : null
+  if (!directionName || !SPRITE_MANIFEST.actors[actorKey]?.directionalRuntime?.[directionName]?.url) return null
+  return `${actorKey}${directionName === 'north' ? 'N' : 'S'}`
+}
+
+export function directionalEnemyFrames2D(frames, actorKey, facing = 0) {
+  const direction = directionFor(Number.isFinite(facing) ? facing : 0)
+  const directionalKey = enemyDirectionalTextureKey2D(actorKey, direction.key)
+  if (directionalKey && Array.isArray(frames?.[directionalKey]) && frames[directionalKey].length) {
+    return Object.freeze({
+      frames: frames[directionalKey], directionKey: direction.key,
+      pivotKey: directionalKey, mirror: false,
+    })
+  }
+  return Object.freeze({
+    frames: frames?.[actorKey] ?? [], directionKey: direction.key,
+    pivotKey: actorKey, mirror: actorMirrorForFacing2D(actorKey, facing),
+  })
+}
+
+const ENEMY_DIRECTIONAL_RUNTIME_ASSETS_2D = Object.freeze(
+  Object.entries(SPRITE_MANIFEST.actors).flatMap(([actorKey, actor]) => {
+    if (actorKey === 'seolryeong') return []
+    return Object.entries(actor.directionalRuntime ?? {}).flatMap(([directionName, entry]) => {
+      const directionKey = directionName === 'north' ? 'n' : directionName === 'south' ? 's' : null
+      const textureKey = directionKey ? enemyDirectionalTextureKey2D(actorKey, directionKey) : null
+      return textureKey && entry?.url
+        ? [Object.freeze({ actorKey, actor, directionName, textureKey, url: entry.url })]
+        : []
+    })
+  }),
+)
+
 export const HERO_COMBAT_HEIGHT_TARGETS_2D = Object.freeze({
   baselineViewportHeight: 1080,
-  baselineHeight: 176,
+  baselineHeight: 196,
   largeViewportHeight: 1600,
-  largeHeight: 248,
-  minimumHeight: 118,
+  largeHeight: 276,
+  minimumHeight: 134,
 })
 
 /**
@@ -785,6 +838,7 @@ export function heroSlashPresentation2D(
   heroHeight = HERO_COMBAT_HEIGHT_TARGETS_2D.baselineHeight,
   unit = 32,
   depthUnit = 12,
+  moving = false,
 ) {
   const duration = 0.32
   const remaining = Math.max(0, Math.min(duration, Number(attackTimer) || 0))
@@ -797,17 +851,18 @@ export function heroSlashPresentation2D(
   const nx = screenDx / magnitude
   const ny = screenDy / magnitude
   const height = Math.max(1, Number(heroHeight) || 1)
+  const locomotionScale = moving ? 0.74 : 1
   return {
     visible: remaining > 0,
     rotation: Math.atan2(ny, nx),
     // Keep the full stroke in front of the heroine. The previous centered
     // crescent was technically directional, but its dim rear half still read
     // as a large halo around the body in real 1920px combat captures.
-    offsetX: nx * height * 0.46,
-    offsetY: -height * 0.46 + ny * height * 0.18,
-    width: height * 0.92,
-    height: height * 0.46,
-    alpha: Math.max(0, Math.sin(progress * Math.PI)) * 0.9,
+    offsetX: nx * height * (moving ? 0.56 : 0.46),
+    offsetY: -height * (moving ? 0.4 : 0.46) + ny * height * 0.18,
+    width: height * 0.92 * locomotionScale,
+    height: height * 0.46 * locomotionScale,
+    alpha: Math.max(0, Math.sin(progress * Math.PI)) * (moving ? 0.62 : 0.9),
   }
 }
 
@@ -824,19 +879,25 @@ export function bossCombatHeight2D(viewportHeight, runtimeHeight = 220, presenta
 // frame. A single manifest pivot made wide props float by up to 18px and made
 // low-profile enemies alternately sink and hover as their animation advanced.
 const ACTOR_FOOT_PIVOTS_2D = Object.freeze({
-  seolryeong: Object.freeze([0.945, 0.945, 0.945, 0.945, 0.945, 0.945, 0.945, 0.945]),
-  seolryeongE: Object.freeze([0.945, 0.938, 0.938, 0.938, 0.945, 0.93, 0.93, 0.93]),
-  seolryeongN: Object.freeze([0.922, 0.898, 0.914, 0.922, 0.883, 0.875, 0.875, 0.875]),
-  // The northeast atlas has the same opaque contact row in all eight cells.
-  // Per-frame guesses made the heroine's feet hop by up to 18px at 1080p.
-  seolryeongNe: Object.freeze(Array(8).fill(244 / 256)),
-  seolryeongS: Object.freeze([0.961, 0.961, 0.961, 0.961, 0.914, 0.953, 0.953, 0.953]),
+  // The v2 heroine atlases are normalized to one 242px contact row across all
+  // 16 poses, preventing direction changes and attacks from lifting her feet.
+  seolryeong: Object.freeze(Array(16).fill(242 / 256)),
+  seolryeongE: Object.freeze(Array(16).fill(242 / 256)),
+  seolryeongN: Object.freeze(Array(16).fill(242 / 256)),
+  seolryeongNe: Object.freeze(Array(16).fill(242 / 256)),
+  seolryeongS: Object.freeze(Array(16).fill(242 / 256)),
   yorang: Object.freeze([0.797, 0.797, 0.781, 0.75, 0.734, 0.727, 0.727, 0.75]),
+  yorangN: Object.freeze(Array(8).fill(232 / 256)),
+  yorangS: Object.freeze(Array(8).fill(232 / 256)),
+  jadeRidgeHoundN: Object.freeze(Array(8).fill(232 / 256)),
+  jadeRidgeHoundS: Object.freeze(Array(8).fill(232 / 256)),
   jadeRidgeHound: Object.freeze([
     206 / 256, 206 / 256, 206 / 256, 206 / 256,
     194 / 256, 186 / 256, 201 / 256, 198 / 256,
   ]),
   jadeSerpent: Object.freeze([0.953, 0.953, 0.953, 0.945, 0.953, 0.953, 0.953, 0.953]),
+  jadeSerpentN: Object.freeze(Array(8).fill(244 / 256)),
+  jadeSerpentS: Object.freeze(Array(8).fill(244 / 256)),
   jadeStoneGhoul: Object.freeze([0.953, 0.953, 0.953, 0.953, 0.953, 0.953, 0.953, 0.953]),
   jadeShardGuardian: Object.freeze([
     223 / 256, 221 / 256, 221 / 256, 225 / 256,
@@ -855,7 +916,7 @@ const ACTOR_FOOT_PIVOTS_2D = Object.freeze({
   ]),
   jadeVoidWarden: Object.freeze([0.945, 0.938, 0.945, 0.938, 0.922, 0.922, 0.914, 0.93]),
   wisp: Object.freeze([0.902, 0.895, 0.898, 0.906, 0.824, 0.848, 0.832, 0.824]),
-  prop: Object.freeze([0.844, 0.867, 0.867, 0.836, 0.891, 0.789, 0.805, 0.758]),
+  prop: Object.freeze([215 / 256, 222 / 256, 222 / 256, 213 / 256, 227 / 256, 202 / 256, 205 / 256, 193 / 256]),
 })
 
 const HERO_DIRECTION_PIVOT_KEY_2D = Object.freeze({
@@ -881,33 +942,33 @@ const DEFAULT_GROUNDING_PROFILE_2D = Object.freeze({
 })
 
 const ACTOR_GROUNDING_PROFILES_2D = Object.freeze({
-  hero: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.46, shadowHeight: 0.105, shadowAlpha: 0.8, minShadowWidth: 44, minShadowHeight: 12, contactAlpha: 0.08 }),
-  wisp: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.38, shadowHeight: 0.085, shadowAlpha: 0.52, minShadowWidth: 20, minShadowHeight: 7, contactWidth: 0.8, contactHeight: 0.44, contactLift: 0.14, contactAlpha: 0.3, contactTint: 0xb08cff, visualScale: 1.18 }),
+  hero: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.5, shadowHeight: 0.065, shadowAlpha: 0.68, minShadowWidth: 46, minShadowHeight: 8, contactAlpha: 0 }),
+  wisp: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.5, shadowHeight: 0.068, shadowAlpha: 0.64, minShadowWidth: 27, minShadowHeight: 7, contactWidth: 0.62, contactHeight: 0.1, contactLift: 0, contactAlpha: 0, contactTint: 0x6e665e, visualScale: 1.34 }),
   // The authored shadow is the primary ground contact. Keep only a tight,
   // low-alpha blue bounce at the paws: the former wide bright ellipse moved
   // with every wolf like a luminous platform and hid the real soft shadow.
-  yorang: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.84, shadowHeight: 0.105, shadowAlpha: 0.87, contactWidth: 0.82, contactHeight: 0.14, contactLift: 0.01, contactAlpha: 0.2, contactTint: 0x8ccfff, visualScale: 1.55 }),
-  jadeRidgeHound: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.82, shadowHeight: 0.105, shadowAlpha: 0.87, contactWidth: 0.8, contactHeight: 0.14, contactLift: 0.01, contactAlpha: 0.2, contactTint: 0x80d5a8, visualScale: 1.55 }),
-  jadeSerpent: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.105, shadowAlpha: 0.84, contactWidth: 1, contactHeight: 0.24, contactLift: 0.015, contactAlpha: 0.4, contactTint: 0x7df4cf, visualScale: 1.38 }),
-  jadeStoneGhoul: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.11, shadowAlpha: 0.87, contactWidth: 0.98, contactHeight: 0.24, contactLift: 0.01, contactAlpha: 0.4, contactTint: 0x7bd9b7, visualScale: 1.35 }),
-  jadeShardGuardian: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.57, shadowHeight: 0.105, shadowAlpha: 0.87, contactWidth: 0.88, contactHeight: 0.22, contactLift: 0.01, contactAlpha: 0.38, contactTint: 0x72d7b7, visualScale: 1.35 }),
-  bloodScorpion: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.86, shadowHeight: 0.095, shadowAlpha: 0.86, contactWidth: 1.12, contactHeight: 0.2, contactLift: 0, contactAlpha: 0.44, contactTint: 0xffa078, visualScale: 1.42 }),
-  talismanRevenant: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.42, shadowHeight: 0.085, shadowAlpha: 0.6, contactWidth: 0.84, contactHeight: 0.44, contactLift: 0.15, contactAlpha: 0.32, contactTint: 0xa88cff, visualScale: 1.34 }),
-  maskedSealRevenant: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.5, shadowHeight: 0.085, shadowAlpha: 0.6, contactWidth: 0.9, contactHeight: 0.42, contactLift: 0.14, contactAlpha: 0.29, contactTint: 0xb39bff, visualScale: 1.34 }),
-  voidSentinel: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.56, shadowHeight: 0.105, shadowAlpha: 0.84, contactWidth: 0.94, contactHeight: 0.24, contactLift: 0.01, contactAlpha: 0.4, contactTint: 0x72e0d4, visualScale: 1.32 }),
-  shadowSealDuelist: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.6, shadowHeight: 0.105, shadowAlpha: 0.84, contactWidth: 0.92, contactHeight: 0.23, contactLift: 0.01, contactAlpha: 0.38, contactTint: 0x9d7ad8, visualScale: 1.32 }),
+  yorang: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.78, shadowHeight: 0.06, shadowAlpha: 0.6, contactWidth: 0.7, contactHeight: 0.06, contactLift: 0, contactAlpha: 0, contactTint: 0x5f6270, visualScale: 1.42 }),
+  jadeRidgeHound: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.78, shadowHeight: 0.06, shadowAlpha: 0.6, contactWidth: 0.7, contactHeight: 0.06, contactLift: 0, contactAlpha: 0, contactTint: 0x53685c, visualScale: 1.42 }),
+  jadeSerpent: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.06, shadowAlpha: 0.64, contactAlpha: 0, visualScale: 1.38 }),
+  jadeStoneGhoul: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.068, shadowAlpha: 0.68, contactAlpha: 0, visualScale: 1.34 }),
+  jadeShardGuardian: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.58, shadowHeight: 0.064, shadowAlpha: 0.68, contactAlpha: 0, visualScale: 1.34 }),
+  bloodScorpion: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.84, shadowHeight: 0.052, shadowAlpha: 0.64, contactAlpha: 0, visualScale: 1.4 }),
+  talismanRevenant: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.48, shadowHeight: 0.075, shadowAlpha: 0.68, contactWidth: 0.66, contactHeight: 0.12, contactLift: 0.02, contactAlpha: 0.04, contactTint: 0x6e665e, visualScale: 1.36 }),
+  maskedSealRevenant: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.56, shadowHeight: 0.075, shadowAlpha: 0.68, contactWidth: 0.7, contactHeight: 0.11, contactLift: 0.02, contactAlpha: 0.035, contactTint: 0x6e665e, visualScale: 1.36 }),
+  voidSentinel: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.52, shadowHeight: 0.07, shadowAlpha: 0.56, contactAlpha: 0, visualScale: 1.22 }),
+  shadowSealDuelist: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.55, shadowHeight: 0.07, shadowAlpha: 0.56, contactAlpha: 0, visualScale: 1.22 }),
   jadeVoidWarden: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.46, shadowHeight: 0.09, shadowAlpha: 0.72, minShadowWidth: 92, minShadowHeight: 20, contactWidth: 0.8, contactHeight: 0.34, contactLift: 0.1, contactAlpha: 0.23, contactTint: 0x60d9bd }),
 })
 
 const PROP_GROUNDING_PROFILES_2D = Object.freeze([
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.46, shadowHeight: 0.085, contactWidth: 0.6, contactHeight: 0.12, contactLift: 0, contactAlpha: 0.09, contactTint: 0xf0b85e }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.4, shadowHeight: 0.08, contactWidth: 0.52, contactHeight: 0.1, contactLift: 0, contactAlpha: 0.06 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.35, shadowHeight: 0.078, contactWidth: 0.46, contactHeight: 0.1, contactLift: 0, contactAlpha: 0.07 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.72, shadowHeight: 0.095, contactWidth: 0.72, contactHeight: 0.12, contactLift: 0, contactAlpha: 0.08 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.34, shadowHeight: 0.075, contactWidth: 0.46, contactHeight: 0.09, contactLift: 0, contactAlpha: 0.05 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.7, shadowHeight: 0.1, contactWidth: 0.72, contactHeight: 0.09, contactLift: 0, contactAlpha: 0.04 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.82, shadowHeight: 0.075, contactWidth: 0.82, contactHeight: 0.08, contactLift: 0, contactAlpha: 0.04 }),
-  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.56, shadowHeight: 0.085, contactWidth: 0.58, contactHeight: 0.12, contactLift: 0, contactAlpha: 0.1, contactTint: 0xf0b85e }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.42, shadowHeight: 0.036, shadowAlpha: 0.5, contactAlpha: 0 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.44, shadowHeight: 0.04, shadowAlpha: 0.52, contactAlpha: 0 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.38, shadowHeight: 0.036, shadowAlpha: 0.52, contactAlpha: 0 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.72, shadowHeight: 0.044, shadowAlpha: 0.5, contactAlpha: 0 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.34, shadowHeight: 0.034, shadowAlpha: 0.48, contactAlpha: 0 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.044, shadowAlpha: 0.5, contactAlpha: 0 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.74, shadowHeight: 0.038, shadowAlpha: 0.52, contactAlpha: 0 }),
+  Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.54, shadowHeight: 0.038, shadowAlpha: 0.5, contactAlpha: 0 }),
 ])
 
 /** Material grade shared by every sanctuary prop. The atlas has brighter
@@ -940,15 +1001,17 @@ export const HERO_GROUND_MARKER_2D = Object.freeze({
   widthRatio: 0.46,
   heightRatio: 0.11,
   offsetY: 2,
-  alpha: 0.12,
+  // A permanent bright disc competes with the contact shadow and reads like
+  // an editor selection ring. Keep the shape only for the invulnerability cue.
+  alpha: 0,
   rotation: 0,
 })
 
 export const HERO_AURA_PRESENTATION_2D = Object.freeze({
   widthRatio: 0.66,
   heightRatio: 0.18,
-  alpha: 0.1,
-  invulnerableAlpha: 0.26,
+  alpha: 0.035,
+  invulnerableAlpha: 0.22,
 })
 
 /**
@@ -987,13 +1050,13 @@ export function enemyBossFocusAlpha2D(distance, bossActive = false, elite = fals
  */
 export function enemyHeroOverlapAlpha2D(distance, textureKey = '') {
   const value = Number(distance)
-  if (!Number.isFinite(value) || value >= 2.8) return 1
+  if (!Number.isFinite(value) || value >= 3.2) return 1
   // Do not move enemies out of valid contact range just to protect the frame.
   // The numerous small wraiths instead yield more of their authored opacity at
   // the exact overlap point; collision, damage and pathing remain authoritative.
-  const minimum = textureKey === 'wisp' ? 0.38 : 0.58
+  const minimum = textureKey === 'wisp' ? 0.22 : 0.48
   if (value <= 0) return minimum
-  return minimum + (1 - minimum) * (value / 2.8)
+  return minimum + (1 - minimum) * (value / 3.2)
 }
 
 const BOSS_INTENT_LABELS_2D = Object.freeze({
@@ -1157,9 +1220,16 @@ export function bossTelegraphWorldShapes2D(profile) {
 function drawBossTelegraph2D(graphics, profile, cameraX, cameraZ, viewport, castProgress) {
   graphics.clear()
   const pulse = Math.sin(Math.max(0, Math.min(1, castProgress)) * Math.PI)
-  const fillAlpha = 0.12 + pulse * 0.1
-  const strokeAlpha = 0.58 + pulse * 0.3
-  const strokeWidth = Math.max(2, viewportPresentationScale(viewport) * 2.4)
+  const ink = 0x261d19
+  // Pattern metadata often carries near-white frost values. Passing those
+  // through directly makes the world-space polygon look like an editor gizmo.
+  // Preserve the blue wolf's authored cool warning; all jade/void casts use
+  // the UI system's cinnabar danger ink.
+  const cinnabar = profile.color === 0x6ca8ff ? 0x537b8d : 0xa9362b
+  const fillAlpha = 0.055 + pulse * 0.075
+  const washAlpha = 0.11 + pulse * 0.08
+  const strokeAlpha = 0.72 + pulse * 0.2
+  const strokeWidth = Math.max(1.5, viewportPresentationScale(viewport) * 1.8)
   for (const shape of bossTelegraphWorldShapes2D(profile)) {
     const points = []
     for (const point of shape) {
@@ -1169,15 +1239,26 @@ function drawBossTelegraph2D(graphics, profile, cameraX, cameraZ, viewport, cast
     }
     if (points.length < 6) continue
     graphics.poly(points, true)
-      .fill({ color: profile.color, alpha: fillAlpha })
-      .stroke({ color: profile.color, alpha: strokeAlpha, width: strokeWidth })
+      .fill({ color: ink, alpha: washAlpha })
+      .stroke({ color: ink, alpha: 0.68, width: strokeWidth + 2.1 })
+    graphics.poly(points, true)
+      .fill({ color: cinnabar, alpha: fillAlpha })
+      .stroke({ color: cinnabar, alpha: strokeAlpha, width: strokeWidth })
   }
 }
 const POI_PRESENTATION = Object.freeze({
-  altar: Object.freeze({ frame: 7, height: 142, glyph: '수', color: 0xf2c76f }),
+  altar: Object.freeze({ frame: 7, height: 164, glyph: '수', color: 0xf2c76f }),
   treasure: Object.freeze({ frame: 3, height: 154, glyph: '보', color: 0x8edcff }),
   elite_seal: Object.freeze({ frame: 2, height: 176, glyph: '봉', color: 0xe969a1 }),
   healing_spring: Object.freeze({ frame: 5, height: 118, glyph: '회', color: 0x73e3bd }),
+  evidence: Object.freeze({ frame: 5, height: 92, glyph: '흔', color: 0xe2c981, groundTrace: true }),
+  false_trace: Object.freeze({ frame: 1, height: 112, glyph: '적', color: 0x8e8172, groundTrace: true }),
+})
+
+export const INVESTIGATION_TRACE_PRESENTATION_2D = Object.freeze({
+  'sword-scar': Object.freeze({ texture: 'swordScarTrace', width: 148, height: 60, glyph: '검' }),
+  'beast-trail': Object.freeze({ texture: 'beastTrailTrace', width: 138, height: 66, glyph: '족' }),
+  'seal-ash': Object.freeze({ texture: 'sealAshTrace', width: 104, height: 64, glyph: '인' }),
 })
 
 function canvasTexture(width, height, draw) {
@@ -1737,9 +1818,9 @@ function jadeGroundDetailTexture(seed, regionId = 'jade_grove') {
     ctx.clearRect(0, 0, width, height)
     ctx.globalCompositeOperation = 'source-over'
 
-    // Broad islands alter the macro value structure without hiding the
-    // material's authored paving and grass detail.
-    for (let i = 0; i < 7; i++) {
+    // Keep region value shifts subordinate to the authored stone. These are
+    // faint geography cues, not a second opaque terrain painting.
+    for (let i = 0; i < 4; i++) {
       const x = 48 + random() * (width - 96)
       const y = 48 + random() * (height - 96)
       const rx = 90 + random() * 165
@@ -1750,8 +1831,8 @@ function jadeGroundDetailTexture(seed, regionId = 'jade_grove') {
       // feathered value islands are the low-cost macro break that keeps the
       // arena from reading as a flat photograph while remaining below combat
       // telegraphs and actor silhouettes.
-      gradient.addColorStop(0, dark ? 'rgba(3,12,16,.32)' : 'rgba(35,92,72,.27)')
-      gradient.addColorStop(0.56, dark ? 'rgba(8,22,25,.18)' : 'rgba(45,112,86,.13)')
+      gradient.addColorStop(0, dark ? 'rgba(3,12,16,.12)' : 'rgba(35,92,72,.1)')
+      gradient.addColorStop(0.56, dark ? 'rgba(8,22,25,.07)' : 'rgba(45,112,86,.05)')
       gradient.addColorStop(1, 'rgba(4,16,19,0)')
       ctx.fillStyle = gradient
       ctx.save()
@@ -2137,74 +2218,19 @@ function composedJadeGroundTexture(source, size = JADE_GROUND_COMPOSITION_2D.syn
       state = (Math.imul(state ^ (state >>> 15), 0x85ebca6b) + 0xc2b2ae35) >>> 0
       return state / 4294967296
     }
-    const wrappedOffsets = [-1, 0, 1]
-
-    ctx.fillStyle = '#20373a'
+    ctx.fillStyle = '#172b2e'
     ctx.fillRect(0, 0, width, height)
 
-    // Periodic low-frequency value structure keeps the material from feeling
-    // uniformly airbrushed while preserving a calm combat-readability floor.
-    for (let i = 0; i < 26; i++) {
-      const x = random() * width
-      const y = random() * height
-      const radius = 150 + random() * 360
-      const color = i % 3 === 0 ? 'rgba(5,17,22,.2)' : 'rgba(49,91,75,.22)'
-      for (const ox of wrappedOffsets) {
-        for (const oy of wrappedOffsets) {
-          const px = x + ox * width
-          const py = y + oy * height
-          const gradient = ctx.createRadialGradient(px, py, 0, px, py, radius)
-          gradient.addColorStop(0, color)
-          gradient.addColorStop(1, 'rgba(9,23,26,0)')
-          ctx.fillStyle = gradient
-          ctx.beginPath()
-          ctx.arc(px, py, radius, 0, Math.PI * 2)
-          ctx.fill()
-        }
-      }
-    }
+    // Preserve one coherent authored material field. The previous quadrant
+    // mirror created a conspicuous kaleidoscope at combat scale; a large single
+    // period lets masonry and moss remain environmental texture instead of a
+    // repeated gameplay marker.
+    ctx.drawImage(source, 0, 0, source.width, source.height, 0, 0, width, height)
 
-    for (let i = 0; i < 16; i++) {
-      const patch = document.createElement('canvas')
-      patch.width = 512
-      patch.height = 512
-      const patchCtx = patch.getContext('2d')
-      const plan = jadeGroundCropPlan2D(i + 31, source.width, source.height)
-      patchCtx.save()
-      patchCtx.translate(plan.flipX ? patch.width : 0, plan.flipY ? patch.height : 0)
-      patchCtx.scale(plan.flipX ? -1 : 1, plan.flipY ? -1 : 1)
-      patchCtx.drawImage(source, plan.sx, plan.sy, plan.crop, plan.crop, 0, 0, patch.width, patch.height)
-      patchCtx.restore()
-      patchCtx.fillStyle = 'rgba(6,24,24,.14)'
-      patchCtx.fillRect(0, 0, patch.width, patch.height)
-
-      patchCtx.globalCompositeOperation = 'destination-in'
-      const mask = patchCtx.createRadialGradient(256, 256, 42, 256, 256, 250)
-      mask.addColorStop(0, 'rgba(255,255,255,.96)')
-      mask.addColorStop(0.58, 'rgba(255,255,255,.82)')
-      mask.addColorStop(0.82, 'rgba(255,255,255,.34)')
-      mask.addColorStop(1, 'rgba(255,255,255,0)')
-      patchCtx.fillStyle = mask
-      patchCtx.fillRect(0, 0, patch.width, patch.height)
-      patchCtx.globalCompositeOperation = 'source-over'
-
-      const column = i % 4
-      const row = Math.floor(i / 4)
-      const x = width * ((column + 0.5) / 4) + (random() - 0.5) * 150
-      const y = height * ((row + 0.5) / 4) + (random() - 0.5) * 150
-      const patchSize = 600 + random() * 180
-      const rotation = (random() - 0.5) * 0.72
-      for (const ox of wrappedOffsets) {
-        for (const oy of wrappedOffsets) {
-          ctx.save()
-          ctx.translate(x + ox * width, y + oy * height)
-          ctx.rotate(rotation)
-          ctx.globalAlpha = 0.56
-          ctx.drawImage(patch, -patchSize * 0.5, -patchSize * 0.5, patchSize, patchSize)
-          ctx.restore()
-        }
-      }
-    }
+    // One restrained slate grade binds the mirrored plates together without
+    // hiding stone joints, moss texture or foot contact.
+    ctx.fillStyle = 'rgba(4,17,22,.2)'
+    ctx.fillRect(0, 0, width, height)
 
     // Small material flecks provide scale without competing with enemies.
     ctx.lineCap = 'round'
@@ -2212,7 +2238,7 @@ function composedJadeGroundTexture(source, size = JADE_GROUND_COMPOSITION_2D.syn
       const x = random() * width
       const y = random() * height
       const length = 3 + random() * 12
-      ctx.strokeStyle = i % 5 === 0 ? 'rgba(93,168,137,.13)' : 'rgba(155,178,169,.07)'
+      ctx.strokeStyle = i % 5 === 0 ? 'rgba(93,168,137,.07)' : 'rgba(155,178,169,.035)'
       ctx.lineWidth = 0.7 + random() * 1.4
       ctx.beginPath()
       ctx.moveTo(x, y)
@@ -2361,8 +2387,12 @@ function propFootprintTexture() {
 function shadowTexture() {
   return canvasTexture(96, 48, (ctx) => {
     const gradient = ctx.createRadialGradient(48, 24, 2, 48, 24, 45)
-    gradient.addColorStop(0, 'rgba(0,0,0,.58)')
-    gradient.addColorStop(0.6, 'rgba(0,0,0,.3)')
+    // Concentrate occlusion directly below the sampled foot pivot. A broad,
+    // evenly blurred ellipse detached actors from the floor; a short dark core
+    // plus a soft falloff reads as weight without painting a visible platform.
+    gradient.addColorStop(0, 'rgba(0,0,0,.76)')
+    gradient.addColorStop(0.22, 'rgba(0,0,0,.66)')
+    gradient.addColorStop(0.62, 'rgba(0,0,0,.22)')
     gradient.addColorStop(1, 'rgba(0,0,0,0)')
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, 96, 48)
@@ -3197,9 +3227,131 @@ function oneShotFrameIndex(indices, remaining, duration) {
   return indices[Math.floor(progress * indices.length)]
 }
 
+function swordScarTraceTexture() {
+  return canvasTexture(256, 112, (ctx) => {
+    ctx.clearRect(0, 0, 256, 112)
+    const dust = ctx.createRadialGradient(130, 62, 4, 130, 62, 92)
+    dust.addColorStop(0, 'rgba(215,193,142,.28)')
+    dust.addColorStop(1, 'rgba(194,175,130,0)')
+    ctx.fillStyle = dust
+    ctx.fillRect(24, 8, 208, 96)
+    ctx.lineCap = 'round'
+    for (const [offset, width, alpha] of [[0, 5.6, .92], [15, 3.4, .72], [-14, 2.3, .58]]) {
+      ctx.beginPath()
+      ctx.moveTo(28 + offset, 88)
+      ctx.quadraticCurveTo(114 + offset, 53, 226 + offset * .25, 23)
+      ctx.strokeStyle = `rgba(28,25,22,${alpha})`
+      ctx.lineWidth = width
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(35 + offset, 84)
+      ctx.quadraticCurveTo(120 + offset, 49, 222 + offset * .25, 20)
+      ctx.strokeStyle = `rgba(244,220,163,${alpha * .72})`
+      ctx.lineWidth = Math.max(1.2, width * .42)
+      ctx.stroke()
+    }
+    ctx.fillStyle = 'rgba(42,37,30,.56)'
+    for (const [x, y, r] of [[61,78,4],[92,65,2.5],[157,42,3],[194,31,2]]) {
+      ctx.beginPath(); ctx.moveTo(x-r,y); ctx.lineTo(x+r*.7,y-r*.6); ctx.lineTo(x+r,y+r*.5); ctx.closePath(); ctx.fill()
+    }
+  })
+}
+
+function beastTrailTraceTexture() {
+  return canvasTexture(224, 128, (ctx) => {
+    ctx.clearRect(0, 0, 224, 128)
+    const paw = (x, y, scale, angle) => {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.scale(scale, scale)
+      ctx.fillStyle = 'rgba(57,42,31,.86)'
+      ctx.beginPath(); ctx.ellipse(0, 5, 11, 8, 0, 0, Math.PI * 2); ctx.fill()
+      for (const [tx, ty] of [[-10,-7],[-3,-12],[5,-11],[12,-5]]) {
+        ctx.beginPath(); ctx.ellipse(tx, ty, 3.7, 5.4, 0, 0, Math.PI * 2); ctx.fill()
+      }
+      ctx.strokeStyle = 'rgba(229,199,140,.70)'; ctx.lineWidth = 2.4
+      ctx.beginPath(); ctx.ellipse(0, 5, 13, 10, 0, 0, Math.PI * 2); ctx.stroke()
+      ctx.restore()
+    }
+    paw(43, 91, 1.08, -.16)
+    paw(105, 65, .9, .12)
+    paw(167, 36, .76, -.1)
+    const smear = ctx.createLinearGradient(16, 108, 205, 18)
+    smear.addColorStop(0, 'rgba(194,158,101,.34)'); smear.addColorStop(1, 'rgba(111,94,68,0)')
+    ctx.strokeStyle = smear; ctx.lineWidth = 13; ctx.lineCap = 'round'
+    ctx.beginPath(); ctx.moveTo(21,111); ctx.lineTo(205,18); ctx.stroke()
+  })
+}
+
+function sealAshTraceTexture() {
+  return canvasTexture(192, 128, (ctx) => {
+    ctx.clearRect(0, 0, 192, 128)
+    const wet = ctx.createRadialGradient(96, 71, 6, 96, 71, 64)
+    wet.addColorStop(0, 'rgba(102,153,151,.2)'); wet.addColorStop(1, 'rgba(102,153,151,0)')
+    ctx.fillStyle = wet; ctx.fillRect(22, 10, 148, 108)
+    const scraps = [
+      [45,61,49,25,-.18], [102,45,42,24,.16], [92,87,55,22,-.06],
+    ]
+    for (const [x,y,w,h,a] of scraps) {
+      ctx.save(); ctx.translate(x,y); ctx.rotate(a)
+      ctx.fillStyle='rgba(205,188,149,.72)'; ctx.fillRect(-w/2,-h/2,w,h)
+      ctx.strokeStyle='rgba(79,65,48,.66)'; ctx.lineWidth=1.5; ctx.strokeRect(-w/2,-h/2,w,h)
+      ctx.strokeStyle='rgba(143,43,35,.78)'; ctx.lineWidth=2
+      ctx.beginPath(); ctx.moveTo(-w*.24,0); ctx.lineTo(w*.22,0); ctx.moveTo(0,-h*.3); ctx.lineTo(0,h*.3); ctx.stroke()
+      ctx.restore()
+    }
+    ctx.fillStyle='rgba(37,35,31,.5)'
+    for (const [x,y,r] of [[31,92,3],[61,105,2],[135,87,3],[153,66,2],[116,111,2]]) {
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill()
+    }
+  })
+}
+
+/**
+ * A restrained broken cinnabar seal for ordinary enemy wind-ups. It avoids the
+ * complete concentric circles and measurement ticks of the shared navigation
+ * ring, which looked like an editor trigger once flattened onto the ground.
+ */
+function enemyIntentSealTexture() {
+  return canvasTexture(128, 96, (ctx) => {
+    ctx.translate(64, 48)
+    const wash = ctx.createRadialGradient(0, 0, 5, 0, 0, 52)
+    wash.addColorStop(0, 'rgba(255,255,255,.18)')
+    wash.addColorStop(0.52, 'rgba(255,255,255,.045)')
+    wash.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = wash
+    ctx.beginPath()
+    ctx.ellipse(0, 0, 48, 25, 0, 0, Math.PI * 2)
+    ctx.fill()
+
+    ctx.strokeStyle = 'rgba(255,255,255,.92)'
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = 5.5
+    // Two asymmetric brush fangs communicate a forward strike without the
+    // closed rings, ticks, or radial measurement language of debug gizmos.
+    ctx.beginPath()
+    ctx.moveTo(-48, 15)
+    ctx.quadraticCurveTo(-25, -17, -6, 4)
+    ctx.lineTo(-17, 20)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(48, 10)
+    ctx.quadraticCurveTo(27, -14, 8, 3)
+    ctx.lineTo(19, 19)
+    ctx.stroke()
+
+    ctx.save()
+    ctx.rotate(Math.PI / 4)
+    ctx.lineWidth = 3
+    ctx.strokeRect(-8, -8, 16, 16)
+    ctx.fillStyle = 'rgba(255,255,255,.88)'
+    ctx.fillRect(-3, -3, 6, 6)
+    ctx.restore()
+  })
+}
+
 export function heroAnimationFrameIndex2D(heroDef, {
   moving = false, dashing = 0, attackTimer = 0, time = 0,
-  travelDistance = null, runFrames = null,
+  travelDistance = null, runFrames = null, movementSettle = 0,
 } = {}) {
   const animations = heroDef?.animations ?? {}
   const idle = animations.idle ?? [0]
@@ -3214,19 +3366,33 @@ export function heroAnimationFrameIndex2D(heroDef, {
     return run[phase % run.length]
   }
   if (moving) return loopingFrameIndex(run, time, 8)
+  // Do not snap from a travelling robe straight into an attack painting on
+  // the first stationary tick. Let the final grounded run pose settle first.
+  if (movementSettle > 0) return run[0] ?? idle[0]
   if (attackTimer > 0) return oneShotFrameIndex(attack, attackTimer, 0.32)
   return idle[0]
 }
 
-export const HERO_RUN_FRAME_DISTANCE_2D = 0.92
+export function heroReactionFrameIndex2D(heroDef, {
+  alive = true, hurtTimer = 0, deathTimer = 0, time = 0,
+} = {}) {
+  const reactions = heroDef?.reactionAnimations ?? {}
+  const idle = reactions.idle ?? [0]
+  const hurt = reactions.hurt ?? idle
+  const death = reactions.death ?? hurt
+  if (!alive) return oneShotFrameIndex(death, deathTimer, HERO_DEATH_REACTION_SECONDS_2D)
+  if (hurtTimer > 0) return oneShotFrameIndex(hurt, hurtTimer, HERO_HURT_REACTION_SECONDS_2D)
+  return loopingFrameIndex(idle, time, 1.5)
+}
+
+// Eight authored poses now cover the same travel distance that the old
+// four-frame loop covered. Keeping 0.92 here made a full stride take 1.4s and
+// read as ice skating at the base 5.2 world-units/s movement speed.
+export const HERO_RUN_FRAME_DISTANCE_2D = 0.46
 
 export function heroGroundedRunFrames2D(heroDef, directionKey = 's') {
   const run = heroDef?.animations?.run ?? heroDef?.animations?.idle ?? [0]
-  // The fourth east/southeast cells are authored as airborne dash poses. Using
-  // them in ordinary locomotion made both feet leave the contact shadow.
-  if ((directionKey === 'e' || directionKey === 'se') && run.length >= 4) {
-    return [run[0], run[1], run[2], run[1]]
-  }
+  // All v2 directional sheets are authored and normalized as grounded cycles.
   return run
 }
 
@@ -3298,14 +3464,12 @@ export function enemyTextureKey2D(id, uid = 0) {
       ? 'yorang'
       : 'jadeRidgeHound'
   }
-  if (id === 'frostWolf' || id === 'ashRaven') return 'yorang'
   if (id === 'demonCultivator') {
     return enemySilhouetteVariant2D(uid, 0x7451c2e9) < 0.5
       ? 'voidSentinel'
       : 'shadowSealDuelist'
   }
-  if (id === 'magmaBrute' || id === 'glacierWarden') return 'voidSentinel'
-  return 'wisp'
+  throw new RangeError(`적 ${id}에는 전용 런타임 모션 시트가 없습니다.`)
 }
 
 function isWolfActorKey2D(key) {
@@ -3319,6 +3483,7 @@ function isWolfActorKey2D(key) {
  * cyan-violet material detail while still accepting stage-specific identity.
  */
 const ENEMY_VARIANT_TINT_TARGETS_2D = Object.freeze({
+  wisp: Object.freeze([0xc1add7, 0x91ced4]),
   jadeStoneGhoul: Object.freeze([0xb7c2b7, 0x8bcbb0]),
   jadeShardGuardian: Object.freeze([0xadc6b5, 0x7fd4b5]),
   talismanRevenant: Object.freeze([0xb2a7d8, 0x9cc7d9]),
@@ -3338,7 +3503,7 @@ export function enemyActorTint2D(color, textureKey = 'wisp', hitFlash = false, v
     ? Math.max(0, Math.min(1, numericVariant))
     : 0.5
   const target = normalized < 0.5 ? targets[0] : targets[1]
-  const amount = Math.abs(normalized - 0.5) * 0.28
+  const amount = Math.abs(normalized - 0.5) * (textureKey === 'wisp' ? 0.52 : 0.28)
   return blendTint2D(baseTint, target, amount)
 }
 
@@ -3392,6 +3557,10 @@ export class PixiPresentation {
     this.heroTravelDistance = 0
     this.heroLastWorldX = 0
     this.heroLastWorldZ = 0
+    this.heroFrameKey = ''
+    this.heroBlendElapsed = 1
+    this.heroBlendStartedAt = Number.NEGATIVE_INFINITY
+    this.heroMovementSettle = 0
     this.time = 0
     this.runActive = false
     this.lastRenderMs = 0
@@ -3711,6 +3880,10 @@ export class PixiPresentation {
       slash: slashTexture(),
       pickup: pickupTexture(),
       ring: ringTexture(),
+      swordScarTrace: swordScarTraceTexture(),
+      beastTrailTrace: beastTrailTraceTexture(),
+      sealAshTrace: sealAshTraceTexture(),
+      enemyIntentSeal: enemyIntentSealTexture(),
       bossTelegraph: bossTelegraphTexture(),
       hit: impactTexture(),
       death: deathTexture(),
@@ -3741,6 +3914,15 @@ export class PixiPresentation {
     this.hero = new Sprite(this.textures.seolryeong)
     this.hero.anchor.set(0.5, SPRITE_MANIFEST.actors.seolryeong.pivot[1])
     this.actorBuckets[32].addChild(this.hero)
+
+    // Retain the previous authored pose briefly whenever the direction or
+    // frame changes. A hard texture swap makes four-frame motion read as a
+    // slideshow; this underlay turns it into a short pose-to-pose dissolve
+    // without blurring the current heroine or inventing fake body geometry.
+    this.heroTransition = new Sprite(this.textures.seolryeong)
+    this.heroTransition.anchor.set(0.5, SPRITE_MANIFEST.actors.seolryeong.pivot[1])
+    this.heroTransition.visible = false
+    this.actorBuckets[32].addChild(this.heroTransition)
 
     this.bossShadow = new Sprite(this.textures.shadow)
     this.bossShadow.anchor.set(0.5)
@@ -3840,8 +4022,10 @@ export class PixiPresentation {
         SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.north.url,
         SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.northeast.url,
         SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.south.url,
+        ...Object.values(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime).map((entry) => entry.url),
         SPRITE_MANIFEST.actors.wisp.url,
         SPRITE_MANIFEST.actors.yorang.url,
+        ...ENEMY_DIRECTIONAL_RUNTIME_ASSETS_2D.map((entry) => entry.url),
         SPRITE_MANIFEST.actors.jadeRidgeHound.url,
         SPRITE_MANIFEST.actors.jadeSerpent.url,
         SPRITE_MANIFEST.actors.jadeStoneGhoul.url,
@@ -3863,6 +4047,9 @@ export class PixiPresentation {
       this._replaceGroundTextures(stageId)
       this.textures.wisp = Texture.from(SPRITE_MANIFEST.actors.wisp.url)
       this.textures.yorang = Texture.from(SPRITE_MANIFEST.actors.yorang.url)
+      for (const entry of ENEMY_DIRECTIONAL_RUNTIME_ASSETS_2D) {
+        this.textures[entry.textureKey] = Texture.from(entry.url)
+      }
       this.textures.jadeRidgeHound = Texture.from(SPRITE_MANIFEST.actors.jadeRidgeHound.url)
       this.textures.jadeSerpent = Texture.from(SPRITE_MANIFEST.actors.jadeSerpent.url)
       this.textures.jadeStoneGhoul = Texture.from(SPRITE_MANIFEST.actors.jadeStoneGhoul.url)
@@ -3878,14 +4065,31 @@ export class PixiPresentation {
       this.textures.seolryeongN = Texture.from(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.north.url)
       this.textures.seolryeongNe = Texture.from(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.northeast.url)
       this.textures.seolryeongS = Texture.from(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.south.url)
+      this.textures.seolryeongReaction = Texture.from(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.southeast.url)
+      this.textures.seolryeongReactionE = Texture.from(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.east.url)
+      this.textures.seolryeongReactionN = Texture.from(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.north.url)
+      this.textures.seolryeongReactionNe = Texture.from(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.northeast.url)
+      this.textures.seolryeongReactionS = Texture.from(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.south.url)
       this.textures.jadeSanctuaryProps = Texture.from(SPRITE_MANIFEST.environment.jadeSanctuaryProps.url)
       this.frames.seolryeong = sliceFrames(this.textures.seolryeong, SPRITE_MANIFEST.actors.seolryeong)
       this.frames.seolryeongE = sliceFrames(this.textures.seolryeongE, SPRITE_MANIFEST.actors.seolryeong)
       this.frames.seolryeongN = sliceFrames(this.textures.seolryeongN, SPRITE_MANIFEST.actors.seolryeong)
       this.frames.seolryeongNe = sliceFrames(this.textures.seolryeongNe, SPRITE_MANIFEST.actors.seolryeong)
       this.frames.seolryeongS = sliceFrames(this.textures.seolryeongS, SPRITE_MANIFEST.actors.seolryeong)
+      const heroReactionDef = {
+        cell: SPRITE_MANIFEST.actors.seolryeong.reactionCell,
+        sheet: SPRITE_MANIFEST.actors.seolryeong.reactionSheet,
+      }
+      this.frames.seolryeongReaction = sliceFrames(this.textures.seolryeongReaction, heroReactionDef)
+      this.frames.seolryeongReactionE = sliceFrames(this.textures.seolryeongReactionE, heroReactionDef)
+      this.frames.seolryeongReactionN = sliceFrames(this.textures.seolryeongReactionN, heroReactionDef)
+      this.frames.seolryeongReactionNe = sliceFrames(this.textures.seolryeongReactionNe, heroReactionDef)
+      this.frames.seolryeongReactionS = sliceFrames(this.textures.seolryeongReactionS, heroReactionDef)
       this.frames.wisp = sliceFrames(this.textures.wisp, SPRITE_MANIFEST.actors.wisp)
       this.frames.yorang = sliceFrames(this.textures.yorang, SPRITE_MANIFEST.actors.yorang)
+      for (const entry of ENEMY_DIRECTIONAL_RUNTIME_ASSETS_2D) {
+        this.frames[entry.textureKey] = sliceFrames(this.textures[entry.textureKey], entry.actor)
+      }
       this.frames.jadeRidgeHound = sliceFrames(
         this.textures.jadeRidgeHound, SPRITE_MANIFEST.actors.jadeRidgeHound,
       )
@@ -4007,6 +4211,10 @@ export class PixiPresentation {
       const sprite = new Sprite(this.frames.jadeSanctuaryProps[7])
       sprite.anchor.set(0.5, 0.9)
       sprite.visible = false
+      const trace = new Sprite(this.textures.swordScarTrace)
+      trace.anchor.set(0.5)
+      trace.visible = false
+      this.groundLightLayer.addChild(trace)
       const glow = new Sprite(this.textures.warmGlow)
       glow.anchor.set(0.5)
       glow.blendMode = 'add'
@@ -4026,7 +4234,7 @@ export class PixiPresentation {
       })
       badge.visible = false
       this.effectLayer.addChild(badge)
-      const entry = { sprite, shadow, glow, marker, badge, bucket: 0, groundingKey: 'poi', frame: 7 }
+      const entry = { sprite, trace, shadow, glow, marker, badge, bucket: 0, groundingKey: 'poi', frame: 7 }
       this.actorBuckets[0].addChild(sprite)
       this.poiPool.push(entry)
     }
@@ -4059,6 +4267,7 @@ export class PixiPresentation {
     if (!running) {
       for (const entry of this.poiPool) {
         entry.sprite.visible = false
+        entry.trace.visible = false
         entry.shadow.visible = false
         entry.glow.visible = false
         entry.marker.visible = false
@@ -4070,7 +4279,7 @@ export class PixiPresentation {
   _ensureEnemies(count) {
     const target = Math.min(count, 900)
     while (this.enemyPool.length < target) {
-      const intent = new Sprite(this.textures.ring)
+      const intent = new Sprite(this.textures.enemyIntentSeal)
       intent.anchor.set(0.5)
       intent.visible = false
       this.shadowLayer.addChild(intent)
@@ -4272,6 +4481,7 @@ export class PixiPresentation {
     this.runActive = false
     this._setSceneMode(false)
     this.hero.visible = false
+    this.heroTransition.visible = false
     this.heroAura.visible = false
     this.heroShadow.visible = false
     this.boss.visible = false
@@ -4309,6 +4519,7 @@ export class PixiPresentation {
     this.runActive = true
     this._setSceneMode(true)
     this.hero.visible = true
+    this.heroTransition.visible = false
     this.heroAura.visible = true
     this.heroShadow.visible = true
     this.cameraX = snapshot.player.x
@@ -4318,6 +4529,10 @@ export class PixiPresentation {
     this.heroTravelDistance = 0
     this.heroLastWorldX = snapshot.player.x
     this.heroLastWorldZ = snapshot.player.z
+    this.heroFrameKey = ''
+    this.heroBlendElapsed = 1
+    this.heroBlendStartedAt = Number.NEGATIVE_INFINITY
+    this.heroMovementSettle = 0
     const stageId = snapshot.world.stage?.id ?? 'jade'
     this.mapSeed = Array.from(stageId).reduce((hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619), 2166136261) >>> 0
     this.activeMapChunkKey = ''
@@ -4338,10 +4553,11 @@ export class PixiPresentation {
       if (!chunk) continue
       entry.x = (chunk.x + 0.5) * MAP_CHUNK_SIZE
       entry.z = (chunk.z + 0.5) * MAP_CHUNK_SIZE
-      entry.variant = this._groundStageId === 'jade'
-        ? jadeRegionTextureIndex2D(chunk.regionId, chunk.variant)
-        : chunk.variant
-      entry.sprite.texture = this.mapDecalTextures[chunk.variant]
+      entry.variant = mapDecalTextureIndex2D(this._groundStageId, chunk)
+      // Use the semantic-region index calculated above. The old assignment
+      // accidentally went back to the raw chunk variant, so paths, groves,
+      // shrines and marshes all sampled the same first six generic textures.
+      entry.sprite.texture = this.mapDecalTextures[entry.variant % this.mapDecalTextures.length]
       entry.regionId = chunk.regionId
       const primaryRegion = REGION_TERRAIN_PRESENTATION_2D[chunk.regionId]
         ?? REGION_TERRAIN_PRESENTATION_2D.jade_grove
@@ -4389,16 +4605,20 @@ export class PixiPresentation {
       this.spawnPlaza.position.set(_screen.x, _screen.y)
       this.spawnPlaza.width = 22 * _screen.unit
       this.spawnPlaza.height = 22 * _screen.depthUnit
-      this.spawnPlaza.visible = this._groundStageId === 'jade'
-        && isOnScreen(_screen.x, _screen.y, this.viewport, this.spawnPlaza.width * 0.58)
+      // The old painted clearing was a large grey oval that followed the same
+      // visual language as editor/debug zones. Props already establish the
+      // opening location, so keep the uninterrupted ground material visible.
+      this.spawnPlaza.visible = false
     }
   }
 
-  _placeActor(entry, x, z, height, alpha, facing, tint, bob = 0) {
+  _placeActor(entry, x, z, height, alpha, facing, tint, bob = 0, mirrorOverride = null) {
     projectWorld(x, z, this.cameraX, this.cameraZ, this.viewport, _screen)
     const sprite = entry.sprite
     const shadow = entry.shadow
-    const mirror = actorMirrorForFacing2D(entry.groundingKey ?? entry.key, facing)
+    const mirror = typeof mirrorOverride === 'boolean'
+      ? mirrorOverride
+      : actorMirrorForFacing2D(entry.groundingKey ?? entry.key, facing)
     setHeight(sprite, height, mirror)
     sprite.position.set(_screen.x, _screen.y + bob)
     sprite.zIndex = _screen.y
@@ -4409,7 +4629,13 @@ export class PixiPresentation {
     shadow.position.set(_screen.x, _screen.y + grounding.shadowOffsetY)
     shadow.width = Math.max(grounding.minShadowWidth, height * grounding.shadowWidth)
     shadow.height = Math.max(grounding.minShadowHeight, height * grounding.shadowHeight)
-    shadow.alpha = alpha * grounding.shadowAlpha
+    // A prop fading because it overlaps the heroine must not also erase its
+    // contact shadow. Doing so leaves a fully visible upper silhouette with no
+    // floor contact and makes the scenery appear to hover.
+    const shadowVisibility = (entry.groundingKey === 'prop' || entry.groundingKey === 'poi')
+      ? Math.max(0.72, alpha)
+      : alpha
+    shadow.alpha = shadowVisibility * grounding.shadowAlpha
     shadow.visible = sprite.visible
     const bucket = depthBucket(_screen.y, this.viewport.height)
     if (entry.bucket !== bucket) {
@@ -4457,12 +4683,12 @@ export class PixiPresentation {
       entry.contact.height = Math.max(6, visualHeight * grounding.contactHeight)
       entry.contact.tint = blendTint2D(grounding.contactTint, regionTint, 0.22)
       entry.contact.alpha = playerFade * grounding.contactAlpha * (entry.landmark ? 1.15 : 1)
-      entry.contact.visible = entry.sprite.visible
+      entry.contact.visible = entry.sprite.visible && grounding.contactAlpha > 0
       const edge = Math.min(_screen.x, this.viewport.width - _screen.x, _screen.y, this.viewport.height - _screen.y)
       const fade = Math.max(0, Math.min(1, (edge + 45) / 125))
       entry.sprite.alpha *= fade
       entry.shadow.alpha *= (entry.landmark ? 0.96 : 0.9) * fade
-      entry.shadow.width *= entry.landmark ? 1.18 : 1.1
+      entry.shadow.width *= entry.landmark ? 1.08 : 1.02
       entry.contact.alpha *= fade
     }
   }
@@ -4474,6 +4700,7 @@ export class PixiPresentation {
       const item = items[i]
       if (!item) {
         entry.sprite.visible = false
+        entry.trace.visible = false
         entry.shadow.visible = false
         entry.glow.visible = false
         entry.marker.visible = false
@@ -4482,8 +4709,43 @@ export class PixiPresentation {
       }
       const config = POI_PRESENTATION[item.type] ?? POI_PRESENTATION.altar
       const visualHeight = config.height * this._presentationScale
-      const available = item.state === 'available'
+      const available = item.state !== 'locked' && item.state !== 'consumed'
       const nearby = available && item.id === nearbyId
+      if (config.groundTrace) {
+        const traceConfig = INVESTIGATION_TRACE_PRESENTATION_2D[item.clueId]
+          ?? INVESTIGATION_TRACE_PRESENTATION_2D['sword-scar']
+        projectWorld(item.x, item.z, this.cameraX, this.cameraZ, this.viewport, _screen)
+        entry.sprite.visible = false
+        entry.shadow.visible = false
+        entry.trace.texture = this.textures[traceConfig.texture]
+        entry.trace.position.set(_screen.x, _screen.y + 1)
+        entry.trace.width = traceConfig.width * this._presentationScale
+        entry.trace.height = traceConfig.height * this._presentationScale
+        entry.trace.alpha = available ? (nearby ? 1 : 0.96) : 0.16
+        entry.trace.visible = isOnScreen(_screen.x, _screen.y, this.viewport, traceConfig.width)
+        const pulse = 0.95 + Math.sin(this.time * (nearby ? 4.2 : 1.8) + i) * (nearby ? 0.06 : 0.025)
+        entry.glow.position.set(_screen.x, _screen.y)
+        entry.glow.width = traceConfig.width * this._presentationScale * 1.3 * pulse
+        entry.glow.height = traceConfig.height * this._presentationScale * 0.82 * pulse
+        entry.glow.tint = config.color
+        entry.glow.alpha = available ? (nearby ? 0.2 : 0.085) : 0
+        entry.glow.visible = entry.trace.visible && available
+        entry.marker.position.set(_screen.x, _screen.y + 3)
+        entry.marker.width = traceConfig.width * 0.9 * pulse
+        entry.marker.height = traceConfig.height * 0.55 * pulse
+        entry.marker.rotation = 0
+        entry.marker.tint = config.color
+        entry.marker.alpha = nearby ? 0.2 : 0
+        entry.marker.visible = entry.trace.visible && nearby
+        entry.badge.text = traceConfig.glyph
+        entry.badge.position.set(_screen.x, _screen.y - traceConfig.height * this._presentationScale * 0.72)
+        entry.badge.tint = config.color
+        entry.badge.scale.set(0.68)
+        entry.badge.alpha = nearby ? 0.82 : 0
+        entry.badge.visible = entry.trace.visible && nearby
+        continue
+      }
+      entry.trace.visible = false
       entry.frame = config.frame
       entry.sprite.texture = this.frames.jadeSanctuaryProps[config.frame]
       entry.sprite.anchor.y = actorFootPivot2D('prop', config.frame)
@@ -4497,18 +4759,25 @@ export class PixiPresentation {
       entry.glow.alpha = available ? (nearby ? 0.52 : 0.25) : 0.05
       entry.glow.visible = entry.sprite.visible
       entry.marker.position.set(_screen.x, _screen.y + 5)
-      entry.marker.width = (nearby ? 116 : 88) * pulse
-      entry.marker.height = (nearby ? 42 : 32) * pulse
+      entry.marker.width = 96 * pulse
+      entry.marker.height = 28 * pulse
       entry.marker.rotation = 0
       entry.marker.tint = config.color
-      entry.marker.alpha = available ? (nearby ? 0.62 : 0.28) : 0.08
-      entry.marker.visible = entry.sprite.visible
+      // A persistent bright ellipse under every point of interest read like an
+      // editor trigger volume. The ring now appears only at interaction range;
+      // the prop's authored glow remains the distant navigation cue.
+      entry.marker.alpha = available && nearby ? 0.46 : 0
+      entry.marker.visible = entry.sprite.visible && available && nearby
+      // The old always-on Hangul badge floated above the prop like an editor
+      // gizmo. Navigation belongs to the radar and objective copy; reveal the
+      // seal glyph only in interaction range so the altar carries the distant
+      // silhouette instead of a debug-like label.
       entry.badge.text = config.glyph
-      entry.badge.position.set(_screen.x, _screen.y - visualHeight - 13 * this._presentationScale)
+      entry.badge.position.set(_screen.x, _screen.y - visualHeight * 0.84)
       entry.badge.tint = config.color
-      entry.badge.scale.set(nearby ? 1.18 : 0.9)
-      entry.badge.alpha = available ? (nearby ? 1 : 0.78) : 0.22
-      entry.badge.visible = entry.sprite.visible
+      entry.badge.scale.set(0.82)
+      entry.badge.alpha = nearby ? 0.88 : 0
+      entry.badge.visible = entry.sprite.visible && nearby
     }
   }
 
@@ -4539,10 +4808,12 @@ export class PixiPresentation {
       entry.frame = attacking
         ? oneShotFrameIndex(attack, intentPresentation.remaining, intentPresentation.duration)
         : enemyLocomotionFrame2D(locomotion, this.time, wolfActor ? 9 : 7, motion)
-      entry.sprite.texture = this.frames[key][entry.frame]
-      entry.sprite.anchor.set(0.5, actorFootPivot2D(key, entry.frame))
       const x = field.prevX[i] + (field.x[i] - field.prevX[i]) * alpha
       const z = field.prevZ[i] + (field.z[i] - field.prevZ[i]) * alpha
+      const facing = field.facing[i]
+      const directional = directionalEnemyFrames2D(this.frames, key, facing)
+      entry.sprite.texture = directional.frames[entry.frame] ?? this.frames[key][entry.frame]
+      entry.sprite.anchor.set(0.5, actorFootPivot2D(directional.pivotKey, entry.frame))
       const baseHeight = key === 'wisp' ? WISP_THREAT_PRESENTATION_2D.baseHeight
         : wolfActor ? actor.runtimeHeight * (field.elite[i] ? 1.18 : 1)
           : key === 'jadeSerpent' ? SPRITE_MANIFEST.actors.jadeSerpent.runtimeHeight
@@ -4570,7 +4841,7 @@ export class PixiPresentation {
         * motion.scale * (0.78 + spawnEase * 0.22)
       this._placeActor(entry, x, z, visualHeight,
         (field.dead[i] ? 0.25 : 1) * spawnEase,
-        field.facing[i], tint, pulse)
+        facing, tint, pulse, directional.mirror)
       // During a boss encounter the boss silhouette is the current objective.
       // Fade only ordinary mobs in its local radius; distant enemies and elite
       // variants retain their authored opacity so the arena does not turn into
@@ -4601,7 +4872,7 @@ export class PixiPresentation {
           )
       entry.contact.alpha = grounding.contactAlpha * spawnEase
         * (field.dead[i] ? 0.22 : field.elite?.[i] ? 1.35 : 1) * bossFocusAlpha
-      entry.contact.visible = entry.sprite.visible
+      entry.contact.visible = entry.sprite.visible && (field.elite?.[i] || grounding.contactAlpha > 0)
       if (key === 'wisp') {
         // Additive wisps interleaved with opaque actors forced a blend-state
         // break at almost every depth-sorted enemy (400+ draws in stress QA).
@@ -4636,13 +4907,13 @@ export class PixiPresentation {
         ))
         const intentScale = Math.max(0.28, baseHeight * this._presentationScale / 360)
         intent.position.set(_screen.x, _screen.y + 4)
-        intent.scale.set(intentScale * (1.12 + intentProgress * 0.18), intentScale * 0.48)
-        intent.rotation = -this.time * 0.7
+        intent.scale.set(intentScale * (1.04 + intentProgress * 0.22), intentScale * 0.58)
+        intent.rotation = Math.sin(this.time * 2.4 + field.uid[i]) * 0.035
         intent.tint = field.behavior[i] === 1
           ? 0xff7c96
           : intentPresentation.preContact ? 0xffb85c : 0xf2c76f
-        intent.alpha = (intentPresentation.preContact ? 0.28 : 0.2)
-          + Math.sin(intentProgress * Math.PI) * 0.24
+        intent.alpha = (intentPresentation.preContact ? 0.24 : 0.16)
+          + Math.sin(intentProgress * Math.PI) * 0.34
       }
     }
     for (let i = field.count; i < this.enemyPool.length; i++) {
@@ -4659,10 +4930,13 @@ export class PixiPresentation {
     const z = player.prevZ + (player.z - player.prevZ) * t
     projectWorld(x, z, this.cameraX, this.cameraZ, this.viewport, _screen)
     const moving = player.speed01 > 0.08
+    if (moving) this.heroMovementSettle = 0.14
+    else this.heroMovementSettle = Math.max(0, this.heroMovementSettle - Math.max(0, this._presentedDt ?? 1 / 60))
     const heroDef = SPRITE_MANIFEST.actors.seolryeong
     const heroHeight = heroCombatHeight2D(this.viewport.height, heroDef.runtimeHeight)
     const direction = heroDirectionFor(player)
     const directionalFrames = directionalHeroFrames(this.frames, direction)
+    const reactionFrames = directionalHeroReactionFrames(this.frames, direction)
     const worldStep = Math.hypot(
       player.x - this.heroLastWorldX,
       player.z - this.heroLastWorldZ,
@@ -4672,30 +4946,79 @@ export class PixiPresentation {
     }
     this.heroLastWorldX = player.x
     this.heroLastWorldZ = player.z
-    const frame = heroAnimationFrameIndex2D(heroDef, {
-      moving,
-      dashing: player.dashing,
-      attackTimer: player.attackTimer,
-      time: this.time,
-      travelDistance: this.heroTravelDistance,
-      runFrames: heroGroundedRunFrames2D(heroDef, direction.key),
-    })
-    this.hero.texture = directionalFrames[frame]
-    this.hero.anchor.y = heroFootPivot2D(direction.key, frame)
-    // Grounded locomotion may lift a foot, but the body must never oscillate
-    // below the sampled contact row. Idle motion is carried by the breath scale.
-    const bob = 0
+    const reactionState = !player.alive
+      ? 'death'
+      : player.hurtTimer > 0
+        ? 'hurt'
+        : !moving && player.dashing <= 0 && player.attackTimer <= 0 && this.heroMovementSettle <= 0
+          ? 'idle'
+          : null
+    const frame = reactionState
+      ? heroReactionFrameIndex2D(heroDef, {
+          alive: player.alive,
+          hurtTimer: player.hurtTimer,
+          deathTimer: player.deathTimer,
+          time: this.time,
+        })
+      : heroAnimationFrameIndex2D(heroDef, {
+          moving,
+          dashing: player.dashing,
+          attackTimer: player.attackTimer,
+          time: this.time,
+          travelDistance: this.heroTravelDistance,
+          runFrames: heroGroundedRunFrames2D(heroDef, direction.key),
+          movementSettle: this.heroMovementSettle,
+        })
+    const nextTexture = reactionState ? reactionFrames?.[frame] : directionalFrames[frame]
+    const poseState = reactionState ?? (player.dashing > 0
+      ? 'dash'
+      : moving ? 'run' : player.attackTimer > 0 ? 'attack' : 'idle')
+    const transitionKey = `${direction.key}:${direction.mirror ? 1 : 0}:${poseState}`
+    // A crossfade is useful when the viewing direction or action changes, but
+    // blending every locomotion frame creates a persistent double exposure
+    // that reads like smeared video playback instead of crisp animation.
+    if (nextTexture && this.heroFrameKey && transitionKey !== this.heroFrameKey) {
+      this.heroTransition.texture = this.hero.texture
+      this.heroTransition.anchor.y = this.hero.anchor.y
+      this.heroTransition.scale.set(this.hero.scale.x, this.hero.scale.y)
+      this.heroTransition.rotation = this.hero.rotation
+      this.heroTransition.tint = this.hero.tint
+      this.heroTransition.visible = true
+      this.heroBlendStartedAt = this.time
+    }
+    this.heroFrameKey = transitionKey
+    if (nextTexture) this.hero.texture = nextTexture
+    this.hero.anchor.y = reactionState ? heroDef.reactionPivot[1] : heroFootPivot2D(direction.key, frame)
+    // The long robe hides most foot motion, so a restrained body weight shift
+    // is necessary for travel to read as locomotion rather than a treadmill.
+    // It only lifts from the contact row; the shadow remains planted.
+    const gait = Math.sin(this.heroTravelDistance * Math.PI * 2 / 1.82)
+    const bob = moving && player.dashing <= 0 && !reactionState
+      ? -Math.abs(gait) * 1.35 * this._presentationScale : 0
     setHeight(this.hero, heroHeight, direction.mirror)
-    if (!moving && player.attackTimer <= 0 && player.dashing <= 0) {
+    if (reactionState === 'idle') {
       const breath = Math.sin(this.time * 2.2)
       this.hero.scale.x *= 1 - breath * 0.004
       this.hero.scale.y *= 1 + breath * 0.012
     }
     this.hero.position.set(_screen.x, _screen.y + bob)
-    this.hero.rotation = 0
+    this.hero.rotation = !reactionState && moving && player.dashing <= 0
+      ? Math.sin(player.facing) * 0.009 + gait * 0.0025
+      : 0
     this.hero.tint = player.hitFlash > 0 ? 0xffdddd : 0xffffff
-    this.hero.alpha = player.invulnTimer > 0 ? 0.9 : 1
+    this.hero.alpha = player.alive && player.invulnTimer > 0 ? 0.9 : 1
     this.hero.zIndex = _screen.y
+    const blendDuration = moving ? 0.075 : 0.1
+    const blendProgress = Math.min(1, Math.max(0, (this.time - this.heroBlendStartedAt) / blendDuration))
+    this.heroTransition.position.set(this.hero.position.x, this.hero.position.y)
+    this.heroTransition.alpha = this.hero.alpha * (1 - blendProgress) * 0.28
+    this.heroTransition.visible = this.hero.visible && blendProgress < 1
+    if (this.heroTransition.visible) {
+      const previousMirror = this.heroTransition.scale.x < 0
+      setHeight(this.heroTransition, heroHeight, previousMirror)
+      this.heroTransition.rotation += (this.hero.rotation - this.heroTransition.rotation) * blendProgress
+      this.heroTransition.zIndex = this.hero.zIndex - 0.02
+    }
     const grounding = actorGroundingProfile2D('hero', frame)
     this.heroShadow.position.set(_screen.x, _screen.y + grounding.shadowOffsetY)
     this.heroShadow.width = Math.max(grounding.minShadowWidth, heroHeight * grounding.shadowWidth)
@@ -4708,14 +5031,14 @@ export class PixiPresentation {
     this.heroAura.alpha = player.invulnTimer > 0
       ? HERO_AURA_PRESENTATION_2D.invulnerableAlpha
       : HERO_AURA_PRESENTATION_2D.alpha
-    this.heroAura.visible = this.hero.visible
+    this.heroAura.visible = this.hero.visible && player.alive
     this.heroMarker.position.set(_screen.x, _screen.y + HERO_GROUND_MARKER_2D.offsetY)
     this.heroMarker.width = heroHeight * HERO_GROUND_MARKER_2D.widthRatio * auraPulse
     this.heroMarker.height = heroHeight * HERO_GROUND_MARKER_2D.heightRatio * auraPulse
     this.heroMarker.alpha = player.invulnTimer > 0 ? 0.26 : HERO_GROUND_MARKER_2D.alpha
     this.heroMarker.tint = 0xa9ecff
     this.heroMarker.rotation = HERO_GROUND_MARKER_2D.rotation
-    this.heroMarker.visible = this.hero.visible
+    this.heroMarker.visible = this.hero.visible && player.alive
     this.heroReadability.texture = this.hero.texture
     this.heroReadability.anchor.y = this.hero.anchor.y
     this.heroReadability.position.set(this.hero.position.x, this.hero.position.y)
@@ -4729,10 +5052,13 @@ export class PixiPresentation {
     this.heroReadability.alpha = player.invulnTimer > 0
       ? HERO_READABILITY_RIM_2D.invulnerableAlpha : HERO_READABILITY_RIM_2D.alpha
     this.heroReadability.zIndex = this.hero.zIndex + HERO_READABILITY_RIM_2D.zOffset
-    this.heroReadability.visible = this.hero.visible
+    this.heroReadability.visible = this.hero.visible && player.alive
     const bucket = depthBucket(_screen.y, this.viewport.height)
     if (this.heroReadability.parent !== this.actorBuckets[bucket]) {
       this.actorBuckets[bucket].addChild(this.heroReadability)
+    }
+    if (this.heroTransition.parent !== this.actorBuckets[bucket]) {
+      this.actorBuckets[bucket].addChild(this.heroTransition)
     }
     if (this.hero.parent !== this.actorBuckets[bucket]) this.actorBuckets[bucket].addChild(this.hero)
     const slash = heroSlashPresentation2D(
@@ -4741,6 +5067,7 @@ export class PixiPresentation {
       heroHeight,
       _screen.unit,
       _screen.depthUnit,
+      moving,
     )
     this.heroSlash.position.set(_screen.x + slash.offsetX, _screen.y + slash.offsetY)
     this.heroSlash.width = slash.width
@@ -4749,6 +5076,7 @@ export class PixiPresentation {
     this.heroSlash.alpha = slash.alpha
     this.heroSlash.tint = 0xd9f8ff
     this.heroSlash.visible = slash.visible && slash.alpha > 0.02 && this.hero.visible
+      && reactionState !== 'hurt' && reactionState !== 'death'
   }
 
   _updateBossCastPill(boss, profile) {
@@ -4790,7 +5118,13 @@ export class PixiPresentation {
     projectWorld(x, z, this.cameraX, this.cameraZ, this.viewport, _screen)
     const wolfBoss = boss.def.id === 'blueWolfKing'
     const bossDef = wolfBoss ? SPRITE_MANIFEST.actors.yorang : SPRITE_MANIFEST.actors.jadeVoidWarden
-    const bossFrames = wolfBoss ? this.frames.yorang : this.frames.jadeVoidWarden
+    const bossFacing = Number.isFinite(boss.facing)
+      ? boss.facing
+      : Math.atan2(this.cameraX - boss.x, this.cameraZ - boss.z)
+    const directional = wolfBoss
+      ? directionalEnemyFrames2D(this.frames, 'yorang', bossFacing)
+      : null
+    const bossFrames = directional?.frames ?? this.frames.jadeVoidWarden
     const idleFrames = bossDef.animations.idle ?? bossDef.animations.walk
     const castFrames = bossDef.animations.cast ?? bossDef.animations.attack ?? idleFrames
     const castActive = boss.castTimer > 0
@@ -4799,9 +5133,9 @@ export class PixiPresentation {
       : loopingFrameIndex(idleFrames, this.time, wolfBoss ? 7 : 5)
     this.boss.texture = bossFrames[frame]
     const groundingKey = wolfBoss ? 'yorang' : 'jadeVoidWarden'
-    this.boss.anchor.set(0.5, actorFootPivot2D(groundingKey, frame))
-    const bossFacing = Math.atan2(this.cameraX - boss.x, this.cameraZ - boss.z)
-    const mirror = actorMirrorForFacing2D(groundingKey, bossFacing)
+    const pivotKey = directional?.pivotKey ?? groundingKey
+    this.boss.anchor.set(0.5, actorFootPivot2D(pivotKey, frame))
+    const mirror = directional?.mirror ?? actorMirrorForFacing2D(groundingKey, bossFacing)
     const authoredHeight = wolfBoss
       ? Math.max(220, bossDef.runtimeHeight * 2.55)
       : boss.def.id === 'jadeVoidWarden' ? bossDef.runtimeHeight : 210
@@ -4835,8 +5169,8 @@ export class PixiPresentation {
       this.bossIntent.position.set(_screen.x, _screen.y + 8)
       this.bossIntent.scale.set(1.32 + castProgress * 0.48, 0.54 + castProgress * 0.14)
       this.bossIntent.rotation = this.time * 0.8
-      this.bossIntent.tint = wolfBoss ? 0x6ca8ff : boss.patternColor ?? boss.def.color
-      this.bossIntent.alpha = 0.34 + Math.sin(castProgress * Math.PI) * 0.3
+      this.bossIntent.tint = wolfBoss ? 0x537b8d : 0xa9362b
+      this.bossIntent.alpha = 0.16 + Math.sin(castProgress * Math.PI) * 0.15
     }
     const profile = bossTelegraphProfile2D(boss)
     if (this.bossDangerZone) {
@@ -5059,6 +5393,7 @@ export class PixiPresentation {
   render(snapshot, alpha, dt) {
     if (!this.app || this._contextLost) return
     const started = performance.now()
+    this._presentedDt = Math.min(Math.max(0, Number(dt) || 0), 0.1)
     this.time += Math.min(dt, 0.1)
     if (this.runActive) {
       const targetX = snapshot.player.prevX + (snapshot.player.x - snapshot.player.prevX) * alpha
@@ -5069,9 +5404,11 @@ export class PixiPresentation {
       cameraTargetWithDeadZone2D(
         this.cameraX, this.cameraZ, targetX, targetZ, this.viewport, moving, _cameraTarget,
       )
-      const response = moving ? undefined : CAMERA_RECENTER_RESPONSE_2D
-      this.cameraX = cameraFollowStep2D(this.cameraX, _cameraTarget.x, dt, response)
-      this.cameraZ = cameraFollowStep2D(this.cameraZ, _cameraTarget.z, dt, response)
+      // Never pull the world back underneath a stationary heroine. Applying
+      // the same dead zone after movement stops preserves her visible travel
+      // and prevents the floor/props from sliding while she stands still.
+      this.cameraX = cameraFollowStep2D(this.cameraX, _cameraTarget.x, dt)
+      this.cameraZ = cameraFollowStep2D(this.cameraZ, _cameraTarget.z, dt)
       const shake = snapshot.world.shake
       if (shake > 0) {
         this.cameraX += Math.sin(this.time * 83) * shake * 0.035

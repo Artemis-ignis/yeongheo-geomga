@@ -1,21 +1,26 @@
 {
   "game": "영허검가",
-  "releaseId": "yeongheo-current-20260812",
-  "releaseDate": "2026-08-12",
+  "releaseId": "yeongheo-current-20260814",
+  "releaseDate": "2026-08-14",
   "runtime": "pixijs-2d-web",
   "showcaseSeed": 3185791507,
-  "runDurationSeconds": 420,
-  "runtimeImageAssets": 78,
+  "activities": {
+    "mainJourney": "jade-chapter-1-objective-driven",
+    "heavenlyTrial": "unlocks-after-jade-chapter-1"
+  },
+  "runtimeImageAssets": 91,
   "playableCharacterIds": ["seolryeong"],
   "releaseStageIds": ["jade"],
   "persistence": {
     "metaProgress": true,
+    "journeyDecisions": true,
+    "journeyDecisionLegacies": true,
     "settings": true,
     "activeRun": false
   },
   "packages": {
-    "web": "yeongheo-geomga-web-current-20260812.zip",
-    "windowsPortable": "yeongheo-geomga-windows-current-20260812.zip",
+    "web": "yeongheo-geomga-web-current-20260814.zip",
+    "windowsPortable": "yeongheo-geomga-windows-current-20260814.zip",
     "status": "local-review-candidate-only"
   },
   "deploymentStatus": "vercel-production",
@@ -23,5 +28,6 @@
   "rightsEvidenceConfirmed": 0,
   "rightsGate": "BLOCKED",
   "loginRequired": false,
-  "externalTelemetry": false
+  "externalTelemetry": false,
+  "audioPolicy": "silent-only"
 }

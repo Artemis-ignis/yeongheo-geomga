@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { RNG } from '../src/core/RNG.js'
 import { getCharacter } from '../src/data/characters.js'
 import { getStage } from '../src/data/stages.js'
-import { CombatWorld2D, PICKUP_MERGE_RADIUS_2D } from '../src/runtime2d/CombatWorld2D.js'
+import {
+  CombatWorld2D, PICKUP_MERGE_RADIUS_2D, PICKUP_REMOTE_RECALL_AGE_2D,
+} from '../src/runtime2d/CombatWorld2D.js'
 
 function makeWorld(seed = 17) {
   return new CombatWorld2D({
@@ -66,5 +68,21 @@ describe('2D pickup ledgers', () => {
     expect(world.pickups.spawnedXp - world.pickups.collectedXp - liveXp).toBeCloseTo(0, 6)
     expect(world.pickups.spawnedStones - world.pickups.collectedStones - liveStones).toBeCloseTo(0, 6)
     expect(world.player.stones).toBeCloseTo(world.pickups.collectedStones, 6)
+  })
+
+  it('recalls old off-route rewards all the way into collection range', () => {
+    const world = makeWorld()
+    world.player.x = 40
+    world.player.z = 0
+    world.pickups.spawn(0, 0, 21, false)
+    world.pickups.age[0] = PICKUP_REMOTE_RECALL_AGE_2D
+
+    for (let tick = 0; tick < 240 && world.pickups.count > 0; tick++) {
+      world.pickups.update(1 / 60, world.player)
+    }
+
+    expect(world.pickups.count).toBe(0)
+    expect(world.pickups.collectedXp).toBe(21)
+    expect(world.pickups.spawnedXp - world.pickups.collectedXp).toBe(0)
   })
 })

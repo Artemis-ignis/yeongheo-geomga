@@ -7,6 +7,7 @@ import { SPRITE_MANIFEST } from '../src/runtime2d/spriteManifest.js'
 import {
   SUBMISSION_RUNTIME_ASSETS,
   auditSubmissionAssets,
+  findProductionDebugMarkers,
   findUnallowlistedSubmissionAssetReferences,
   formatSubmissionAssetReport,
   pruneSubmissionAssets,
@@ -43,19 +44,22 @@ describe('submission asset allowlist', () => {
         actor.url,
         actor.portraitUrl,
         ...Object.values(actor.directionalRuntime ?? {}).map((direction) => direction.url),
+        ...Object.values(actor.reactionRuntime ?? {}).map((direction) => direction.url),
       ]),
       ...Object.values(SPRITE_MANIFEST.environment ?? {}).map((asset) => asset.url),
     ].filter(Boolean)
     const productionReferences = [
       ...bossReferences,
       ...manifestReferences,
-      './assets/environment/jade-sanctuary-environment-v2.png',
-      './assets/materials/environment/jade-highland-ground-v1.png',
-      './assets/materials/environment/jade-sanctuary-ground-material-v2.png',
-      './assets/materials/environment/jade-pavilion-stone-v1.png',
-      './assets/characters/seolryeong-character-reference-v2.png',
-      './assets/characters/seolryeong-character-reference-v3.png',
-      './assets/marketing/yeongheo-contest-keyart-v1.png',
+      './assets/environment/jade-sanctuary-environment-v2.webp',
+      './assets/materials/environment/jade-highland-ground-v1.webp',
+      './assets/materials/environment/jade-sanctuary-ground-material-v2.webp',
+      './assets/materials/environment/jade-pavilion-stone-v1.webp',
+      './assets/characters/seolryeong-character-reference-v2.webp',
+      './assets/characters/seolryeong-character-reference-v3.webp',
+      './assets/brand/yeongheo-seal-v1.svg',
+      './assets/marketing/yeongheo-ink-title-v1.webp',
+      './assets/ui/ink-paper-texture-v1.svg',
     ]
 
     expect(bossReferences).not.toHaveLength(0)
@@ -71,6 +75,9 @@ describe('submission asset allowlist', () => {
       writeFixtureFile(publicDir, relativePath)
       writeFixtureFile(outDir, relativePath)
     }
+    // Simulate a stale public copy from an older checkout. The production
+    // pruner must still remove it even though current authoring sources live
+    // outside public/assets and are never copied by Vite.
     writeFixtureFile(publicDir, 'assets/sprites2d/source/authoring-sheet.png')
     writeFixtureFile(outDir, 'assets/sprites2d/source/authoring-sheet.png', 'authoring')
     writeFixtureFile(outDir, 'assets/Game2D.js', 'generated')
@@ -104,5 +111,22 @@ describe('submission asset allowlist', () => {
     expect(report.sourceMissing).toHaveLength(SUBMISSION_RUNTIME_ASSETS.length - 1)
     expect(report.outputMissing).toHaveLength(SUBMISSION_RUNTIME_ASSETS.length - 1)
     expect(report.unexpectedOutputAssets).toEqual(['assets/legacy/reference.webp'])
+  })
+
+  it('rejects developer control surfaces from the production artifact', () => {
+    const root = fixtureRoot()
+    const publicDir = path.join(root, 'public')
+    const outDir = path.join(root, 'dist')
+    for (const relativePath of SUBMISSION_RUNTIME_ASSETS) {
+      writeFixtureFile(publicDir, relativePath)
+      writeFixtureFile(outDir, relativePath)
+    }
+    writeFixtureFile(outDir, 'assets/app.js', 'window.__game2dDiagnostics = () => 1')
+
+    const report = auditSubmissionAssets({ publicDir, outDir })
+    expect(report.ok).toBe(false)
+    expect(findProductionDebugMarkers(outDir)).toEqual([
+      { path: 'assets/app.js', marker: '__game2dDiagnostics' },
+    ])
   })
 })

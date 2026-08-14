@@ -3,18 +3,30 @@ import { showFallback } from './ui/fallback.js'
 const canvas = document.getElementById('scene')
 const hudRoot = document.getElementById('hud')
 const fallbackRoot = document.getElementById('fallback')
+const bootRoot = document.getElementById('boot-shell')
 const params = new URLSearchParams(location.search)
+
+function dismissBootShell(immediate = false) {
+  if (!bootRoot) return
+  if (immediate) {
+    bootRoot.remove()
+    return
+  }
+  bootRoot.classList.add('is-ready')
+  setTimeout(() => bootRoot.remove(), 460)
+}
 
 async function boot() {
   const { Game2D } = await import('./runtime2d/Game2D.js')
   const game = new Game2D({ canvas, hudRoot, fallbackRoot })
   await game.start()
   if (game._disposed) return
-  window.__game = game
-  window.__game2d = game
+  dismissBootShell()
   window.__rendererMode = 'pixi-2d'
-  window.__game2dDiagnostics = () => game.diagnostics()
   if (import.meta.env.DEV) {
+    window.__game = game
+    window.__game2d = game
+    window.__game2dDiagnostics = () => game.diagnostics()
     window.__forceBoss = (id) => game.forceBoss(id)
     window.__forceLevelUp = () => game.forceLevelUp()
     window.__stress2d = (options) => game.stress(options)
@@ -74,5 +86,6 @@ try {
   await boot()
 } catch (error) {
   console.error(error)
+  dismissBootShell(true)
   showFallback(`2.5D 렌더러를 시작하지 못했습니다.\n${error?.message ?? error}`)
 }

@@ -1,9 +1,9 @@
 /**
  * Deterministic pacing director for the contest vertical slice.
  *
- * The authoritative run is seven minutes (420 seconds).  The director owns
- * only time and one-shot milestone state; presentation and combat systems
- * consume the immutable events returned by `advance`.
+ * The bounded record challenge currently uses a 420-second ruleset. The
+ * director owns only that optional challenge's time and one-shot milestone
+ * state; presentation and combat systems consume events returned by `advance`.
  */
 
 export const CONTEST_PACING_VERSION_2D = 1

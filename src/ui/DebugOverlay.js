@@ -3,21 +3,37 @@ const SAMPLES = 30
 /** F3 overlay. Hidden by default and does no work while hidden. */
 export class DebugOverlay {
   constructor(root) {
-    this.node = document.createElement('div')
-    this.node.className = 'debug-overlay'
-    this.node.style.display = 'none'
-    root.appendChild(this.node)
-    this.frames = new Float32Array(SAMPLES)
+    this.enabled = true
+    this.node = null
+    this.frames = this.enabled ? new Float32Array(SAMPLES) : null
     this.cursor = 0
     this.visible = false
+    if (!this.enabled) return
+    this.node = document.createElement('div')
+    this.node.className = 'debug-overlay'
+    Object.assign(this.node.style, {
+      display: 'none',
+      position: 'absolute',
+      top: '8px',
+      right: '8px',
+      zIndex: '60',
+      padding: '8px',
+      color: '#f5ead1',
+      background: 'rgba(19,18,15,.88)',
+      font: '10px/1.5 ui-monospace, Consolas, monospace',
+      whiteSpace: 'pre',
+    })
+    root.appendChild(this.node)
   }
 
   toggle() {
+    if (!this.enabled) return
     this.visible = !this.visible
     this.node.style.display = this.visible ? '' : 'none'
   }
 
   update(s) {
+    if (!this.enabled) return
     // Keep the rolling average warm even while hidden, so toggling it on shows a
     // real number instead of a spike.
     this.frames[this.cursor % SAMPLES] = s.dt
@@ -48,6 +64,6 @@ export class DebugOverlay {
   }
 
   dispose() {
-    this.node.remove()
+    this.node?.remove()
   }
 }

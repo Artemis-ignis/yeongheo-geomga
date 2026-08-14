@@ -31,36 +31,6 @@ export const FORMATIONS = [
   // clear pincer, while the wider radius gives the telegraph time to matter.
   { t: 290, kind: 'pincer', type: 'jadeSerpent', count: 12, radius: 16, arc: 1.1 },
   { t: 365, kind: 'ring', type: 'talismanGhost', count: 22, radius: 10 },
-  // From 7:00 the 진 are made of elites, and that is the whole point of them.
-  //
-  // A build that has come together deletes fodder on contact, so a ring of 마기
-  // 잔영 at minute nine is a light show. Measured on a maxed 단전, minutes five
-  // through eleven ran at zero danger exposure while the drizzle underneath them
-  // was already at fifteen spawns a second. 마수사 and 빙벽수 carry ten to twenty
-  // times the health of the roster they arrive with — around 900 and 1800 by
-  // minute eight after scaling — so a wall of them is still a wall to a finished
-  // loadout. This is the one pressure in the game that does not evaporate when
-  // the player gets strong.
-  // Radius matters more here than anywhere else in this table. 빙벽수 moves at
-  // 1.3 and 마수사 at 3.4, against a player who is doing 5.7 and climbing, so an
-  // elite dropped at 16 units spends twelve seconds walking to where she was.
-  // The first attempt did exactly that and measured no better than fodder: on a
-  // maxed 단전 minutes eight through ten still read zero. They arrive inside her
-  // working distance instead, close enough that ignoring them is a decision
-  // rather than a default.
-  // `haste` is the second half of the same problem. Radius alone was not enough:
-  // rings of elites at nine units still measured as nothing, because 빙벽수 walks
-  // at 1.3 and a bought 단전 has her at 6.6, so they were still setting off when
-  // she left. A 진 is an ambush, and its members move like one for as long as
-  // they live. Nothing outside a 진 is ever hastened, so kiting the ordinary
-  // horde is untouched.
-  { t: 430, kind: 'wall', type: 'demonCultivator', count: 10, radius: 12, arc: 1.4, haste: 1.5 },
-  { t: 500, kind: 'ring', type: 'glacierWarden', count: 12, radius: 9, haste: 2.6 },
-  { t: 570, kind: 'pincer', type: 'demonCultivator', count: 14, radius: 12, arc: 1.2, haste: 1.5 },
-  { t: 645, kind: 'ring', type: 'demonCultivator', count: 16, radius: 11, haste: 1.6 },
-  { t: 720, kind: 'wall', type: 'glacierWarden', count: 14, radius: 10, arc: 1.3, haste: 2.8 },
-  { t: 795, kind: 'pincer', type: 'demonCultivator', count: 20, radius: 12, arc: 1.15, haste: 1.7 },
-  { t: 860, kind: 'ring', type: 'glacierWarden', count: 20, radius: 9, haste: 3.0 },
 ]
 
 /**

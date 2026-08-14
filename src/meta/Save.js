@@ -2,7 +2,7 @@ import { STARTING_CHARACTERS, STARTING_WEAPONS } from '../data/unlocks.js'
 
 export const SAVE_KEY = 'yeongheo.save.v1'
 /** Bump when the shape changes, and add the step to `MIGRATIONS` below. */
-export const SAVE_VERSION = 2
+export const SAVE_VERSION = 4
 
 /**
  * Persistence for meta progression.
@@ -31,6 +31,7 @@ export function defaultSave() {
     achievements: [],
     /** Stage ids the player has actually completed, for the career 업적. */
     stagesCleared: [],
+    journey: { chaptersCleared: [], expeditionVictories: 0, survivalVictories: 0, decisions: {} },
     records: { runs: 0, victories: 0, bestTime: 0, bestLevel: 0, totalKills: 0 },
   }
 }
@@ -62,6 +63,10 @@ const MIGRATIONS = {
   // 1 -> 2: 시련 tiers arrived. Nothing to move; the field defaults to 평지 and
   // the unlock is derived from records.bestTime, which every v1 save has.
   1: (s) => ({ ...s, version: 2, trial: 0 }),
+  // 2 -> 3: distinguish world progression from the optional survival trial.
+  2: (s) => ({ ...s, version: 3, journey: { chaptersCleared: [], expeditionVictories: 0, survivalVictories: 0 } }),
+  // 3 -> 4: persistent authored decisions made during main-journey incidents.
+  3: (s) => ({ ...s, version: 4, journey: { ...s.journey, decisions: {} } }),
 }
 
 function migrate(raw) {
@@ -83,6 +88,19 @@ function normalize(input) {
 
   const arr = (v, fallback) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : fallback)
   const num = (v, fallback) => (Number.isFinite(v) ? v : fallback)
+  const decisions = {}
+  if (raw.journey?.decisions && typeof raw.journey.decisions === 'object') {
+    for (const [chapterId, rows] of Object.entries(raw.journey.decisions)) {
+      if (typeof chapterId !== 'string' || !Array.isArray(rows)) continue
+      decisions[chapterId] = rows.filter((row) => row && typeof row === 'object'
+        && typeof row.beatId === 'string' && typeof row.choiceId === 'string')
+        .map((row) => ({
+          beatId: row.beatId, choiceId: row.choiceId,
+          name: typeof row.name === 'string' ? row.name : row.choiceId,
+          outcome: typeof row.outcome === 'string' ? row.outcome : '',
+        }))
+    }
+  }
 
   const upgrades = {}
   if (raw.upgrades && typeof raw.upgrades === 'object') {
@@ -114,6 +132,12 @@ function normalize(input) {
     // outcome as having always been there minus the back-pay.
     achievements: arr(raw.achievements, []),
     stagesCleared: arr(raw.stagesCleared, []),
+    journey: {
+      chaptersCleared: arr(raw.journey?.chaptersCleared, []),
+      expeditionVictories: Math.max(0, Math.trunc(num(raw.journey?.expeditionVictories, 0))),
+      survivalVictories: Math.max(0, Math.trunc(num(raw.journey?.survivalVictories, 0))),
+      decisions,
+    },
     seen: {
       enemies: arr(raw.seen?.enemies, []),
       weapons: arr(raw.seen?.weapons, []),

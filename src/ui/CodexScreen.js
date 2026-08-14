@@ -43,23 +43,27 @@ export class CodexScreen {
     this.node.innerHTML = `
       <div class="screen-inner shop-inner">
         <div class="shop-head">
-          <div class="shop-title" id="codex-screen-title">도감</div>
+          <div class="shop-heading">
+            <div class="shop-kicker">萬象 · 마주친 것의 이름</div>
+            <div class="shop-title" id="codex-screen-title">도감</div>
+            <p class="shop-lead">직접 맞선 요마와 깨달은 법보만 먹으로 새겨집니다.</p>
+          </div>
           <div class="shop-stones codex-progress"></div>
         </div>
         <div class="shop-scroll">
-          <div class="shop-section">법보</div>
+          <div class="shop-section"><span aria-hidden="true">一</span> 법보</div>
           <div class="codex-grid" data-kind="weapons"></div>
-          <div class="shop-section">요괴</div>
+          <div class="shop-section"><span aria-hidden="true">二</span> 요괴</div>
           <div class="codex-grid" data-kind="enemies"></div>
-          <div class="shop-section">마존</div>
+          <div class="shop-section"><span aria-hidden="true">三</span> 마존</div>
           <div class="codex-grid" data-kind="bosses"></div>
-          <div class="shop-section">업적</div>
+          <div class="shop-section"><span aria-hidden="true">四</span> 업적</div>
           <div class="codex-achievements"></div>
-          <div class="shop-section">기록</div>
+          <div class="shop-section"><span aria-hidden="true">五</span> 기록</div>
           <div class="codex-records"></div>
         </div>
         <div class="codex-detail"></div>
-        <button class="btn btn-alt clickable" data-act="back">← 돌아가기</button>
+        <button class="btn btn-alt btn-back clickable" data-act="back">문파로 돌아간다</button>
       </div>`
     root.appendChild(this.node)
 
@@ -180,14 +184,16 @@ export class CodexScreen {
     }).join('')
 
     const r = this.progress.records
-    const m = Math.floor(r.bestTime / 60)
-    const s = Math.floor(r.bestTime % 60)
+    const journey = this.progress.state.journey ?? {}
+    const decisionCount = Object.values(journey.decisions ?? {})
+      .reduce((sum, rows) => sum + (Array.isArray(rows) ? rows.length : 0), 0)
     this.recordsHost.innerHTML = `
-      <div><span>도전 횟수</span><b>${r.runs}</b></div>
-      <div><span>승천 횟수</span><b>${r.victories}</b></div>
-      <div><span>최장 생존</span><b>${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}</b></div>
-      <div><span>최고 경지</span><b>${r.bestLevel}층</b></div>
-      <div><span>누적 처치</span><b>${r.totalKills}</b></div>`
+      <div><span>전체 출정</span><b>${r.runs ?? 0}</b></div>
+      <div><span>본편 완수</span><b>${journey.expeditionVictories ?? 0}</b></div>
+      <div><span>남긴 결단</span><b>${decisionCount}</b></div>
+      <div><span>천겁 완수</span><b>${journey.survivalVictories ?? 0}</b></div>
+      <div><span>최고 경지</span><b>${r.bestLevel ?? 1}층</b></div>
+      <div><span>누적 처치</span><b>${r.totalKills ?? 0}</b></div>`
   }
 
   handleKey(confirm) {

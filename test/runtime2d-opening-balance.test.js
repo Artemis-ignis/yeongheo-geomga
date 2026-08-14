@@ -150,8 +150,11 @@ describe('opening combat balance', () => {
       const wave = waveAt(seconds)
       return wave.perSpawn / wave.spawnInterval
     }
-    expect(rateAt(0)).toBeCloseTo(3.03, 2)
-    expect(rateAt(30)).toBeCloseTo(3.33, 2)
+    // Four-body packs at a slower pulse preserve visible lanes around the
+    // heroine. The prior 3+ enemies/s contract produced the debug-stress wall
+    // seen in the actual Chrome capture even though the simulation survived.
+    expect(rateAt(0)).toBeCloseTo(4 / 2.15, 2)
+    expect(rateAt(30)).toBeCloseTo(4 / 1.85, 2)
     expect(BASE_STATS.magnet).toBeGreaterThanOrEqual(6.5)
     expect(BASE_STATS.magnet).toBeLessThanOrEqual(7)
 
@@ -159,15 +162,15 @@ describe('opening combat balance', () => {
     const firstRangedOrSplitter = WAVES.find((wave) => (
       wave.types.includes('talismanGhost') || wave.types.includes('bloodScorpion')
     ))
-    expect(firstCharger?.t).toBeGreaterThanOrEqual(30)
-    expect(firstRangedOrSplitter?.t).toBeGreaterThanOrEqual(60)
+    expect(firstCharger?.t).toBe(0)
+    expect(firstRangedOrSplitter?.t).toBeGreaterThanOrEqual(180)
     for (const time of [60, 90, 120]) {
       const silhouettes = new Set(waveAt(time).types)
       expect(silhouettes.size, `${time}s wave repeats one silhouette`).toBeGreaterThanOrEqual(2)
       const wispRatio = waveAt(time).types.filter((type) => type === 'wisp').length
         / waveAt(time).types.length
-      expect(wispRatio, `${time}s wave loses fodder identity`).toBeGreaterThanOrEqual(0.6)
-      expect(wispRatio, `${time}s wave becomes a one-silhouette stamp wall`).toBeLessThanOrEqual(2 / 3)
+      expect(wispRatio, `${time}s wave loses fodder identity`).toBeGreaterThanOrEqual(1 / 3)
+      expect(wispRatio, `${time}s wave becomes a one-silhouette stamp wall`).toBeLessThanOrEqual(0.5)
     }
   })
 

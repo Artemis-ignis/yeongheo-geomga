@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit Yeongheo 2.5D PNG assets without granting visual approval.
+"""Audit Yeongheo 2.5D runtime raster assets without visual approval.
 
 Dependencies: Pillow and NumPy. Example with uv:
   uv run --with pillow --with numpy tools/yeongheo/validate_runtime_sprites.py --pretty
@@ -224,7 +224,7 @@ def inspect_cells(
     return cells, duplicate_pairs, findings
 
 
-def inspect_png(path: Path, root: Path, manifest: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def inspect_raster(path: Path, root: Path, manifest: dict[str, dict[str, Any]]) -> dict[str, Any]:
     repo_path = path.as_posix()
     entry = manifest.get(repo_path, {})
     allow_green_edge = bool(entry.get("qa", {}).get("allowGreenEdge", False))
@@ -382,14 +382,17 @@ def main() -> int:
     except ValueError:
         relative_root = root
     manifest = load_manifest(args.asset_manifest)
-    pngs = sorted(root.rglob("*.png"), key=lambda item: item.as_posix().lower()) if root.is_dir() else []
+    rasters = sorted(
+        [*root.rglob("*.png"), *root.rglob("*.webp")],
+        key=lambda item: item.as_posix().lower(),
+    ) if root.is_dir() else []
     assets = []
-    for png in pngs:
+    for raster in rasters:
         try:
-            relative = png.resolve().relative_to(cwd).as_posix()
+            relative = raster.resolve().relative_to(cwd).as_posix()
         except ValueError:
-            relative = png.resolve().as_posix()
-        assets.append(inspect_png(Path(relative), relative_root, manifest))
+            relative = raster.resolve().as_posix()
+        assets.append(inspect_raster(Path(relative), relative_root, manifest))
 
     issue_counts: Counter[str] = Counter()
     code_counts: Counter[str] = Counter()
@@ -412,9 +415,9 @@ def main() -> int:
             "heroMinBBoxHeightToWidth": 1.55,
         },
         "summary": {
-            "pngCount": len(assets),
-            "runtimePngCount": len(runtime_assets),
-            "unmanifestedPngCount": sum(1 for asset in assets if asset.get("role") == "unmanifested"),
+            "rasterCount": len(assets),
+            "runtimeRasterCount": len(runtime_assets),
+            "unmanifestedRasterCount": sum(1 for asset in assets if asset.get("role") == "unmanifested"),
             "severityCounts": {level: issue_counts[level] for level in ("P0", "P1", "P2")},
             "issueCodeCounts": dict(sorted(code_counts.items())),
             "failingRuntimeAssets": failing_assets,

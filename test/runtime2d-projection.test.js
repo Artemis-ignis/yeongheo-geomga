@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   cameraFollowFactor2D, cameraFollowStep2D, cameraTargetWithDeadZone2D,
-  depthBucket, directionFor, isOnScreen, projectWorld,
+  depthBucket, directionFor, isOnScreen, projectWorld, unprojectScreen,
   SORT_BUCKETS, viewportPresentationScale,
 } from '../src/runtime2d/projection.js'
 
@@ -76,14 +76,29 @@ describe('runtime2d projection', () => {
     expect(cameraFollowFactor2D(0.1)).toBeGreaterThan(0)
   })
 
+  it('round-trips screen points into the same projected world position', () => {
+    const viewport = { width: 1422, height: 739, zoom: 1 }
+    const projected = projectWorld(11.75, -6.5, 3, 2, viewport)
+    const world = unprojectScreen(projected.x, projected.y, 3, 2, viewport)
+    expect(world.x).toBeCloseTo(11.75)
+    expect(world.z).toBeCloseTo(-6.5)
+  })
+
   it('lets the player move visibly inside a screen-space camera dead zone', () => {
     const viewport = { width: 1920, height: 1080, zoom: 1 }
     expect(cameraTargetWithDeadZone2D(0, 0, 2, 2, viewport, true)).toEqual({ x: 0, z: 0 })
 
-    const target = cameraTargetWithDeadZone2D(0, 0, 10, 10, viewport, true)
-    const projected = projectWorld(10, 10, target.x, target.z, viewport)
-    expect(projected.x - viewport.width * 0.5).toBeCloseTo(105.6)
-    expect(projected.y - viewport.height * 0.57).toBeCloseTo(56.16)
-    expect(cameraTargetWithDeadZone2D(0, 0, 2, 2, viewport, false)).toEqual({ x: 2, z: 2 })
+    const target = cameraTargetWithDeadZone2D(0, 0, 20, 20, viewport, true)
+    const projected = projectWorld(20, 20, target.x, target.z, viewport)
+    expect(projected.x - viewport.width * 0.5).toBeCloseTo(249.6)
+    expect(projected.y - viewport.height * 0.57).toBeCloseTo(150)
+    expect(cameraTargetWithDeadZone2D(0, 0, 2, 2, viewport, false)).toEqual({ x: 0, z: 0 })
+  })
+
+  it('does not slide the floor back under a stationary player', () => {
+    const viewport = { width: 1920, height: 1080, zoom: 1 }
+    const stopped = cameraTargetWithDeadZone2D(3, -2, 5, 0, viewport, false)
+    expect(stopped).toEqual({ x: 3, z: -2 })
+    expect(cameraTargetWithDeadZone2D(0, 0, 10, 10, viewport, false)).toEqual({ x: 0, z: 0 })
   })
 })

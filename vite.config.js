@@ -7,9 +7,9 @@ import {
 } from './tools/submission-assets.mjs'
 
 /**
- * Vite copies the entire public directory by design. Keep current authoring
- * sources in the repository, then remove non-runtime files from the Pages
- * artifact after the bundle is written.
+ * Vite copies the entire public directory by design. Authoring sources live
+ * outside public, while this final allowlist audit prevents any accidental
+ * static file in public from entering the production artifact.
  */
 function submissionRuntimeAssetPruner() {
   let publicDir = resolve(process.cwd(), 'public')
@@ -45,6 +45,16 @@ export default defineConfig({
   build: {
     target: 'es2022',
     outDir: 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const path = id.replaceAll('\\', '/')
+          if (path.includes('/node_modules/pixi.js/') || path.includes('/node_modules/@pixi/')) return 'pixi'
+          if (path.endsWith('/src/runtime2d/PixiPresentation.js')) return 'presentation2d'
+          return undefined
+        },
+      },
+    },
   },
   plugins: [submissionRuntimeAssetPruner()],
   test: {

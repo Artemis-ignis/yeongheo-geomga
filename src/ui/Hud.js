@@ -5,10 +5,12 @@ import { getPassive } from '../data/passives.js'
 
 const HP_GHOST_LAG = 2.4
 export const RADAR_POI_STYLE = Object.freeze({
-  altar: Object.freeze({ color: '#f2c76f', glyph: '수' }),
-  treasure: Object.freeze({ color: '#8edcff', glyph: '보' }),
-  elite_seal: Object.freeze({ color: '#ef79aa', glyph: '봉' }),
-  healing_spring: Object.freeze({ color: '#73e3bd', glyph: '회' }),
+  altar: Object.freeze({ color: '#d0ad62', glyph: '수' }),
+  treasure: Object.freeze({ color: '#d8c89e', glyph: '보' }),
+  elite_seal: Object.freeze({ color: '#b94a3d', glyph: '봉' }),
+  healing_spring: Object.freeze({ color: '#7aa28d', glyph: '회' }),
+  evidence: Object.freeze({ color: '#e2c981', glyph: '흔' }),
+  false_trace: Object.freeze({ color: '#8e8172', glyph: '적' }),
 })
 
 export function radarPointPosition(point, radius) {
@@ -209,7 +211,7 @@ export class Hud {
     this.kills = el('div', 'hud-count', left)
     this.stones = el('div', 'hud-count', left)
     this.kills.setAttribute('aria-label', '처치 수')
-    this.stones.setAttribute('aria-label', '런 영석')
+    this.stones.setAttribute('aria-label', '이번 출정 영석')
     this.dao = el('div', 'hud-dao', left)
     this.dao.setAttribute('role', 'status')
     this.dao.setAttribute('aria-live', 'polite')
@@ -232,9 +234,9 @@ export class Hud {
     this.radarCanvas.height = 176
     this.radarCtx = this.radarCanvas.getContext('2d')
     this.radarCanvas.setAttribute('role', 'img')
-    this.radarCanvas.setAttribute('aria-label', '영맥 감지 레이더. 중앙은 현재 위치이며 화면과 같은 방향으로 표시됩니다.')
+    this.radarCanvas.setAttribute('aria-label', '검흔 감지 나침반. 중앙은 현재 위치이며 화면과 같은 방향으로 표시됩니다.')
     this.radarLabel = el('div', 'hud-radar-label', radar)
-    this.radarLabel.textContent = '영맥 감지'
+    this.radarLabel.textContent = '검흔 감지'
     this.objective = el('div', 'hud-objective', this.node)
     this.objective.setAttribute('role', 'status')
     this.objective.setAttribute('aria-live', 'polite')
@@ -410,7 +412,14 @@ export class Hud {
 
     const m = Math.floor(state.runTime / 60)
     const s = Math.floor(state.runTime % 60)
-    this._set(this.timer, 'timer', `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`)
+    const time = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    const primaryRunReadout = state.mode === 'expedition'
+      ? optionalUiText(state.expeditionLabel) || '선협 생존 출정'
+      : time
+    this._set(this.timer, 'timer', primaryRunReadout)
+    this.timer.setAttribute('aria-label', state.mode === 'expedition'
+      ? `${primaryRunReadout}; 경과 시간 ${time}`
+      : `천겁 남은 흐름 ${time}`)
 
     // Quantised to 0.5% — finer than a pixel on any realistic bar width.
     const xpPct = Math.min(100, (state.xp / Math.max(1, state.xpNeeded)) * 100)
@@ -610,16 +619,16 @@ export class Hud {
     const r = w * 0.38
     ctx.clearRect(0, 0, w, h)
 
-    ctx.fillStyle = 'rgba(5, 13, 17, 0.58)'
+    ctx.fillStyle = 'rgba(29, 26, 21, 0.82)'
     ctx.beginPath()
     ctx.arc(cx, cy, r + 15, 0, Math.PI * 2)
     ctx.fill()
-    ctx.strokeStyle = 'rgba(127, 214, 181, 0.42)'
+    ctx.strokeStyle = 'rgba(224, 211, 180, 0.50)'
     ctx.lineWidth = 2
     ctx.beginPath()
     ctx.arc(cx, cy, r, 0, Math.PI * 2)
     ctx.stroke()
-    ctx.strokeStyle = 'rgba(127, 214, 181, 0.14)'
+    ctx.strokeStyle = 'rgba(224, 211, 180, 0.17)'
     ctx.lineWidth = 1
     for (const ring of [0.5, 0.75]) {
       ctx.beginPath()
@@ -643,7 +652,7 @@ export class Hud {
         ctx.save()
         ctx.translate(px, py)
         ctx.rotate(Math.PI / 4)
-        ctx.fillStyle = 'rgba(4, 12, 16, 0.88)'
+        ctx.fillStyle = 'rgba(29, 26, 21, 0.92)'
         ctx.strokeStyle = style.color
         ctx.lineWidth = point.nearby ? 2.8 : 2.2
         ctx.beginPath()
@@ -672,8 +681,8 @@ export class Hud {
       }
       const size = point.elite ? 4.2 : 2.4
       ctx.fillStyle = point.elite
-        ? '#f0cf76'
-        : point.ranged ? '#ff967c' : '#bc8cff'
+        ? '#d1ad61'
+        : point.ranged ? '#b94a3d' : '#8e8070'
       ctx.beginPath()
       if (point.elite) {
         ctx.moveTo(px, py - size)
@@ -691,8 +700,8 @@ export class Hud {
     ctx.save()
     ctx.translate(cx, cy)
     ctx.rotate(radarHeadingRotation(heading))
-    ctx.fillStyle = '#dffff1'
-    ctx.strokeStyle = '#7fd6b5'
+    ctx.fillStyle = '#eee3c9'
+    ctx.strokeStyle = '#9e332a'
     ctx.lineWidth = 1.5
     ctx.beginPath()
     ctx.moveTo(0, -8)

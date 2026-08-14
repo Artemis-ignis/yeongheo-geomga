@@ -1,33 +1,69 @@
 {
   "schemaVersion": 1,
   "runtimeRoot": "public/assets",
+  "authoringRoot": "assets-source",
+  "runtimeRasterFormat": "webp",
   "assets": [
     {
       "id": "environment.jade-sanctuary.v2",
-      "path": "public/assets/environment/jade-sanctuary-environment-v2.png",
+      "path": "public/assets/environment/jade-sanctuary-environment-v2.webp",
       "role": "runtime-environment-background",
       "tier": "scene",
       "source": "imagegen",
       "consumers": [
-        "styles/hud.css",
+        "styles/ink-ui.css",
         "src/runtime2d/PixiPresentation.js"
       ],
       "maxBytes": 4000000
     },
     {
-      "id": "marketing.yeongheo.contest-keyart.v1",
-      "path": "public/assets/marketing/yeongheo-contest-keyart-v1.png",
-      "role": "runtime-title-and-contest-keyart",
+      "id": "environment.ember-wastes.chapter2-keyart.v1",
+      "path": "assets-source/environment/ember-wastes-chapter2-keyart-v1.webp",
+      "role": "chapter-environment-production-candidate",
+      "tier": "authoring",
+      "pipelineRole": "output",
+      "source": "imagegen-built-in",
+      "consumers": [
+        "tools/yeongheo/environment-authoring-manifest.json"
+      ],
+      "maxBytes": 750000
+    },
+    {
+      "id": "marketing.yeongheo.ink-title.v1",
+      "path": "public/assets/marketing/yeongheo-ink-title-v1.webp",
+      "role": "runtime-ink-title-keyart",
       "tier": "scene",
       "source": "imagegen",
       "consumers": [
-        "styles/hud.css"
+        "src/ui/TitleScreen.js"
       ],
-      "maxBytes": 3000000
+      "maxBytes": 3200000
+    },
+    {
+      "id": "brand.yeongheo.seal.v1",
+      "path": "public/assets/brand/yeongheo-seal-v1.svg",
+      "role": "runtime-browser-brand-seal",
+      "tier": "ui",
+      "source": "hand-authored-svg",
+      "consumers": [
+        "index.html"
+      ],
+      "maxBytes": 4096
+    },
+    {
+      "id": "ui.ink-paper-texture.v1",
+      "path": "public/assets/ui/ink-paper-texture-v1.svg",
+      "role": "runtime-ink-paper-texture",
+      "tier": "ui",
+      "source": "hand-authored-svg",
+      "consumers": [
+        "styles/ink-ui.css"
+      ],
+      "maxBytes": 4096
     },
     {
       "id": "ui.skill.area-formation.v1",
-      "path": "public/assets/ui/skill-icons-v1/area-formation.png",
+      "path": "public/assets/ui/skill-icons-v1/area-formation.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -38,7 +74,7 @@
     },
     {
       "id": "ui.skill.attack-seal.v1",
-      "path": "public/assets/ui/skill-icons-v1/attack-seal.png",
+      "path": "public/assets/ui/skill-icons-v1/attack-seal.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -49,7 +85,7 @@
     },
     {
       "id": "ui.skill.bagua-array.v1",
-      "path": "public/assets/ui/skill-icons-v1/bagua-array.png",
+      "path": "public/assets/ui/skill-icons-v1/bagua-array.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -60,7 +96,7 @@
     },
     {
       "id": "ui.skill.cooldown-hourglass.v1",
-      "path": "public/assets/ui/skill-icons-v1/cooldown-hourglass.png",
+      "path": "public/assets/ui/skill-icons-v1/cooldown-hourglass.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -71,7 +107,7 @@
     },
     {
       "id": "ui.skill.dao-lotus.v1",
-      "path": "public/assets/ui/skill-icons-v1/dao-lotus.png",
+      "path": "public/assets/ui/skill-icons-v1/dao-lotus.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -82,7 +118,7 @@
     },
     {
       "id": "ui.skill.fire-talisman.v1",
-      "path": "public/assets/ui/skill-icons-v1/fire-talisman.png",
+      "path": "public/assets/ui/skill-icons-v1/fire-talisman.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -93,7 +129,7 @@
     },
     {
       "id": "ui.skill.flying-sword.v1",
-      "path": "public/assets/ui/skill-icons-v1/flying-sword.png",
+      "path": "public/assets/ui/skill-icons-v1/flying-sword.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -104,7 +140,7 @@
     },
     {
       "id": "ui.skill.frost-palm.v1",
-      "path": "public/assets/ui/skill-icons-v1/frost-palm.png",
+      "path": "public/assets/ui/skill-icons-v1/frost-palm.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -115,7 +151,7 @@
     },
     {
       "id": "ui.skill.healing-core.v1",
-      "path": "public/assets/ui/skill-icons-v1/healing-core.png",
+      "path": "public/assets/ui/skill-icons-v1/healing-core.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -126,7 +162,7 @@
     },
     {
       "id": "ui.skill.qi-shield.v1",
-      "path": "public/assets/ui/skill-icons-v1/qi-shield.png",
+      "path": "public/assets/ui/skill-icons-v1/qi-shield.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -137,7 +173,7 @@
     },
     {
       "id": "ui.skill.soul-eye.v1",
-      "path": "public/assets/ui/skill-icons-v1/soul-eye.png",
+      "path": "public/assets/ui/skill-icons-v1/soul-eye.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -148,7 +184,7 @@
     },
     {
       "id": "ui.skill.spirit-butterfly.v1",
-      "path": "public/assets/ui/skill-icons-v1/spirit-butterfly.png",
+      "path": "public/assets/ui/skill-icons-v1/spirit-butterfly.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -159,7 +195,7 @@
     },
     {
       "id": "ui.skill.thunder-orb.v1",
-      "path": "public/assets/ui/skill-icons-v1/thunder-orb.png",
+      "path": "public/assets/ui/skill-icons-v1/thunder-orb.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -170,7 +206,7 @@
     },
     {
       "id": "ui.skill.twin-blades.v1",
-      "path": "public/assets/ui/skill-icons-v1/twin-blades.png",
+      "path": "public/assets/ui/skill-icons-v1/twin-blades.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -181,7 +217,7 @@
     },
     {
       "id": "ui.skill.vajra.v1",
-      "path": "public/assets/ui/skill-icons-v1/vajra.png",
+      "path": "public/assets/ui/skill-icons-v1/vajra.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -192,7 +228,7 @@
     },
     {
       "id": "ui.skill.windstep.v1",
-      "path": "public/assets/ui/skill-icons-v1/windstep.png",
+      "path": "public/assets/ui/skill-icons-v1/windstep.webp",
       "role": "runtime-premium-skill-icon",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -203,7 +239,7 @@
     },
     {
       "id": "ui.skill.semantic.clone-art.v2",
-      "path": "public/assets/ui/skill-icons-v2/clone-art.png",
+      "path": "public/assets/ui/skill-icons-v2/clone-art.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -214,7 +250,7 @@
     },
     {
       "id": "ui.skill.semantic.destined-bond.v2",
-      "path": "public/assets/ui/skill-icons-v2/destined-bond.png",
+      "path": "public/assets/ui/skill-icons-v2/destined-bond.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -225,7 +261,7 @@
     },
     {
       "id": "ui.skill.semantic.earth-dragon-spikes.v2",
-      "path": "public/assets/ui/skill-icons-v2/earth-dragon-spikes.png",
+      "path": "public/assets/ui/skill-icons-v2/earth-dragon-spikes.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -236,7 +272,7 @@
     },
     {
       "id": "ui.skill.semantic.echoing-heart.v2",
-      "path": "public/assets/ui/skill-icons-v2/echoing-heart.png",
+      "path": "public/assets/ui/skill-icons-v2/echoing-heart.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -247,7 +283,7 @@
     },
     {
       "id": "ui.skill.semantic.frost-line.v2",
-      "path": "public/assets/ui/skill-icons-v2/frost-line.png",
+      "path": "public/assets/ui/skill-icons-v2/frost-line.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -258,7 +294,7 @@
     },
     {
       "id": "ui.skill.semantic.frost-oath.v2",
-      "path": "public/assets/ui/skill-icons-v2/frost-oath.png",
+      "path": "public/assets/ui/skill-icons-v2/frost-oath.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -269,7 +305,7 @@
     },
     {
       "id": "ui.skill.semantic.frost-shards.v2",
-      "path": "public/assets/ui/skill-icons-v2/frost-shards.png",
+      "path": "public/assets/ui/skill-icons-v2/frost-shards.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -280,7 +316,7 @@
     },
     {
       "id": "ui.skill.semantic.frozen-sky.v2",
-      "path": "public/assets/ui/skill-icons-v2/frozen-sky.png",
+      "path": "public/assets/ui/skill-icons-v2/frozen-sky.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -291,7 +327,7 @@
     },
     {
       "id": "ui.skill.semantic.heal.v2",
-      "path": "public/assets/ui/skill-icons-v2/heal.png",
+      "path": "public/assets/ui/skill-icons-v2/heal.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -302,7 +338,7 @@
     },
     {
       "id": "ui.skill.semantic.heart-method.v2",
-      "path": "public/assets/ui/skill-icons-v2/heart-method.png",
+      "path": "public/assets/ui/skill-icons-v2/heart-method.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -313,7 +349,7 @@
     },
     {
       "id": "ui.skill.semantic.heavenly-lightning.v2",
-      "path": "public/assets/ui/skill-icons-v2/heavenly-lightning.png",
+      "path": "public/assets/ui/skill-icons-v2/heavenly-lightning.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -324,7 +360,7 @@
     },
     {
       "id": "ui.skill.semantic.hidden-needles.v2",
-      "path": "public/assets/ui/skill-icons-v2/hidden-needles.png",
+      "path": "public/assets/ui/skill-icons-v2/hidden-needles.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -335,7 +371,7 @@
     },
     {
       "id": "ui.skill.semantic.ice-wall.v2",
-      "path": "public/assets/ui/skill-icons-v2/ice-wall.png",
+      "path": "public/assets/ui/skill-icons-v2/ice-wall.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -346,7 +382,7 @@
     },
     {
       "id": "ui.skill.semantic.inferno-sea.v2",
-      "path": "public/assets/ui/skill-icons-v2/inferno-sea.png",
+      "path": "public/assets/ui/skill-icons-v2/inferno-sea.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -357,7 +393,7 @@
     },
     {
       "id": "ui.skill.semantic.myriad-swords.v2",
-      "path": "public/assets/ui/skill-icons-v2/myriad-swords.png",
+      "path": "public/assets/ui/skill-icons-v2/myriad-swords.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -368,7 +404,7 @@
     },
     {
       "id": "ui.skill.semantic.needle-storm.v2",
-      "path": "public/assets/ui/skill-icons-v2/needle-storm.png",
+      "path": "public/assets/ui/skill-icons-v2/needle-storm.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -379,7 +415,7 @@
     },
     {
       "id": "ui.skill.semantic.piercing-edge.v2",
-      "path": "public/assets/ui/skill-icons-v2/piercing-edge.png",
+      "path": "public/assets/ui/skill-icons-v2/piercing-edge.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -390,7 +426,7 @@
     },
     {
       "id": "ui.skill.semantic.plague-tide.v2",
-      "path": "public/assets/ui/skill-icons-v2/plague-tide.png",
+      "path": "public/assets/ui/skill-icons-v2/plague-tide.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -401,7 +437,7 @@
     },
     {
       "id": "ui.skill.semantic.purge.v2",
-      "path": "public/assets/ui/skill-icons-v2/purge.png",
+      "path": "public/assets/ui/skill-icons-v2/purge.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -412,7 +448,7 @@
     },
     {
       "id": "ui.skill.semantic.purifying-heart.v2",
-      "path": "public/assets/ui/skill-icons-v2/purifying-heart.png",
+      "path": "public/assets/ui/skill-icons-v2/purifying-heart.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -423,7 +459,7 @@
     },
     {
       "id": "ui.skill.semantic.returning-edge.v2",
-      "path": "public/assets/ui/skill-icons-v2/returning-edge.png",
+      "path": "public/assets/ui/skill-icons-v2/returning-edge.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -434,7 +470,7 @@
     },
     {
       "id": "ui.skill.semantic.shadow-copy.v2",
-      "path": "public/assets/ui/skill-icons-v2/shadow-copy.png",
+      "path": "public/assets/ui/skill-icons-v2/shadow-copy.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -445,7 +481,7 @@
     },
     {
       "id": "ui.skill.semantic.spirit-bell.v2",
-      "path": "public/assets/ui/skill-icons-v2/spirit-bell.png",
+      "path": "public/assets/ui/skill-icons-v2/spirit-bell.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -456,7 +492,7 @@
     },
     {
       "id": "ui.skill.semantic.spirit-oath.v2",
-      "path": "public/assets/ui/skill-icons-v2/spirit-oath.png",
+      "path": "public/assets/ui/skill-icons-v2/spirit-oath.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -467,7 +503,7 @@
     },
     {
       "id": "ui.skill.semantic.spirit-stones.v2",
-      "path": "public/assets/ui/skill-icons-v2/spirit-stones.png",
+      "path": "public/assets/ui/skill-icons-v2/spirit-stones.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -478,7 +514,7 @@
     },
     {
       "id": "ui.skill.semantic.sword-oath.v2",
-      "path": "public/assets/ui/skill-icons-v2/sword-oath.png",
+      "path": "public/assets/ui/skill-icons-v2/sword-oath.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -489,7 +525,7 @@
     },
     {
       "id": "ui.skill.semantic.sword-riding.v2",
-      "path": "public/assets/ui/skill-icons-v2/sword-riding.png",
+      "path": "public/assets/ui/skill-icons-v2/sword-riding.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -500,7 +536,7 @@
     },
     {
       "id": "ui.skill.semantic.sword-ring.v2",
-      "path": "public/assets/ui/skill-icons-v2/sword-ring.png",
+      "path": "public/assets/ui/skill-icons-v2/sword-ring.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -511,7 +547,7 @@
     },
     {
       "id": "ui.skill.semantic.venom-palm.v2",
-      "path": "public/assets/ui/skill-icons-v2/venom-palm.png",
+      "path": "public/assets/ui/skill-icons-v2/venom-palm.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -522,7 +558,7 @@
     },
     {
       "id": "ui.skill.semantic.violet-thunder.v2",
-      "path": "public/assets/ui/skill-icons-v2/violet-thunder.png",
+      "path": "public/assets/ui/skill-icons-v2/violet-thunder.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -533,7 +569,7 @@
     },
     {
       "id": "ui.skill.semantic.void-orb.v2",
-      "path": "public/assets/ui/skill-icons-v2/void-orb.png",
+      "path": "public/assets/ui/skill-icons-v2/void-orb.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-dao-atlas-crop-v1",
@@ -544,7 +580,7 @@
     },
     {
       "id": "ui.skill.semantic.wind-blades.v2",
-      "path": "public/assets/ui/skill-icons-v2/wind-blades.png",
+      "path": "public/assets/ui/skill-icons-v2/wind-blades.webp",
       "role": "runtime-premium-semantic-skill-icon",
       "tier": "ui",
       "source": "imagegen-skill-atlas-crop-v2",
@@ -555,7 +591,7 @@
     },
     {
       "id": "ui.stage.ember.v1",
-      "path": "public/assets/ui/stage-thumbnails-v1/ember.png",
+      "path": "public/assets/ui/stage-thumbnails-v1/ember.webp",
       "role": "runtime-premium-stage-thumbnail",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -566,7 +602,7 @@
     },
     {
       "id": "ui.stage.frost.v1",
-      "path": "public/assets/ui/stage-thumbnails-v1/frost.png",
+      "path": "public/assets/ui/stage-thumbnails-v1/frost.webp",
       "role": "runtime-premium-stage-thumbnail",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -577,7 +613,7 @@
     },
     {
       "id": "ui.stage.jade.v1",
-      "path": "public/assets/ui/stage-thumbnails-v1/jade.png",
+      "path": "public/assets/ui/stage-thumbnails-v1/jade.webp",
       "role": "runtime-premium-stage-thumbnail",
       "tier": "ui",
       "source": "imagegen-atlas-crop",
@@ -588,7 +624,7 @@
     },
     {
       "id": "sprite2d.seolryeong.combat.v1",
-      "path": "public/assets/sprites2d/seolryeong-combat-v1.png",
+      "path": "public/assets/sprites2d/seolryeong-combat-v1.webp",
       "role": "runtime-2d-hero-sprite",
       "tier": "hero",
       "source": "imagegen-chroma-key-alpha",
@@ -598,74 +634,98 @@
       "maxBytes": 2000000
     },
     {
-      "id": "sprite2d.seolryeong.heroine-motion.v4",
-      "path": "public/assets/sprites2d/seolryeong-heroine-motion-v4.png",
-      "role": "runtime-2d-hero-motion-atlas",
-      "tier": "hero",
-      "source": "imagegen-chroma-key-alpha-despill",
-      "consumers": [
-        "tools/yeongheo/sprite-authoring-manifest.json"
-      ],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "sprite2d.seolryeong.heroine-motion.v5",
-      "path": "public/assets/sprites2d/seolryeong-heroine-motion-v5.png",
-      "role": "runtime-2d-hero-motion-atlas",
-      "tier": "hero",
-      "source": "imagegen-edit-chroma-key-alpha-despill-composite",
-      "consumers": [
-        "src/runtime2d/spriteManifest.js"
-      ],
-      "maxBytes": 1000000
-    },
-    {
-      "id": "sprite2d.seolryeong.heroine-east.motion.v1",
-      "path": "public/assets/sprites2d/seolryeong-heroine-east-motion-v1.png",
+      "id": "sprite2d.seolryeong.heroine-east.motion.v2",
+      "path": "public/assets/sprites2d/seolryeong-heroine-east-motion-v2.webp",
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
-      "source": "imagegen-chroma-key-alpha-despill-directional-v1",
-      "consumers": [
-        "src/runtime2d/spriteManifest.js"
-      ],
-      "maxBytes": 750000
+      "source": "imagegen-alpha-normalized-16-frame-v2",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 1500000
     },
     {
-      "id": "sprite2d.seolryeong.heroine-north.motion.v1",
-      "path": "public/assets/sprites2d/seolryeong-heroine-north-motion-v1.png",
+      "id": "sprite2d.seolryeong.heroine-southeast.motion.v2",
+      "path": "public/assets/sprites2d/seolryeong-heroine-southeast-motion-v2.webp",
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
-      "source": "imagegen-chroma-key-alpha-despill-directional-v1",
-      "consumers": [
-        "src/runtime2d/spriteManifest.js"
-      ],
-      "maxBytes": 750000
+      "source": "imagegen-alpha-normalized-16-frame-v2",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 1500000
     },
     {
-      "id": "sprite2d.seolryeong.heroine-northeast.motion.v1",
-      "path": "public/assets/sprites2d/seolryeong-heroine-northeast-motion-v1.png",
+      "id": "sprite2d.seolryeong.heroine-north.motion.v3",
+      "path": "public/assets/sprites2d/seolryeong-heroine-north-motion-v3.webp",
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
-      "source": "imagegen-chroma-key-alpha-despill-directional-v1",
-      "consumers": [
-        "src/runtime2d/spriteManifest.js"
-      ],
-      "maxBytes": 750000
+      "source": "imagegen-chroma-normalized-run-v3-plus-approved-attack-v2",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 1500000
     },
     {
-      "id": "sprite2d.seolryeong.heroine-south.motion.v1",
-      "path": "public/assets/sprites2d/seolryeong-heroine-south-motion-v1.png",
+      "id": "sprite2d.seolryeong.heroine-northeast.motion.v2",
+      "path": "public/assets/sprites2d/seolryeong-heroine-northeast-motion-v2.webp",
       "role": "runtime-2d-hero-directional-motion-atlas",
       "tier": "hero",
-      "source": "imagegen-chroma-key-alpha-despill-directional-v1",
-      "consumers": [
-        "src/runtime2d/spriteManifest.js"
-      ],
-      "maxBytes": 750000
+      "source": "imagegen-alpha-normalized-16-frame-v2",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 1500000
+    },
+    {
+      "id": "sprite2d.seolryeong.heroine-south.motion.v3",
+      "path": "public/assets/sprites2d/seolryeong-heroine-south-motion-v3.webp",
+      "role": "runtime-2d-hero-directional-motion-atlas",
+      "tier": "hero",
+      "source": "imagegen-chroma-normalized-run-v3-plus-approved-attack-v2",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 1500000
+    },
+    {
+      "id": "sprite2d.seolryeong.heroine-east.reaction.v1",
+      "path": "public/assets/sprites2d/seolryeong-heroine-east-reaction-v1.webp",
+      "role": "runtime-2d-hero-directional-reaction-atlas",
+      "tier": "hero",
+      "source": "imagegen-identity-preserve-chroma-alpha-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.seolryeong.heroine-southeast.reaction.v1",
+      "path": "public/assets/sprites2d/seolryeong-heroine-southeast-reaction-v1.webp",
+      "role": "runtime-2d-hero-directional-reaction-atlas",
+      "tier": "hero",
+      "source": "imagegen-identity-preserve-chroma-alpha-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.seolryeong.heroine-north.reaction.v1",
+      "path": "public/assets/sprites2d/seolryeong-heroine-north-reaction-v1.webp",
+      "role": "runtime-2d-hero-directional-reaction-atlas",
+      "tier": "hero",
+      "source": "imagegen-identity-preserve-chroma-alpha-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.seolryeong.heroine-northeast.reaction.v1",
+      "path": "public/assets/sprites2d/seolryeong-heroine-northeast-reaction-v1.webp",
+      "role": "runtime-2d-hero-directional-reaction-atlas",
+      "tier": "hero",
+      "source": "imagegen-identity-preserve-chroma-alpha-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.seolryeong.heroine-south.reaction.v1",
+      "path": "public/assets/sprites2d/seolryeong-heroine-south-reaction-v1.webp",
+      "role": "runtime-2d-hero-directional-reaction-atlas",
+      "tier": "hero",
+      "source": "imagegen-identity-preserve-chroma-alpha-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 600000
     },
     {
       "id": "sprite2d.yorang.motion.v2",
-      "path": "public/assets/sprites2d/yorang-motion-v2.png",
+      "path": "public/assets/sprites2d/yorang-motion-v2.webp",
       "role": "runtime-2d-common-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill",
@@ -675,8 +735,26 @@
       "maxBytes": 1000000
     },
     {
+      "id": "sprite2d.yorang.south.motion.v4",
+      "path": "public/assets/sprites2d/yorang-south-motion-v4.webp",
+      "role": "runtime-2d-common-enemy-directional-motion-atlas",
+      "tier": "world",
+      "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v4",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 1000000
+    },
+    {
+      "id": "sprite2d.yorang.north.motion.v5",
+      "path": "public/assets/sprites2d/yorang-north-motion-v5.webp",
+      "role": "runtime-2d-common-enemy-directional-motion-atlas",
+      "tier": "world",
+      "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v5",
+      "consumers": ["src/runtime2d/spriteManifest.js"],
+      "maxBytes": 1000000
+    },
+    {
       "id": "sprite2d.jade-ridge-hound.motion.v1",
-      "path": "public/assets/sprites2d/jade-ridge-hound-motion-v1.png",
+      "path": "public/assets/sprites2d/jade-ridge-hound-motion-v1.webp",
       "role": "runtime-2d-alternate-wolf-motion-atlas",
       "tier": "world",
       "source": "imagegen-built-in-chroma-key-alpha-despill-atlas-normalize-v1",
@@ -686,8 +764,36 @@
       "maxBytes": 1000000
     },
     {
+      "id": "sprite2d.jade-ridge-hound.north.motion.v2",
+      "path": "public/assets/sprites2d/jade-ridge-hound-north-motion-v2.webp",
+      "role": "runtime-2d-common-enemy-directional-motion-atlas",
+      "tier": "world", "source": "imagegen-edit-auto-border-chroma-normalize-v2",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 1000000
+    },
+    {
+      "id": "sprite2d.jade-ridge-hound.south.motion.v2",
+      "path": "public/assets/sprites2d/jade-ridge-hound-south-motion-v2.webp",
+      "role": "runtime-2d-common-enemy-directional-motion-atlas",
+      "tier": "world", "source": "imagegen-edit-chroma-normalize-v2",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 1000000
+    },
+    {
+      "id": "sprite2d.jade-serpent.north.motion.v2",
+      "path": "public/assets/sprites2d/jade-serpent-north-motion-v2.webp",
+      "role": "runtime-2d-common-enemy-directional-motion-atlas",
+      "tier": "world", "source": "imagegen-edit-chroma-normalize-v2",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 1000000
+    },
+    {
+      "id": "sprite2d.jade-serpent.south.motion.v2",
+      "path": "public/assets/sprites2d/jade-serpent-south-motion-v2.webp",
+      "role": "runtime-2d-common-enemy-directional-motion-atlas",
+      "tier": "world", "source": "imagegen-chroma-normalize-v2",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 1000000
+    },
+    {
       "id": "sprite2d.magi-remnant.motion.v2",
-      "path": "public/assets/sprites2d/magi-remnant-motion-v2.png",
+      "path": "public/assets/sprites2d/magi-remnant-motion-v2.webp",
       "role": "runtime-2d-common-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v2",
@@ -698,7 +804,7 @@
     },
     {
       "id": "sprite2d.void-sentinel.motion.v2",
-      "path": "public/assets/sprites2d/void-sentinel-motion-v2.png",
+      "path": "public/assets/sprites2d/void-sentinel-motion-v2.webp",
       "role": "runtime-2d-elite-enemy-motion-atlas",
       "tier": "near-detail",
       "source": "imagegen-chroma-key-alpha-despill",
@@ -709,7 +815,7 @@
     },
     {
       "id": "sprite2d.shadow-seal-duelist.motion.v1",
-      "path": "public/assets/sprites2d/shadow-seal-duelist-motion-v1.png",
+      "path": "public/assets/sprites2d/shadow-seal-duelist-motion-v1.webp",
       "role": "runtime-2d-asymmetric-elite-enemy-motion-atlas",
       "tier": "near-detail",
       "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v1",
@@ -720,7 +826,7 @@
     },
     {
       "id": "sprite2d.jade-void-warden.motion.v2",
-      "path": "public/assets/sprites2d/jade-void-warden-motion-v2.png",
+      "path": "public/assets/sprites2d/jade-void-warden-motion-v2.webp",
       "role": "runtime-2d-boss-motion-atlas",
       "tier": "boss",
       "source": "imagegen-chroma-key-alpha-despill",
@@ -731,7 +837,7 @@
     },
     {
       "id": "sprite2d.jade-sanctuary.props.v1",
-      "path": "public/assets/sprites2d/jade-sanctuary-props-v1.png",
+      "path": "public/assets/sprites2d/jade-sanctuary-props-v1.webp",
       "role": "runtime-2d-prop-atlas",
       "tier": "scene",
       "source": "imagegen-chroma-key-alpha-despill",
@@ -742,7 +848,7 @@
     },
     {
       "id": "sprite2d.talisman-revenant.motion.v1",
-      "path": "public/assets/sprites2d/talisman-revenant-motion-v1.png",
+      "path": "public/assets/sprites2d/talisman-revenant-motion-v1.webp",
       "role": "runtime-2d-common-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill",
@@ -757,7 +863,7 @@
     },
     {
       "id": "sprite2d.masked-seal-revenant.motion.v1",
-      "path": "public/assets/sprites2d/masked-seal-revenant-motion-v1.png",
+      "path": "public/assets/sprites2d/masked-seal-revenant-motion-v1.webp",
       "role": "runtime-2d-asymmetric-caster-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v1",
@@ -772,7 +878,7 @@
     },
     {
       "id": "sprite2d.jade-serpent.motion.v1",
-      "path": "public/assets/sprites2d/jade-serpent-motion-v1.png",
+      "path": "public/assets/sprites2d/jade-serpent-motion-v1.webp",
       "role": "runtime-2d-charger-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill",
@@ -787,7 +893,7 @@
     },
     {
       "id": "sprite2d.jade-stone-ghoul.motion.v1",
-      "path": "public/assets/sprites2d/jade-stone-ghoul-motion-v1.png",
+      "path": "public/assets/sprites2d/jade-stone-ghoul-motion-v1.webp",
       "role": "runtime-2d-tank-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill",
@@ -801,8 +907,20 @@
       "maxBytes": 1000000
     },
     {
+      "id": "sprite2d.magma-brute.motion.v1",
+      "path": "assets-source/sprites2d/magma-brute-motion-v1.webp",
+      "role": "chapter-two-enemy-production-candidate",
+      "tier": "authoring",
+      "pipelineRole": "output",
+      "source": "imagegen-built-in-magenta-key-alpha-despill-atlas-normalize-v1",
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
+      "maxBytes": 1000000
+    },
+    {
       "id": "sprite2d.jade-shard-guardian.motion.v1",
-      "path": "public/assets/sprites2d/jade-shard-guardian-motion-v1.png",
+      "path": "public/assets/sprites2d/jade-shard-guardian-motion-v1.webp",
       "role": "runtime-2d-asymmetric-tank-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill-atlas-normalize-v1",
@@ -817,7 +935,7 @@
     },
     {
       "id": "sprite2d.blood-scorpion.motion.v1",
-      "path": "public/assets/sprites2d/blood-scorpion-motion-v1.png",
+      "path": "public/assets/sprites2d/blood-scorpion-motion-v1.webp",
       "role": "runtime-2d-splitter-enemy-motion-atlas",
       "tier": "world",
       "source": "imagegen-chroma-key-alpha-despill",
@@ -828,7 +946,7 @@
     },
     {
       "id": "sprite2d.source.seolryeong.combat-key.v1",
-      "path": "public/assets/sprites2d/source/seolryeong-combat-key-v1.png",
+      "path": "assets-source/sprites2d/seolryeong-combat-key-v1.png",
       "role": "2d-sprite-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
@@ -838,8 +956,98 @@
       "maxBytes": 2500000
     },
     {
-      "id": "sprite2d.source.seolryeong.heroine-motion-sheet.v4",
-      "path": "public/assets/sprites2d/source/seolryeong-heroine-motion-sheet-v4.png",
+      "id": "sprite2d.source.seolryeong.east.run.v3",
+      "path": "assets-source/sprites2d/seolryeong-east-run-sheet-v3.png",
+      "role": "authoring-2d-hero-directional-run-sheet",
+      "tier": "authoring", "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.east.attack.v3",
+      "path": "assets-source/sprites2d/seolryeong-east-attack-sheet-v3.png",
+      "role": "authoring-2d-hero-directional-attack-sheet",
+      "tier": "authoring", "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.southeast.run.v2",
+      "path": "assets-source/sprites2d/seolryeong-southeast-run-sheet-v2.png",
+      "role": "authoring-2d-hero-directional-run-sheet",
+      "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.southeast.attack.v2",
+      "path": "assets-source/sprites2d/seolryeong-southeast-attack-sheet-v2.png",
+      "role": "authoring-2d-hero-directional-attack-sheet",
+      "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.south.run.v3",
+      "path": "assets-source/sprites2d/seolryeong-south-run-sheet-v3.png",
+      "role": "authoring-2d-hero-directional-run-sheet",
+      "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.south.attack.v2",
+      "path": "assets-source/sprites2d/seolryeong-south-attack-sheet-v2.png",
+      "role": "authoring-2d-hero-directional-attack-sheet",
+      "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.east.reaction.v1",
+      "path": "assets-source/sprites2d/seolryeong-east-reaction-sheet-v1.png",
+      "role": "authoring-2d-hero-directional-reaction-sheet",
+      "tier": "authoring", "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.southeast.reaction.v1",
+      "path": "assets-source/sprites2d/seolryeong-southeast-reaction-sheet-v1.png",
+      "role": "authoring-2d-hero-directional-reaction-sheet",
+      "tier": "authoring", "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.north.reaction.v1",
+      "path": "assets-source/sprites2d/seolryeong-north-reaction-sheet-v1.png",
+      "role": "authoring-2d-hero-directional-reaction-sheet",
+      "tier": "authoring", "source": "imagegen-identity-preserve-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.northeast.reaction.v1",
+      "path": "assets-source/sprites2d/seolryeong-northeast-reaction-sheet-v1.png",
+      "role": "authoring-2d-hero-directional-reaction-sheet",
+      "tier": "authoring", "source": "imagegen-identity-preserve-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.south.reaction.v1",
+      "path": "assets-source/sprites2d/seolryeong-south-reaction-sheet-v1.png",
+      "role": "authoring-2d-hero-directional-reaction-sheet",
+      "tier": "authoring", "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.northeast.run.v2",
+      "path": "assets-source/sprites2d/seolryeong-northeast-run-sheet-v2.png",
+      "role": "authoring-2d-hero-directional-run-sheet",
+      "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.northeast.attack.v2",
+      "path": "assets-source/sprites2d/seolryeong-northeast-attack-sheet-v2.png",
+      "role": "authoring-2d-hero-directional-attack-sheet",
+      "tier": "authoring", "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.north.run.v3",
+      "path": "assets-source/sprites2d/seolryeong-north-run-sheet-v3.png",
+      "role": "authoring-2d-hero-directional-run-sheet",
+      "tier": "authoring", "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.seolryeong.north.attack.v2",
+      "path": "assets-source/sprites2d/seolryeong-north-attack-sheet-v2.png",
+      "role": "authoring-2d-hero-directional-attack-sheet",
+      "tier": "authoring", "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2200000
+    },
+    {
+      "id": "sprite2d.source.yorang.motion-sheet.v2",
+      "path": "assets-source/sprites2d/yorang-motion-sheet-v2.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
@@ -849,63 +1057,26 @@
       "maxBytes": 2500000
     },
     {
-      "id": "sprite2d.source.seolryeong.heroine-east.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/seolryeong-heroine-east-sheet-v1.png",
-      "role": "authoring-2d-hero-directional-motion-sheet",
-      "tier": "authoring",
-      "source": "imagegen-directional-source-v1",
-      "consumers": [
-        "tools/yeongheo/sprite-authoring-manifest.json"
-      ],
-      "maxBytes": 2200000
-    },
-    {
-      "id": "sprite2d.source.seolryeong.heroine-north.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/seolryeong-heroine-north-sheet-v1.png",
-      "role": "authoring-2d-hero-directional-motion-sheet",
-      "tier": "authoring",
-      "source": "imagegen-directional-source-v1",
-      "consumers": [
-        "tools/yeongheo/sprite-authoring-manifest.json"
-      ],
-      "maxBytes": 2200000
-    },
-    {
-      "id": "sprite2d.source.seolryeong.heroine-northeast.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/seolryeong-heroine-northeast-sheet-v1.png",
-      "role": "authoring-2d-hero-directional-motion-sheet",
-      "tier": "authoring",
-      "source": "imagegen-directional-source-v1",
-      "consumers": [
-        "tools/yeongheo/sprite-authoring-manifest.json"
-      ],
-      "maxBytes": 2200000
-    },
-    {
-      "id": "sprite2d.source.seolryeong.heroine-south.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/seolryeong-heroine-south-sheet-v1.png",
-      "role": "authoring-2d-hero-directional-motion-sheet",
-      "tier": "authoring",
-      "source": "imagegen-directional-source-v1",
-      "consumers": [
-        "tools/yeongheo/sprite-authoring-manifest.json"
-      ],
-      "maxBytes": 2200000
-    },
-    {
-      "id": "sprite2d.source.yorang.motion-sheet.v2",
-      "path": "public/assets/sprites2d/source/yorang-motion-sheet-v2.png",
-      "role": "2d-motion-sheet-chroma-source",
+      "id": "sprite2d.source.yorang.south.motion-sheet.v4",
+      "path": "assets-source/sprites2d/yorang-south-motion-sheet-v4.png",
+      "role": "2d-directional-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
-      "consumers": [
-        "tools/yeongheo/sprite-authoring-manifest.json"
-      ],
+      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
+      "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.yorang.north.motion-sheet.v5",
+      "path": "assets-source/sprites2d/yorang-north-motion-sheet-v5.png",
+      "role": "2d-directional-motion-sheet-chroma-source",
+      "tier": "authoring",
+      "source": "imagegen-edit",
+      "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"],
       "maxBytes": 2500000
     },
     {
       "id": "sprite2d.source.jade-ridge-hound.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/jade-ridge-hound-motion-sheet-v1.png",
+      "path": "assets-source/sprites2d/jade-ridge-hound-motion-sheet-v1.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen-built-in",
@@ -915,8 +1086,32 @@
       "maxBytes": 2500000
     },
     {
+      "id": "sprite2d.source.jade-ridge-hound.north.motion-sheet.v2",
+      "path": "assets-source/sprites2d/jade-ridge-hound-north-motion-sheet-v2.png",
+      "role": "2d-directional-motion-sheet-chroma-source", "tier": "authoring",
+      "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-ridge-hound.south.motion-sheet.v2",
+      "path": "assets-source/sprites2d/jade-ridge-hound-south-motion-sheet-v2.png",
+      "role": "2d-directional-motion-sheet-chroma-source", "tier": "authoring",
+      "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-serpent.north.motion-sheet.v2",
+      "path": "assets-source/sprites2d/jade-serpent-north-motion-sheet-v2.png",
+      "role": "2d-directional-motion-sheet-chroma-source", "tier": "authoring",
+      "source": "imagegen-edit", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-serpent.south.motion-sheet.v2",
+      "path": "assets-source/sprites2d/jade-serpent-south-motion-sheet-v2.png",
+      "role": "2d-directional-motion-sheet-chroma-source", "tier": "authoring",
+      "source": "imagegen", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
       "id": "sprite2d.source.void-sentinel.motion-sheet.v2",
-      "path": "public/assets/sprites2d/source/void-sentinel-motion-sheet-v2.png",
+      "path": "assets-source/sprites2d/void-sentinel-motion-sheet-v2.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
@@ -927,7 +1122,7 @@
     },
     {
       "id": "sprite2d.source.shadow-seal-duelist.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/shadow-seal-duelist-motion-sheet-v1.png",
+      "path": "assets-source/sprites2d/shadow-seal-duelist-motion-sheet-v1.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen-built-in",
@@ -938,7 +1133,7 @@
     },
     {
       "id": "sprite2d.source.jade-void-warden.motion-sheet.v2",
-      "path": "public/assets/sprites2d/source/jade-void-warden-motion-sheet-v2.png",
+      "path": "assets-source/sprites2d/jade-void-warden-motion-sheet-v2.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
@@ -949,7 +1144,7 @@
     },
     {
       "id": "sprite2d.source.jade-sanctuary.props-sheet.v1",
-      "path": "public/assets/sprites2d/source/jade-sanctuary-props-sheet-v1.png",
+      "path": "assets-source/sprites2d/jade-sanctuary-props-sheet-v1.png",
       "role": "2d-prop-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
@@ -960,7 +1155,7 @@
     },
     {
       "id": "sprite2d.source.talisman-revenant.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/talisman-revenant-motion-sheet-v1.png",
+      "path": "assets-source/sprites2d/talisman-revenant-motion-sheet-v1.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
@@ -971,7 +1166,7 @@
     },
     {
       "id": "sprite2d.source.masked-seal-revenant.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/masked-seal-revenant-motion-sheet-v1.png",
+      "path": "assets-source/sprites2d/masked-seal-revenant-motion-sheet-v1.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
@@ -982,7 +1177,7 @@
     },
     {
       "id": "sprite2d.source.jade-serpent.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/jade-serpent-motion-sheet-v1.png",
+      "path": "assets-source/sprites2d/jade-serpent-motion-sheet-v1.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
@@ -993,7 +1188,7 @@
     },
     {
       "id": "sprite2d.source.jade-stone-ghoul.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/jade-stone-ghoul-motion-sheet-v1.png",
+      "path": "assets-source/sprites2d/jade-stone-ghoul-motion-sheet-v1.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
@@ -1003,8 +1198,19 @@
       "maxBytes": 2500000
     },
     {
+      "id": "sprite2d.source.magma-brute.motion-sheet.v1",
+      "path": "assets-source/sprites2d/magma-brute-motion-sheet-v1.png",
+      "role": "2d-motion-sheet-magenta-chroma-source",
+      "tier": "authoring",
+      "source": "imagegen-built-in",
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
+      "maxBytes": 2500000
+    },
+    {
       "id": "sprite2d.source.jade-shard-guardian.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/jade-shard-guardian-motion-sheet-v1.png",
+      "path": "assets-source/sprites2d/jade-shard-guardian-motion-sheet-v1.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
@@ -1015,7 +1221,7 @@
     },
     {
       "id": "sprite2d.source.blood-scorpion.motion-sheet.v1",
-      "path": "public/assets/sprites2d/source/blood-scorpion-motion-sheet-v1.png",
+      "path": "assets-source/sprites2d/blood-scorpion-motion-sheet-v1.png",
       "role": "2d-motion-sheet-chroma-source",
       "tier": "authoring",
       "source": "imagegen",
@@ -1025,8 +1231,19 @@
       "maxBytes": 2500000
     },
     {
+      "id": "environment.source.ember-wastes.chapter2-concept.v1",
+      "path": "assets-source/environment/ember-wastes-chapter2-concept-v1.png",
+      "role": "authoring-chapter-environment-concept",
+      "tier": "authoring",
+      "source": "imagegen-built-in",
+      "consumers": [
+        "tools/yeongheo/environment-authoring-manifest.json"
+      ],
+      "maxBytes": 3500000
+    },
+    {
       "id": "character.seolryeong.reference.v2",
-      "path": "public/assets/characters/seolryeong-character-reference-v2.png",
+      "path": "public/assets/characters/seolryeong-character-reference-v2.webp",
       "role": "runtime-character-reference",
       "tier": "hero",
       "source": "imagegen",
@@ -1037,7 +1254,7 @@
     },
     {
       "id": "character.seolryeong.reference.v3",
-      "path": "public/assets/characters/seolryeong-character-reference-v3.png",
+      "path": "public/assets/characters/seolryeong-character-reference-v3.webp",
       "role": "runtime-character-reference-latest",
       "tier": "hero",
       "source": "imagegen-plus-artifact-template-yeongheo-aaa-asset-brief",
@@ -1048,7 +1265,7 @@
     },
     {
       "id": "character.jade-void-warden.boss-reference.v2",
-      "path": "public/assets/characters/jade-void-warden-boss-reference-v2.png",
+      "path": "public/assets/characters/jade-void-warden-boss-reference-v2.webp",
       "role": "runtime-boss-reference",
       "tier": "boss",
       "source": "imagegen",
@@ -1059,7 +1276,7 @@
     },
     {
       "id": "material.environment.jade-pavilion-stone.v1",
-      "path": "public/assets/materials/environment/jade-pavilion-stone-v1.png",
+      "path": "public/assets/materials/environment/jade-pavilion-stone-v1.webp",
       "role": "runtime-material-wet-moonstone-pavers",
       "tier": "scene",
       "source": "imagegen",
@@ -1070,7 +1287,7 @@
     },
     {
       "id": "material.environment.jade-highland-ground.v1",
-      "path": "public/assets/materials/environment/jade-highland-ground-v1.png",
+      "path": "public/assets/materials/environment/jade-highland-ground-v1.webp",
       "role": "runtime-2d-jade-highland-ground",
       "tier": "scene",
       "source": "imagegen",
@@ -1081,7 +1298,7 @@
     },
     {
       "id": "material.environment.jade-sanctuary-ground.v2",
-      "path": "public/assets/materials/environment/jade-sanctuary-ground-material-v2.png",
+      "path": "public/assets/materials/environment/jade-sanctuary-ground-material-v2.webp",
       "role": "runtime-2d-jade-sanctuary-seamless-ground",
       "tier": "scene",
       "source": "imagegen",

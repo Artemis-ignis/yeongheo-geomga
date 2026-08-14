@@ -26,6 +26,11 @@ export class Progress {
     if (!Array.isArray(this.state.hintsSeen)) this.state.hintsSeen = []
     if (!Array.isArray(this.state.achievements)) this.state.achievements = []
     if (!Array.isArray(this.state.stagesCleared)) this.state.stagesCleared = []
+    if (!this.state.journey || typeof this.state.journey !== 'object') this.state.journey = { ...base.journey }
+    if (!Array.isArray(this.state.journey.chaptersCleared)) this.state.journey.chaptersCleared = []
+    if (!Number.isFinite(this.state.journey.expeditionVictories)) this.state.journey.expeditionVictories = 0
+    if (!Number.isFinite(this.state.journey.survivalVictories)) this.state.journey.survivalVictories = 0
+    if (!this.state.journey.decisions || typeof this.state.journey.decisions !== 'object') this.state.journey.decisions = {}
     if (!this.state.records) this.state.records = { ...base.records }
     if (!Number.isFinite(this.state.stones)) this.state.stones = 0
   }
@@ -76,14 +81,24 @@ export class Progress {
     return mods
   }
 
-  /**
-   * 영석 carried out of a run: 재물운, times whatever 시련 the run was fought on.
-   *
-   * A tier that is harder and pays the same is a tier nobody sensible picks.
-   */
-  get stoneMultiplier() {
+  /** Permanent reward growth shared by every kind of journey. */
+  get fortuneMultiplier() {
     const up = getMetaUpgrade('fortune')
-    return (1 + this.levelOf('fortune') * (up?.effectValue ?? 0)) * getTrial(this.trial).stones
+    return 1 + this.levelOf('fortune') * (up?.effectValue ?? 0)
+  }
+
+  /**
+   * Reward rules belong to the selected activity, not to a stale setup value.
+   * 천겁 pays its risk multiplier; authored exploration never inherits it.
+   */
+  stoneMultiplierFor(mode = 'survival') {
+    const trialMultiplier = mode === 'expedition' ? 1 : getTrial(this.trial).stones
+    return this.fortuneMultiplier * trialMultiplier
+  }
+
+  /** Backwards-compatible alias for the original 천겁 reward path. */
+  get stoneMultiplier() {
+    return this.stoneMultiplierFor('survival')
   }
 
   /**
@@ -186,6 +201,9 @@ export class Progress {
       unlockedCharacters: this.state.unlockedCharacters.length,
       unlockedWeapons: this.state.unlockedWeapons.length,
       stagesCleared: this.state.stagesCleared.length,
+      chaptersCleared: this.state.journey.chaptersCleared.length,
+      expeditionVictories: this.state.journey.expeditionVictories,
+      survivalVictories: this.state.journey.survivalVictories,
     }
   }
 
@@ -205,11 +223,36 @@ export class Progress {
     return earned
   }
 
-  /** Remember a completed 비경, which the 삼경답파 업적 counts. */
+  /** Remember a completed 비경 for career records and victory achievements. */
   markStageCleared(stageId) {
     if (!stageId || this.state.stagesCleared.includes(stageId)) return false
     this.state.stagesCleared.push(stageId)
     return true
+  }
+
+  markJourneyChapter(chapterId) {
+    if (!chapterId || this.state.journey.chaptersCleared.includes(chapterId)) return false
+    this.state.journey.chaptersCleared.push(chapterId)
+    return true
+  }
+
+  recordJourneyDecision(chapterId, decision) {
+    if (!chapterId || !decision?.beatId || !decision?.choiceId) return false
+    const rows = Array.isArray(this.state.journey.decisions[chapterId])
+      ? this.state.journey.decisions[chapterId] : []
+    const next = {
+      beatId: decision.beatId, choiceId: decision.choiceId,
+      name: decision.name ?? decision.choiceId, outcome: decision.outcome ?? '',
+    }
+    const index = rows.findIndex((row) => row.beatId === next.beatId)
+    if (index >= 0) rows[index] = next
+    else rows.push(next)
+    this.state.journey.decisions[chapterId] = rows
+    return true
+  }
+
+  journeyDecisions(chapterId) {
+    return [...(this.state.journey.decisions[chapterId] ?? [])]
   }
 
   /** Record what the player has encountered, for the 도감. */
@@ -225,11 +268,13 @@ export class Progress {
   }
 
   /** Fold a finished run into the lifetime records. Returns which bests improved. */
-  recordRun({ runTime, level, kills, victory }) {
+  recordRun({ runTime, level, kills, victory, mode = 'survival' }) {
     const r = this.state.records
     const beat = { time: false, level: false }
     r.runs++
     if (victory) r.victories++
+    if (victory && mode === 'expedition') this.state.journey.expeditionVictories++
+    else if (victory) this.state.journey.survivalVictories++
     r.totalKills += kills
     if (runTime > r.bestTime) { r.bestTime = runTime; beat.time = true }
     if (level > r.bestLevel) { r.bestLevel = level; beat.level = true }

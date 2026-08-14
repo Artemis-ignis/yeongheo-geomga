@@ -5,6 +5,7 @@ import { Hud } from '../src/ui/Hud.js'
 import { LevelUpModal } from '../src/ui/LevelUpModal.js'
 import { ResultScreen } from '../src/ui/ResultScreen.js'
 import { TitleScreen } from '../src/ui/TitleScreen.js'
+import { SanctumScreen } from '../src/ui/SanctumScreen.js'
 
 class FakeClassList {
   constructor(owner) {
@@ -212,11 +213,14 @@ function makeRoot() { return new FakeElement('div') }
 function makeProgress() {
   return {
     stones: 0,
+    state: { stagesCleared: [], journey: { chaptersCleared: [], survivalVictories: 0, decisions: {} } },
+    records: { victories: 0 },
     trial: 0,
     maxTrial: 0,
     isUnlocked(kind, id) { return kind === 'characters' ? id === 'seolryeong' : id === 'jade' },
     unlock() { return false },
     setTrial(id) { this.trial = id; return id },
+    journeyDecisions(chapterId) { return [...(this.state.journey.decisions[chapterId] ?? [])] },
   }
 }
 
@@ -239,31 +243,46 @@ describe('TitleScreen player navigation', () => {
   it('only exposes cultivators with an authored release combat sprite set', () => {
     const screen = new TitleScreen(makeRoot(), CHARACTERS, makeProgress())
     expect(screen.cards.map((card) => card.id)).toEqual(['seolryeong'])
+    expect(screen.stageCards.map((card) => card.id)).toEqual(['jade'])
     expect(screen.node.querySelector('.char-cards').classList.contains('is-single')).toBe(true)
   })
 
-  it('launches the curated Seolryeong/Jade fast run in one confirmation', () => {
+  it('skips both redundant single-character and single-chapter card steps for the main journey', () => {
+    const screen = new TitleScreen(makeRoot(), CHARACTERS, makeProgress())
+    screen.show({ onStart() { throw new Error('started too early') } })
+    screen._openSetup()
+    expect(screen.view).toBe('confirm')
+    expect(screen.chosenCharacter).toBe('seolryeong')
+    expect(screen.chosenStage).toBe('jade')
+    expect(screen.selectView.style.display).toBe('none')
+    expect(screen.stageView.style.display).toBe('none')
+    expect(screen.confirmBackButton.textContent).toContain('영허전')
+  })
+
+  it('enters the persistent sanctum instead of launching a timed showcase', () => {
     const screen = new TitleScreen(makeRoot(), [CHARACTERS[0]], makeProgress())
-    const starts = []
-    screen.show({ onStart: (...args) => starts.push(args) })
+    const entries = []
+    screen.show({ onEnter: () => entries.push('sanctum') })
 
     screen.handleKey(0, true, 0)
-    expect(starts).toEqual([['seolryeong', 'jade', { mode: 'showcase' }]])
+    expect(entries).toEqual(['sanctum'])
   })
 
   it('uses player-facing Korean copy on the first screen', () => {
     const screen = new TitleScreen(makeRoot(), [CHARACTERS[0]], makeProgress())
-    expect(screen.node.innerHTML).toContain('선협 생존 액션')
-    expect(screen.node.innerHTML).toContain('약 7분')
-    expect(screen.node.innerHTML).toContain('빠른 출정')
+    expect(screen.node.innerHTML).toContain('끊어진 영맥 끝에 감춰진 검가의 진실')
+    expect(screen.node.innerHTML).toContain('검의 맹세 · 영허의 길')
+    expect(screen.node.innerHTML).toContain('영허전으로 들어가기')
+    expect(screen.node.innerHTML).not.toContain('칠 분의 천겁')
     expect(screen.node.innerHTML).not.toContain('시연')
     expect(screen.node.style.backgroundPosition)
-      .toBe('center, center bottom var(--title-art-safe-bottom, 22px)')
+      .toBe('center, center')
   })
 
   it('keeps the detailed setup flow internally consistent for future full-game mode', () => {
     const screen = new TitleScreen(makeRoot(), [CHARACTERS[0]], makeProgress())
     screen.show({ onStart() { throw new Error('started too early') } })
+    screen.setupMode = 'survival'
     screen._showSelect()
     screen.handleKey(0, true, 0)
     screen.handleKey(0, true, 0)
@@ -273,6 +292,67 @@ describe('TitleScreen player navigation', () => {
     screen.handleKey(0, true, 0)
     expect(screen.view).toBe('stage')
     expect(screen.chosenStage).toBe('jade')
+  })
+})
+
+describe('SanctumScreen route ownership', () => {
+  it('keeps the main journey primary and locks survival until the first chapter is cleared', () => {
+    const screen = new SanctumScreen(makeRoot(), makeProgress())
+    const calls = []
+    screen.show({
+      expedition: () => calls.push('expedition'),
+      survival: () => calls.push('survival'),
+      cultivation: () => calls.push('cultivation'),
+      codex: () => calls.push('codex'),
+    })
+
+    screen.buttons.forEach((button) => button.fire('click'))
+    expect(calls).toEqual(['expedition', 'cultivation', 'codex'])
+    expect(screen.node.querySelector('[data-act="survival"]').disabled).toBe(true)
+    expect(screen.node.textContent).toContain('제1장 완수 후 개방')
+    expect(screen.node.textContent).toContain('옥산에 번지는 마기')
+  })
+
+  it('shows the consequence carried from a prior chapter decision in expedition confirmation', () => {
+    const progress = makeProgress()
+    progress.state.journey.decisions['jade:guardian'] = [{ choiceId: 'claim-seal', beatId: 'sealed-record' }]
+    const screen = new TitleScreen(makeRoot(), [CHARACTERS[0]], progress)
+    screen.setupMode = 'expedition'
+    screen.chosenCharacter = 'seolryeong'
+    screen.chosenStage = 'jade'
+    screen._showConfirm()
+
+    expect(screen.confirmSummary.innerHTML).toContain('결단 · 전승')
+    expect(screen.confirmSummary.innerHTML).toContain('검가의 봉인술')
+    expect(screen.confirmSummary.innerHTML).toContain('재시전 -5%')
+  })
+
+  it('unlocks the optional heavenly trial after completing the authored chapter', () => {
+    const progress = makeProgress()
+    progress.state.journey.chaptersCleared.push('jade:guardian')
+    const screen = new SanctumScreen(makeRoot(), progress)
+    const calls = []
+    screen.show({ survival: () => calls.push('survival') })
+
+    const survival = screen.node.querySelector('[data-act="survival"]')
+    expect(survival.disabled).toBe(false)
+    survival.fire('click')
+    expect(calls).toEqual(['survival'])
+    expect(screen.node.textContent).toContain('완성한 검로의 한계를 시험하는 극한 도전')
+  })
+
+  it('brings a persistent story decision back into the sanctum', () => {
+    const progress = makeProgress()
+    progress.state.journey.decisions['jade:guardian'] = [{
+      beatId: 'sealed-record', choiceId: 'record-truth', name: '진상을 새기다',
+      outcome: '문서 원본을 천하록에 보존했습니다.',
+    }]
+    const screen = new SanctumScreen(makeRoot(), progress)
+    screen.show()
+
+    expect(screen.node.querySelector('.sanctum-decisions').textContent).toBe('1')
+    expect(screen.node.querySelector('.sanctum-decision-name').textContent).toBe('진상을 새기다')
+    expect(screen.node.querySelector('.sanctum-decision-outcome').textContent).toContain('천하록')
   })
 })
 
@@ -333,7 +413,38 @@ describe('ResultScreen keyboard CTAs', () => {
     )
     expect(screen.node.innerHTML).toContain('추적')
     expect(screen.node.innerHTML).toContain('위력')
-    expect(screen.node.innerHTML).toContain('단전 강화')
+    expect(screen.node.innerHTML).toContain('영허전으로 돌아가기')
+  })
+
+  it('presents exploration as a return journey without 천겁 vocabulary', () => {
+    const screen = new ResultScreen(makeRoot())
+    screen.show({
+      ...resultFixture(), mode: 'expedition', victory: true,
+      trialInfo: { name: '역풍' }, replay: { mode: 'expedition' },
+    }, { onRestart() {}, onMenu() {} })
+
+    expect(screen.node.innerHTML).toContain('비경 귀환')
+    expect(screen.node.innerHTML).toContain('탐사 시간')
+    expect(screen.node.innerHTML).toContain('다시 탐사한다')
+    expect(screen.node.innerHTML).not.toContain('역풍')
+    expect(screen.node.innerHTML).not.toContain('같은 시련')
+    expect(screen.node.innerHTML).not.toContain('승천')
+  })
+
+  it('shows the authored decision and consequence in an expedition record', () => {
+    const screen = new ResultScreen(makeRoot())
+    screen.show({
+      ...resultFixture(), mode: 'expedition', victory: true,
+      journey: {
+        indexLabel: '제1장', title: '옥산에 번지는 마기', completionCopy: '옥산의 영맥을 되살렸습니다.',
+        nextGoal: '영허전에서 회수한 문서를 읽으십시오.', objectivesCompleted: 3, objectivesTotal: 3,
+        decisions: [{ name: '진상을 새기다', outcome: '문서 원본을 천하록에 보존했습니다.' }],
+      },
+    }, { onRestart() {}, onMenu() {} })
+
+    expect(screen.node.innerHTML).toContain('이번 장의 결단')
+    expect(screen.node.innerHTML).toContain('진상을 새기다')
+    expect(screen.node.innerHTML).toContain('문서 원본을 천하록에 보존했습니다.')
   })
 
   it('turns replay pattern ids into concise player-facing boss records', () => {
@@ -387,6 +498,15 @@ function hudFixture(daoVow = null) {
 }
 
 describe('Dao identity surfaces', () => {
+  it('labels objective-driven exploration time separately from survival time', () => {
+    const hud = new Hud(makeRoot())
+    hud.update({ ...hudFixture(), mode: 'expedition', runTime: 61, expeditionLabel: '제1장 · 영맥 1/3' })
+    expect(hud.timer.textContent).toBe('제1장 · 영맥 1/3')
+    expect(hud.timer.getAttribute('aria-label')).toContain('경과 시간 01:01')
+    hud.update({ ...hudFixture(), mode: 'survival', runTime: 61 })
+    expect(hud.timer.textContent).toBe('01:01')
+  })
+
   it('clears a defeated run boss bar before the next run starts', () => {
     const hud = new Hud(makeRoot())
     hud.update({

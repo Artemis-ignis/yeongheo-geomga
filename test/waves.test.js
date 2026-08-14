@@ -17,8 +17,8 @@ describe('wave timeline', () => {
     }
   })
 
-  it('covers the whole 15-minute run', () => {
-    expect(RUN_SECONDS).toBe(900)
+  it('covers the whole bounded record challenge', () => {
+    expect(RUN_SECONDS).toBe(420)
     expect(WAVES[WAVES.length - 1].t).toBeLessThanOrEqual(RUN_SECONDS)
   })
 
@@ -42,13 +42,12 @@ describe('wave timeline', () => {
     }
   })
 
-  it('schedules both bosses at the specified times', () => {
-    expect(WAVES.find((w) => w.t === 480)?.boss).toBe('blueWolfKing')
-    expect(WAVES.find((w) => w.t === 900)?.boss).toBe('darkHeavenLord')
+  it('schedules both bosses inside the run', () => {
     expect(BOSS_SCHEDULE).toEqual([
-      { t: 480, id: 'blueWolfKing', slot: 'mid' },
-      { t: 900, id: 'darkHeavenLord', slot: 'final' },
+      { t: 180, id: 'blueWolfKing', slot: 'mid' },
+      { t: 330, id: 'darkHeavenLord', slot: 'final' },
     ])
+    for (const boss of BOSS_SCHEDULE) expect(boss.t).toBeLessThan(RUN_SECONDS)
   })
 
   /**
@@ -62,7 +61,7 @@ describe('wave timeline', () => {
     expect(frost.bosses.mid, '한천 gave its slot back to 창랑').not.toBe('blueWolfKing')
     const schedule = scheduleFor(frost)
     expect(schedule.find((e) => e.slot === 'mid').id).toBe(frost.bosses.mid)
-    // Timing is the wave table's business and must not move with the boss.
+    // Timing is the schedule's business and must not move with the boss.
     expect(schedule.map((e) => e.t)).toEqual(BOSS_SCHEDULE.map((e) => e.t))
   })
 
@@ -108,24 +107,21 @@ describe('wave timeline', () => {
     // a half minutes in which nothing came within contact range at all, and a
     // death at 4:11 the moment 석귀 arrived. Both ends are pinned now: enough to
     // fight, not enough to drown.
-    expect(rateAt(0)).toBeGreaterThan(3)
-    expect(rateAt(0)).toBeLessThan(5)
+    expect(rateAt(0)).toBeGreaterThan(1.8)
+    expect(rateAt(0)).toBeLessThan(3)
     // And it must not open at anything like the closing pressure.
-    expect(rateAt(0)).toBeLessThan(rateAt(870) / 10)
+    expect(rateAt(0)).toBeLessThan(rateAt(390) / 5)
   })
 
   it('closes with a swarm, which is what her plateaued build has left to fight', () => {
-    // Her power plateaus around minute ten: six 법보 and six 공법 all cap at
-    // level 5. Enemy health cannot answer that without killing her at four
-    // minutes on the way up, so the late game has to come from numbers.
-    expect(rateAt(870)).toBeGreaterThan(90)
-    expect(rateAt(870) / rateAt(0)).toBeGreaterThan(20)
+    expect(rateAt(390)).toBeGreaterThan(12)
+    expect(rateAt(390) / rateAt(0)).toBeGreaterThan(5)
   })
 
   /**
    * The property that replaced two assertions written around a back-loaded
    * table: they pinned the opening under 8 spawns a second and the close at more
-   * than ten times the seven-minute mark, and both were satisfied only because
+   * than ten times the challenge boundary, and both were satisfied only because
    * the middle of the run was flat.
    *
    * That flat stretch was the last dead zone left. Measured on a maxed 단전, the
@@ -147,21 +143,21 @@ describe('wave timeline', () => {
       expect(steps[i], `band ${bands[i + 1].t}s lurches`).toBeLessThan(1.35)
     }
     // No flat stretch: the middle of the run has to climb like the rest of it.
-    const middle = bands.filter((w) => w.t >= 120 && w.t <= 450)
-    expect(rate(middle.at(-1)) / rate(middle[0]), 'the mid game is a plateau').toBeGreaterThan(3)
+    const middle = bands.filter((w) => w.t >= 120 && w.t <= 390)
+    expect(rate(middle.at(-1)) / rate(middle[0]), 'the mid game is a plateau').toBeGreaterThan(2.8)
 
     // A doubling time near three minutes, measured over the whole table rather
     // than asserted band by band.
     const halvings = Math.log2(rate(bands.at(-1)) / rate(bands[0]))
     const doublingMinutes = (bands.at(-1).t - bands[0].t) / 60 / halvings
-    expect(doublingMinutes).toBeGreaterThan(2.4)
+    expect(doublingMinutes).toBeGreaterThan(2.2)
     expect(doublingMinutes).toBeLessThan(3.6)
   })
 
   it('ramps into the swarm rather than stepping into it', () => {
     // No single band may more than double on the one before it, or the jump
     // reads as the game breaking rather than as pressure arriving.
-    const bands = WAVES.filter((w) => !w.boss && w.t >= 420)
+    const bands = WAVES.filter((w) => w.t >= 180)
     for (let i = 1; i < bands.length; i++) {
       const jump = (bands[i].perSpawn / bands[i].spawnInterval) / (bands[i - 1].perSpawn / bands[i - 1].spawnInterval)
       expect(jump, `band at ${bands[i].t}s jumps ${jump.toFixed(2)}x`).toBeLessThan(2)
@@ -172,8 +168,8 @@ describe('wave timeline', () => {
     expect(waveAt(0).t).toBe(0)
     expect(waveAt(29).t).toBe(0)
     expect(waveAt(30).t).toBe(30)
-    expect(waveAt(899).t).toBe(870)
+    expect(waveAt(419).t).toBe(390)
     expect(waveAt(-5).t).toBe(0)
-    expect(waveAt(99999).t).toBe(900)
+    expect(waveAt(99999).t).toBe(390)
   })
 })

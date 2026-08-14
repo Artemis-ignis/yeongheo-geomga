@@ -224,13 +224,31 @@ describe('audio settings', () => {
   it('ignores a corrupt settings blob instead of failing to boot', () => {
     const store = memoryStorage({ 'yeongheo.audio': '{not json' })
     const a = new AudioEngine({ contextFactory: () => null, storage: store })
-    expect(a.muted).toBe(false)
+    expect(a.muted).toBe(true)
     expect(a.masterVolume).toBeGreaterThan(0)
   })
 
-  it('starts fresh players with sound enabled', () => {
+  it('starts fresh players silently', () => {
     const a = new AudioEngine({ contextFactory: () => null, storage: memoryStorage() })
-    expect(a.muted).toBe(false)
+    expect(a.muted).toBe(true)
+  })
+
+  it('keeps the production silent-only policy locked against storage and controls', () => {
+    let factoryCalls = 0
+    const store = memoryStorage({
+      'yeongheo.audio': JSON.stringify({ version: 3, muted: false, master: 1, music: 1, sfx: 1 }),
+    })
+    const a = new AudioEngine({
+      contextFactory: () => { factoryCalls++; return new FakeAudioContext() },
+      storage: store,
+      silentOnly: true,
+    })
+    expect(a.muted).toBe(true)
+    expect(a.unlock()).toBe(false)
+    expect(factoryCalls).toBe(0)
+    a.setMuted(false)
+    expect(a.muted).toBe(true)
+    expect(a.toggleMute()).toBe(true)
   })
 
   it('ignores a legacy unversioned mute value', () => {
@@ -238,7 +256,7 @@ describe('audio settings', () => {
       'yeongheo.audio': JSON.stringify({ muted: true, master: 0.75 }),
     })
     const a = new AudioEngine({ contextFactory: () => null, storage: store })
-    expect(a.muted).toBe(false)
+    expect(a.muted).toBe(true)
   })
 })
 

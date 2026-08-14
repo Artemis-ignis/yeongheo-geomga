@@ -11,7 +11,7 @@ export const BOSSES = Object.freeze({
   jadeVoidWarden: Object.freeze({
     id: 'jadeVoidWarden', name: '옥허진장', desc: '옥허의 결계를 지키는 진장으로 넓은 영역을 봉쇄한다.', hp: 14000, radius: 2.8,
     damage: 32, speed: 2.5, scale: 0.98, color: 0x3d9e8c,
-    referenceAsset: 'characters/jade-void-warden-boss-reference-v2.png',
+    referenceAsset: 'characters/jade-void-warden-boss-reference-v2.webp',
   }),
   riverMaiden: Object.freeze({
     id: 'riverMaiden', name: '설녀 빙하', desc: '빙하를 타고 흐르는 설녀로 냉기와 추적 공격으로 발을 묶는다.', hp: 6600, radius: 2.2,

@@ -7,18 +7,19 @@ import { getCharacter, CHARACTERS, isReleasePlayableCharacter } from '../data/ch
 import { getPassive } from '../data/passives.js'
 import { realmFor } from '../data/realms.js'
 import { getStage } from '../data/stages.js'
+import { getJourneyChapterForStage, journeyBeat, journeyLegacyFor } from '../data/journey.js'
 import { getTrial } from '../data/trials.js'
 import { validateData } from '../data/validate.js'
 import { getWeapon } from '../data/weapons.js'
 import { Progress } from '../meta/Progress.js'
 import * as Save from '../meta/Save.js'
 import { CodexScreen } from '../ui/CodexScreen.js'
-import { DebugOverlay } from '../ui/DebugOverlay.js'
 import { HintOverlay } from '../ui/HintOverlay.js'
 import { Hud, getDaoVowVisual } from '../ui/Hud.js'
 import { LevelUpModal } from '../ui/LevelUpModal.js'
 import { PauseScreen } from '../ui/PauseScreen.js'
 import { ResultScreen } from '../ui/ResultScreen.js'
+import { SanctumScreen } from '../ui/SanctumScreen.js'
 import { ShopScreen } from '../ui/ShopScreen.js'
 import { TitleScreen } from '../ui/TitleScreen.js'
 import { CombatWorld2D } from './CombatWorld2D.js'
@@ -31,24 +32,25 @@ import { Quality2D } from './Quality2D.js'
 import { validateSpriteManifest } from './spriteManifest.js'
 import { mapChunkKey } from './WorldMap2D.js'
 import { WorldInteractions2D } from './WorldInteractions2D.js'
+import { unprojectScreen } from './projection.js'
 
 const MAX_RENDER_FPS = 60
 const GAME_RENDER_INTERVAL = 1000 / MAX_RENDER_FPS
 const MENU_RENDER_INTERVAL = 1000 / 30
 const BREAKTHROUGH_RADIUS = 8
-// A breakthrough is the cadence break in the seven-minute loop. Restoring a
-// small but visible amount here lets an ordinary build recover from one bad
-// formation without turning the health bar into passive regeneration.
+// A breakthrough is a cadence break inside the survivor-combat run.
+// Restoring a small but visible amount lets an ordinary build recover from one
+// bad formation without turning the health bar into passive regeneration.
 export const BREAKTHROUGH_HEAL_FRACTION_2D = 0.075
 export const DAO_VOW_HEAL_FRACTION_2D = 0.12
 export const EMERGENCY_HEAL_THRESHOLD_2D = 0.5
 // Preserve the opening read: heroine, movement, automatic attack, and dash
 // must all be visible before the first full-screen growth decision pauses play.
 export const FIRST_LEVEL_MODAL_MIN_SECONDS_2D = 12
-// A seven-minute run grants roughly thirty choices. The authored XP curve is
-// part of the build fantasy, but two full-screen decisions only a few seconds
-// apart make the opening feel like menu navigation rather than combat. Measure
-// this in simulation time so time spent reading a card never counts as action.
+// A full survivor run grants many choices. The authored XP curve is part of
+// its build fantasy, but two full-screen decisions only a few
+// seconds apart make the opening feel like menu navigation rather than combat.
+// Measure this in simulation time so reading a card never counts as action.
 export const GROWTH_CHOICE_MIN_GAMEPLAY_GAP_SECONDS_2D = 8
 export const UPGRADE_RNG_SALT_2D = 0x51f15e37
 
@@ -63,6 +65,13 @@ export function canOpenGrowthChoice2D(runTime, lastOpenedAt = Number.NEGATIVE_IN
 }
 const RADAR_RADIUS = 72
 const RADAR_REFRESH_SECONDS = 0.08
+const CLICK_MOVE_STOP_RADIUS_2D = 0.34
+// Story props have a physical footprint. The collision ring keeps the heroine
+// 2.65 world units away from their authored centre, so the old +0.45 lookup
+// margin left only a few pixels of usable interaction space around an altar.
+// Keep clues restrained, but give the route prop a reliable contact envelope
+// outside its collision silhouette for keyboard and click-to-move players.
+export const STORY_INTERACTION_MARGIN_2D = 1.5
 const DAO_MILESTONE_SECONDS = Object.freeze([20, 165, 270])
 export const DAO_ICON_IDS_2D = Object.freeze({
   sword: 'sword',
@@ -106,9 +115,17 @@ const DAO_ACTION_BANNER_COOLDOWN_MS_2D = 900
 export const SHOWCASE_SEED_2D = 3185791507
 export const SHOWCASE_RUN_MODE_2D = 'showcase'
 export const NORMAL_RUN_MODE_2D = 'normal'
+export const EXPEDITION_RUN_MODE_2D = 'expedition'
+export const SURVIVAL_RUN_MODE_2D = 'survival'
 
 export function isShowcaseRunOptions(options) {
   return options?.mode === SHOWCASE_RUN_MODE_2D
+}
+
+export function daoVowsForRun2D(options = null) {
+  // Every playable run is a survivor-roguelike run. Story decisions add to the
+  // build rather than replacing its three Dao branches.
+  return new DaoVows2D()
 }
 
 function finiteSeed(value) {
@@ -125,6 +142,52 @@ export function normalRetryOptions2D(seed) {
   return avoidSeed === null
     ? { mode: NORMAL_RUN_MODE_2D }
     : { mode: NORMAL_RUN_MODE_2D, avoidSeed }
+}
+
+export function retryOptions2D(mode, seed) {
+  const retry = normalRetryOptions2D(seed)
+  return mode === EXPEDITION_RUN_MODE_2D || mode === SURVIVAL_RUN_MODE_2D
+    ? { ...retry, mode }
+    : retry
+}
+
+export function clickMoveVector2D(player, target, stopRadius = CLICK_MOVE_STOP_RADIUS_2D) {
+  const dx = Number(target?.x) - Number(player?.x)
+  const dz = Number(target?.z) - Number(player?.z)
+  const distance = Math.hypot(dx, dz)
+  if (!Number.isFinite(distance) || distance <= Math.max(0, stopRadius)) return Object.freeze({ x: 0, z: 0, arrived: true })
+  return Object.freeze({ x: dx / distance, z: dz / distance, arrived: false })
+}
+
+/**
+ * If the active clue lies inside a mouse travel corridor, stop at that clue
+ * instead of carrying the heroine through it to a distant click target.
+ */
+export function snapStoryClickTarget2D(player, target, interactions, corridor = 8, maxSnapDistance = 18) {
+  if (!Number.isFinite(player?.x) || !Number.isFinite(player?.z)
+    || !Number.isFinite(target?.x) || !Number.isFinite(target?.z)) return target
+  const poi = interactions?.currentRoutePoi?.()
+  if (!poi) return target
+  const candidate = interactions?.nearestUnfoundInvestigationClue?.(poi, player.x, player.z) ?? poi
+  if (!Number.isFinite(candidate?.x) || !Number.isFinite(candidate?.z)) return target
+
+  const travelX = target.x - player.x
+  const travelZ = target.z - player.z
+  const travelLengthSquared = travelX * travelX + travelZ * travelZ
+  if (travelLengthSquared <= 1e-6) return target
+  const clueX = candidate.x - player.x
+  const clueZ = candidate.z - player.z
+  if (Math.hypot(clueX, clueZ) > Math.max(0, Number(maxSnapDistance) || 0)) return target
+  const along = (clueX * travelX + clueZ * travelZ) / travelLengthSquared
+  if (along <= 0 || along > 1.05) return target
+  const closestX = player.x + travelX * along
+  const closestZ = player.z + travelZ * along
+  const captureRadius = Math.max(
+    Math.max(0, Number(corridor) || 0),
+    Math.max(0, Number(candidate.interactionRadius) || 0) + STORY_INTERACTION_MARGIN_2D,
+  )
+  if (Math.hypot(candidate.x - closestX, candidate.z - closestZ) > captureRadius) return target
+  return Object.freeze({ x: candidate.x, z: candidate.z })
 }
 
 export function prioritizeEmergencyHeal2D(choices, hp, maxHp) {
@@ -154,9 +217,134 @@ export function progressForRun(baseProgress, options = null) {
   return isShowcaseRunOptions(options) ? new Progress(Save.defaultSave()) : baseProgress
 }
 
-// Before the 20-second milestone there is nothing to select yet. Describe the
-// action the player can actually take instead of presenting a premature order.
+// Before a run's first timed vow there is nothing to select yet.
 const FIRST_VOW_OBJECTIVE_2D = '영기를 모아 첫 맹세를 준비하십시오'
+
+/**
+ * Human-readable world bearing for story navigation.
+ *
+ * World +x is east and +z is south, matching both WASD and the screen-aligned
+ * radar. Collapse strongly dominant diagonals to a cardinal direction so the
+ * objective reads as guidance rather than coordinate telemetry.
+ */
+export function worldDirectionLabel2D(dx, dz) {
+  if (!Number.isFinite(dx) || !Number.isFinite(dz)) return ''
+  const ax = Math.abs(dx)
+  const az = Math.abs(dz)
+  if (ax < 0.25 && az < 0.25) return ''
+  if (ax > az * 2.5) return dx >= 0 ? '동쪽' : '서쪽'
+  if (az > ax * 2.5) return dz >= 0 ? '남쪽' : '북쪽'
+  const vertical = dz >= 0 ? '남' : '북'
+  const horizontal = dx >= 0 ? '동' : '서'
+  return `${vertical}${horizontal}쪽`
+}
+
+function routeGuidance2D(poi, player) {
+  if (!poi || !Number.isFinite(player?.x) || !Number.isFinite(player?.z)) return ''
+  const dx = poi.x - player.x
+  const dz = poi.z - player.z
+  const distance = Math.ceil(Math.hypot(dx, dz))
+  if (distance <= 3) return ''
+  const direction = worldDirectionLabel2D(dx, dz)
+  return direction ? `${direction} ${distance}보` : `${distance}보`
+}
+
+export function expeditionObjective2D(
+  interactions,
+  completedCount = 0,
+  boss = null,
+  chapter = null,
+  player = null,
+) {
+  chapter ??= interactions?.chapter ?? null
+  const poi = interactions?.currentRoutePoi?.()
+  const beat = poi ? journeyBeat(chapter, poi.routeIndex) : null
+  const state = poi ? interactions.stateForPoi?.(poi) : null
+  if (boss?.active) {
+    // Route guardians are part of the current case. They must not inherit the
+    // chapter-final copy merely because both encounters use the boss runtime.
+    if (beat?.guardianBossId && beat.guardianBossId === boss.def?.id) {
+      return beat.active ?? `${beat.guardianLabel ?? '사건 수호자'} · ${boss.def?.name ?? '이름 없는 수호자'}`
+    }
+    return chapter?.boss?.objective ?? `비경 수호자 · ${boss.def?.name ?? '이름 없는 수호자'}`
+  }
+  if (state === 'active') {
+    const investigation = interactions?.investigationProgressFor?.(poi)
+    const progress = investigation?.total > 0 ? ` · 흔적 ${investigation.found}/${investigation.total}` : ''
+    const clue = interactions?.nearestUnfoundInvestigationClue?.(poi, player?.x, player?.z)
+    const guidance = routeGuidance2D(clue, player)
+    const next = guidance ? ` · 다음 흔적 ${guidance}` : ''
+    return `${beat?.active ?? '사건을 가로막는 적을 격파하십시오'}${progress}${next}`
+  }
+  if (state === 'cleared') {
+    const resolve = beat?.resolve ?? '수호자가 사라진 표식을 마무리하십시오'
+    const guidance = routeGuidance2D(poi, player)
+    return guidance ? `${resolve} · ${guidance}` : resolve
+  }
+  const approach = beat?.approach ?? chapter?.boss?.objective ?? '비경 수호자를 찾으십시오'
+  const guidance = routeGuidance2D(poi, player)
+  return guidance ? `${approach} · ${guidance}` : approach
+}
+
+export function applyJourneyLegacy2D(world, legacy) {
+  const player = world?.player
+  if (!player || !legacy?.mods?.length) return false
+  const legacyKey = legacy.choiceId ?? JSON.stringify(legacy.mods)
+  if (world.appliedJourneyLegacyKey === legacyKey) return false
+  for (const mod of legacy.mods) player.metaMods.push({ ...mod })
+  player.recomputeStats()
+  world.appliedJourneyLegacyKey = legacyKey
+  return true
+}
+
+/**
+ * Stage an authored guardian group on the far side of its story prop. Spawning
+ * a full ring around the interaction point put one actor directly under the
+ * heroine and turned a readable ambush into sprite overlap.
+ */
+export function expeditionGuardianSpawnPositions2D(event, player, count, radius = 6.8) {
+  const total = Math.max(0, Math.trunc(count))
+  if (total === 0) return []
+  const px = Number(player?.x)
+  const pz = Number(player?.z)
+  const dx = Number.isFinite(px) ? px - event.x : 0
+  const dz = Number.isFinite(pz) ? pz - event.z : 0
+  const approachDistance = Math.hypot(dx, dz)
+  const awayAngle = approachDistance > 0.1
+    ? Math.atan2(-dz, -dx)
+    : -Math.PI * 0.5
+  const arc = Math.min(1.4, Math.max(0.7, (total - 1) * 0.54))
+  return Array.from({ length: total }, (_, index) => {
+    const offset = total === 1 ? 0 : -arc * 0.5 + arc * (index / (total - 1))
+    const angle = awayAngle + offset
+    return {
+      x: event.x + Math.cos(angle) * radius,
+      z: event.z + Math.sin(angle) * radius,
+    }
+  })
+}
+
+/** Keep the heroine's ground contact outside the authored story prop. */
+export function resolveStoryPropCollision2D(player, poi, safeRadius = 2.65) {
+  if (!player || !poi || !Number.isFinite(player.x) || !Number.isFinite(player.z)) return false
+  let dx = player.x - poi.x
+  let dz = player.z - poi.z
+  let distance = Math.hypot(dx, dz)
+  if (distance >= safeRadius) return false
+  if (distance < 0.0001) {
+    dx = Number.isFinite(player.prevX) ? player.prevX - poi.x : -1
+    dz = Number.isFinite(player.prevZ) ? player.prevZ - poi.z : 0
+    distance = Math.hypot(dx, dz)
+    if (distance < 0.0001) {
+      dx = -1
+      dz = 0
+      distance = 1
+    }
+  }
+  player.x = poi.x + (dx / distance) * safeRadius
+  player.z = poi.z + (dz / distance) * safeRadius
+  return true
+}
 
 function firstVowHudState2D(runTime, daoSnapshot) {
   if (Number(daoSnapshot?.milestone ?? 0) >= 1 || daoSnapshot?.choices?.pledge != null) return null
@@ -211,7 +399,10 @@ export class Game2D {
     this.quality = new Quality2D()
     this.presentation = new PixiPresentation(canvas, this.quality)
     this.progress = new Progress(Save.load())
-    this.audio = new AudioEngine()
+    // Product policy: this release is deliberately silent. Keep the audio
+    // engine isolated in silent-only mode so browser storage and the legacy M
+    // edge can never revive the removed ambient drone or any SFX.
+    this.audio = new AudioEngine({ silentOnly: true })
     this.world = null
     this.interactions = null
     this.hitEvents = new HitEventQueue2D()
@@ -219,7 +410,13 @@ export class Game2D {
     this.daoVows = null
     this._daoSnapshot = null
     this._eliteEncounters = []
+    this._expeditionBossEncounter = null
+    this._expeditionObjectives = new Set()
+    this._journeyDecisions = new Map()
+    this.journeyChapter = null
+    this.journeyLegacy = null
     this._interactionSnapshotKey = ''
+    this._clickMoveTarget = null
     this.stage = null
     this.runCharacterId = null
     this.seed = 0
@@ -255,11 +452,15 @@ export class Game2D {
     this.hud = new Hud(hudRoot)
     this.modal = new LevelUpModal(hudRoot, this.audio)
     this.title = new TitleScreen(hudRoot, CHARACTERS, this.progress, this.audio)
+    this.sanctum = new SanctumScreen(hudRoot, this.progress, this.audio)
     this.result = new ResultScreen(hudRoot, this.audio)
     this.shop = new ShopScreen(hudRoot, this.progress, () => this._persist())
     this.codex = new CodexScreen(hudRoot, this.progress)
     this.hints = new HintOverlay(hudRoot, this.progress)
-    this.debug = new DebugOverlay(hudRoot)
+    // The production graph never imports the diagnostics UI. Development
+    // replaces this inert surface during start(), after the module is loaded
+    // through a compile-time DEV-only branch.
+    this.debug = { toggle() {}, update() {}, dispose() {} }
     this.pause = new PauseScreen(hudRoot, {
       audio: this.audio,
       quality: this.quality,
@@ -278,15 +479,36 @@ export class Game2D {
     this.interactionPrompt.hidden = true
     hudRoot.appendChild(this.interactionPrompt)
 
-    // Unlock even while muted: a later M press must be able to resume the same
-    // AudioContext in its user-gesture path instead of discovering a null graph
-    // after the player has already entered a run.
     this._unlockAudio = () => {
+      if (this.audio.silentOnly) return
       if (typeof this.audio.ensureUnlocked === 'function') this.audio.ensureUnlocked()
       else this.audio.unlock?.()
     }
     addEventListener('pointerdown', this._unlockAudio)
     addEventListener('keydown', this._unlockAudio)
+    this._onPointerMove = (event) => {
+      if (event.pointerType === 'mouse') this.canvas.style.cursor = this.state === 'playing' ? 'crosshair' : ''
+    }
+    this._onPointerDown = (event) => {
+      if (this.state !== 'playing' || !this.world || event.button !== 0) return
+      const rect = this.canvas.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) return
+      const screenX = (event.clientX - rect.left) * this.presentation.viewport.width / rect.width
+      const screenY = (event.clientY - rect.top) * this.presentation.viewport.height / rect.height
+      const rawTarget = unprojectScreen(
+        screenX, screenY,
+        this.presentation.cameraX, this.presentation.cameraZ,
+        this.presentation.viewport,
+      )
+      this._clickMoveTarget = snapStoryClickTarget2D(
+        this.world.player,
+        rawTarget,
+        this.runOptions?.mode === EXPEDITION_RUN_MODE_2D ? this.interactions : null,
+      )
+      this.canvas.style.cursor = 'crosshair'
+    }
+    this.canvas.addEventListener('pointermove', this._onPointerMove)
+    this.canvas.addEventListener('pointerdown', this._onPointerDown)
     this._onResize = () => {
       this.presentation.resize()
       this._needsStaticRender = true
@@ -304,7 +526,7 @@ export class Game2D {
 
   async start() {
     if (this._disposed) return
-    if (import.meta.env?.DEV) validateData()
+    if (import.meta.env.DEV) validateData()
     const manifestErrors = validateSpriteManifest()
     if (manifestErrors.length) throw new Error(`2D sprite manifest invalid: ${manifestErrors.join(', ')}`)
     const started = performance.now()
@@ -314,6 +536,14 @@ export class Game2D {
       // presentation owns the late-created Pixi app, so tear it down here too.
       this.presentation.destroy()
       return
+    }
+    if (import.meta.env.DEV && typeof document !== 'undefined') {
+      const { DebugOverlay } = await import('../ui/DebugOverlay.js')
+      if (this._disposed) {
+        this.presentation.destroy()
+        return
+      }
+      this.debug = new DebugOverlay(this.hudRoot)
     }
     this.presentation.setZoom(this.viewZoom)
     this._warmupMs = performance.now() - started
@@ -377,6 +607,11 @@ export class Game2D {
     this.hitEvents.clear()
     this.telemetry?.reset()
     this._eliteEncounters.length = 0
+    this._expeditionBossEncounter = null
+    this._expeditionObjectives?.clear?.()
+    this._journeyDecisions?.clear?.()
+    this.journeyChapter = null
+    this.journeyLegacy = null
     this._interactionSnapshotKey = ''
     this.pendingLevels = 0
     this._lastGrowthChoiceAt = Number.NEGATIVE_INFINITY
@@ -387,6 +622,7 @@ export class Game2D {
     this._invalidateRadarCache()
     this._hudNeedsRefresh = true
     this.interactionPrompt.hidden = true
+    this._hideBanner()
     this.hud.hide()
     this.hints.hide()
     this.pause.hide()
@@ -397,8 +633,10 @@ export class Game2D {
     // or title transition takes ownership of the screen.
     this.shop?.hide?.()
     this.codex?.hide?.()
+    this.sanctum?.hide?.()
     this.audio.stopMusic?.()
     this.audio.setDucked?.(false)
+    if (this.canvas?.style) this.canvas.style.cursor = ''
     this.input.consumeInteract?.()
     if (clearSelection) {
       this.stage = null
@@ -414,14 +652,7 @@ export class Game2D {
     this.result.hide()
     this.presentation.showTitle()
     this.title.show({
-      onStart: (id, stageId, options) => this._startRun(id, stageId, options),
-      onUnlock: () => this._persist(),
-      onShop: () => {
-        if (this.state !== 'title') return
-        this.state = 'shop'
-        this.title.hide()
-        this.shop.show(() => { this.state = 'title'; this.title.show() })
-      },
+      onEnter: () => this._showSanctum(),
       onCodex: () => {
         if (this.state !== 'title') return
         this.state = 'codex'
@@ -429,6 +660,44 @@ export class Game2D {
         this.codex.show(() => { this.state = 'title'; this.title.show() })
       },
     })
+    this._needsStaticRender = true
+  }
+
+  _showSanctum() {
+    this._clearRunSession({ clearSelection: true })
+    this.state = 'sanctum'
+    this.title.hide()
+    this.result.hide()
+    this.presentation.showTitle()
+    this.sanctum.show({
+      expedition: () => this._showRunSetup(EXPEDITION_RUN_MODE_2D),
+      survival: () => this._showRunSetup(SURVIVAL_RUN_MODE_2D),
+      cultivation: () => {
+        if (this.state !== 'sanctum') return
+        this.state = 'shop'
+        this.sanctum.hide()
+        this.shop.show(() => this._showSanctum())
+      },
+      codex: () => {
+        if (this.state !== 'sanctum') return
+        this.state = 'codex'
+        this.sanctum.hide()
+        this.codex.show(() => this._showSanctum())
+      },
+      title: () => this._showTitle(),
+    })
+    this._needsStaticRender = true
+  }
+
+  _showRunSetup(mode) {
+    if (this.state !== 'sanctum') return
+    this.state = 'setup'
+    this.sanctum.hide()
+    this.title.showSetup({
+      onStart: (id, stageId, options) => this._startRun(id, stageId, options),
+      onUnlock: () => this._persist(),
+      onBack: () => this._showSanctum(),
+    }, { mode })
     this._needsStaticRender = true
   }
 
@@ -441,9 +710,9 @@ export class Game2D {
     const avoidSeed = finiteSeed(options?.avoidSeed)
     this.runOptions = isShowcaseRunOptions(options)
       ? { mode: SHOWCASE_RUN_MODE_2D }
-      : options?.mode === NORMAL_RUN_MODE_2D
+      : [NORMAL_RUN_MODE_2D, EXPEDITION_RUN_MODE_2D, SURVIVAL_RUN_MODE_2D].includes(options?.mode)
         ? {
-            mode: NORMAL_RUN_MODE_2D,
+            mode: options.mode,
             ...(avoidSeed === null ? {} : { avoidSeed }),
           }
         : null
@@ -453,13 +722,20 @@ export class Game2D {
     this.title.hide()
     this.result.hide()
     this.stage = getStage(stageId ?? 'jade')
+    this.journeyChapter = this.runOptions?.mode === EXPEDITION_RUN_MODE_2D
+      ? getJourneyChapterForStage(this.stage?.id ?? 'jade') : null
+    this.journeyLegacy = this.journeyChapter
+      ? journeyLegacyFor(this.journeyChapter, this.progress.journeyDecisions?.(this.journeyChapter.id))
+      : null
     this.hud.reset?.()
     this.presentation.showTitle()
 
     try {
-      const unlocked = typeof this.audio.ensureUnlocked === 'function'
-        ? this.audio.ensureUnlocked()
-        : this.audio.unlock?.()
+      const unlocked = this.audio.silentOnly
+        ? false
+        : typeof this.audio.ensureUnlocked === 'function'
+          ? this.audio.ensureUnlocked()
+          : this.audio.unlock?.()
       if (!this.audio.muted && unlocked !== false) {
         this.audio.startMusic(this.stage?.id ?? 'jade')
       }
@@ -485,9 +761,19 @@ export class Game2D {
     // cards on their own deterministic stream so a Dao that fires more often
     // cannot silently reroll the player's entire build.
     this.upgradeRng = new RNG(upgradeSeedForRun2D(this.seed))
-    this.interactions = new WorldInteractions2D({ seed: this.seed, stageId: this.stage?.id ?? 'jade' })
+    this.interactions = new WorldInteractions2D({
+      seed: this.seed,
+      stageId: this.stage?.id ?? 'jade',
+      chapter: this.journeyChapter,
+      mode: this.runOptions?.mode === EXPEDITION_RUN_MODE_2D
+        ? EXPEDITION_RUN_MODE_2D : SURVIVAL_RUN_MODE_2D,
+    })
     this.hitEvents.clear()
+    this._clickMoveTarget = null
     this._eliteEncounters.length = 0
+    this._expeditionBossEncounter = null
+    this._expeditionObjectives.clear()
+    this._journeyDecisions.clear()
     this._interactionSnapshotKey = ''
     this.pendingLevels = 0
     this._lastGrowthChoiceAt = Number.NEGATIVE_INFINITY
@@ -495,12 +781,18 @@ export class Game2D {
     this.banishes = this.runProgress.banishCharges
     this.banished = new Set()
     this._invalidateRadarCache()
-    this.daoVows = new DaoVows2D()
+    this.daoVows = daoVowsForRun2D(this.runOptions)
     this._refreshDaoSnapshot()
     this.world = new CombatWorld2D({
       character: getCharacter(selectedCharacterId), stage: this.stage, progress: this.runProgress, rng: this.rng,
       daoVows: this.daoVows,
+      mode: this.runOptions?.mode === EXPEDITION_RUN_MODE_2D
+        ? EXPEDITION_RUN_MODE_2D : SURVIVAL_RUN_MODE_2D,
     })
+    // A recorded chapter decision is inherited exactly once when the next
+    // expedition world is created. It must never be reapplied when opening a
+    // story-choice modal or resuming from pause.
+    applyJourneyLegacy2D(this.world, this.journeyLegacy)
     this.world.onLevels = (levels) => this._breakthrough(levels)
     this.world.onEnd = (victory) => this._endRun(victory)
     this.world.onHit = (x, z, tag, crit, amount) => {
@@ -510,7 +802,10 @@ export class Game2D {
     this.world.onBossTelegraph = (event) => this._playBossCue('telegraph', event)
     this.world.onBossImpact = (event) => this._playBossCue('impact', event)
     this.world.onBossHit = (event) => this._playBossCue('hit', event)
-    this.world.onBossDeath = (event) => this._playBossCue('death', event)
+    this.world.onBossDeath = (event) => {
+      this._playBossCue('death', event)
+      this._completeExpeditionBossEncounter(event)
+    }
     this.world.onPlayerHurt = (amount) => {
       const player = this.world?.player
       this.audio.play('hurt')
@@ -540,14 +835,16 @@ export class Game2D {
       this._banner(final ? `최종 마존 · ${def.name}` : def.name, final ? 2.8 : 2)
       this.progress.markSeen('bosses', def.id)
     }
-    this.world.onPacingMilestone = (event) => {
-      if (event.id === CONTEST_PACING_MILESTONE_2D.poiEmphasis) {
-        this._banner('비경의 영맥이 열렸습니다 · 표식을 찾아가세요', 2.6)
-      } else if (event.id === CONTEST_PACING_MILESTONE_2D.hardTimeout) {
-        this.audio.play('timeout')
-        this._banner('천겁의 시간이 다했습니다', 2)
+    this.world.onPacingMilestone = this.runOptions?.mode === SURVIVAL_RUN_MODE_2D
+      ? (event) => {
+        if (event.id === CONTEST_PACING_MILESTONE_2D.poiEmphasis) {
+          this._banner('천겁의 균열이 열렸습니다 · 표식을 찾아가세요', 2.6)
+        } else if (event.id === CONTEST_PACING_MILESTONE_2D.hardTimeout) {
+          this.audio.play('timeout')
+          this._banner('천겁의 시간이 다했습니다', 2)
+        }
       }
-    }
+      : null
     this.world.onFormation = (event) => {
       const name = event.kind === 'ring' ? '포위진' : event.kind === 'pincer' ? '협격진' : '벽진'
       this.audio.play('formation', { pan: this._audioPanFor(event) })
@@ -559,6 +856,7 @@ export class Game2D {
     this.hud.show()
     this._hideBanner()
     this.state = 'playing'
+    if (this.journeyLegacy) this._banner(`${this.journeyLegacy.name} 전승 · ${this.journeyLegacy.summary}`, 3)
     this.clock.reset()
     this._lastActualRenderAt = undefined
     this._presentedDt = 1 / 60
@@ -573,7 +871,10 @@ export class Game2D {
   _loadViewZoom() {
     try {
       const saved = JSON.parse(localStorage?.getItem('yeongheo.view') ?? 'null')
-      return Number.isFinite(saved?.zoom) ? Math.max(0.85, Math.min(1.25, saved.zoom)) : 1
+      // Version the preference so obsolete 1.25x QA zoom cannot silently make
+      // a new release look cropped on the user's normal Chrome viewport.
+      return saved?.version === 2 && Number.isFinite(saved?.zoom)
+        ? Math.max(0.85, Math.min(1.25, saved.zoom)) : 1
     } catch {
       return 1
     }
@@ -581,7 +882,7 @@ export class Game2D {
 
   _saveViewZoom() {
     try {
-      localStorage?.setItem('yeongheo.view', JSON.stringify({ zoom: this.viewZoom }))
+      localStorage?.setItem('yeongheo.view', JSON.stringify({ version: 2, zoom: this.viewZoom }))
     } catch {
       // The setting remains valid for this session when storage is unavailable.
     }
@@ -599,7 +900,7 @@ export class Game2D {
 
   _hideBanner() {
     clearTimeout(this._bannerTimer)
-    this.banner.hidden = true
+    if (this.banner) this.banner.hidden = true
   }
 
   _breakthrough(levels) {
@@ -690,7 +991,9 @@ export class Game2D {
     if (!this.world || !this.daoVows || this.state !== 'playing' || this.modal.isOpen) return
     const milestone = this.daoVows.milestone
     if (milestone >= DAO_MILESTONE_SECONDS.length) return
-    if (this.world.runTime + 1e-6 < DAO_MILESTONE_SECONDS[milestone]) return
+    if (this.runOptions?.mode === EXPEDITION_RUN_MODE_2D) {
+      if ((this.interactions?.consumed.size ?? 0) <= milestone) return
+    } else if (this.world.runTime + 1e-6 < DAO_MILESTONE_SECONDS[milestone]) return
     if (!canOpenGrowthChoice2D(this.world.runTime, this._lastGrowthChoiceAt)) return
     this._openDaoVowModal()
   }
@@ -735,7 +1038,9 @@ export class Game2D {
     this._needsStaticRender = true
     this.audio.play('breakthrough')
     this.modal.open(choices, (choice) => this._takeDaoVow(choice), {
-      title: snapshot.nextMilestone === 'pledge' ? '천겁의 맹세' : `${snapshot.vowName} · ${milestoneName}`,
+      title: snapshot.nextMilestone === 'pledge'
+        ? this.runOptions?.mode === EXPEDITION_RUN_MODE_2D ? '검로의 맹세' : '천겁의 맹세'
+        : `${snapshot.vowName} · ${milestoneName}`,
       variant: 'dao',
       actions: false,
       hint: '고른 도는 이번 생의 전투와 마지막 마존을 함께 바꿉니다.',
@@ -761,7 +1066,19 @@ export class Game2D {
     this._openNextModal()
   }
 
-  _poiPrompt(type) {
+  _poiPrompt(type, state = 'available') {
+    const poi = this.interactions?.currentRoutePoi?.()
+    const beat = poi ? journeyBeat(this.journeyChapter, poi.routeIndex) : null
+    if (state === 'active') return '수호 전투 진행 중'
+    if (type === 'evidence') return 'E · 남은 검흔 살피기'
+    if (type === 'false_trace') return 'E · 수상한 발자국 대조'
+    if (state === 'dormant') {
+      if (beat?.prompt?.dormant) return beat.prompt.dormant
+      if (type === 'altar') return 'E · 흐트러진 영맥 조사'
+      if (type === 'treasure') return 'E · 봉인된 문서 조사'
+      return 'E · 마기 봉인 조사'
+    }
+    if (state === 'cleared' && beat?.prompt?.cleared) return beat.prompt.cleared
     if (type === 'altar') return 'E · 제단에서 축복 받기'
     if (type === 'treasure') return 'E · 비경 보물 열기'
     if (type === 'elite_seal') return 'E · 정예 봉인 해제'
@@ -770,9 +1087,66 @@ export class Game2D {
 
   _applyPoiReward(event) {
     if (!event || !this.world) return
+    if (event.type === 'investigation_clue_found') {
+      this._banner(`${event.label} · ${event.observation}`, event.complete ? 4.2 : 3.4)
+      this._refreshWorldInteractions(true)
+      this._hudNeedsRefresh = true
+      return
+    }
+    if (event.type === 'poi_guardian_requested') {
+      const beat = journeyBeat(this.journeyChapter, event.routeIndex)
+      const roster = beat?.guardians ?? ['wisp', 'wisp', 'wolf']
+      if (beat?.guardianBossId) {
+        const spawned = this.world.spawnBoss(beat.guardianBossId)
+        if (spawned) {
+          this._expeditionBossEncounter = {
+            bossId: beat.guardianBossId,
+            poiId: event.poiId,
+            x: event.x,
+            z: event.z,
+            experience: 90 + (event.routeIndex ?? 0) * 25,
+          }
+          this._banner(`${beat.guardianLabel} · 결전`, 2.4)
+        } else {
+          this.interactions.markGuardianCleared(event.poiId)
+        }
+        this._refreshWorldInteractions(true)
+        return
+      }
+      const uids = new Set()
+      const spawnPositions = expeditionGuardianSpawnPositions2D(
+        event,
+        this.world.player,
+        roster.length,
+      )
+      for (let i = 0; i < roster.length; i++) {
+        const uid = this.world.enemies.nextUid
+        const spawn = spawnPositions[i]
+        const spawned = this.world.enemies.spawn(
+          roster[i], spawn.x, spawn.z,
+          this.world.runTime, 1.08 + (event.routeIndex ?? 0) * 0.16, 1,
+        )
+        if (spawned) uids.add(uid)
+      }
+      if (uids.size === 0) {
+        this.interactions.markGuardianCleared(event.poiId)
+      } else {
+        this._eliteEncounters.push({
+          uids, experience: 35 + (event.routeIndex ?? 0) * 25,
+          x: event.x, z: event.z, poiId: event.poiId,
+        })
+      }
+      this.world.effects.spawn(2, event.x, event.z, 0.9, 6.2, 0xe5b75d)
+      this._banner(`${beat?.guardianLabel ?? '사건 수호자'} · ${uids.size}체 출현`, 2)
+      this._refreshWorldInteractions(true)
+      return
+    }
     const player = this.world.player
     const reward = event.reward
-    if (reward.kind === 'blessing') {
+    const beat = journeyBeat(this.journeyChapter, event.routeIndex)
+    if (reward.options?.length) {
+      this._openJourneyChoice(reward, beat)
+    } else if (reward.kind === 'blessing') {
       const mod = reward.stat === 'power'
         ? { stat: 'might', op: 'mul', value: reward.amount }
         : reward.stat === 'haste'
@@ -808,42 +1182,157 @@ export class Game2D {
       }
       this.world.effects.spawn(2, event.x, event.z, 0.9, 6.2, 0xe5b75d)
       this._banner(`정예 봉인 해제 · ${uids.size}체 출현`, 1.8)
+    } else if (reward.kind === 'seal-reclaimed' || reward.kind === 'seal_reclaimed') {
+      player.stones += reward.spiritStones
+      const levels = player.addXp(reward.experience)
+      if (levels > 0) this.world.onLevels?.(levels)
+      this.world.effects.spawn(2, event.x, event.z, 0.95, 7.2, 0x73e3bd)
+      this._banner(`봉인 회수 · 영석 ${reward.spiritStones} · 영기 ${reward.experience}`, 2)
     } else if (reward.kind === 'healing') {
       player.heal(player.maxHp * reward.healthFraction, 'spring')
       this.world.effects.spawn(2, event.x, event.z, 0.7, 4.5, 0x73e3bd)
       this._banner('회복 샘의 기운으로 체력을 회복했습니다', 1.6)
     }
     if (reward.kind !== 'healing') this.audio.play('levelPick')
+    if (this.runOptions?.mode === EXPEDITION_RUN_MODE_2D) {
+      this._expeditionObjectives.add(event.poiId ?? `route:${event.routeIndex ?? this._expeditionObjectives.size}`)
+      if (!reward.options?.length) this._banner(beat?.resolved ?? '탐사 표식 완료', 2)
+      if (this._expeditionObjectives.size >= (this.journeyChapter?.route?.length ?? 3)
+        && !this.world.boss?.active && !this.world.victory) {
+        this.world.spawnBoss(this.journeyChapter?.boss?.id ?? this.world.finalBossId)
+        this._banner(`${this.journeyChapter?.boss?.title ?? '비경 결계'} · 수호자 출현`, 2.8)
+      }
+    }
     this._refreshWorldInteractions(true)
+  }
+
+  _completeExpeditionBossEncounter(event) {
+    const encounter = this._expeditionBossEncounter
+    if (!encounter || !this.world || event?.bossId !== encounter.bossId) return false
+    const levels = this.world.player.addXp(encounter.experience)
+    if (levels > 0) this.world.onLevels?.(levels)
+    this.world.effects.spawn(2, encounter.x, encounter.z, 1, 6.4, 0xf2c76f)
+    if (this.interactions?.markGuardianCleared(encounter.poiId)) {
+      this._refreshWorldInteractions(true)
+      this._banner(`${event.bossName ?? '요왕'} 격파 · 봉인 문서를 회수하십시오`, 2.5)
+    }
+    this._expeditionBossEncounter = null
+    return true
+  }
+
+  _openJourneyChoice(reward, beat = null) {
+    if (!reward?.options?.length || !this.world || this.modal.isOpen) return false
+    // A story decision is a full-screen growth choice too. Record its gameplay
+    // timestamp so a pending Dao milestone cannot immediately replace it when
+    // the modal closes and turn the chapter into back-to-back menus.
+    this._lastGrowthChoiceAt = this.world.runTime
+    this.state = 'journeyChoice'
+    const choices = reward.options.map((option) => ({
+      ...option,
+      kind: 'consumable',
+      iconId: option.iconId ?? (option.id === 'jade-edge' ? 'sword-oath'
+        : option.id === 'jade-step' ? 'windstep' : 'healing-core'),
+      step: '이번 탐사의 기연',
+    }))
+    this.modal.open(choices, (choice) => {
+      for (const mod of choice.mods ?? []) this.world.player.metaMods.push({ ...mod })
+      this.world.player.recomputeStats()
+      if (choice.healFraction) this.world.player.heal(this.world.player.maxHp * choice.healFraction, 'journey')
+      if (Number.isFinite(reward.spiritStones)) this.world.player.stones += reward.spiritStones
+      if (Number.isFinite(reward.experience)) {
+        const levels = this.world.player.addXp(reward.experience)
+        if (levels > 0) this.world.onLevels?.(levels)
+      }
+      if (beat?.id) {
+        const decision = { beatId: beat.id, choiceId: choice.id, name: choice.name, outcome: choice.outcome ?? choice.desc }
+        this._journeyDecisions.set(beat.id, decision)
+        this.progress.recordJourneyDecision?.(this.journeyChapter?.id, decision)
+        this._persist?.()
+      }
+      this.state = 'playing'
+      this._hudNeedsRefresh = true
+      this._banner(`${choice.name} · 검로에 새겼습니다`, 2)
+    }, {
+      title: reward.title ?? '검로의 응답',
+      hint: reward.description ?? '이번 탐사에 이어질 기연을 고르십시오.',
+      actions: false,
+    })
+    this._needsStaticRender = true
+    return true
   }
 
   _refreshWorldInteractions(force = false) {
     if (!this.world || !this.interactions) return
     const player = this.world.player
-    const key = `${mapChunkKey(player.x, player.z)}:${this.interactions.consumed.size}`
+    const investigationRevision = [...this.interactions.investigations.values()]
+      .reduce((total, clues) => total + clues.size, 0)
+    const key = `${mapChunkKey(player.x, player.z)}:${this.interactions.consumed.size}:${investigationRevision}`
     if (force || key !== this._interactionSnapshotKey) {
       this.world.interactionsSnapshot = this.interactions.getRenderSnapshot(player.x, player.z)
       this._interactionSnapshotKey = key
       this._invalidateRadarCache()
     }
-    const nearby = this.interactions.findNearby(player.x, player.z, 0.45)
+    const nearby = this.interactions.findNearby(player.x, player.z, STORY_INTERACTION_MARGIN_2D)
     this.world.nearbyPoiId = nearby?.id ?? null
     this.interactionPrompt.hidden = !nearby || this.state !== 'playing'
-    if (nearby) this.interactionPrompt.textContent = this._poiPrompt(nearby.type)
+    if (nearby) {
+      this.interactionPrompt.textContent = this._poiPrompt(nearby.type, this.interactions.stateForPoi(nearby))
+    }
   }
 
   _updateWorldInteractions() {
-    const requested = this.input.consumeInteract()
+    let requested = this.input.consumeInteract()
     if (!this.world || !this.interactions || this.state !== 'playing') {
       this.interactionPrompt.hidden = true
       return
     }
     this._refreshWorldInteractions()
+    // Investigation traces and their final field conclusion are discoveries,
+    // not chests. Contact reads them for both click and keyboard players. This
+    // avoids switching a mouse-led investigation to a hidden keyboard-only
+    // confirmation at the last metre of the route.
+    if (!requested && this.world.nearbyPoiId) {
+      const nearby = this.interactions.findNearby(
+        this.world.player.x,
+        this.world.player.z,
+        STORY_INTERACTION_MARGIN_2D,
+      )
+      const beat = nearby?.routeIndex === undefined
+        ? null : journeyBeat(this.journeyChapter, nearby.routeIndex)
+      const completedInvestigation = beat?.encounter?.kind === 'investigation'
+        && this.interactions.stateForPoi(nearby) === 'cleared'
+      if (nearby?.parentPoiId || completedInvestigation) requested = true
+    }
     if (!requested) return
     const player = this.world.player
-    const event = this.interactions.interact(player.x, player.z, 0.45)
-    if (event) this._invalidateRadarCache()
+    const event = this.interactions.interact(
+      player.x,
+      player.z,
+      STORY_INTERACTION_MARGIN_2D,
+    )
+    if (event) {
+      this._invalidateRadarCache()
+      this._refreshWorldInteractions(true)
+    }
     for (const event of this.interactions.drainEvents()) this._applyPoiReward(event)
+  }
+
+  _movementInput2D() {
+    if (!this.world || !this._clickMoveTarget || this.input.hasMove) {
+      if (this.input.hasMove) this._clickMoveTarget = null
+      return this.input
+    }
+    const vector = clickMoveVector2D(this.world.player, this._clickMoveTarget)
+    if (vector.arrived) {
+      this._clickMoveTarget = null
+      return this.input
+    }
+    const source = this.input
+    return {
+      get moveX() { return vector.x },
+      get moveZ() { return vector.z },
+      consumeDash: () => source.consumeDash(),
+    }
   }
 
   _flushHitPresentation() {
@@ -884,7 +1373,12 @@ export class Game2D {
       if (levels > 0) this.world.onLevels?.(levels)
       this.world.effects.spawn(2, encounter.x, encounter.z, 0.8, 5.4, 0xf2c76f)
       this.audio.play('levelPick')
-      this._banner(`정예 격파 · 영기 ${encounter.experience}`, 1.7)
+      if (encounter.poiId && this.interactions?.markGuardianCleared(encounter.poiId)) {
+        this._refreshWorldInteractions(true)
+        this._banner('사건 수호자 격파 · 현장을 마무리하십시오', 2)
+      } else {
+        this._banner(`정예 격파 · 영기 ${encounter.experience}`, 1.7)
+      }
     }
     this._eliteEncounters = survivors
   }
@@ -917,8 +1411,7 @@ export class Game2D {
 
   _replayData() {
     const trialId = Number.isFinite(this.runProgress?.trial) ? this.runProgress.trial : 0
-    const mode = this.runOptions?.mode === SHOWCASE_RUN_MODE_2D
-      ? SHOWCASE_RUN_MODE_2D : NORMAL_RUN_MODE_2D
+    const mode = this.runOptions?.mode ?? NORMAL_RUN_MODE_2D
     const seed = finiteSeed(this.seed) ?? 0
     return {
       seed,
@@ -1028,6 +1521,7 @@ export class Game2D {
     this.state = 'result'
     this._resultAwaitNeutral = true
     this.interactionPrompt.hidden = true
+    this._hideBanner()
     this.hud.hide()
     this.hints.hide()
     this.pause.hide()
@@ -1038,17 +1532,28 @@ export class Game2D {
 
     const player = this.world.player
     const runProgress = this.runProgress ?? this.progress
-    const earned = this.progress.addStones(player.stones * runProgress.stoneMultiplier)
+    const mode = this.runOptions?.mode ?? NORMAL_RUN_MODE_2D
+    const rewardMultiplier = typeof runProgress.stoneMultiplierFor === 'function'
+      ? runProgress.stoneMultiplierFor(mode)
+      : mode === EXPEDITION_RUN_MODE_2D ? 1 : runProgress.stoneMultiplier
+    const earned = this.progress.addStones(player.stones * rewardMultiplier)
     const bests = this.progress.recordRun({
       runTime: this.world.runTime, level: player.level, kills: this.world.enemies.killCount, victory,
+      mode,
     })
-    if (victory) this.progress.markStageCleared(this.stage?.id)
+    if (victory && mode === EXPEDITION_RUN_MODE_2D) {
+      this.progress.markStageCleared(this.stage?.id)
+      this.progress.markJourneyChapter?.(this.journeyChapter?.id ?? `${this.stage?.id}:guardian`)
+    }
     const achievements = this.progress.awardAchievements({
       runTime: this.world.runTime,
       level: player.level,
       kills: this.world.enemies.killCount,
       victory,
-      trial: runProgress.trial,
+      mode,
+      trial: mode === EXPEDITION_RUN_MODE_2D ? 0 : runProgress.trial,
+      objectivesCompleted: mode === EXPEDITION_RUN_MODE_2D ? this._expeditionObjectives.size : 0,
+      decisionCount: mode === EXPEDITION_RUN_MODE_2D ? this._journeyDecisions.size : 0,
       weaponCount: this.world.weaponCache.length,
       ...this.world.runStats,
     })
@@ -1066,6 +1571,7 @@ export class Game2D {
     const restartStageId = this.stage?.id
     this.result.show({
       victory,
+      mode,
       runTime: this.world.runTime,
       level: player.level,
       realm: realmFor(player.level),
@@ -1083,6 +1589,17 @@ export class Game2D {
       stage,
       stageId: stage?.id ?? null,
       stageName: stage?.name ?? null,
+      journey: mode === EXPEDITION_RUN_MODE_2D && this.journeyChapter ? {
+        id: this.journeyChapter.id,
+        indexLabel: this.journeyChapter.indexLabel,
+        title: this.journeyChapter.title,
+        completionCopy: this.journeyChapter.completionCopy,
+        nextGoal: this.journeyChapter.nextGoal,
+        objectivesCompleted: this._expeditionObjectives.size,
+        objectivesTotal: this.journeyChapter.route.length,
+        decisions: [...(this._journeyDecisions?.values?.() ?? [])],
+        legacy: this.journeyLegacy,
+      } : null,
       trial: trialId,
       trialId,
       trialInfo: trial ? {
@@ -1103,9 +1620,9 @@ export class Game2D {
       // A result retry is deliberately a fresh normal run. `replay` above is
       // the separate same-seed reproduction record for QA and sharing.
       onRestart: () => this._startRun(
-        restartCharacterId, restartStageId, normalRetryOptions2D(replay.seed),
+        restartCharacterId, restartStageId, retryOptions2D(replay.mode, replay.seed),
       ),
-      onMenu: () => this._showTitle(),
+      onMenu: () => this._showSanctum(),
     })
     this._needsStaticRender = true
   }
@@ -1120,11 +1637,12 @@ export class Game2D {
       this._lastDir = 0
       return
     }
-    const modalOwnsConfirm = this.state === 'levelUp' || this.state === 'daoVow'
+    const modalOwnsConfirm = this.state === 'levelUp' || this.state === 'daoVow' || this.state === 'journeyChoice'
     let dir = 0
     if (this.input.moveX > 0.5) dir = 1
     else if (this.input.moveX < -0.5) dir = -1
-    if (this.state === 'title') this.title.handleKey(slot, confirm, this._edge(dir))
+    if (this.state === 'title' || this.state === 'setup') this.title.handleKey(slot, confirm, this._edge(dir))
+    else if (this.state === 'sanctum') this.sanctum.handleKey(slot, confirm, this._edge(dir))
     else if (modalOwnsConfirm) this.modal.handleKey(slot, confirm, this._edge(dir))
     else if (this.state === 'result') this.result.handleKey(confirm, this._edge(dir))
     else if (this.state === 'shop') this.shop.handleKey(confirm)
@@ -1152,7 +1670,9 @@ export class Game2D {
       weapons: [], passives: [], boss: null, runId: 0,
       firstVow: null, firstVowCountdown: null, firstVowObjective: null, daoRuntime: null,
     }
-    const interactionRevision = this.interactions?.consumed?.size ?? 0
+    const investigationRevision = [...(this.interactions?.investigations?.values?.() ?? [])]
+      .reduce((total, clues) => total + (clues?.size ?? 0), 0)
+    const interactionRevision = (this.interactions?.consumed?.size ?? 0) + investigationRevision
     const radarTime = Number.isFinite(this.world.runTime) ? this.world.runTime : 0
     if (
       radarTime < this._radarCacheAt
@@ -1164,7 +1684,7 @@ export class Game2D {
       const poiPoints = []
       const poiRadius = RADAR_RADIUS
       for (const poi of this.world.interactionsSnapshot?.items ?? []) {
-        if (poi.state !== 'available' || this.interactions?.isConsumed?.(poi.id)) continue
+        if (poi.state === 'locked' || poi.state === 'consumed' || this.interactions?.isConsumed?.(poi.id)) continue
         const dx = poi.x - player.x
         const dz = poi.z - player.z
         const distanceSq = dx * dx + dz * dz
@@ -1183,7 +1703,8 @@ export class Game2D {
     }
     const boss = this.world.boss?.active ? this.world.boss : null
     const daoVow = this._getDaoSnapshot()
-    const firstVow = firstVowHudState2D(this.world.runTime, daoVow)
+    const firstVow = this.runOptions?.mode === EXPEDITION_RUN_MODE_2D
+      ? null : firstVowHudState2D(this.world.runTime, daoVow)
     const daoRuntime = daoRuntimeHudState2D(
       this.world.daoRuntime ?? this.world.daoCombatRuntime ?? null,
     )
@@ -1195,6 +1716,7 @@ export class Game2D {
       level: player.level,
       realm: realmFor(player.level),
       runTime: this.world.runTime,
+      mode: this.runOptions?.mode ?? NORMAL_RUN_MODE_2D,
       kills: this.world.enemies.killCount,
       stones: Math.round(player.stones),
       dashCooldown: player.dashCooldown,
@@ -1208,6 +1730,18 @@ export class Game2D {
       firstVow,
       firstVowCountdown: firstVow?.countdown ?? null,
       firstVowObjective: firstVow?.objective ?? null,
+      objective: this.runOptions?.mode === EXPEDITION_RUN_MODE_2D
+        ? expeditionObjective2D(
+            this.interactions,
+            this._expeditionObjectives.size,
+            boss,
+            this.journeyChapter,
+            player,
+          )
+        : firstVow?.objective ?? null,
+      expeditionLabel: this.runOptions?.mode === EXPEDITION_RUN_MODE_2D
+        ? `${this.journeyChapter?.indexLabel ?? '본편'} · 사건 ${Math.min(this._expeditionObjectives.size, this.journeyChapter?.route?.length ?? 0)}/${this.journeyChapter?.route?.length ?? 0}`
+        : null,
       daoRuntime,
       boss: boss ? {
         name: boss.def.name, hp: boss.hp, maxHp: boss.maxHp, referenceAsset: boss.def.referenceAsset ?? null,
@@ -1232,6 +1766,7 @@ export class Game2D {
     const world = this.world
     const player = world?.player
     return {
+      mode: this.runOptions?.mode ?? NORMAL_RUN_MODE_2D,
       runTime: world?.runTime ?? 0,
       level: player?.level ?? 1,
       kills: world?.enemies.killCount ?? 0,
@@ -1295,19 +1830,23 @@ export class Game2D {
     if (this.input.consumeDebug()) this.debug.toggle()
     if (this.input.consumeQuality()) this._banner(`화질 ${this.quality.cycle()}`, 1.4)
     if (this.input.consumeMute()) {
-      const muted = this.audio.toggleMute()
-      if (!muted) {
-        // The global keydown listener normally unlocks before this RAF edge is
-        // consumed. Keep the edge self-sufficient for synthetic input and for
-        // browsers that defer the event dispatch.
-        const ensure = this.audio.ensureUnlocked ?? this.audio.unlock
-        const unlocked = typeof ensure === 'function' ? ensure.call(this.audio) : false
-        if (unlocked && this.audio._musicOn === false && this.stage?.id
-          && typeof this.audio.startMusic === 'function') {
-          this.audio.startMusic(this.stage.id)
+      if (this.audio.silentOnly) {
+        this._banner('이 빌드에서는 소리를 재생하지 않습니다', 1.2)
+      } else {
+        const muted = this.audio.toggleMute()
+        if (!muted) {
+          // The global keydown listener normally unlocks before this RAF edge is
+          // consumed. Keep the edge self-sufficient for synthetic input and for
+          // browsers that defer the event dispatch.
+          const ensure = this.audio.ensureUnlocked ?? this.audio.unlock
+          const unlocked = typeof ensure === 'function' ? ensure.call(this.audio) : false
+          if (unlocked && this.audio._musicOn === false && this.stage?.id
+            && typeof this.audio.startMusic === 'function') {
+            this.audio.startMusic(this.stage.id)
+          }
         }
+        this._banner(muted ? '음소거' : '소리 켜짐', 1.2)
       }
-      this._banner(muted ? '음소거' : '소리 켜짐', 1.2)
     }
     if (this.input.consumePause() && (this.state === 'playing' || this.state === 'paused')) {
       this._setPaused(this.state === 'playing')
@@ -1318,7 +1857,10 @@ export class Game2D {
     if (this.state === 'playing' && this.world) {
       const ticks = this.clock.step(dt)
       for (let i = 0; i < ticks; i++) {
-        this.world.update(FIXED_DT, this.input)
+        this.world.update(FIXED_DT, this._movementInput2D())
+        if (this.runOptions?.mode === EXPEDITION_RUN_MODE_2D) {
+          resolveStoryPropCollision2D(this.world.player, this.interactions?.currentRoutePoi?.())
+        }
         this._checkDaoMilestone()
         if (this.state !== 'playing') break
       }
@@ -1332,14 +1874,15 @@ export class Game2D {
     }
     this._perf.simMs = performance.now() - simStart
 
-    if (this.world && (this.state === 'playing' || this.state === 'levelUp' || this.state === 'daoVow' || this.state === 'paused')) {
+    if (this.world && (this.state === 'playing' || this.state === 'levelUp' || this.state === 'daoVow' || this.state === 'journeyChoice' || this.state === 'paused')) {
       if (isHudLiveState(this.state)) {
         this.hud.update(this._hudState(), dt)
         this._hudNeedsRefresh = false
       }
       this.audio.update(dt, {
         runTime: this.world.runTime,
-        runSeconds: CONTEST_PACING_DURATION_SECONDS,
+        runSeconds: this.runOptions?.mode === SURVIVAL_RUN_MODE_2D
+          ? CONTEST_PACING_DURATION_SECONDS : Number.POSITIVE_INFINITY,
         hpFraction: this.world.player.hp / this.world.player.maxHp,
         bossAlive: Boolean(this.world.boss?.active),
       })
@@ -1348,7 +1891,7 @@ export class Game2D {
     else this.hints.hide()
 
     const interactive = this.state === 'playing'
-    const staticWorld = this.state === 'levelUp' || this.state === 'daoVow' || this.state === 'paused' || this.state === 'result'
+    const staticWorld = this.state === 'levelUp' || this.state === 'daoVow' || this.state === 'journeyChoice' || this.state === 'paused' || this.state === 'result'
     const interval = interactive ? GAME_RENDER_INTERVAL : MENU_RENDER_INTERVAL
     if (this._lastPresentedAt === undefined) this._renderBudgetMs = interval
     else {
@@ -1571,7 +2114,7 @@ export class Game2D {
     // main.js exposes debug handles for the current instance. Clear only
     // handles that still belong to this game, so a newer instance cannot be
     // accidentally detached during a late disposal.
-    if (typeof window !== 'undefined') {
+    if (import.meta.env.DEV && typeof window !== 'undefined') {
       const ownsGame = window.__game === this
       const ownsGame2d = window.__game2d === this
       if (ownsGame) window.__game = null
@@ -1586,6 +2129,8 @@ export class Game2D {
     removeEventListener('resize', this._onResize)
     removeEventListener('pointerdown', this._unlockAudio)
     removeEventListener('keydown', this._unlockAudio)
+    this.canvas?.removeEventListener?.('pointermove', this._onPointerMove)
+    this.canvas?.removeEventListener?.('pointerdown', this._onPointerDown)
     document.removeEventListener('visibilitychange', this._onVisibility)
     this.audio.dispose()
     this.input.dispose()
@@ -1593,6 +2138,7 @@ export class Game2D {
     this.hud.dispose()
     this.modal.dispose()
     this.title.dispose()
+    this.sanctum?.dispose?.()
     this.result.dispose()
     this.shop.dispose()
     this.codex.dispose()

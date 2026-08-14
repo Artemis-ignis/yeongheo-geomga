@@ -3,7 +3,7 @@ import { applyDaoVowCssVars, getDaoVowVisual } from './Hud.js'
 import { getWeapon } from '../data/weapons.js'
 import { getPassive } from '../data/passives.js'
 
-const RESULT_HERO_ART = 'assets/sprites2d/seolryeong-combat-v1.png'
+const RESULT_HERO_ART = 'assets/sprites2d/seolryeong-combat-v1.webp'
 
 const BOSS_PATTERN_LABELS = Object.freeze({
   radialVolley: '전방위 탄막',
@@ -180,6 +180,31 @@ export class ResultScreen {
     const m = Math.floor(result.runTime / 60)
     const s = Math.floor(result.runTime % 60)
     const time = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    const mode = result.mode ?? result.replay?.mode ?? 'normal'
+    const isExpedition = mode === 'expedition'
+    const outcome = isExpedition
+      ? {
+          kicker: '비경 탐사의 결말',
+          victoryTitle: '비경 귀환',
+          defeatTitle: '탐사 중단',
+          victoryFlavor: '영맥을 바로잡고 비경의 문서를 거두어 영허전으로 귀환했다.',
+          defeatFlavor: '목숨을 보전하기 위해 검을 거두고 비경에서 물러났다.',
+          rewardSuccess: '탐사 완수',
+          restart: '다시 탐사한다',
+          restartDetail: '새 영맥 · 같은 비경',
+          timeLabel: '탐사 시간',
+        }
+      : {
+          kicker: '천겁 기록전의 결말',
+          victoryTitle: '천겁 돌파',
+          defeatTitle: '시련 종결',
+          victoryFlavor: '몰려드는 요괴와 마존을 베어 천겁의 끝에 섰다.',
+          defeatFlavor: '기혈이 다해 이번 천겁의 검로를 여기서 마쳤다.',
+          rewardSuccess: '시련 돌파',
+          restart: '다시 시련에 든다',
+          restartDetail: '같은 비경 · 같은 시련',
+          timeLabel: '생존 시간',
+        }
 
     const evolutionIds = new Set(
       result.evolutionIds ?? result.build?.evolutions?.map((item) => item?.id).filter(Boolean) ?? [],
@@ -235,7 +260,7 @@ export class ResultScreen {
       </section>` : ''
 
     const stageName = readableField(result.stageName ?? result.stage?.name ?? result.stageId)
-    const trialName = readableField(result.trialInfo ?? result.trial)
+    const trialName = isExpedition ? '' : readableField(result.trialInfo ?? result.trial)
     const bossSummary = bossField(result.bossSummary ?? result.boss)
     const runContext = [
       stageName ? `<div><span>비경</span><b>${escapeHtml(stageName)}</b></div>` : '',
@@ -243,40 +268,62 @@ export class ResultScreen {
       bossSummary ? `<div><span>보스 기록</span><b>${escapeHtml(bossSummary)}</b></div>` : '',
     ].filter(Boolean).join('')
     const runContextBlock = runContext ? `
-      <section class="result-run-context" aria-label="이번 출정의 장소와 시련">
+      <section class="result-run-context" aria-label="이번 출정의 장소와 기록">
         ${runContext}
+      </section>` : ''
+    const journeyDecisions = (result.journey?.decisions ?? [])
+      .map((decision) => `<li><b>${escapeHtml(decision.name ?? decision.choiceId)}</b><span>${escapeHtml(decision.outcome ?? '')}</span></li>`)
+      .join('')
+    const journeyBlock = isExpedition && result.journey ? `
+      <section class="result-journey" aria-label="비경 여정 진행">
+        <span>${escapeHtml(result.journey.indexLabel ?? '본편')}</span>
+        <div>
+          <b>${escapeHtml(result.journey.title ?? '비경 탐사')}</b>
+          <p>${escapeHtml(result.victory ? result.journey.completionCopy : '이번 탐사에서 회수한 기록은 영허전에 보존됩니다.')}</p>
+          <em>다음 목표 · ${escapeHtml(result.journey.nextGoal ?? '영허전에서 다음 검로를 확인하십시오.')}</em>
+          ${result.journey.legacy ? `<p class="result-journey-legacy">이어진 전승 · <b>${escapeHtml(result.journey.legacy.name)}</b> · ${escapeHtml(result.journey.legacy.summary)}</p>` : ''}
+          ${journeyDecisions ? `<ul class="result-journey-decisions" aria-label="이번 장의 결단">${journeyDecisions}</ul>` : ''}
+        </div>
+        <strong>${escapeHtml(result.journey.objectivesCompleted ?? 0)}/${escapeHtml(result.journey.objectivesTotal ?? 0)}</strong>
       </section>` : ''
     const earnedStones = result.earnedStones ?? result.stones ?? 0
 
     this.node.innerHTML = `
       <div class="screen-inner">
-        <h1 class="result-banner ${result.victory ? 'win' : 'lose'}" id="result-title">
-          ${result.victory ? '승천' : '좌화'}
-        </h1>
-        <p class="result-flavor" id="result-description">
-          ${result.victory
-            ? '마존을 베고 비경의 마기를 걷어냈다. 그대는 승천한다.'
-            : '기혈이 다해 그 자리에 앉은 채 숨을 거두었다.'}
-        </p>
+        <header class="result-heading">
+          <div class="result-kicker">${outcome.kicker}</div>
+          <h1 class="result-banner ${result.victory ? 'win' : 'lose'}" id="result-title">
+            ${result.victory ? outcome.victoryTitle : outcome.defeatTitle}
+          </h1>
+          <p class="result-flavor" id="result-description">
+            ${result.victory
+              ? outcome.victoryFlavor
+              : outcome.defeatFlavor}
+          </p>
+        </header>
         <section class="result-hero-reward" aria-label="설령의 출정 결과">
           <div class="result-hero-art">
             <img src="${assetUrl(RESULT_HERO_ART)}" alt="설령의 전투 외형" />
           </div>
           <div class="result-reward-copy">
-            <span class="result-reward-kicker">${result.victory ? '출정 성공' : '출정 기록'}</span>
+            <span class="result-reward-kicker">${result.victory ? outcome.rewardSuccess : '출정 기록'}</span>
             <strong>영석 <em>+${escapeHtml(earnedStones)}</em></strong>
             <span>단전에 쌓인 보상으로 다음 출정을 준비하십시오.</span>
-            <img class="result-reward-icon" src="${iconFor('stones')}" alt="영석 보상 아이콘" title="영석 · 다음 출정의 영구 강화 재화" />
+            <div class="result-reward-seal">
+              <img class="result-reward-icon" src="${iconFor('stones')}" alt="영석 보상 아이콘" title="영석 · 다음 출정의 영구 강화 재화" />
+              <span>다음 생으로<br />이어지는 영석</span>
+            </div>
           </div>
         </section>
         ${runContextBlock}
+        ${journeyBlock}
         ${dao}
         <div class="result-actions">
-          <button type="button" class="btn clickable" data-action="restart">같은 비경 다시 도전</button>
-          <button type="button" class="btn btn-alt clickable" data-action="menu">문파로 돌아가기 · 단전 강화</button>
+          <button type="button" class="btn clickable" data-action="restart"><span>${outcome.restart}</span><small>${outcome.restartDetail}</small></button>
+          <button type="button" class="btn btn-alt clickable" data-action="menu">영허전으로 돌아가기</button>
         </div>
         <div class="result-stats">
-          <div><span>생존 시간</span><b>${escapeHtml(time)}${result.bests?.time ? ' <em>신기록</em>' : ''}</b></div>
+          <div><span>${outcome.timeLabel}</span><b>${escapeHtml(time)}${result.bests?.time ? ' <em>신기록</em>' : ''}</b></div>
           <div><span>도달 경지</span><b>${escapeHtml(result.realm?.name ?? '알 수 없음')} ${escapeHtml(result.level ?? 0)}층${result.bests?.level ? ' <em>신기록</em>' : ''}</b></div>
           <div><span>처치 수</span><b>${escapeHtml(result.kills ?? 0)}</b></div>
           <div><span>가한 피해</span><b>${escapeHtml(Math.round(result.damageDealt ?? 0).toLocaleString('ko-KR'))}</b></div>
@@ -288,7 +335,10 @@ export class ResultScreen {
         </section>
         ${achievements}
         <div class="result-bank">보유 영석 <b>${result.totalStones ?? 0}</b> · 단전에서 영구 강화에 쓸 수 있다</div>
-        <div class="result-seed" aria-label="출정 seed">seed ${escapeHtml(result.seed)}</div>
+        <details class="result-record">
+          <summary>출정 기록 번호</summary>
+          <code>${escapeHtml(result.seed)}</code>
+        </details>
       </div>`
 
     const daoNode = this.node.querySelector('.result-dao')

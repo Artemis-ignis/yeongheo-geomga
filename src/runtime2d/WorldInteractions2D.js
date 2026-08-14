@@ -5,8 +5,9 @@ import {
   mapRegionForChunk,
   mapChunkAt,
 } from './WorldMap2D.js'
+import { getJourneyChapterForStage, journeyBeat, journeyRewardRoll } from '../data/journey.js'
 
-export const WORLD_INTERACTIONS_VERSION = 1
+export const WORLD_INTERACTIONS_VERSION = 4
 export const DEFAULT_INTERACTION_SEED = 0x7a11ce
 
 export const POI_TYPE = Object.freeze({
@@ -23,12 +24,19 @@ const POI_RADIUS = Object.freeze({
   [POI_TYPE.eliteSeal]: 2.8,
   [POI_TYPE.healingSpring]: 2.5,
 })
+const INVESTIGATION_CLUE_RADIUS = 1.75
 
 const GUIDANCE_POI_CHUNKS = Object.freeze([
   Object.freeze({ x: 1, z: 0 }),
   Object.freeze({ x: 0, z: 1 }),
   Object.freeze({ x: -2, z: 0 }),
   Object.freeze({ x: 0, z: -2 }),
+])
+
+export const EXPEDITION_ROUTE_TYPES = Object.freeze([
+  POI_TYPE.altar,
+  POI_TYPE.treasure,
+  POI_TYPE.eliteSeal,
 ])
 
 /**
@@ -78,7 +86,40 @@ function freezePoi(poi) {
     chunkX: poi.chunkX,
     chunkZ: poi.chunkZ,
     interactionRadius: poi.interactionRadius,
+    routeIndex: Number.isInteger(poi.routeIndex) ? poi.routeIndex : null,
+    beatId: typeof poi.beatId === 'string' ? poi.beatId : null,
   })
+}
+
+/** Three authored beats that lead away from the sanctuary to its guardian. */
+export function expeditionRoutePois(seed = DEFAULT_INTERACTION_SEED, stageId = 'jade', chapter = null) {
+  seed >>>= 0
+  stageId = normalizeStageId(stageId)
+  chapter ??= getJourneyChapterForStage(stageId)
+  const stageSeed = (seed ^ hashText(stageId)) >>> 0
+  return Object.freeze(chapter.route.map((beat, routeIndex) => {
+    const authored = beat.position
+    const chunk = authored ? mapChunkAt(authored.x, authored.z) : beat.chunk
+    const margin = 8
+    const span = MAP_CHUNK_SIZE - margin * 2
+    const xHash = hashMapCell(chunk.x * 13 + routeIndex, chunk.z * 7, stageSeed ^ 0x6c8e9cf5)
+    const zHash = hashMapCell(chunk.x * 5, chunk.z * 17 + routeIndex, stageSeed ^ 0x9e3779b9)
+    const x = authored?.x ?? chunk.x * MAP_CHUNK_SIZE + margin + unitFloat(xHash) * span
+    const z = authored?.z ?? chunk.z * MAP_CHUNK_SIZE + margin + unitFloat(zHash) * span
+    const type = beat.type ?? EXPEDITION_ROUTE_TYPES[routeIndex]
+    return freezePoi({
+      id: `${poiPrefix(stageId, seed)}route:${routeIndex}`,
+      type,
+      regionId: mapRegionForChunk(chunk.x, chunk.z, seed, stageId).id,
+      x,
+      z,
+      chunkX: chunk.x,
+      chunkZ: chunk.z,
+      interactionRadius: POI_RADIUS[type],
+      routeIndex,
+      beatId: beat.id,
+    })
+  }))
 }
 
 function choosePoiType(chunkX, chunkZ, stageSeed, region) {
@@ -183,6 +224,27 @@ function rewardForPoi(poi, seed) {
   return Object.freeze({ kind: 'healing', healthFraction: 0.32 + (roll % 4) * 0.04 })
 }
 
+function rewardForExpeditionPoi(poi, seed, beat = null) {
+  const authored = beat?.reward
+  if (!authored) return rewardForPoi(poi, seed)
+  const root = hashText(`${poi.id}:${seed >>> 0}:expedition-reward`)
+  if (authored.options?.length) {
+    return Object.freeze({
+      kind: authored.kind,
+      title: authored.title,
+      description: authored.description,
+      options: authored.options,
+      spiritStones: journeyRewardRoll(authored.spiritStones, unitFloat(root)),
+      experience: journeyRewardRoll(authored.experience, unitFloat(root >>> 9)),
+    })
+  }
+  return Object.freeze({
+    kind: authored.kind,
+    spiritStones: journeyRewardRoll(authored.spiritStones, unitFloat(root)),
+    experience: journeyRewardRoll(authored.experience, unitFloat(root >>> 9)),
+  })
+}
+
 function distanceSq(aX, aZ, bX, bZ) {
   const dx = aX - bX
   const dz = aZ - bZ
@@ -190,14 +252,45 @@ function distanceSq(aX, aZ, bX, bZ) {
 }
 
 /**
+ * Turn an authored investigation into physical, separately readable traces.
+ * These are not generic rewards: each clue carries a conclusion and only the
+ * complete set unlocks the chapter landmark where the player draws a verdict.
+ */
+export function investigationCluePois(poi, beat) {
+  if (!poi || beat?.encounter?.kind !== 'investigation') return Object.freeze([])
+  const clues = beat.encounter.clues ?? []
+  return Object.freeze(clues.map((clue, index) => Object.freeze({
+    id: `${poi.id}:clue:${clue.id ?? index}`,
+    type: clue.type === 'false_trace' ? 'false_trace' : 'evidence',
+    parentPoiId: poi.id,
+    clueId: clue.id ?? String(index),
+    label: clue.label ?? '이름 없는 흔적',
+    observation: clue.observation ?? '',
+    regionId: poi.regionId,
+    x: poi.x + (Number(clue.offset?.x) || 0),
+    z: poi.z + (Number(clue.offset?.z) || 0),
+    chunkX: poi.chunkX,
+    chunkZ: poi.chunkZ,
+    interactionRadius: INVESTIGATION_CLUE_RADIUS,
+    routeIndex: poi.routeIndex,
+    beatId: poi.beatId,
+  })))
+}
+
+/**
  * Stateful owner for one-run POI consumption. All public save/snapshot data is
  * JSON-safe and contains no Pixi objects, callbacks, Sets or typed-array views.
  */
 export class WorldInteractions2D {
-  constructor({ seed = DEFAULT_INTERACTION_SEED, stageId = 'jade', saveState = null } = {}) {
+  constructor({ seed = DEFAULT_INTERACTION_SEED, stageId = 'jade', mode = 'survival', chapter = null, saveState = null } = {}) {
     this.seed = seed >>> 0
     this.stageId = normalizeStageId(stageId)
+    this.mode = mode === 'expedition' ? 'expedition' : 'survival'
+    this.chapter = chapter ?? getJourneyChapterForStage(this.stageId)
+    this.route = this.mode === 'expedition' ? expeditionRoutePois(this.seed, this.stageId, this.chapter) : null
     this.consumed = new Set()
+    this.guardians = new Map()
+    this.investigations = new Map()
     this.pendingEvents = []
     if (saveState) this.restore(saveState)
   }
@@ -207,7 +300,77 @@ export class WorldInteractions2D {
   }
 
   getActivePois(cameraX, cameraZ) {
+    if (this.route) {
+      const active = new Set(activeMapChunks(cameraX, cameraZ, this.seed, this.stageId).map((chunk) => `${chunk.x}:${chunk.z}`))
+      return this.route.filter((poi) => active.has(`${poi.chunkX}:${poi.chunkZ}`))
+    }
     return activeWorldPois(cameraX, cameraZ, this.seed, this.stageId)
+  }
+
+  currentRoutePoi() {
+    return this.route?.find((poi) => !this.consumed.has(poi.id)) ?? null
+  }
+
+  stateForPoi(poiOrId) {
+    const id = typeof poiOrId === 'string' ? poiOrId : poiOrId?.id
+    if (!id) return 'locked'
+    const clue = this._investigationClueById(id)
+    if (clue) return this.investigations.get(clue.parentPoiId)?.has(clue.clueId) ? 'consumed' : 'available'
+    if (this.consumed.has(id)) return 'consumed'
+    if (!this.route) return 'available'
+    if (this.currentRoutePoi()?.id !== id) return 'locked'
+    const beat = journeyBeat(this.chapter, poiOrId?.routeIndex ?? this.currentRoutePoi()?.routeIndex)
+    if (beat?.encounter?.kind === 'investigation') {
+      const progress = this.investigationProgressFor(poiOrId)
+      if (progress.complete) return 'cleared'
+      return progress.found > 0 ? 'active' : 'dormant'
+    }
+    return this.guardians.get(id) ?? 'dormant'
+  }
+
+  _investigationClueById(id) {
+    if (!this.route || typeof id !== 'string') return null
+    for (const poi of this.route) {
+      const beat = journeyBeat(this.chapter, poi.routeIndex)
+      for (const clue of investigationCluePois(poi, beat)) if (clue.id === id) return clue
+    }
+    return null
+  }
+
+  investigationProgressFor(poiOrId) {
+    const poi = typeof poiOrId === 'string'
+      ? this.route?.find((candidate) => candidate.id === poiOrId)
+      : poiOrId
+    const beat = poi ? journeyBeat(this.chapter, poi.routeIndex) : null
+    const clues = investigationCluePois(poi, beat)
+    const found = this.investigations.get(poi?.id)?.size ?? 0
+    return Object.freeze({ found: Math.min(found, clues.length), total: clues.length, complete: clues.length > 0 && found >= clues.length })
+  }
+
+  /** Closest unread physical trace, used by the authored case guidance. */
+  nearestUnfoundInvestigationClue(poiOrId, playerX, playerZ) {
+    if (!Number.isFinite(playerX) || !Number.isFinite(playerZ)) return null
+    const poi = typeof poiOrId === 'string'
+      ? this.route?.find((candidate) => candidate.id === poiOrId)
+      : poiOrId
+    const beat = poi ? journeyBeat(this.chapter, poi.routeIndex) : null
+    const found = this.investigations.get(poi?.id) ?? new Set()
+    let nearest = null
+    let nearestDistanceSq = Infinity
+    for (const clue of investigationCluePois(poi, beat)) {
+      if (found.has(clue.clueId)) continue
+      const d2 = distanceSq(playerX, playerZ, clue.x, clue.z)
+      if (d2 >= nearestDistanceSq) continue
+      nearest = clue
+      nearestDistanceSq = d2
+    }
+    return nearest
+  }
+
+  markGuardianCleared(poiId) {
+    if (!this.route || this.currentRoutePoi()?.id !== poiId || this.guardians.get(poiId) !== 'active') return false
+    this.guardians.set(poiId, 'cleared')
+    return true
   }
 
   findNearby(playerX, playerZ, extraRadius = 0) {
@@ -216,6 +379,30 @@ export class WorldInteractions2D {
     const center = mapChunkAt(playerX, playerZ)
     let nearest = null
     let nearestDistanceSq = Infinity
+
+    if (this.route) {
+      const poi = this.currentRoutePoi()
+      if (!poi) return null
+      const beat = journeyBeat(this.chapter, poi.routeIndex)
+      if (beat?.encounter?.kind === 'investigation') {
+        let nearestClue = null
+        let nearestClueDistanceSq = Infinity
+        const found = this.investigations.get(poi.id) ?? new Set()
+        for (const clue of investigationCluePois(poi, beat)) {
+          if (found.has(clue.clueId)) continue
+          const radius = clue.interactionRadius + extraRadius
+          const d2 = distanceSq(playerX, playerZ, clue.x, clue.z)
+          if (d2 <= radius * radius && d2 < nearestClueDistanceSq) {
+            nearestClue = clue
+            nearestClueDistanceSq = d2
+          }
+        }
+        if (nearestClue) return nearestClue
+        if (!this.investigationProgressFor(poi).complete) return null
+      }
+      const radius = poi.interactionRadius + extraRadius
+      return distanceSq(playerX, playerZ, poi.x, poi.z) <= radius * radius ? poi : null
+    }
 
     // The POI margin and maximum interaction radius mean a 3x3 chunk search is
     // sufficient even while the player stands directly on a chunk boundary.
@@ -238,15 +425,59 @@ export class WorldInteractions2D {
     const poi = this.findNearby(playerX, playerZ, extraRadius)
     if (!poi) return null
 
+    if (poi.parentPoiId && poi.clueId) {
+      const found = this.investigations.get(poi.parentPoiId) ?? new Set()
+      if (found.has(poi.clueId)) return null
+      found.add(poi.clueId)
+      this.investigations.set(poi.parentPoiId, found)
+      const progress = this.investigationProgressFor(poi.parentPoiId)
+      const event = Object.freeze({
+        id: `${poi.id}:found`, type: 'investigation_clue_found',
+        poiId: poi.id, parentPoiId: poi.parentPoiId, clueId: poi.clueId,
+        poiType: poi.type, beatId: poi.beatId, routeIndex: poi.routeIndex,
+        label: poi.label, observation: poi.observation,
+        found: progress.found, total: progress.total, complete: progress.complete,
+        x: poi.x, z: poi.z,
+      })
+      this.pendingEvents.push(event)
+      return event
+    }
+
+    if (this.route) {
+      let state = this.stateForPoi(poi)
+      if (state === 'dormant') {
+        const beat = journeyBeat(this.chapter, poi.routeIndex)
+        if (beat?.encounter?.kind !== 'investigation') {
+          this.guardians.set(poi.id, 'active')
+          const event = Object.freeze({
+            id: `${poi.id}:guardian`,
+            type: 'poi_guardian_requested',
+            poiId: poi.id,
+            poiType: poi.type,
+            beatId: poi.beatId,
+            routeIndex: poi.routeIndex,
+            x: poi.x,
+            z: poi.z,
+          })
+          this.pendingEvents.push(event)
+          return event
+        }
+      }
+      if (state !== 'cleared') return null
+    }
+
     // Consume before publishing the event so even a re-entrant caller cannot
     // receive the same reward twice.
     this.consumed.add(poi.id)
-    const reward = rewardForPoi(poi, this.seed)
+    const beat = this.route ? journeyBeat(this.chapter, poi.routeIndex) : null
+    const reward = this.route ? rewardForExpeditionPoi(poi, this.seed, beat) : rewardForPoi(poi, this.seed)
     const event = Object.freeze({
       id: `${poi.id}:reward`,
       type: 'poi_reward',
       poiId: poi.id,
       poiType: poi.type,
+      beatId: poi.beatId,
+      routeIndex: poi.routeIndex,
       x: poi.x,
       z: poi.z,
       reward,
@@ -267,15 +498,24 @@ export class WorldInteractions2D {
       version: WORLD_INTERACTIONS_VERSION,
       seed: this.seed,
       stageId: this.stageId,
+      chapterId: this.chapter?.id ?? null,
       consumed: [...this.consumed].sort(),
+      guardians: Object.fromEntries([...this.guardians].sort(([a], [b]) => a.localeCompare(b))),
+      investigations: Object.fromEntries([...this.investigations]
+        .filter(([, clues]) => clues.size > 0)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([id, clues]) => [id, [...clues].sort()])),
     }
   }
 
   restore(state) {
     this.consumed.clear()
+    this.guardians.clear()
+    this.investigations.clear()
     this.pendingEvents.length = 0
     if (!state || typeof state !== 'object') return false
     if ((state.seed >>> 0) !== this.seed || normalizeStageId(state.stageId) !== this.stageId) return false
+    if (state.chapterId && state.chapterId !== this.chapter?.id) return false
 
     const prefix = poiPrefix(this.stageId, this.seed)
     if (Array.isArray(state.consumed)) {
@@ -283,11 +523,35 @@ export class WorldInteractions2D {
         if (typeof id === 'string' && id.startsWith(prefix) && id.length <= 128) this.consumed.add(id)
       }
     }
+    if (this.route && state.guardians && typeof state.guardians === 'object') {
+      const routeIds = new Set(this.route.map((poi) => poi.id))
+      for (const [id, status] of Object.entries(state.guardians)) {
+        if (routeIds.has(id) && (status === 'active' || status === 'cleared')) this.guardians.set(id, status)
+      }
+    }
+    if (this.route && state.investigations && typeof state.investigations === 'object') {
+      for (const poi of this.route) {
+        const beat = journeyBeat(this.chapter, poi.routeIndex)
+        const valid = new Set(investigationCluePois(poi, beat).map((clue) => clue.clueId))
+        const restored = Array.isArray(state.investigations[poi.id])
+          ? state.investigations[poi.id].filter((clueId) => valid.has(clueId))
+          : []
+        if (restored.length > 0) this.investigations.set(poi.id, new Set(restored))
+      }
+    }
     return true
   }
 
   getRenderSnapshot(cameraX, cameraZ) {
-    const items = this.getActivePois(cameraX, cameraZ).map((poi) => Object.freeze({
+    const expanded = []
+    for (const poi of this.getActivePois(cameraX, cameraZ)) {
+      const beat = journeyBeat(this.chapter, poi.routeIndex)
+      if (this.route && this.currentRoutePoi()?.id === poi.id && beat?.encounter?.kind === 'investigation') {
+        expanded.push(...investigationCluePois(poi, beat))
+      }
+      expanded.push(poi)
+    }
+    const items = expanded.map((poi) => Object.freeze({
       id: poi.id,
       type: poi.type,
       regionId: poi.regionId,
@@ -296,11 +560,16 @@ export class WorldInteractions2D {
       chunkX: poi.chunkX,
       chunkZ: poi.chunkZ,
       interactionRadius: poi.interactionRadius,
-      state: this.consumed.has(poi.id) ? 'consumed' : 'available',
+      state: this.stateForPoi(poi),
+      routeIndex: poi.routeIndex,
+      beatId: poi.beatId,
+      parentPoiId: poi.parentPoiId ?? null,
+      clueId: poi.clueId ?? null,
     }))
     return Object.freeze({
       version: WORLD_INTERACTIONS_VERSION,
       stageId: this.stageId,
+      chapterId: this.chapter?.id ?? null,
       items: Object.freeze(items),
     })
   }

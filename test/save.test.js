@@ -109,6 +109,19 @@ describe('save / load round trip', () => {
     expect(back.trial).toBe(3)
   })
 
+  it('round-trips world journey progress independently of run records', () => {
+    const storage = memoryStorage()
+    const state = defaultSave()
+    state.journey.chaptersCleared.push('jade:guardian')
+    state.journey.expeditionVictories = 2
+    state.journey.survivalVictories = 5
+    state.journey.decisions['jade:guardian'] = [{
+      beatId: 'sealed-record', choiceId: 'record-truth', name: '진상을 새기다', outcome: '원본 보존',
+    }]
+    save(state, storage)
+    expect(load(storage).journey).toEqual(state.journey)
+  })
+
   it('refuses a nonsense 시련 without discarding the rest', () => {
     const storage = memoryStorage()
     storage.setItem(SAVE_KEY, JSON.stringify({ ...defaultSave(), trial: -7, stones: 55 }))

@@ -14,12 +14,58 @@ describe('runtime2d sprite contract', () => {
 
   it('ships the common wisp as a real hover and attack atlas', () => {
     const wisp = SPRITE_MANIFEST.actors.wisp
-    expect(wisp.url).toContain('magi-remnant-motion-v2.png')
+    expect(wisp.url).toContain('magi-remnant-motion-v2.webp')
     expect(wisp.cell).toEqual([256, 256])
     expect(wisp.sheet).toEqual([4, 2])
     expect(wisp.animations.hover).toEqual([0, 1, 2, 3])
     expect(wisp.animations.attack).toEqual([4, 5, 6, 7])
     expect(new Set([...wisp.animations.hover, ...wisp.animations.attack]).size).toBe(8)
+  })
+
+  it('ships one coherent five-direction heroine with full run and attack cycles', () => {
+    const hero = SPRITE_MANIFEST.actors.seolryeong
+    expect(hero.cell).toEqual([384, 256])
+    expect(hero.sheet).toEqual([4, 4])
+    expect(hero.animations.run).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+    expect(hero.animations.attack).toEqual([8, 9, 10, 11, 12, 13, 14, 15])
+    expect(hero.url).toContain('seolryeong-heroine-southeast-motion-v2.webp')
+    for (const direction of ['east', 'northeast']) {
+      expect(hero.directionalRuntime[direction].url).toContain('-motion-v2.webp')
+    }
+    for (const direction of ['north', 'south']) {
+      expect(hero.directionalRuntime[direction].url).toContain('-motion-v3.webp')
+    }
+    expect(Object.keys(hero.reactionRuntime).sort()).toEqual([
+      'east', 'north', 'northeast', 'south', 'southeast',
+    ])
+    expect(hero.reactionCell).toEqual([384, 256])
+    expect(hero.reactionSheet).toEqual([4, 2])
+    expect(hero.reactionAnimations).toEqual({
+      idle: [0, 1], hurt: [2, 3], death: [4, 5, 6, 7],
+    })
+  })
+
+  it('ships low quadruped north and south view candidates for yorang', () => {
+    const yorang = SPRITE_MANIFEST.actors.yorang
+    expect(yorang.directionalRuntime.north.url).toContain('yorang-north-motion-v5.webp')
+    expect(yorang.directionalRuntime.south.url).toContain('yorang-south-motion-v4.webp')
+    expect(yorang.animations.walk).toEqual([0, 1, 2, 3])
+    expect(yorang.animations.attack).toEqual([4, 5, 6, 7])
+  })
+
+  it('ships north and south candidates for common jade enemies', () => {
+    for (const [key, slug] of [
+      ['jadeRidgeHound', 'jade-ridge-hound'],
+      ['jadeSerpent', 'jade-serpent'],
+    ]) {
+      const actor = SPRITE_MANIFEST.actors[key]
+      expect(actor.directionalRuntime.north.url).toContain(`${slug}-north-motion-v2.webp`)
+      expect(actor.directionalRuntime.south.url).toContain(`${slug}-south-motion-v2.webp`)
+    }
+  })
+
+  it('does not admit unreleased chapter-two candidates to the global runtime manifest', () => {
+    expect(SPRITE_MANIFEST.actors.magmaBrute).toBeUndefined()
   })
 
   it('rejects production readiness without human visual approval', () => {

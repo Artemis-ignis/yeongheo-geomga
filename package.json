@@ -12,6 +12,8 @@
     "build": "vite build",
     "assets:audit": "node tools/asset-audit.mjs",
     "assets:build-audit": "node tools/audit-submission-build.mjs",
+    "verify:functional": "npm run assets:audit && npm run build && npm run assets:build-audit && npm test",
+    "quality:audit": "node tools/commercial-quality-audit.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

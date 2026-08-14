@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   PixiPresentation,
   actorMirrorForFacing2D,
+  directionalEnemyFrames2D,
+  enemyDirectionalTextureKey2D,
   COMBAT_HORIZON_PRESENTATION_2D,
   HOSTILE_PROJECTILE_PRESENTATION,
   ORBIT_PROJECTILE_RENDER_CAP_2D,
@@ -24,6 +26,8 @@ import {
   heroAnimationFrameIndex2D,
   heroGroundedRunFrames2D,
   directionalHeroFrames,
+  directionalHeroReactionFrames,
+  heroReactionFrameIndex2D,
   bossCombatHeight2D,
   heroCombatHeight2D,
   heroSlashPresentation2D,
@@ -43,8 +47,12 @@ import {
   enemyTextureKey2D,
   resolveEnemyIntentPresentation2D,
   wispThreatRotation2D,
+  jadeRegionTextureIndex2D,
+  mapDecalTextureIndex2D,
 } from '../src/runtime2d/PixiPresentation.js'
 import {
+  HERO_DEATH_REACTION_SECONDS_2D,
+  HERO_HURT_REACTION_SECONDS_2D,
   MAX_PICKUPS_2D,
   MAX_PROJECTILES_2D,
   MAX_WEAPON_FIELDS_2D,
@@ -68,12 +76,39 @@ function fakePool(count) {
 }
 
 describe('PixiPresentation combat bindings', () => {
+  it('keeps semantic jade regions on distinct streamed ground textures', () => {
+    const grove = mapDecalTextureIndex2D('jade', { regionId: 'jade_grove', variant: 1 })
+    const path = mapDecalTextureIndex2D('jade', { regionId: 'jade_path', variant: 1 })
+    expect(grove).toBe(jadeRegionTextureIndex2D('jade_grove', 1))
+    expect(path).toBe(jadeRegionTextureIndex2D('jade_path', 1))
+    expect(path).not.toBe(grove)
+    expect(mapDecalTextureIndex2D('ember', { regionId: 'jade_path', variant: 3 })).toBe(3)
+  })
+
   it('mirrors each single-direction atlas from its authored baseline', () => {
     expect(actorMirrorForFacing2D('yorang', Math.PI / 2)).toBe(true)
     expect(actorMirrorForFacing2D('yorang', -Math.PI / 2)).toBe(false)
     expect(actorMirrorForFacing2D('jadeSerpent', Math.PI / 2)).toBe(false)
     expect(actorMirrorForFacing2D('jadeSerpent', -Math.PI / 2)).toBe(true)
     expect(actorMirrorForFacing2D('wisp', Math.PI / 2)).toBe(false)
+  })
+
+  it('uses authored yorang north and south views while keeping side-view mirroring', () => {
+    const frames = { yorang: ['side'], yorangN: ['north'], yorangS: ['south'] }
+    expect(directionalEnemyFrames2D(frames, 'yorang', 0)).toMatchObject({
+      frames: frames.yorangS, directionKey: 's', pivotKey: 'yorangS', mirror: false,
+    })
+    expect(directionalEnemyFrames2D(frames, 'yorang', Math.PI / 2)).toMatchObject({
+      frames: frames.yorang, directionKey: 'e', pivotKey: 'yorang', mirror: true,
+    })
+    expect(directionalEnemyFrames2D(frames, 'yorang', Math.PI)).toMatchObject({
+      frames: frames.yorangN, directionKey: 'n', pivotKey: 'yorangN', mirror: false,
+    })
+    expect(enemyDirectionalTextureKey2D('yorang', 'n')).toBe('yorangN')
+    expect(enemyDirectionalTextureKey2D('yorang', 's')).toBe('yorangS')
+    expect(enemyDirectionalTextureKey2D('yorang', 'e')).toBeNull()
+    expect(enemyDirectionalTextureKey2D('jadeRidgeHound', 'n')).toBe('jadeRidgeHoundN')
+    expect(enemyDirectionalTextureKey2D('jadeSerpent', 's')).toBe('jadeSerpentS')
   })
 
   it('keeps locomotion frames active during automatic attacks', () => {
@@ -87,18 +122,44 @@ describe('PixiPresentation combat bindings', () => {
     expect(hero.animations.dash).toContain(heroAnimationFrameIndex2D(hero, {
       moving: true, dashing: 0.08, attackTimer: 0.2, time: 0.14,
     }))
+    expect(heroAnimationFrameIndex2D(hero, {
+      moving: false, movementSettle: 0.1, attackTimer: 0.2,
+    })).toBe(hero.animations.run[0])
   })
 
-  it('locks ordinary footfalls to world distance and omits airborne side-run cells', () => {
+  it('binds five authored reaction views and plays idle, hurt and death in semantic order', () => {
+    const hero = SPRITE_MANIFEST.actors.seolryeong
+    const frames = {
+      seolryeongReactionN: ['n'], seolryeongReactionNe: ['ne'],
+      seolryeongReactionE: ['e'], seolryeongReaction: ['se'], seolryeongReactionS: ['s'],
+    }
+    expect(directionalHeroReactionFrames(frames, { key: 'n' })).toBe(frames.seolryeongReactionN)
+    expect(directionalHeroReactionFrames(frames, { key: 'ne' })).toBe(frames.seolryeongReactionNe)
+    expect(directionalHeroReactionFrames(frames, { key: 'e' })).toBe(frames.seolryeongReactionE)
+    expect(directionalHeroReactionFrames(frames, { key: 'se' })).toBe(frames.seolryeongReaction)
+    expect(directionalHeroReactionFrames(frames, { key: 's' })).toBe(frames.seolryeongReactionS)
+    expect(heroReactionFrameIndex2D(hero, { time: 0 })).toBe(0)
+    expect(heroReactionFrameIndex2D(hero, { time: 0.7 })).toBe(1)
+    expect(heroReactionFrameIndex2D(hero, {
+      hurtTimer: HERO_HURT_REACTION_SECONDS_2D,
+    })).toBe(2)
+    expect(heroReactionFrameIndex2D(hero, { hurtTimer: 0.01 })).toBe(3)
+    expect(heroReactionFrameIndex2D(hero, {
+      alive: false, deathTimer: HERO_DEATH_REACTION_SECONDS_2D,
+    })).toBe(4)
+    expect(heroReactionFrameIndex2D(hero, { alive: false, deathTimer: 0.01 })).toBe(7)
+  })
+
+  it('locks the complete grounded eight-pose run cycle to world distance', () => {
     const hero = SPRITE_MANIFEST.actors.seolryeong
     const sideRun = heroGroundedRunFrames2D(hero, 'se')
-    expect(sideRun).toEqual([0, 1, 2, 1])
+    expect(sideRun).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
     expect(heroGroundedRunFrames2D(hero, 'n')).toEqual(hero.animations.run)
     expect(heroAnimationFrameIndex2D(hero, {
-      moving: true, travelDistance: 0.91, time: 500, runFrames: sideRun,
+      moving: true, travelDistance: 0.45, time: 500, runFrames: sideRun,
     })).toBe(sideRun[0])
     expect(heroAnimationFrameIndex2D(hero, {
-      moving: true, travelDistance: 0.93, time: 0, runFrames: sideRun,
+      moving: true, travelDistance: 0.47, time: 0, runFrames: sideRun,
     })).toBe(sideRun[1])
   })
 
@@ -151,8 +212,8 @@ describe('PixiPresentation combat bindings', () => {
     expect(enemyTextureKey2D('demonCultivator', 31)).toBe(
       enemyTextureKey2D('demonCultivator', 31),
     )
-    expect(enemyTextureKey2D('magmaBrute', 31)).toBe('voidSentinel')
-    expect(enemyTextureKey2D('glacierWarden', 31)).toBe('voidSentinel')
+    expect(() => enemyTextureKey2D('magmaBrute', 31)).toThrow(/전용 런타임/)
+    expect(() => enemyTextureKey2D('glacierWarden', 31)).toThrow(/전용 런타임/)
   })
 
   it('deterministically divides ordinary wolves between two authored silhouettes', () => {
@@ -172,8 +233,8 @@ describe('PixiPresentation combat bindings', () => {
       expect(localRidgeHounds, `stride ${stride}`).toBeGreaterThanOrEqual(4)
       expect(localRidgeHounds, `stride ${stride}`).toBeLessThanOrEqual(6)
     }
-    expect(enemyTextureKey2D('frostWolf', 23)).toBe('yorang')
-    expect(enemyTextureKey2D('ashRaven', 23)).toBe('yorang')
+    expect(() => enemyTextureKey2D('frostWolf', 23)).toThrow(/전용 런타임/)
+    expect(() => enemyTextureKey2D('ashRaven', 23)).toThrow(/전용 런타임/)
   })
 
   it('keeps atlas-sharing enemy species visually distinct without blackening authored art', () => {
@@ -202,7 +263,7 @@ describe('PixiPresentation combat bindings', () => {
 
   it('separates upright hostile wisps from continuously rotating faceted rewards', () => {
     expect(WISP_THREAT_PRESENTATION_2D.silhouette).toBe('upright-eyed-wraith')
-    expect(WISP_THREAT_PRESENTATION_2D.baseHeight).toBeGreaterThanOrEqual(78)
+    expect(WISP_THREAT_PRESENTATION_2D.baseHeight).toBeGreaterThanOrEqual(74)
     expect(Math.abs(wispThreatRotation2D(3.2, 7))).toBeLessThanOrEqual(0.065)
     expect(Math.abs(wispThreatRotation2D(3.2, 7))).toBeGreaterThan(0)
 
@@ -265,6 +326,12 @@ describe('PixiPresentation combat bindings', () => {
         expect(tint & 0xff).toBeGreaterThan(90)
       }
     }
+  })
+
+  it('breaks the opening wisp horde into restrained cyan and violet material variants', () => {
+    const profiles = Array.from({ length: 32 }, (_, index) => enemyMotionProfile2D(index + 1, 'wisp'))
+    const tints = profiles.map((profile) => enemyActorTint2D(0x8065b0, 'wisp', false, profile.palette))
+    expect(new Set(tints).size).toBeGreaterThanOrEqual(12)
   })
 
   it('defines seven atlas-backed friendly families with at least two visual axes', () => {
@@ -436,11 +503,11 @@ describe('PixiPresentation combat bindings', () => {
   })
 
   it('keeps the heroine near authored gameplay scale across supported screens', () => {
-    expect(heroCombatHeight2D(720, 140)).toBeCloseTo(118)
-    expect(heroCombatHeight2D(1080, 140)).toBeCloseTo(176)
-    expect(heroCombatHeight2D(1440, 140)).toBeCloseTo(225.8462, 3)
-    expect(heroCombatHeight2D(1600, 140)).toBeCloseTo(248)
-    expect(heroCombatHeight2D(1080, 160)).toBeGreaterThan(176)
+    expect(heroCombatHeight2D(720, 140)).toBeCloseTo(134)
+    expect(heroCombatHeight2D(1080, 140)).toBeCloseTo(196)
+    expect(heroCombatHeight2D(1440, 140)).toBeCloseTo(251.3846, 3)
+    expect(heroCombatHeight2D(1600, 140)).toBeCloseTo(276)
+    expect(heroCombatHeight2D(1080, 160)).toBeGreaterThan(196)
     expect(bossCombatHeight2D(1080, 220, 1)).toBeGreaterThanOrEqual(194.4)
   })
 
@@ -455,18 +522,22 @@ describe('PixiPresentation combat bindings', () => {
     expect(east.height).toBeLessThanOrEqual(176 * 0.46)
     expect(north.offsetY).toBeLessThan(east.offsetY)
     expect(north.rotation).toBeLessThan(0)
+
+    const movingEast = heroSlashPresentation2D(Math.PI / 2, 0.16, 196, 32, 12, true)
+    expect(movingEast.alpha).toBeLessThan(east.alpha)
+    expect(movingEast.width).toBeLessThan(196 * 0.92)
     expect(heroSlashPresentation2D(0, 0, 176, 32, 12).visible).toBe(false)
   })
 
   it('fades only enemies that overlap the heroine and restores full opacity nearby', () => {
-    expect(enemyHeroOverlapAlpha2D(0)).toBeCloseTo(0.58)
-    expect(enemyHeroOverlapAlpha2D(1.4)).toBeCloseTo(0.79)
-    expect(enemyHeroOverlapAlpha2D(2.8)).toBe(1)
+    expect(enemyHeroOverlapAlpha2D(0)).toBeCloseTo(0.48)
+    expect(enemyHeroOverlapAlpha2D(1.6)).toBeCloseTo(0.74)
+    expect(enemyHeroOverlapAlpha2D(3.2)).toBe(1)
     expect(enemyHeroOverlapAlpha2D(20)).toBe(1)
     expect(enemyHeroOverlapAlpha2D(Number.NaN)).toBe(1)
-    expect(enemyHeroOverlapAlpha2D(0, 'wisp')).toBeCloseTo(0.38)
-    expect(enemyHeroOverlapAlpha2D(1.4, 'wisp')).toBeCloseTo(0.69)
-    expect(enemyHeroOverlapAlpha2D(2.8, 'wisp')).toBe(1)
+    expect(enemyHeroOverlapAlpha2D(0, 'wisp')).toBeCloseTo(0.22)
+    expect(enemyHeroOverlapAlpha2D(1.6, 'wisp')).toBeCloseTo(0.61)
+    expect(enemyHeroOverlapAlpha2D(3.2, 'wisp')).toBe(1)
   })
 
   it('keeps boss-local ordinary mobs subordinate without fading elites', () => {

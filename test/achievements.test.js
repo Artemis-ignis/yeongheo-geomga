@@ -7,11 +7,12 @@ import { defaultSave } from '../src/meta/Save.js'
 const nothing = {
   runTime: 0, level: 1, kills: 0, victory: false, trial: 0,
   weaponCount: 1, evolutions: 0, bossKills: 0, damageTaken: 99,
-  rerollsUsed: 0, banishesUsed: 0,
+  rerollsUsed: 0, banishesUsed: 0, objectivesCompleted: 0, decisionCount: 0,
 }
 const career = {
   runs: 0, victories: 0, totalKills: 0, bestTime: 0, bestLevel: 0,
   unlockedCharacters: 1, unlockedWeapons: 4, stagesCleared: 0,
+  chaptersCleared: 0, expeditionVictories: 0, survivalVictories: 0,
 }
 
 describe('achievement table', () => {
@@ -75,6 +76,25 @@ describe('achievement table', () => {
     const helped = { ...pure, rerollsUsed: 1 }
     expect(evaluate(helped, career, []).map((a) => a.id)).not.toContain('noSkip')
   })
+
+  it('does not award timed 천겁 feats during authored exploration', () => {
+    const ids = evaluate({
+      ...nothing, mode: 'expedition', runTime: 500, trial: 3,
+    }, career, []).map((a) => a.id)
+    expect(ids).not.toContain('survive5')
+    expect(ids).not.toContain('survive10')
+    expect(ids).not.toContain('trialRunner')
+  })
+
+  it('makes chapter progress and its decision the first authored goals', () => {
+    expect(ACHIEVEMENTS.slice(0, 3).map((entry) => entry.id)).toEqual([
+      'firstMeridian', 'sealedDecision', 'clear',
+    ])
+    const ids = evaluate({
+      ...nothing, mode: 'expedition', objectivesCompleted: 3, decisionCount: 1, victory: true,
+    }, career, []).map((entry) => entry.id)
+    expect(ids).toEqual(expect.arrayContaining(['firstMeridian', 'sealedDecision', 'clear']))
+  })
 })
 
 describe('banking achievements', () => {
@@ -103,13 +123,19 @@ describe('banking achievements', () => {
     expect(p.careerSummary.stagesCleared).toBe(1)
   })
 
-  it('earns 삼경답파 on the run that clears the third 비경, not the one after', () => {
+  it('earns 삼귀 on the third main-journey completion, not from optional trials', () => {
     const p = new Progress(defaultSave())
-    p.markStageCleared('jade')
-    p.markStageCleared('ember')
-    p.markStageCleared('frost')
+    for (let i = 0; i < 2; i++) p.recordRun({ runTime: 420, level: 20, kills: 500, victory: true, mode: 'survival' })
+    expect(p.awardAchievements({ ...nothing }).map((a) => a.id)).not.toContain('allStages')
+    for (let i = 0; i < 3; i++) p.recordRun({ runTime: 240, level: 20, kills: 300, victory: true, mode: 'expedition' })
     const ids = p.awardAchievements({ ...nothing, victory: true }).map((a) => a.id)
     expect(ids).toContain('allStages')
+  })
+
+  it('keeps the authored challenge and collection achievements reachable', () => {
+    expect(getAchievement('survive10').test({ runTime: 420 })).toBe(true)
+    expect(getAchievement('allCharacters').test({ unlockedWeapons: 14 })).toBe(true)
+    expect(getAchievement('allStages').test({ expeditionVictories: 3 })).toBe(true)
   })
 
   it('survives a save round-trip', () => {

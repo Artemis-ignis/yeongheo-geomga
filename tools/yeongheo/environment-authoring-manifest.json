@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "description": "Authoring source to runtime environment mapping. Not imported by the game.",
+  "sourceRoot": "assets-source/environment",
+  "runtimeRoot": "public/assets/environment",
+  "pipelines": [
+    {
+      "scene": "ember-wastes-chapter2",
+      "actor": "ember-wastes-chapter2",
+      "source": "ember-wastes-chapter2-concept-v1.png",
+      "outputRoot": "assets-source/environment",
+      "outputs": ["ember-wastes-chapter2-keyart-v1.webp"]
+    }
+  ]
+}

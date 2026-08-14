@@ -51,14 +51,24 @@ export class LevelUpModal {
     this.node.setAttribute('aria-hidden', 'true')
     this.node.innerHTML = `
       <div class="modal-panel" role="dialog" aria-modal="true" aria-label="경지 돌파">
-        <div class="modal-title">경지 돌파</div>
+        <header class="modal-heading">
+          <div class="modal-eyebrow">天命 · 한 번의 깨달음</div>
+          <div class="modal-title">경지 돌파</div>
+          <p class="modal-lead">지금의 검로를 바꿀 한 장을 고르십시오.</p>
+        </header>
         <div class="modal-cards" role="group" aria-label="돌파 선택지"></div>
         <div class="modal-actions" role="group" aria-label="선택지 제어">
-          <button type="button" class="modal-action clickable" data-act="reroll">점괘 <span class="act-count"></span></button>
-          <button type="button" class="modal-action clickable" data-act="banish">봉인 <span class="act-count"></span></button>
-          <button type="button" class="modal-action clickable" data-act="skip">넘기기</button>
+          <button type="button" class="modal-action modal-action-reroll clickable" data-act="reroll">
+            <span class="modal-action-mark" aria-hidden="true">易</span>
+            <span class="modal-action-copy"><b>점괘 바꾸기 <span class="act-count"></span></b><small>세 장을 다시 뽑습니다</small></span>
+          </button>
+          <button type="button" class="modal-action modal-action-banish clickable" data-act="banish">
+            <span class="modal-action-mark" aria-hidden="true">封</span>
+            <span class="modal-action-copy"><b>봉인하기 <span class="act-count"></span></b><small>고른 패를 이번 출정에서 제외합니다</small></span>
+          </button>
+          <button type="button" class="modal-action modal-action-skip clickable" data-act="skip">깨달음을 흘려보낸다</button>
         </div>
-        <div class="modal-hint" aria-live="polite">1 · 2 · 3 또는 ← → 로 선택, Enter 로 확정</div>
+        <div class="modal-hint" aria-live="polite">一 · 二 · 三 / 방향키로 고르고 Enter로 받습니다</div>
       </div>`
     root.appendChild(this.node)
     this.cardsHost = this.node.querySelector('.modal-cards')
@@ -110,7 +120,7 @@ export class LevelUpModal {
     this.cardsHost.classList.toggle('banishing', this.arming)
     this.hintNode.textContent = this.arming
       ? '지울 패를 고르세요. 이번 런에서 다시 나오지 않습니다.'
-      : this.customHint ?? '1 · 2 · 3 또는 ← → 로 선택, Enter 로 확정'
+      : this.customHint ?? '一 · 二 · 三 / 방향키로 고르고 Enter로 받습니다'
   }
 
   get isOpen() {
@@ -160,6 +170,7 @@ export class LevelUpModal {
       const iconId = choice.iconId ?? choice.id
       const name = choice.name ?? choice.id ?? '이름 없는 선택'
       const effect = choice.desc ?? '선택 즉시 효과가 적용됩니다.'
+      const choiceNumber = ['一', '二', '三'][i] ?? String(i + 1)
       const daoLabel = daoVisual?.vowId
         ? `<div class="modal-dao-label">${escapeHtml(daoVisual.name)}</div>
         <div class="modal-dao-mark" aria-hidden="true"><span>${escapeHtml(daoVisual.glyph)}</span></div>`
@@ -169,11 +180,12 @@ export class LevelUpModal {
       card.setAttribute('aria-label', ariaLabel)
       card.setAttribute('title', `${kind.label} · ${name}\n${step}\n${effect}`)
       card.innerHTML = `
+        <span class="modal-card-index" aria-hidden="true">${choiceNumber}</span>
         ${choice.kind === 'evolution' ? '<div class="modal-evo">진화</div>' : ''}
-        <div class="modal-icon-frame">
+        <div class="modal-icon-frame" data-placeholder="${kind.mark}">
           <img class="modal-icon" alt="${escapeHtml(`${name} ${kind.label} 아이콘`)}"
             title="${escapeHtml(`${kind.label} · ${name}`)}" src="${escapeHtml(iconFor(iconId))}"
-            decoding="async" draggable="false" />
+            decoding="sync" fetchpriority="high" draggable="false" />
           <span class="modal-kind-mark" aria-hidden="true">${kind.mark}</span>
         </div>
         ${daoLabel}
@@ -186,6 +198,7 @@ export class LevelUpModal {
           <span class="modal-effect-label">효과</span>
           <div class="modal-desc">${escapeHtml(effect)}</div>
         </div>
+        <span class="modal-pick-cue" aria-hidden="true">이 깨달음을 받는다</span>
         ${daoVisual?.vowId ? `<div class="modal-dao-vfx" aria-hidden="true"></div>` : ''}`
       card.addEventListener('click', () => this.pick(i))
       card.addEventListener('mouseenter', () => this.setFocus(i, false))

@@ -26,16 +26,20 @@ export class ShopScreen {
     this.node.innerHTML = `
       <div class="screen-inner shop-inner">
         <div class="shop-head">
-          <div class="shop-title" id="shop-screen-title">단전</div>
+          <div class="shop-heading">
+            <div class="shop-kicker">內景 · 영맥을 다스리는 곳</div>
+            <div class="shop-title" id="shop-screen-title">단전</div>
+            <p class="shop-lead">출정에서 거둔 영석으로 다음 생의 근골과 법보 인연을 닦습니다.</p>
+          </div>
           <div class="shop-stones"></div>
         </div>
         <div class="shop-scroll">
-          <div class="shop-section">영구 강화</div>
-          <div class="shop-grid"></div>
-          <div class="shop-section">해금</div>
-          <div class="shop-grid shop-unlocks"></div>
+          <div class="shop-section"><span aria-hidden="true">一</span> 영구 강화</div>
+          <div class="shop-grid" role="group" aria-label="영구 강화 목록"></div>
+          <div class="shop-section"><span aria-hidden="true">二</span> 법보 인연</div>
+          <div class="shop-grid shop-unlocks" role="group" aria-label="법보 해금 목록"></div>
         </div>
-        <button class="btn btn-alt clickable" data-act="back">← 돌아가기</button>
+        <button class="btn btn-alt btn-back clickable" data-act="back">문파로 돌아간다</button>
       </div>`
     root.appendChild(this.node)
 
@@ -121,6 +125,7 @@ export class ShopScreen {
       const maxed = this.progress.isMaxed(r.up.id)
       const cost = this.progress.costOf(r.up.id)
       r.cost.textContent = maxed ? 'MAX' : `${cost}`
+      r.row.setAttribute('aria-label', `${r.up.name}. ${r.up.desc}. ${maxed ? '수련 완료' : `영석 ${cost}`}`)
       r.row.classList.toggle('maxed', maxed)
       r.row.classList.toggle('affordable', !maxed && this.progress.canAfford(r.up.id))
       r.row.disabled = maxed || !this.progress.canAfford(r.up.id)
@@ -129,6 +134,7 @@ export class ShopScreen {
     for (const r of this.unlockRows) {
       const owned = this.progress.isUnlocked(r.kind, r.id)
       r.costNode.textContent = owned ? '보유' : String(r.price)
+      r.row.setAttribute('aria-label', `${r.row.querySelector('.shop-name')?.textContent ?? r.id}. ${owned ? '이미 보유' : `해금 영석 ${r.price}`}`)
       r.row.classList.toggle('maxed', owned)
       r.row.classList.toggle('affordable', !owned && this.progress.canAffordUnlock(r.kind, r.id))
       r.row.disabled = owned || !this.progress.canAffordUnlock(r.kind, r.id)

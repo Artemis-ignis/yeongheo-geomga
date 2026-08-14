@@ -6,7 +6,9 @@ import {
   WORLD_INTERACTIONS_VERSION,
   WorldInteractions2D,
   activeWorldPois,
+  expeditionRoutePois,
   guidancePoiChunk,
+  investigationCluePois,
   poiForMapChunk,
 } from '../src/runtime2d/WorldInteractions2D.js'
 
@@ -22,6 +24,48 @@ function findPois(seed = 12345, stageId = 'jade', wanted = 1) {
 }
 
 describe('streamed 2D world interactions', () => {
+  it('authors a sequential expedition route from altar to record to elite seal', () => {
+    const route = expeditionRoutePois(2026, 'jade')
+    expect(route.map((poi) => poi.type)).toEqual([
+      POI_TYPE.altar, POI_TYPE.treasure, POI_TYPE.eliteSeal,
+    ])
+    expect(route.map((poi) => poi.beatId)).toEqual([
+      'broken-meridian', 'sealed-record', 'corrupted-seal',
+    ])
+    expect(new Set(route.map((poi) => poi.id)).size).toBe(3)
+    expect(route.every(Object.isFrozen)).toBe(true)
+    expect(Math.hypot(route[0].x, route[0].z)).toBeLessThan(20)
+    for (let index = 1; index < route.length; index++) {
+      expect(Math.hypot(route[index].x - route[index - 1].x, route[index].z - route[index - 1].z)).toBeLessThan(34)
+    }
+
+    const world = new WorldInteractions2D({ seed: 2026, stageId: 'jade', mode: 'expedition' })
+    expect(world.currentRoutePoi()?.id).toBe(route[0].id)
+    expect(world.findNearby(route[1].x, route[1].z)).toBeNull()
+    const firstBeat = world.chapter.route[0]
+    const clues = investigationCluePois(route[0], firstBeat)
+    expect(clues).toHaveLength(3)
+    expect(new Set(clues.map((clue) => clue.type))).toEqual(new Set(['evidence', 'false_trace']))
+    for (const [index, clue] of clues.entries()) {
+      expect(world.interact(clue.x, clue.z)).toMatchObject({
+        type: 'investigation_clue_found', clueId: clue.clueId,
+        found: index + 1, total: 3, complete: index === 2,
+      })
+    }
+    expect(world.interact(route[0].x, route[0].z)).toMatchObject({
+      type: 'poi_reward', poiType: POI_TYPE.altar,
+      reward: { kind: 'blessing-choice' },
+    })
+    expect(world.isConsumed(route[0].id)).toBe(true)
+    expect(world.currentRoutePoi()?.id).toBe(route[1].id)
+    for (const poi of route.slice(1)) {
+      expect(world.interact(poi.x, poi.z)?.type).toBe('poi_guardian_requested')
+      expect(world.markGuardianCleared(poi.id)).toBe(true)
+      expect(world.interact(poi.x, poi.z)?.poiType).toBe(poi.type)
+    }
+    expect(world.currentRoutePoi()).toBeNull()
+  })
+
   it('reconstructs stable POI ids, types and positions after a chunk revisit', () => {
     const [poi] = findPois(44, 'jade')
     expect(poi).toBeTruthy()
@@ -104,7 +148,10 @@ describe('streamed 2D world interactions', () => {
       version: WORLD_INTERACTIONS_VERSION,
       seed: 8128,
       stageId: 'jade',
+      chapterId: 'jade:guardian',
       consumed: [poi.id],
+      guardians: {},
+      investigations: {},
     })
 
     // Rebuilding the streamed chunk in a new runtime must preserve its state.
@@ -117,6 +164,28 @@ describe('streamed 2D world interactions', () => {
     // A run from another stage/seed cannot accidentally inherit consumed ids.
     const unrelated = new WorldInteractions2D({ seed: 8128, stageId: 'frost', saveState: saved })
     expect(unrelated.toSaveState().consumed).toEqual([])
+  })
+
+  it('persists investigation clues and unlocks the conclusion only after all traces are read', () => {
+    const first = new WorldInteractions2D({ seed: 99, stageId: 'jade', mode: 'expedition' })
+    const poi = first.currentRoutePoi()
+    const clues = investigationCluePois(poi, first.chapter.route[0])
+    expect(first.findNearby(poi.x, poi.z)).toBeNull()
+    first.interact(clues[0].x, clues[0].z)
+    expect(first.investigationProgressFor(poi)).toEqual({ found: 1, total: 3, complete: false })
+    expect(first.nearestUnfoundInvestigationClue(poi, clues[1].x, clues[1].z)?.clueId)
+      .toBe(clues[1].clueId)
+
+    const restored = new WorldInteractions2D({
+      seed: 99, stageId: 'jade', mode: 'expedition',
+      saveState: JSON.parse(JSON.stringify(first.toSaveState())),
+    })
+    expect(restored.investigationProgressFor(poi)).toEqual({ found: 1, total: 3, complete: false })
+    expect(restored.findNearby(clues[0].x, clues[0].z)?.clueId).not.toBe(clues[0].clueId)
+    restored.interact(clues[1].x, clues[1].z)
+    restored.interact(clues[2].x, clues[2].z)
+    expect(restored.stateForPoi(poi)).toBe('cleared')
+    expect(restored.findNearby(poi.x, poi.z)?.id).toBe(poi.id)
   })
 
   it('provides an immutable, JSON-safe render snapshot for the active stream window', () => {

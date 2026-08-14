@@ -4,11 +4,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>영허검가</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2308131b'/%3E%3Cpath d='M44 8 22 36l6 6L56 20zM18 38l8 8-8 10-10-10z' fill='%238de3d0'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="./styles/hud.css" />
+    <meta name="theme-color" content="#1d1a15" />
+    <link rel="icon" type="image/svg+xml" href="./assets/brand/yeongheo-seal-v1.svg" />
+    <link rel="stylesheet" href="./styles/ink-ui.css" />
   </head>
   <body>
     <div id="app">
+      <div id="boot-shell" role="status" aria-live="polite" aria-label="영허검가를 준비하고 있습니다">
+        <div class="boot-shell__wash" aria-hidden="true"></div>
+        <div class="boot-shell__brand">
+          <span class="boot-shell__seal" aria-hidden="true">劍</span>
+          <div>
+            <span class="boot-shell__eyebrow">끊어진 영맥 끝의 검가 전설</span>
+            <strong>영허 검가</strong>
+            <span class="boot-shell__subtitle">검의 맹세 · 영허의 길</span>
+          </div>
+        </div>
+        <div class="boot-shell__progress" aria-hidden="true"><i></i></div>
+        <span class="boot-shell__copy">영맥을 깨우는 중</span>
+      </div>
       <canvas id="scene"></canvas>
       <div id="cinematic-backdrop" aria-hidden="true"></div>
       <div id="hud"></div>

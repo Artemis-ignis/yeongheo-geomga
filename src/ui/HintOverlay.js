@@ -20,6 +20,8 @@ export class HintOverlay {
     this.node = document.createElement('div')
     this.node.className = 'hint-line'
     this.node.style.opacity = '0'
+    this.node.hidden = true
+    this.node.setAttribute?.('aria-hidden', 'true')
     root.appendChild(this.node)
 
     this.shown = new Set(progress.state?.hintsSeen ?? [])
@@ -54,6 +56,8 @@ export class HintOverlay {
     this.timer = 0
     this.cooldown = 1.1
     this.node.style.opacity = '0'
+    this.node.hidden = true
+    this.node.setAttribute?.('aria-hidden', 'true')
     return true
   }
 
@@ -90,6 +94,8 @@ export class HintOverlay {
         this.current = null
         this.cooldown = 1.1
         this.node.style.opacity = '0'
+        this.node.hidden = true
+        this.node.setAttribute?.('aria-hidden', 'true')
       }
       return
     }
@@ -107,6 +113,8 @@ export class HintOverlay {
     // A hint may name what it is about — "비검 is waiting on 검결" is a thing to
     // do next, where a generic rule is a thing to memorise.
     this.node.textContent = typeof hint.text === 'function' ? hint.text(state) : hint.text
+    this.node.hidden = false
+    this.node.setAttribute?.('aria-hidden', 'false')
     this.node.style.opacity = '1'
   }
 
@@ -120,6 +128,8 @@ export class HintOverlay {
     this.timer = 0
     this.cooldown = 0
     this.node.style.opacity = '0'
+    this.node.hidden = true
+    this.node.setAttribute?.('aria-hidden', 'true')
   }
 
   dispose() {

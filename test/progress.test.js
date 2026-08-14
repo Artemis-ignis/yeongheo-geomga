@@ -146,6 +146,14 @@ describe('non-stat effects', () => {
     expect(p.stoneMultiplier).toBeCloseTo(1.24, 6)
   })
 
+  it('never applies a selected 천겁 reward multiplier to exploration', () => {
+    const p = rich()
+    p.state.records.bestTime = 9999
+    p.setTrial(3)
+    expect(p.stoneMultiplierFor('survival')).toBeGreaterThan(p.stoneMultiplierFor('expedition'))
+    expect(p.stoneMultiplierFor('expedition')).toBeCloseTo(p.fortuneMultiplier, 6)
+  })
+
   it('grants a revive charge from 환혼단', () => {
     const p = rich()
     p.buyUpgrade('revive')
@@ -231,6 +239,22 @@ describe('run bookkeeping', () => {
     const p = new Progress()
     p.recordRun({ runTime: 900, level: 40, kills: 9000, victory: true })
     expect(p.records.victories).toBe(1)
+  })
+
+  it('separates story expeditions from optional survival victories', () => {
+    const p = new Progress()
+    p.recordRun({ runTime: 300, level: 20, kills: 400, victory: true, mode: 'expedition' })
+    p.recordRun({ runTime: 420, level: 30, kills: 900, victory: true, mode: 'survival' })
+    expect(p.state.journey.expeditionVictories).toBe(1)
+    expect(p.state.journey.survivalVictories).toBe(1)
+    expect(p.markJourneyChapter('jade:guardian')).toBe(true)
+    expect(p.markJourneyChapter('jade:guardian')).toBe(false)
+    expect(p.recordJourneyDecision('jade:guardian', {
+      beatId: 'sealed-record', choiceId: 'record-truth', name: '진상을 새기다', outcome: '원본 보존',
+    })).toBe(true)
+    expect(p.journeyDecisions('jade:guardian')).toEqual([expect.objectContaining({
+      beatId: 'sealed-record', choiceId: 'record-truth',
+    })])
   })
 
   it('records each thing seen only once', () => {

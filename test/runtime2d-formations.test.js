@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ENEMIES } from '../src/data/enemies.js'
 import { FORMATIONS } from '../src/data/formations.js'
+import { RUN_SECONDS } from '../src/data/waves.js'
 import {
   DEFAULT_FORMATION_SEED,
   FORMATION_DIRECTOR_VERSION,
@@ -18,7 +19,7 @@ function runToEnd(seed = DEFAULT_FORMATION_SEED, handler = null) {
     events.push(event)
     return handler?.(event)
   }
-  for (let tick = 0; tick <= 900 * 60; tick++) {
+  for (let tick = 0; tick <= RUN_SECONDS * 60; tick++) {
     director.update(tick / 60, player(), onEvent)
   }
   return { director, events }
@@ -37,7 +38,7 @@ describe('FormationDirector2D fixed-tick timeline', () => {
 
     expect(director.update(FORMATIONS[0].t, player(), (event) => { events.push(event) })).toBe(1)
     expect(director.formationSeen).toBe(true)
-    for (let tick = FORMATIONS[0].t * 60 + 1; tick <= 900 * 60; tick++) {
+    for (let tick = FORMATIONS[0].t * 60 + 1; tick <= RUN_SECONDS * 60; tick++) {
       director.update(tick / 60, player(), (event) => { events.push(event) })
     }
     expect(events.map((event) => event.index)).toEqual(FORMATIONS.map((_, i) => i))
@@ -61,7 +62,7 @@ describe('FormationDirector2D fixed-tick timeline', () => {
 
   it('resolves a formation type to the toughest enemy allowed by the roster', () => {
     const byId = Object.fromEntries(ENEMIES.map((enemy) => [enemy.id, enemy]))
-    const target = FORMATIONS[FORMATIONS.length - 1]
+    const target = { ...FORMATIONS[FORMATIONS.length - 1], type: 'glacierWarden' }
     const jade = new FormationDirector2D({ formations: [target], seed: 7, roster: ['wisp', 'wolf', 'demonCultivator'], byId })
     const frost = new FormationDirector2D({ formations: [target], seed: 7, roster: ['wisp', 'wolf', 'glacierWarden'], byId })
 

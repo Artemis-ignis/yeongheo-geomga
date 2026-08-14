@@ -2,10 +2,244 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   BREAKTHROUGH_HEAL_FRACTION_2D, DAO_VOW_HEAL_FRACTION_2D,
   FIRST_LEVEL_MODAL_MIN_SECONDS_2D, GROWTH_CHOICE_MIN_GAMEPLAY_GAP_SECONDS_2D, Game2D,
-  canOpenGrowthChoice2D, isHudLiveState,
-  prioritizeEmergencyHeal2D,
+  applyJourneyLegacy2D, canOpenGrowthChoice2D, daoVowsForRun2D, expeditionGuardianSpawnPositions2D,
+  clickMoveVector2D, expeditionObjective2D, isHudLiveState, resolveStoryPropCollision2D,
+  prioritizeEmergencyHeal2D, snapStoryClickTarget2D, STORY_INTERACTION_MARGIN_2D, worldDirectionLabel2D,
 } from '../src/runtime2d/Game2D.js'
 import { DaoVows2D } from '../src/runtime2d/DaoVows2D.js'
+import { getJourneyChapterForStage } from '../src/data/journey.js'
+import { investigationCluePois, WorldInteractions2D } from '../src/runtime2d/WorldInteractions2D.js'
+
+describe('authored expedition objective copy', () => {
+  const chapter = getJourneyChapterForStage('jade')
+  const poi = { id: 'route:0', type: 'altar', routeIndex: 0, x: 10, z: 4 }
+  const interactions = {
+    currentRoutePoi: () => poi,
+    stateForPoi: () => 'dormant',
+    investigationProgressFor: () => ({ found: 1, total: 3, complete: false }),
+    nearestUnfoundInvestigationClue: () => ({ x: 4, z: 8 }),
+  }
+
+  it('distinguishes travel, guardian combat, interaction and the final guardian', () => {
+    expect(expeditionObjective2D(interactions, 0, null, chapter)).toContain('흔적')
+    expect(expeditionObjective2D(interactions, 0, null, chapter, { x: 0, z: 0 })).toContain('남동쪽 11보')
+    interactions.stateForPoi = () => 'active'
+    expect(expeditionObjective2D(interactions, 0, null, chapter)).toContain('대조')
+    expect(expeditionObjective2D(interactions, 0, null, chapter, { x: 0, z: 0 }))
+      .toContain('흔적 1/3 · 다음 흔적 남동쪽 9보')
+    const record = { id: 'route:1', type: 'treasure', routeIndex: 1, x: 36, z: 24 }
+    interactions.currentRoutePoi = () => record
+    expect(expeditionObjective2D(interactions, 1, {
+      active: true, def: { id: 'blueWolfKing', name: '요왕 창랑' },
+    }, chapter)).toBe('비경 문서를 삼킨 요왕 창랑을 격파하십시오')
+    interactions.stateForPoi = () => 'cleared'
+    interactions.currentRoutePoi = () => poi
+    expect(expeditionObjective2D(interactions, 0, null, chapter)).toContain('판독')
+    expect(expeditionObjective2D(interactions, 3, {
+      active: true, def: { name: '옥허진장' },
+    }, chapter)).toContain('옥허진장')
+  })
+
+  it('turns screen-aligned world offsets into readable bearings', () => {
+    expect(worldDirectionLabel2D(12, 2)).toBe('동쪽')
+    expect(worldDirectionLabel2D(-12, 2)).toBe('서쪽')
+    expect(worldDirectionLabel2D(2, -12)).toBe('북쪽')
+    expect(worldDirectionLabel2D(2, 12)).toBe('남쪽')
+    expect(worldDirectionLabel2D(8, -7)).toBe('북동쪽')
+    expect(worldDirectionLabel2D(-8, 7)).toBe('남서쪽')
+  })
+})
+
+describe('integrated survivor-journey progression', () => {
+  it('keeps Dao build branches active in both authored and challenge runs', () => {
+    expect(daoVowsForRun2D({ mode: 'expedition' })).toBeInstanceOf(DaoVows2D)
+    expect(daoVowsForRun2D({ mode: 'survival' })).toBeInstanceOf(DaoVows2D)
+  })
+})
+
+describe('click-to-move browser input', () => {
+  it('normalizes travel and stops inside the authored arrival radius', () => {
+    expect(clickMoveVector2D({ x: 0, z: 0 }, { x: 3, z: 4 })).toEqual({ x: 0.6, z: 0.8, arrived: false })
+    expect(clickMoveVector2D({ x: 2.8, z: 4 }, { x: 3, z: 4 })).toEqual({ x: 0, z: 0, arrived: true })
+  })
+
+  it('stops a far story click at the active clue instead of overshooting it', () => {
+    const clue = { x: 0, z: 9, interactionRadius: 1 }
+    const interactions = {
+      currentRoutePoi: () => ({ id: 'route:0', x: 0, z: 12 }),
+      nearestUnfoundInvestigationClue: () => clue,
+    }
+    expect(snapStoryClickTarget2D({ x: 0, z: 0 }, { x: 0.5, z: 24 }, interactions))
+      .toEqual({ x: 0, z: 9 })
+    const offRoute = { x: 24, z: 6 }
+    expect(snapStoryClickTarget2D({ x: 0, z: 0 }, offRoute, interactions)).toBe(offRoute)
+  })
+})
+
+describe('authored expedition boss encounters', () => {
+  it('stages story guardians beyond the prop instead of on top of the heroine', () => {
+    const event = { x: 10, z: 4 }
+    const player = { x: 8.5, z: 4.5 }
+    const positions = expeditionGuardianSpawnPositions2D(event, player, 3)
+    expect(positions).toHaveLength(3)
+    for (const point of positions) {
+      expect(Math.hypot(point.x - event.x, point.z - event.z)).toBeCloseTo(6.8)
+      expect(Math.hypot(point.x - player.x, point.z - player.z)).toBeGreaterThan(6.8)
+    }
+  })
+
+  it('keeps the heroine ground contact outside an authored story prop', () => {
+    const player = { x: 10.4, z: 4.2, prevX: 8, prevZ: 4 }
+    expect(resolveStoryPropCollision2D(player, { x: 10, z: 4 })).toBe(true)
+    expect(Math.hypot(player.x - 10, player.z - 4)).toBeCloseTo(2.65)
+    expect(resolveStoryPropCollision2D(player, { x: 10, z: 4 })).toBe(false)
+  })
+
+  it('keeps the completed investigation reachable outside the prop collision ring', () => {
+    const interactions = new WorldInteractions2D({
+      seed: 99,
+      stageId: 'jade',
+      mode: 'expedition',
+    })
+    const poi = interactions.currentRoutePoi()
+    const beat = interactions.chapter.route[0]
+    for (const clue of investigationCluePois(poi, beat)) {
+      interactions.interact(clue.x, clue.z)
+    }
+    // The old 2.85-unit lookup band sat only 0.20 units outside the collision
+    // ring and was easy to skip between fixed updates. Camera-relative click
+    // travel can settle just below four units while the prop fills the contact
+    // silhouette, so that visible arrival must still resolve.
+    const contactX = poi.x + 3.8
+    expect(interactions.findNearby(contactX, poi.z, 0.45)).toBeNull()
+    expect(interactions.findNearby(contactX, poi.z, STORY_INTERACTION_MARGIN_2D)?.id).toBe(poi.id)
+  })
+
+  it('automatically publishes the investigation conclusion at the visible prop edge', () => {
+    const interactions = new WorldInteractions2D({
+      seed: 99,
+      stageId: 'jade',
+      mode: 'expedition',
+    })
+    const poi = interactions.currentRoutePoi()
+    for (const clue of investigationCluePois(poi, interactions.chapter.route[0])) {
+      interactions.interact(clue.x, clue.z)
+    }
+    interactions.drainEvents()
+    const game = Object.create(Game2D.prototype)
+    const applyPoiReward = vi.fn()
+    Object.assign(game, {
+      state: 'playing',
+      world: { player: { x: poi.x + 3.8, z: poi.z }, nearbyPoiId: null },
+      interactions,
+      journeyChapter: interactions.chapter,
+      input: { consumeInteract: vi.fn(() => false) },
+      interactionPrompt: { hidden: true, textContent: '' },
+      _interactionSnapshotKey: '',
+      _invalidateRadarCache: vi.fn(),
+      _applyPoiReward: applyPoiReward,
+    })
+
+    Game2D.prototype._updateWorldInteractions.call(game)
+
+    expect(interactions.isConsumed(poi.id)).toBe(true)
+    expect(applyPoiReward).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'poi_reward', poiId: poi.id,
+    }))
+  })
+
+  it('applies a persistent chapter decision to the next expedition stats', () => {
+    const player = { metaMods: [], recomputeStats: vi.fn() }
+    const world = { player }
+    const legacy = { choiceId: 'record-truth', mods: [{ stat: 'might', op: 'mul', value: 0.06 }] }
+    expect(applyJourneyLegacy2D(world, legacy)).toBe(true)
+    expect(player.metaMods).toEqual([{ stat: 'might', op: 'mul', value: 0.06 }])
+    expect(player.recomputeStats).toHaveBeenCalledOnce()
+    expect(applyJourneyLegacy2D(world, legacy)).toBe(false)
+    expect(player.metaMods).toHaveLength(1)
+    expect(player.recomputeStats).toHaveBeenCalledOnce()
+    expect(applyJourneyLegacy2D({ player }, null)).toBe(false)
+  })
+
+  it('returns a defeated route boss to its exact story POI before the final guardian', () => {
+    const game = Object.create(Game2D.prototype)
+    const onLevels = vi.fn()
+    Object.assign(game, {
+      world: {
+        player: { addXp: vi.fn(() => 1) },
+        onLevels,
+        effects: { spawn: vi.fn() },
+      },
+      interactions: { markGuardianCleared: vi.fn(() => true) },
+      _expeditionBossEncounter: {
+        bossId: 'blueWolfKing', poiId: 'route:1', x: 20, z: 30, experience: 115,
+      },
+      _refreshWorldInteractions: vi.fn(),
+      _banner: vi.fn(),
+    })
+
+    expect(Game2D.prototype._completeExpeditionBossEncounter.call(game, {
+      bossId: 'jadeVoidWarden', bossName: '옥허진장',
+    })).toBe(false)
+    expect(game.interactions.markGuardianCleared).not.toHaveBeenCalled()
+
+    expect(Game2D.prototype._completeExpeditionBossEncounter.call(game, {
+      bossId: 'blueWolfKing', bossName: '창랑',
+    })).toBe(true)
+    expect(game.world.player.addXp).toHaveBeenCalledWith(115)
+    expect(onLevels).toHaveBeenCalledWith(1)
+    expect(game.interactions.markGuardianCleared).toHaveBeenCalledWith('route:1')
+    expect(game._banner).toHaveBeenCalledWith('창랑 격파 · 봉인 문서를 회수하십시오', 2.5)
+    expect(game._expeditionBossEncounter).toBeNull()
+  })
+
+  it('turns a recovered story record into a combat consequence and persistent decision', () => {
+    const game = Object.create(Game2D.prototype)
+    const modal = {
+      isOpen: false,
+      open: vi.fn((choices, onPick) => { modal.choices = choices; modal.onPick = onPick; modal.isOpen = true }),
+    }
+    const player = {
+      metaMods: [], maxHp: 100, stones: 0,
+      recomputeStats: vi.fn(), heal: vi.fn(), addXp: vi.fn(() => 0),
+    }
+    const decision = vi.fn(() => true)
+    Object.assign(game, {
+      state: 'playing', modal,
+      world: { player, runTime: 44 },
+      progress: { recordJourneyDecision: decision },
+      journeyChapter: { id: 'jade:guardian' },
+      _journeyDecisions: new Map(),
+      _persist: vi.fn(),
+      _banner: vi.fn(),
+      _needsStaticRender: false,
+      _lastGrowthChoiceAt: Number.NEGATIVE_INFINITY,
+    })
+    const reward = {
+      kind: 'story-choice', title: '봉인 문서의 결단', description: '기록을 어떻게 다룰지 정하십시오.',
+      spiritStones: 32, experience: 50,
+      options: [{
+        id: 'record-truth', name: '진상을 새기다', iconId: 'echoing-heart', desc: '법보 위력 +10%',
+        outcome: '문서 원본을 천하록에 보존했습니다.', mods: [{ stat: 'might', op: 'mul', value: 0.1 }],
+      }],
+    }
+
+    expect(Game2D.prototype._openJourneyChoice.call(game, reward, { id: 'sealed-record' })).toBe(true)
+    expect(game._lastGrowthChoiceAt).toBe(44)
+    modal.isOpen = false
+    modal.onPick(modal.choices[0])
+
+    expect(player.metaMods).toContainEqual({ stat: 'might', op: 'mul', value: 0.1 })
+    expect(player.stones).toBe(32)
+    expect(player.addXp).toHaveBeenCalledWith(50)
+    expect(decision).toHaveBeenCalledWith('jade:guardian', expect.objectContaining({
+      beatId: 'sealed-record', choiceId: 'record-truth',
+    }))
+    expect(game._journeyDecisions.get('sealed-record')).toMatchObject({ choiceId: 'record-truth' })
+    expect(game._persist).toHaveBeenCalledOnce()
+    expect(game.state).toBe('playing')
+  })
+})
 
 function makeHudStateGame() {
   const consumed = new Set()
@@ -325,6 +559,7 @@ describe('Game2D run-state integration', () => {
       modal: { close: vi.fn() },
       shop: { hide: vi.fn(), show: vi.fn() },
       codex: { hide: vi.fn(), show: vi.fn() },
+      sanctum: { hide: vi.fn(), show: vi.fn() },
       audio: {
         muted: false,
         unlock: vi.fn(),
@@ -358,17 +593,16 @@ describe('Game2D run-state integration', () => {
     expect(game.presentation.showTitle).toHaveBeenCalled()
     expect(game.shop.hide).toHaveBeenCalled()
     expect(game.codex.hide).toHaveBeenCalled()
-    expect(typeof titleHandlers.onStart).toBe('function')
-    expect(typeof titleHandlers.onShop).toBe('function')
+    expect(typeof titleHandlers.onEnter).toBe('function')
     expect(typeof titleHandlers.onCodex).toBe('function')
     expect(oldWorld.onEnd).toBeNull()
     expect(oldWorld.onWeaponAudio).toBeNull()
     expect(oldWorld.onBossDeath).toBeNull()
     expect(oldWorld.player.onHurt).toBeNull()
     game.state = 'playing'
-    titleHandlers.onShop()
     titleHandlers.onCodex()
     expect(game.state).toBe('playing')
+    expect(game.sanctum.show).not.toHaveBeenCalled()
     expect(game.shop.show).not.toHaveBeenCalled()
     expect(game.codex.show).not.toHaveBeenCalled()
     expect(game._banner).toHaveBeenLastCalledWith(

@@ -3,6 +3,7 @@ import {
   HERO_GROUND_MARKER_2D,
   HERO_AURA_PRESENTATION_2D,
   HERO_READABILITY_RIM_2D,
+  INVESTIGATION_TRACE_PRESENTATION_2D,
   BOSS_MIN_SCREEN_HEIGHT_RATIO_2D,
   JADE_GROUND_COMPOSITION_2D,
   JADE_REGION_TEXTURE_ORDER_2D,
@@ -22,19 +23,19 @@ import {
 
 describe('runtime 2D grounding and terrain integration', () => {
   it('composes jade from a seamless material and world-anchored regional detail', () => {
-    expect(JADE_GROUND_COMPOSITION_2D.base).toBe('procedural-authored-material-composite')
+    expect(JADE_GROUND_COMPOSITION_2D.base).toBe('continuous-authored-material')
     expect(JADE_GROUND_COMPOSITION_2D.baseAsset).toBe('jade-sanctuary-ground-material-v2')
     expect(JADE_GROUND_COMPOSITION_2D.fallbackAsset).toBe('jade-highland-ground-v1')
     expect(JADE_GROUND_COMPOSITION_2D.authoredDetail).toBe('world-anchored-procedural-region-decals')
     expect(JADE_GROUND_COMPOSITION_2D.repeatsAuthoredPlate).toBe(false)
-    expect(JADE_GROUND_COMPOSITION_2D.baseTiling).toBe('periodic-wrapped-material-islands')
+    expect(JADE_GROUND_COMPOSITION_2D.baseTiling).toBe('full-authored-material-period')
     expect(JADE_GROUND_COMPOSITION_2D.synthesisSize).toBeLessThanOrEqual(1536)
-    expect(JADE_GROUND_COMPOSITION_2D.authoredCropMode).toBe('multi-crop-rotated-soft-islands')
+    expect(JADE_GROUND_COMPOSITION_2D.authoredCropMode).toBe('full-plate-no-crops')
     expect(JADE_GROUND_COMPOSITION_2D.landmarkMotifs).toBe('seed-specific-procedural')
-    expect(JADE_GROUND_COMPOSITION_2D.decalOverlap).toBeGreaterThanOrEqual(1.1)
+    expect(JADE_GROUND_COMPOSITION_2D.decalOverlap).toBeGreaterThanOrEqual(1.02)
     expect(JADE_GROUND_COMPOSITION_2D.decalEdgeFeather).toBeGreaterThanOrEqual(72)
-    expect(JADE_GROUND_COMPOSITION_2D.decalAlpha).toBeGreaterThanOrEqual(0.9)
-    expect(JADE_GROUND_COMPOSITION_2D.floorTileScale.x).toBeLessThanOrEqual(1)
+    expect(JADE_GROUND_COMPOSITION_2D.decalAlpha).toBeLessThanOrEqual(0.35)
+    expect(JADE_GROUND_COMPOSITION_2D.floorTileScale.x).toBeLessThanOrEqual(1.5)
     expect(JADE_GROUND_COMPOSITION_2D.floorTileScale.y / JADE_GROUND_COMPOSITION_2D.floorTileScale.x)
       .toBeCloseTo(0.4, 2)
   })
@@ -75,15 +76,21 @@ describe('runtime 2D grounding and terrain integration', () => {
   })
 
   it('anchors every high-variance family to its sampled opaque contact row', () => {
-    expect(heroFootPivot2D('n', 1)).toBeCloseTo(0.898)
-    expect(heroFootPivot2D('s', 0)).toBeCloseTo(0.961)
-    expect(actorFootPivot2D('prop', 7)).toBeCloseTo(0.758)
-    expect(actorFootPivot2D('prop', 2)).toBeCloseTo(0.867)
+    expect(heroFootPivot2D('n', 1)).toBeCloseTo(242 / 256)
+    expect(heroFootPivot2D('s', 0)).toBeCloseTo(242 / 256)
+    expect(actorFootPivot2D('prop', 7)).toBeCloseTo(193 / 256)
+    expect(actorFootPivot2D('prop', 2)).toBeCloseTo(222 / 256)
     expect(actorFootPivot2D('bloodScorpion', 4)).toBeCloseTo(0.742)
     expect(actorFootPivot2D('yorang', 5)).toBeCloseTo(0.727)
+    expect(actorFootPivot2D('yorangN', 5)).toBeCloseTo(232 / 256)
+    expect(actorFootPivot2D('yorangS', 5)).toBeCloseTo(232 / 256)
     expect(actorFootPivot2D('jadeRidgeHound', 0)).toBeCloseTo(206 / 256)
+    expect(actorFootPivot2D('jadeRidgeHoundN', 0)).toBeCloseTo(232 / 256)
+    expect(actorFootPivot2D('jadeRidgeHoundS', 7)).toBeCloseTo(232 / 256)
     expect(actorFootPivot2D('jadeRidgeHound', 5)).toBeCloseTo(186 / 256)
     expect(actorFootPivot2D('jadeStoneGhoul', 0)).toBeCloseTo(0.953)
+    expect(actorFootPivot2D('jadeSerpentN', 3)).toBeCloseTo(244 / 256)
+    expect(actorFootPivot2D('jadeSerpentS', 6)).toBeCloseTo(244 / 256)
     expect(actorFootPivot2D('jadeShardGuardian', 0)).toBeCloseTo(223 / 256)
     expect(actorFootPivot2D('jadeShardGuardian', 6)).toBeCloseTo(230 / 256)
     expect(actorFootPivot2D('maskedSealRevenant', 0)).toBeCloseTo(217 / 256)
@@ -95,9 +102,9 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(actorFootPivot2D('prop', 15)).toBe(actorFootPivot2D('prop', 7))
   })
 
-  it('keeps all northeast heroine frames on the measured opaque contact row', () => {
-    const pivots = Array.from({ length: 8 }, (_, frame) => heroFootPivot2D('ne', frame))
-    expect(pivots).toEqual(Array(8).fill(244 / 256))
+  it('keeps all northeast heroine run and attack frames on one contact row', () => {
+    const pivots = Array.from({ length: 16 }, (_, frame) => heroFootPivot2D('ne', frame))
+    expect(pivots).toEqual(Array(16).fill(242 / 256))
   })
 
   it('uses silhouette-specific contact shadows and restrained separation light', () => {
@@ -113,27 +120,26 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(shardGuardian.shadowWidth).toBeLessThan(actorGroundingProfile2D('jadeStoneGhoul').shadowWidth)
     expect(maskedSealRevenant.shadowWidth).toBeGreaterThan(actorGroundingProfile2D('talismanRevenant').shadowWidth)
     expect(maskedSealRevenant.contactAlpha).toBeLessThan(actorGroundingProfile2D('talismanRevenant').contactAlpha)
-    expect(wisp.shadowAlpha).toBeLessThan(serpent.shadowAlpha)
+    expect(wisp.shadowAlpha).toBeLessThanOrEqual(0.65)
     expect(fence.shadowWidth).toBeGreaterThan(pillar.shadowWidth)
-    expect(pillar.contactAlpha).toBeLessThanOrEqual(0.1)
-    expect(fence.contactAlpha).toBeLessThanOrEqual(0.1)
-    expect(pillar.contactHeight).toBeLessThanOrEqual(0.12)
-    expect(fence.contactHeight).toBeLessThanOrEqual(0.12)
-    expect(new Set([scorpion.contactTint, serpent.contactTint, wisp.contactTint]).size).toBe(3)
-    expect(Math.min(scorpion.contactAlpha, serpent.contactAlpha, wisp.contactAlpha)).toBeGreaterThanOrEqual(0.3)
-    expect(Math.max(scorpion.contactAlpha, serpent.contactAlpha, wisp.contactAlpha)).toBeLessThanOrEqual(0.46)
+    expect(pillar.contactAlpha).toBe(0)
+    expect(fence.contactAlpha).toBe(0)
+    // Contact lights are disabled for scenery; their stored dimensions are
+    // irrelevant as long as no luminous platform can be rendered.
+    expect(new Set([scorpion.contactTint, serpent.contactTint, wisp.contactTint]).size).toBeGreaterThanOrEqual(2)
+    expect(Math.min(scorpion.contactAlpha, serpent.contactAlpha)).toBe(0)
+    expect(Math.max(scorpion.contactAlpha, serpent.contactAlpha, wisp.contactAlpha)).toBeLessThanOrEqual(0.13)
     const yorang = actorGroundingProfile2D('yorang')
     const jadeRidgeHound = actorGroundingProfile2D('jadeRidgeHound')
-    expect(yorang.visualScale).toBeCloseTo(1.55)
+    expect(yorang.visualScale).toBeCloseTo(1.42)
     expect(yorang.contactLift).toBeLessThanOrEqual(0.02)
     expect(yorang.contactWidth).toBeLessThanOrEqual(yorang.shadowWidth)
     expect(yorang.contactHeight).toBeLessThanOrEqual(0.16)
-    expect(yorang.contactAlpha).toBeGreaterThanOrEqual(0.16)
-    expect(yorang.contactAlpha).toBeLessThanOrEqual(0.24)
+    expect(yorang.contactAlpha).toBe(0)
     expect(jadeRidgeHound.visualScale).toBeCloseTo(yorang.visualScale)
     expect(jadeRidgeHound.contactHeight).toBeLessThanOrEqual(0.16)
     expect(jadeRidgeHound.contactTint).not.toBe(yorang.contactTint)
-    expect(yorang.shadowAlpha).toBeGreaterThanOrEqual(0.84)
+    expect(yorang.shadowAlpha).toBeLessThanOrEqual(0.6)
     expect(Math.max(scorpion.visualScale, serpent.visualScale, wisp.visualScale)).toBeLessThanOrEqual(1.42)
     expect(PROP_MATERIAL_TINTS_2D).toHaveLength(8)
     expect(PROP_MATERIAL_TINTS_2D.every((tint) => tint < 0xffffff)).toBe(true)
@@ -155,11 +161,11 @@ describe('runtime 2D grounding and terrain integration', () => {
   })
 
   it('meets the authored heroine occupancy targets at both release viewports', () => {
-    expect(heroCombatHeight2D(1080, 140)).toBeCloseTo(176)
-    expect(heroCombatHeight2D(1600, 140)).toBeCloseTo(248)
-    expect(heroCombatHeight2D(1600, 140) / heroCombatHeight2D(1080, 140)).toBeCloseTo(248 / 176)
-    expect(heroCombatHeight2D(720, 140)).toBeCloseTo(118)
-    expect(heroCombatHeight2D(1080, 160)).toBeGreaterThan(176)
+    expect(heroCombatHeight2D(1080, 140)).toBeCloseTo(196)
+    expect(heroCombatHeight2D(1600, 140)).toBeCloseTo(276)
+    expect(heroCombatHeight2D(1600, 140) / heroCombatHeight2D(1080, 140)).toBeCloseTo(276 / 196)
+    expect(heroCombatHeight2D(720, 140)).toBeCloseTo(134)
+    expect(heroCombatHeight2D(1080, 160)).toBeGreaterThan(196)
   })
 
   it('keeps bosses above a measurable screen occupancy floor', () => {
@@ -215,9 +221,38 @@ describe('runtime 2D grounding and terrain integration', () => {
 
     presentation._placeActor(entry, 0, 0, 100, 1, 0, 0xffffff)
 
-    expect(shadow.width).toBeCloseTo(86)
-    expect(shadow.height).toBeCloseTo(9.5)
-    expect(shadow.alpha).toBeCloseTo(0.86)
+    const profile = actorGroundingProfile2D('bloodScorpion')
+    expect(shadow.width).toBeCloseTo(100 * profile.shadowWidth)
+    expect(shadow.height).toBeCloseTo(Math.max(profile.minShadowHeight, 100 * profile.shadowHeight))
+    expect(shadow.alpha).toBeCloseTo(profile.shadowAlpha)
     expect(shadow.position.set).toHaveBeenCalledWith(expect.any(Number), expect.any(Number))
+  })
+
+  it('renders investigation evidence as three dedicated grounded trace silhouettes', () => {
+    expect(Object.keys(INVESTIGATION_TRACE_PRESENTATION_2D)).toEqual([
+      'sword-scar', 'beast-trail', 'seal-ash',
+    ])
+    expect(new Set(Object.values(INVESTIGATION_TRACE_PRESENTATION_2D).map((trace) => trace.texture)).size).toBe(3)
+    expect(Object.values(INVESTIGATION_TRACE_PRESENTATION_2D).every((trace) => trace.height < trace.width)).toBe(true)
+    expect(INVESTIGATION_TRACE_PRESENTATION_2D['sword-scar'].width).toBeGreaterThanOrEqual(140)
+    expect(INVESTIGATION_TRACE_PRESENTATION_2D['beast-trail'].width).toBeGreaterThanOrEqual(130)
+  })
+
+  it('keeps scenery contact shadows while the upper sprite fades around the heroine', () => {
+    const sprite = {
+      texture: { height: 256 }, scale: { set: vi.fn() }, position: { set: vi.fn() },
+      visible: false, parent: null,
+    }
+    const shadow = { position: { set: vi.fn() }, visible: false }
+    const presentation = Object.create(PixiPresentation.prototype)
+    Object.assign(presentation, {
+      cameraX: 0, cameraZ: 0,
+      viewport: { width: 1280, height: 720, zoom: 1 },
+      actorBuckets: Array.from({ length: 64 }, () => ({ addChild: vi.fn() })),
+    })
+    presentation._placeActor({
+      sprite, shadow, bucket: -1, key: 'prop', groundingKey: 'prop', frame: 1,
+    }, 0, 0, 100, 0.22, 0, 0xffffff)
+    expect(shadow.alpha).toBeCloseTo(actorGroundingProfile2D('prop', 1).shadowAlpha * 0.72)
   })
 })

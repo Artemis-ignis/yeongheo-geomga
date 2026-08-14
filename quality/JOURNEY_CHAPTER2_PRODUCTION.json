@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "releaseState": "not-playable",
+  "id": "ember:scar-road",
+  "stageId": "ember",
+  "act": 1,
+  "chapter": 2,
+  "indexLabel": "제2장",
+  "title": "재가 된 검로",
+  "premise": "옥산의 검흔은 불타 버린 검가 역참과 적염 황야의 거대한 노심으로 이어집니다.",
+  "reviewAssets": {
+    "environment": "assets-source/environment/ember-wastes-chapter2-keyart-v1.webp",
+    "magmaBrute": "assets-source/sprites2d/magma-brute-motion-v1.webp"
+  },
+  "route": [
+    {
+      "id": "ash-trail",
+      "title": "재 속의 발자국",
+      "encounter": { "kind": "tracking", "evidenceCount": 4, "falseTrails": 2 },
+      "playerVerb": "전투 없이 검흔과 풍향을 대조해 진짜 이동 경로를 판독한다"
+    },
+    {
+      "id": "burned-waystation",
+      "title": "불타는 역참",
+      "encounter": { "kind": "rescue", "survivorCount": 3, "defenseWaves": 2 },
+      "playerVerb": "흩어진 생존자를 찾아 호위하고 역참의 불길을 끈다"
+    },
+    {
+      "id": "furnace-pursuit",
+      "title": "도주하는 노심지기",
+      "encounter": { "kind": "pursuit", "escapeDistance": 42, "staggerHits": 3 },
+      "playerVerb": "도주 경로를 막고 세 차례 경직시켜 검흔의 근원을 붙잡는다"
+    }
+  ],
+  "boss": { "id": "scarFurnaceKeeper", "title": "적염 노심의 주인" },
+  "productionBlockers": [
+    "화정 전용 방향 모션",
+    "재까마귀 전용 방향 모션",
+    "노심지기 보스와 3페이즈 전조",
+    "적염 지면 재질과 전용 소품 접점 검수",
+    "추적과 구출과 추격 실플레이 검증"
+  ],
+  "admissionRule": "모든 차단 항목과 권리 기록, 고정 해상도 Chrome 시각 검수가 끝나기 전에는 src 런타임이나 출시 매니페스트에서 참조하지 않는다."
+}

@@ -7,7 +7,7 @@ export const COOLDOWN_FLOOR = 0.4
  * Rebuild the full stat block from scratch.
  *
  * Always recomputed from base — never patched incrementally — so a bad increment
- * can never drift the numbers over a 15-minute run.
+ * can never drift the numbers over a complete run.
  *
  *   value = (base + Σ add) * Π (1 + mul)
  *
