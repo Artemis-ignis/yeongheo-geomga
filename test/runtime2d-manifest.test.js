@@ -69,6 +69,11 @@ describe('runtime2d sprite contract', () => {
     const hound = SPRITE_MANIFEST.actors.jadeRidgeHound
     expect(Object.keys(hound.reactionRuntime).sort()).toEqual(['default', 'north', 'south'])
     expect(hound.reactionAnimations).toEqual({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] })
+    const serpent = SPRITE_MANIFEST.actors.jadeSerpent
+    expect(Object.keys(serpent.reactionRuntime).sort()).toEqual(['default', 'north', 'south'])
+    expect(serpent.reactionCell).toEqual([256, 256])
+    expect(serpent.reactionSheet).toEqual([4, 2])
+    expect(serpent.reactionAnimations).toEqual({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] })
   })
 
   it('does not admit unreleased chapter-two candidates to the global runtime manifest', () => {

@@ -826,6 +826,27 @@
       "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
     },
     {
+      "id": "sprite2d.jade-serpent.reaction.v1",
+      "path": "public/assets/sprites2d/jade-serpent-reaction-v1.webp",
+      "role": "runtime-2d-common-enemy-directional-reaction-atlas",
+      "tier": "world", "source": "imagegen-chroma-key-alpha-valley-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.jade-serpent.north.reaction.v1",
+      "path": "public/assets/sprites2d/jade-serpent-north-reaction-v1.webp",
+      "role": "runtime-2d-common-enemy-directional-reaction-atlas",
+      "tier": "world", "source": "imagegen-chroma-key-alpha-valley-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
+    },
+    {
+      "id": "sprite2d.jade-serpent.south.reaction.v1",
+      "path": "public/assets/sprites2d/jade-serpent-south-reaction-v1.webp",
+      "role": "runtime-2d-common-enemy-directional-reaction-atlas",
+      "tier": "world", "source": "imagegen-chroma-key-alpha-valley-normalized-v1",
+      "consumers": ["src/runtime2d/spriteManifest.js"], "maxBytes": 600000
+    },
+    {
       "id": "sprite2d.jade-serpent.north.motion.v2",
       "path": "public/assets/sprites2d/jade-serpent-north-motion-v2.webp",
       "role": "runtime-2d-common-enemy-directional-motion-atlas",
@@ -1187,6 +1208,24 @@
     {
       "id": "sprite2d.source.jade-ridge-hound.south.reaction.v1",
       "path": "assets-source/sprites2d/jade-ridge-hound-south-reaction-sheet-v1.png",
+      "role": "authoring-2d-common-enemy-directional-reaction-sheet", "tier": "authoring",
+      "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-serpent.reaction.v1",
+      "path": "assets-source/sprites2d/jade-serpent-reaction-sheet-v1.png",
+      "role": "authoring-2d-common-enemy-directional-reaction-sheet", "tier": "authoring",
+      "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-serpent.north.reaction.v1",
+      "path": "assets-source/sprites2d/jade-serpent-north-reaction-sheet-v1.png",
+      "role": "authoring-2d-common-enemy-directional-reaction-sheet", "tier": "authoring",
+      "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
+    },
+    {
+      "id": "sprite2d.source.jade-serpent.south.reaction.v1",
+      "path": "assets-source/sprites2d/jade-serpent-south-reaction-sheet-v1.png",
       "role": "authoring-2d-common-enemy-directional-reaction-sheet", "tier": "authoring",
       "source": "imagegen-identity-preserve", "consumers": ["tools/yeongheo/sprite-authoring-manifest.json"], "maxBytes": 2500000
     },

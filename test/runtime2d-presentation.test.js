@@ -156,6 +156,23 @@ describe('PixiPresentation combat bindings', () => {
     })
   })
 
+  it('resolves jade serpent reactions without falling back to locomotion frames', () => {
+    const frames = {
+      jadeSerpentReaction: ['side'],
+      jadeSerpentReactionN: ['north'],
+      jadeSerpentReactionS: ['south'],
+    }
+    expect(directionalEnemyReactionFrames2D(frames, 'jadeSerpent', 0)).toMatchObject({
+      frames: frames.jadeSerpentReactionS, mirror: false,
+    })
+    expect(directionalEnemyReactionFrames2D(frames, 'jadeSerpent', Math.PI)).toMatchObject({
+      frames: frames.jadeSerpentReactionN, mirror: false,
+    })
+    expect(directionalEnemyReactionFrames2D(frames, 'jadeSerpent', -Math.PI / 2)).toMatchObject({
+      frames: frames.jadeSerpentReaction, mirror: true,
+    })
+  })
+
   it('keeps locomotion frames active during automatic attacks', () => {
     const hero = SPRITE_MANIFEST.actors.seolryeong
     expect(heroAnimationFrameIndex2D(hero, {
