@@ -26,8 +26,10 @@ describe('runtime2d sprite contract', () => {
     const hero = SPRITE_MANIFEST.actors.seolryeong
     expect(hero.cell).toEqual([384, 256])
     expect(hero.sheet).toEqual([4, 4])
+    expect(hero.animations.idle).toEqual([15])
     expect(hero.animations.run).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
     expect(hero.animations.attack).toEqual([8, 9, 10, 11, 12, 13, 14, 15])
+    expect(hero.idleFramesByDirection).toEqual({ n: [8], ne: [15], e: [15], se: [15], s: [8] })
     expect(hero.url).toContain('seolryeong-heroine-southeast-motion-v4.webp')
     for (const direction of ['east', 'northeast', 'north', 'south']) {
       expect(hero.directionalRuntime[direction].url).toContain('-motion-v4.webp')
@@ -52,6 +54,10 @@ describe('runtime2d sprite contract', () => {
     expect(yorang.reactionCell).toEqual([256, 256])
     expect(yorang.reactionSheet).toEqual([4, 2])
     expect(yorang.reactionAnimations).toEqual({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] })
+    expect(yorang.reactionTiming).toEqual({
+      hurt: { fps: 12, loop: false, holdLast: false },
+      death: { fps: 10, loop: false, holdLast: true },
+    })
   })
 
   it('ships north and south candidates for common jade enemies', () => {
@@ -75,6 +81,26 @@ describe('runtime2d sprite contract', () => {
     const ghoul = SPRITE_MANIFEST.actors.jadeStoneGhoul
     expect(Object.keys(ghoul.reactionRuntime).sort()).toEqual(['default', 'north', 'south'])
     expect(ghoul.reactionAnimations).toEqual({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] })
+  })
+
+  it('uses the authored screen-right baseline for seal revenants', () => {
+    expect(SPRITE_MANIFEST.actors.talismanRevenant.directions).toEqual(['se'])
+    expect(SPRITE_MANIFEST.actors.maskedSealRevenant.directions).toEqual(['se'])
+  })
+
+  it('connects the Jade Void Warden reaction atlas with explicit hurt/death timing', () => {
+    const boss = SPRITE_MANIFEST.actors.jadeVoidWarden
+    expect(boss.reactionRuntime.default.url).toContain('jade-void-warden-reaction-v1.webp')
+    expect(boss.reactionRuntime.default.url).not.toBe(boss.url)
+    expect(boss.reactionCell).toEqual([256, 256])
+    expect(boss.reactionSheet).toEqual([4, 2])
+    expect(boss.reactionPivot).toEqual([0.5, 232 / 256])
+    expect(boss.reactionAnimations).toEqual({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] })
+    expect(boss.reactionTiming).toEqual({
+      hurt: { fps: 12, loop: false, holdLast: false },
+      death: { fps: 10, loop: false, holdLast: true },
+    })
+    expect(boss.animations).toEqual({ idle: [0, 1, 2, 3], cast: [4, 5, 6, 7] })
   })
 
   it('does not admit unreleased chapter-two candidates to the global runtime manifest', () => {
@@ -110,6 +136,22 @@ describe('runtime2d sprite contract', () => {
       'test.walk: duplicate frames',
       'test.attack: frame out of range',
     ]))
+  })
+
+  it('validates every direction in the authored idle frame map', () => {
+    const invalid = {
+      ...SPRITE_MANIFEST,
+      actors: {
+        test: {
+          url: '/test.png', pivot: [0.5, 0.9], runtimeHeight: 100,
+          directions: ['s', 'e'], sheet: [2, 1],
+          animations: { idle: [0] },
+          idleFramesByDirection: { s: [1], e: [2] },
+          visualApproval: 'pending', productionReady: false,
+        },
+      },
+    }
+    expect(validateSpriteManifest(invalid)).toContain('test.idle.e: frame out of range')
   })
 
   it('keeps gameplay silhouettes inside the authored 2.5D screen-height budget', () => {

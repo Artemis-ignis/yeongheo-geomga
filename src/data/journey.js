@@ -125,6 +125,144 @@ export const JOURNEY_CHAPTERS = Object.freeze([
   }),
 ])
 
+/**
+ * The authored chapter is the story contract; a run's expedition layout is a
+ * separate deterministic graph layered on top of it.  Keeping this data out
+ * of `chapter.route` means the three required beats stay stable for narrative,
+ * save and result consumers while optional detours can change per seed.
+ */
+const EXPEDITION_TOPOLOGIES = Object.freeze([
+  Object.freeze({
+    id: 'jade-trail',
+    optional: Object.freeze([
+      Object.freeze({ id: 'lantern-vow', type: 'altar', requires: Object.freeze(['broken-meridian']), riskTier: 1, guardians: Object.freeze(['wisp', 'talismanGhost']), title: '등화에 남은 맹세', approach: '등불 아래 남은 검가의 맹세를 살피십시오', active: '마기에 잠긴 등화를 정화하십시오', resolved: '등화의 맹세가 이번 출정의 검로에 스며들었습니다', reward: Object.freeze({ kind: 'blessing', stat: 'haste', amount: 0.09 }) }),
+      Object.freeze({ id: 'jade-spring', type: 'healing_spring', requires: Object.freeze(['sealed-record']), riskTier: 0, guardians: Object.freeze([]), title: '청람 영천', approach: '문서 뒤편의 청람 영천을 찾으십시오', active: '영천의 흐린 기운을 걷어 내십시오', resolved: '청람 영천이 기혈을 되돌렸습니다', reward: Object.freeze({ kind: 'healing', healthFraction: 0.46 }) }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'jade-fork',
+    optional: Object.freeze([
+      Object.freeze({ id: 'jade-spring', type: 'healing_spring', requires: Object.freeze(['broken-meridian']), riskTier: 0, guardians: Object.freeze([]), title: '청람 영천', approach: '안개 계곡의 청람 영천을 찾으십시오', active: '영천을 막은 요수를 몰아내십시오', resolved: '청람 영천이 기혈을 되돌렸습니다', reward: Object.freeze({ kind: 'healing', healthFraction: 0.38 }) }),
+      Object.freeze({ id: 'void-seal', type: 'elite_seal', requires: Object.freeze(['broken-meridian']), riskTier: 2, guardians: Object.freeze(['demonCultivator', 'stoneGhoul', 'jadeSerpent']), title: '허공의 봉인', approach: '갈라진 절벽의 허공 봉인을 조사하십시오', active: '봉인을 먹은 정예 요수를 격파하십시오', resolved: '허공의 봉인에서 위험한 힘을 빼앗았습니다', reward: Object.freeze({ kind: 'treasure', spiritStones: Object.freeze([36, 58]), experience: Object.freeze([80, 118]) }) }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'jade-detour',
+    optional: Object.freeze([
+      Object.freeze({ id: 'lantern-vow', type: 'altar', requires: Object.freeze(['broken-meridian']), riskTier: 1, guardians: Object.freeze(['wisp', 'talismanGhost']), title: '등화에 남은 맹세', approach: '산문 밖 등화의 맹세를 살피십시오', active: '마기에 잠긴 등화를 정화하십시오', resolved: '등화의 맹세가 검로에 스며들었습니다', reward: Object.freeze({ kind: 'blessing', stat: 'power', amount: 0.11 }) }),
+      Object.freeze({ id: 'void-seal', type: 'elite_seal', requires: Object.freeze(['sealed-record']), riskTier: 3, guardians: Object.freeze(['demonCultivator', 'stoneGhoul', 'jadeSerpent', 'talismanGhost']), title: '허공의 봉인', approach: '문서가 가리킨 허공 봉인을 조사하십시오', active: '봉인을 먹은 정예 요수를 격파하십시오', resolved: '허공의 봉인에서 위험한 힘을 빼앗았습니다', reward: Object.freeze({ kind: 'treasure', spiritStones: Object.freeze([54, 82]), experience: Object.freeze([118, 168]) }) }),
+    ]),
+  }),
+])
+
+function journeyHash(value) {
+  let hash = 0x811c9dc5
+  const text = String(value)
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash >>> 0
+}
+
+function journeyUnit(hash) {
+  return (hash >>> 0) / 4294967296
+}
+
+const EXPEDITION_NODE_ANCHORS = Object.freeze({
+  'broken-meridian': Object.freeze({ x: 10, z: 4 }),
+  'sealed-record': Object.freeze({ x: 36, z: 24 }),
+  'corrupted-seal': Object.freeze({ x: 18, z: 49 }),
+  'lantern-vow': Object.freeze({ x: -12, z: 18 }),
+  'jade-spring': Object.freeze({ x: 6, z: 24 }),
+  'void-seal': Object.freeze({ x: 46, z: 46 }),
+})
+
+function layoutPosition(seed, chapterId, nodeId, required) {
+  const anchor = EXPEDITION_NODE_ANCHORS[nodeId] ?? { x: 10, z: 4 }
+  // Keep the opening clue in its authored sanctuary footprint.  Later nodes
+  // receive a small stable offset so different seeds do not feel like the
+  // same three screenshots with a different combat RNG.
+  if (required && nodeId === 'broken-meridian') return anchor
+  const layoutKey = `${chapterId}:${nodeId}:${seed >>> 0}`
+  const root = journeyHash(layoutKey)
+  const depth = journeyHash(`${layoutKey}:depth`)
+  const xJitter = (journeyUnit(root) - 0.5) * 5.2
+  const zJitter = (journeyUnit(depth) - 0.5) * 5.2
+  return Object.freeze({ x: anchor.x + xJitter, z: anchor.z + zJitter })
+}
+
+function freezeLayoutNode(node) {
+  return Object.freeze({
+    id: node.id,
+    beatId: node.beatId ?? null,
+    type: node.type,
+    required: node.required === true,
+    riskTier: Math.max(0, Math.trunc(node.riskTier ?? 0)),
+    requires: Object.freeze([...(node.requires ?? [])]),
+    next: Object.freeze([...(node.next ?? [])]),
+    position: Object.freeze({ x: node.position.x, z: node.position.z }),
+    title: node.title ?? null,
+    approach: node.approach ?? null,
+    active: node.active ?? null,
+    resolved: node.resolved ?? null,
+    reward: node.reward ?? null,
+    guardians: Object.freeze([...(node.guardians ?? [])]),
+  })
+}
+
+/**
+ * Resolve a chapter's deterministic expedition graph for one run seed.
+ *
+ * The required story beats remain ordered and reachable in every topology.
+ * Optional events are genuine graph nodes with prerequisites, not hidden
+ * decorations or extra mandatory counters.
+ */
+export function journeyLayoutFor(seed = 0, chapter = JOURNEY_CHAPTERS[0]) {
+  const resolvedChapter = chapter ?? JOURNEY_CHAPTERS[0]
+  const unsignedSeed = Number(seed) >>> 0
+  const topologies = resolvedChapter.stageId === 'jade'
+    ? EXPEDITION_TOPOLOGIES
+    : EXPEDITION_TOPOLOGIES.slice(0, 1)
+  const topology = topologies[journeyHash(`${resolvedChapter.id}:${unsignedSeed}`) % topologies.length]
+  const requiredBeats = (resolvedChapter.route ?? []).map((beat, index) => ({
+    id: beat.id,
+    beatId: beat.id,
+    type: beat.type,
+    required: true,
+    riskTier: index + 1,
+    requires: index === 0 ? [] : [resolvedChapter.route[index - 1].id],
+    next: index + 1 < resolvedChapter.route.length ? [resolvedChapter.route[index + 1].id] : [],
+    position: layoutPosition(unsignedSeed, resolvedChapter.id, beat.id, true),
+    title: beat.title,
+    approach: beat.approach,
+    active: beat.active,
+    resolved: beat.resolved,
+    reward: beat.reward,
+  }))
+  const requiredIds = requiredBeats.map((beat) => beat.id)
+  const optional = topology.optional.map((event) => ({
+    ...event,
+    required: false,
+    next: [],
+    position: layoutPosition(unsignedSeed, resolvedChapter.id, event.id, false),
+  }))
+  const nodes = [...requiredBeats, ...optional].map(freezeLayoutNode)
+  return Object.freeze({
+    version: 1,
+    chapterId: resolvedChapter.id,
+    stageId: resolvedChapter.stageId,
+    seed: unsignedSeed,
+    topologyId: topology.id,
+    requiredIds: Object.freeze(requiredIds),
+    nodes: Object.freeze(nodes),
+  })
+}
+
+export function journeyLayoutNode(layout, id) {
+  return layout?.nodes?.find((node) => node.id === id) ?? null
+}
+
 export const JOURNEY_CHAPTER_INDEX = new Map(JOURNEY_CHAPTERS.map((chapter) => [chapter.id, chapter]))
 
 export function getJourneyChapter(id = 'jade:guardian') {

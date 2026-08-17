@@ -1,13 +1,16 @@
 import {
-  Application, Assets, Container, Graphics, Particle, ParticleContainer, Rectangle, Sprite, Text, Texture, TilingSprite,
+  Application, Assets, ColorMatrixFilter, Container, Graphics, Particle, ParticleContainer,
+  Rectangle, Sprite, Text, Texture, TilingSprite,
 } from 'pixi.js'
 import { ENEMIES } from '../data/enemies.js'
 import {
-  cameraFollowStep2D, cameraTargetWithDeadZone2D,
-  projectWorld, depthBucket, directionFor, isOnScreen, SORT_BUCKETS, viewportPresentationScale,
+  createWorldFrame2D, groundTileOffsetFromFrame2D, projectWorldWithFrame2D,
+  depthBucket, directionFor, isOnScreen, SORT_BUCKETS, viewportPresentationScale,
 } from './projection.js'
+import { WorldCamera2D } from './WorldCamera2D.js'
 import { SPRITE_MANIFEST } from './spriteManifest.js'
 import {
+  bossReactionClipDuration2D, bossReactionPresentationDuration2D, bossReactionTiming2D,
   CONTACT_INTENT_SECONDS_2D, HERO_DEATH_REACTION_SECONDS_2D, HERO_HURT_REACTION_SECONDS_2D,
   MAX_PROJECTILES_2D, MAX_PICKUPS_2D, MAX_WEAPON_FIELDS_2D,
 } from './CombatWorld2D.js'
@@ -21,10 +24,9 @@ import {
 const base = import.meta.env?.BASE_URL ?? './'
 const ENVIRONMENT_URL = `${base}assets/environment/jade-sanctuary-environment-v2.webp`
 const STONE_URL = `${base}assets/materials/environment/jade-pavilion-stone-v1.webp`
-const JADE_GROUND_URL = `${base}assets/materials/environment/jade-sanctuary-ground-material-v2.webp`
+const JADE_GROUND_URL = `${base}assets/materials/environment/jade-mountain-courtyard-ground-v4.webp`
 const JADE_GROUND_FALLBACK_URL = `${base}assets/materials/environment/jade-highland-ground-v1.webp`
 const _screen = { x: 0, y: 0, unit: 24 }
-const _cameraTarget = { x: 0, z: 0 }
 const _segmentStart = { x: 0, y: 0, unit: 24 }
 const _segmentEnd = { x: 0, y: 0, unit: 24 }
 const _enemyIntentPresentation = {
@@ -39,9 +41,72 @@ const TERRAIN_ATLAS_WIDTH = TERRAIN_ATLAS_COLUMNS * (TERRAIN_TILE_SIZE + TERRAIN
 const TERRAIN_ATLAS_HEIGHT = TERRAIN_ATLAS_ROWS * (TERRAIN_TILE_SIZE + TERRAIN_ATLAS_PADDING * 2)
 const TERRAIN_BYTES_PER_PIXEL = 4
 const TERRAIN_ATLAS_BYTES = TERRAIN_ATLAS_WIDTH * TERRAIN_ATLAS_HEIGHT * TERRAIN_BYTES_PER_PIXEL
-const JADE_DECAL_EDGE_FEATHER = 88
+const JADE_DECAL_EDGE_FEATHER = 96
 const JADE_WORLD_PROJECTION_ASPECT = 2.52
 const JADE_REGION_VARIANTS = 2
+
+/**
+ * Render at the monitor's native CSS-to-device pixel density. Effects may be
+ * thinned on a slow machine, but the heroine, props and ground must never be
+ * rasterized below one backing pixel per CSS pixel: doing so makes fine alpha
+ * edges shimmer while the camera moves. The upper cap avoids runaway canvas
+ * allocations on unusually dense displays.
+ */
+export function nativeRenderResolution2D(qualityScale = 1, devicePixelRatio = 1) {
+  const quality = Math.max(0.85, Number(qualityScale) || 1)
+  const density = Math.max(1, Number(devicePixelRatio) || 1)
+  return Math.max(1, Math.min(2, quality * density))
+}
+
+/**
+ * The authored actor plates are photographic/ink silhouettes, not nearest-
+ * sampled pixel art. Keep their source sampler explicit and disable mipmaps
+ * so a 384x256 cell does not switch between implicit filtering paths when it
+ * is reduced to roughly 90 CSS pixels on a 1280px window. Actor geometry is
+ * snapped by Pixi to the renderer's native backing-pixel grid below; that
+ * removes subpixel alpha-edge shimmer without changing the authored size.
+ */
+export const ACTOR_TEXTURE_RENDER_CONTRACT_2D = Object.freeze({
+  scaleMode: 'linear',
+  autoGenerateMipmaps: false,
+  mipmaps: 'disabled',
+  roundPixels: true,
+})
+
+export function configureActorTexture2D(texture) {
+  const source = texture?.source
+  if (!source) return texture
+  source.scaleMode = ACTOR_TEXTURE_RENDER_CONTRACT_2D.scaleMode
+  source.autoGenerateMipmaps = ACTOR_TEXTURE_RENDER_CONTRACT_2D.autoGenerateMipmaps
+  return texture
+}
+
+export function configureActorSprite2D(sprite) {
+  if (sprite) sprite.roundPixels = ACTOR_TEXTURE_RENDER_CONTRACT_2D.roundPixels
+  return sprite
+}
+
+/**
+ * The combat atlas is assembled from several authored sources (character
+ * plates, creature plates and shrine props). A shared grade is deliberately
+ * applied at the scene boundary so those sources read as one ink-and-jade
+ * world instead of unrelated photographic cut-outs. This is a presentation
+ * treatment only: it never mutates source textures or gameplay colours.
+ */
+export const REALM_ART_DIRECTION_2D = Object.freeze({
+  treatment: 'ink-jade-unified-grade',
+  saturation: -0.2,
+  contrast: 0.05,
+  brightness: 1.04,
+})
+
+function createRealmArtGrade2D() {
+  const grade = new ColorMatrixFilter()
+  grade.saturate(REALM_ART_DIRECTION_2D.saturation, false)
+  grade.contrast(REALM_ART_DIRECTION_2D.contrast, true)
+  grade.brightness(REALM_ART_DIRECTION_2D.brightness, true)
+  return grade
+}
 
 export const JADE_REGION_TEXTURE_ORDER_2D = Object.freeze(Object.keys(MAP_REGION_TYPES))
 
@@ -80,24 +145,30 @@ export const RUNTIME2D_RENDER_BUDGET = Object.freeze({
  * seams break the wallpaper read without exposing square image islands.
  */
 export const JADE_GROUND_COMPOSITION_2D = Object.freeze({
-  base: 'continuous-authored-material',
-  baseAsset: 'jade-sanctuary-ground-material-v2',
+  base: 'wrapped-aperiodic-material',
+  baseAsset: 'jade-mountain-courtyard-ground-v4',
   fallbackAsset: 'jade-highland-ground-v1',
-  authoredDetail: 'world-anchored-procedural-region-decals',
+  authoredDetail: 'world-anchored-material-biomes',
   repeatsAuthoredPlate: false,
-  baseTiling: 'full-authored-material-period',
-  synthesisSize: 1536,
-  authoredCropMode: 'full-plate-no-crops',
-  landmarkMotifs: 'seed-specific-procedural',
-  // Keep the material below actor scale. At the previous 1.55 scale a single
-  // synthesized period was wider than a 1920px viewport, so the arena still
-  // read as one large ground image even though the source crops were blended.
-  // A 0.4 Y/X ratio preserves the world's oblique projection while showing
-  // enough independent material structure during camera travel.
-  floorTileScale: Object.freeze({ x: 1.45, y: 0.58 }),
-  decalAlpha: 0.22,
-  decalOverlap: 1.04,
-  decalEdgeFeather: 78,
+  baseTiling: 'wrapped-feathered-source-mosaic',
+  viewportPlate: false,
+  synthesisSize: 2048,
+  authoredCropMode: 'seeded-wrapped-feather-crops',
+  landmarkMotifs: 'seed-specific-nonsymbolic-material-forms',
+  // The runtime surface contains dozens of wrapped, feathered source crops.
+  // Its visible stones stay below actor scale while its outer period remains
+  // larger than the viewport, so neither a hard seam nor a recognisable copy
+  // of the original plate can slide through the frame.
+  // A shorter, seamless macro period keeps the source from reading as one
+  // giant photograph sliding underneath the actors. The ratio still matches
+  // the projected depth, so stones remain materially proportioned.
+  floorTileScale: Object.freeze({ x: 0.66, y: 0.4092 }),
+  decalAlpha: 0.6,
+  decalOverlap: 1.045,
+  decalEdgeFeather: 96,
+  layers: Object.freeze(['macro-base', 'world-chunk-detail', 'near-contact']),
+  worldAnchored: true,
+  baseline: 'shared-world-frame-foot-y',
 })
 
 /**
@@ -250,6 +321,27 @@ export function enemyLocomotionFrame2D(indices, time, fps, motion) {
     fps * profile.tempo,
     profile.phase * indices.length,
   )
+}
+
+/**
+ * Locomotion is driven by the authored idle/run clip only while the actor has
+ * actually advanced in the simulation. A stopped or frozen enemy must hold
+ * the first authored pose; wall-clock animation otherwise makes its feet move
+ * while its body is pinned in place.
+ */
+export function enemyMotionActive2D(field, index, threshold = 0.0001) {
+  if (Number(field?.freezeTimer?.[index]) > 0) return false
+  const x = Number(field?.x?.[index])
+  const z = Number(field?.z?.[index])
+  const prevX = Number(field?.prevX?.[index])
+  const prevZ = Number(field?.prevZ?.[index])
+  if (![x, z, prevX, prevZ].every(Number.isFinite)) return false
+  return Math.hypot(x - prevX, z - prevZ) > Math.max(0, Number(threshold) || 0)
+}
+
+export function enemyLocomotionFrameIndex2D(indices, time, fps, motion, moving = true) {
+  if (!Array.isArray(indices) || indices.length === 0) return 0
+  return moving ? enemyLocomotionFrame2D(indices, time, fps, motion) : indices?.[0] ?? 0
 }
 
 export function pickupVisualScale2D(stone, presentationScale = 1, pulse = 0) {
@@ -678,15 +770,16 @@ export function planWeaponFieldVisuals2D(field, output = [], marks = null) {
 
 export const COMBAT_HORIZON_RATIO_2D = COMBAT_HORIZON_RATIO
 
-// The combat floor remains present all the way to the top of the viewport so
-// actors never detach from the arena. Only its distant value is reduced,
-// allowing the procedural mountain and mist bands to supply depth behind it.
+// Gameplay uses one opaque projected ground plane. A second horizon or skyline
+// introduces a conflicting perspective and makes world motion read like a page
+// sliding underneath screen-space actors.
 export const COMBAT_HORIZON_PRESENTATION_2D = Object.freeze({
+  mode: 'single-ground-plane',
   maskChannel: 'alpha',
-  topFloorAlpha: 0.12,
-  horizonVeilAlpha: 0.12,
-  farMountainAlpha: 0.38,
-  nearMountainAlpha: 0.44,
+  topFloorAlpha: 1,
+  horizonVeilAlpha: 0,
+  farMountainAlpha: 0,
+  nearMountainAlpha: 0,
   farMountainHeightRatio: 0.38,
   nearMountainHeightRatio: 0.42,
 })
@@ -717,12 +810,93 @@ export function combatRenderBands2D(width, height) {
  * the five authored views distinct at narrow 1280px captures as well as wide
  * screens, while idle still preserves the last explicit facing angle.
  */
-export function heroDirectionFor(player) {
+const HERO_DIRECTION_HYSTERESIS_RADIANS_2D = 0.16
+
+function wrappedAngleDistance2D(a, b) {
+  return Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)))
+}
+
+function heroDirectionCenter2D(direction) {
+  const sign = direction?.mirror ? -1 : 1
+  if (direction?.key === 'n') return Math.PI
+  if (direction?.key === 'ne') return sign * Math.PI * 0.75
+  if (direction?.key === 'e') return sign * Math.PI * 0.5
+  if (direction?.key === 'se') return sign * Math.PI * 0.25
+  return 0
+}
+
+export function heroDirectionFor(player, previousDirection = null) {
   const facing = Number.isFinite(player?.facing) ? player.facing : 0
   const dx = Number(player?.x ?? 0) - Number(player?.prevX ?? 0)
   const dz = Number(player?.z ?? 0) - Number(player?.prevZ ?? 0)
   const hasMotion = Number(player?.speed01 ?? 0) > 0.08 && Math.hypot(dx, dz) > 0.0001
-  return directionFor(hasMotion ? Math.atan2(dx, dz) : facing)
+  const angle = hasMotion ? Math.atan2(dx, dz) : facing
+  const candidate = directionFor(angle)
+  if (!hasMotion || !previousDirection) return candidate
+  if (candidate.key === previousDirection.key && candidate.mirror === previousDirection.mirror) {
+    return candidate
+  }
+  // Near the north/south centre line, a tiny interpolated X delta must not
+  // flip the whole 256px sheet every frame.
+  if (candidate.key === previousDirection.key && Math.abs(Math.sin(angle)) < 0.32) {
+    return previousDirection
+  }
+  const candidateDistance = wrappedAngleDistance2D(angle, heroDirectionCenter2D(candidate))
+  const previousDistance = wrappedAngleDistance2D(angle, heroDirectionCenter2D(previousDirection))
+  return previousDistance <= candidateDistance + HERO_DIRECTION_HYSTERESIS_RADIANS_2D
+    ? previousDirection
+    : candidate
+}
+
+/**
+ * Enemy sectors use the same five authored views as the hero where available.
+ * Keep the last sector while the raw facing angle is within the same 0.16 rad
+ * hysteresis band; this prevents a one-pixel target/aim change from swapping a
+ * reaction mirror or a north/south atlas during a one-shot clip.
+ */
+const ENEMY_DIRECTION_HYSTERESIS_RADIANS_2D = 0.16
+
+function enemyDirectionMatches2D(angle, previousDirection) {
+  const resolved = directionFor(angle)
+  if (resolved.key !== previousDirection?.key) return false
+  // North/south reaction atlases do not mirror, so their west/east bit is not
+  // a visible state transition worth holding.
+  return resolved.mirror === previousDirection?.mirror
+    || resolved.key === 'n' || resolved.key === 's'
+}
+
+function enemyDirectionBoundaryDistance2D(angle, previousDirection) {
+  const previousCenter = heroDirectionCenter2D(previousDirection)
+  const delta = Math.atan2(
+    Math.sin(previousCenter - angle),
+    Math.cos(previousCenter - angle),
+  )
+  if (Math.abs(delta) < 0.000001) return Number.POSITIVE_INFINITY
+  let low = 0
+  let high = 1
+  // Walk from the new sector back toward the previous sector and locate its
+  // actual threshold. This respects the authored directionFor() boundaries;
+  // comparing only pose centres would make the S/SE and SE/E bands asymmetric.
+  for (let iteration = 0; iteration < 24; iteration++) {
+    const mid = (low + high) * 0.5
+    const probe = angle + delta * mid
+    if (enemyDirectionMatches2D(probe, previousDirection)) high = mid
+    else low = mid
+  }
+  return Math.abs(delta) * high
+}
+
+export function enemyDirectionFor2D(facing = 0, previousDirection = null) {
+  const angle = Number.isFinite(facing) ? facing : 0
+  const candidate = directionFor(angle)
+  if (!previousDirection) return { angle, direction: candidate }
+  if (enemyDirectionMatches2D(angle, previousDirection)) {
+    return { angle, direction: candidate }
+  }
+  if (enemyDirectionBoundaryDistance2D(angle, previousDirection) <= ENEMY_DIRECTION_HYSTERESIS_RADIANS_2D) {
+    return { angle: heroDirectionCenter2D(previousDirection), direction: previousDirection }
+  }
+  return { angle, direction: candidate }
 }
 
 export function directionalHeroFrames(frames, direction) {
@@ -751,6 +925,25 @@ export function mapDecalTextureIndex2D(stageId, chunk) {
   return stageId === 'jade'
     ? jadeRegionTextureIndex2D(chunk.regionId, chunk.variant)
     : Math.max(0, Math.floor(Number(chunk.variant) || 0))
+}
+
+/**
+ * Renderer-side map capacity contract. A streamed map must never silently
+ * lose the last prop because the presentation pool is smaller than the pure
+ * world generator. `_refreshMapChunks` records this result every refresh and
+ * exposes the dropped count to QA/telemetry when a future content change
+ * exceeds the bounded pool.
+ */
+export function mapPropPoolDiagnostic(activeCount, poolCapacity = MAX_ACTIVE_MAP_PROPS) {
+  const active = Math.max(0, Math.floor(Number(activeCount) || 0))
+  const capacity = Math.max(0, Math.floor(Number(poolCapacity) || 0))
+  const droppedCount = Math.max(0, active - capacity)
+  return Object.freeze({
+    activeCount: active,
+    poolCapacity: capacity,
+    droppedCount,
+    withinCapacity: droppedCount === 0,
+  })
 }
 
 export function actorMirrorForFacing2D(actorKey, facing = 0) {
@@ -807,14 +1000,41 @@ export function directionalEnemyReactionFrames2D(frames, actorKey, facing = 0) {
   const directional = reactionKey.endsWith('ReactionN') || reactionKey.endsWith('ReactionS')
   return Object.freeze({
     frames: frames[reactionKey], directionKey: direction.key,
-    pivotKey: actorKey, mirror: directional ? false : actorMirrorForFacing2D(actorKey, facing),
+    pivotKey: reactionKey, mirror: directional ? false : actorMirrorForFacing2D(actorKey, facing),
   })
 }
+
+export const JADE_VOID_WARDEN_REACTION_ATLAS_2D = Object.freeze({
+  textureKey: 'jadeVoidWardenReaction',
+  url: SPRITE_MANIFEST.actors.jadeVoidWarden.reactionRuntime.default.url,
+  cell: Object.freeze([...SPRITE_MANIFEST.actors.jadeVoidWarden.reactionCell]),
+  sheet: Object.freeze([...SPRITE_MANIFEST.actors.jadeVoidWarden.reactionSheet]),
+  frameCount: SPRITE_MANIFEST.actors.jadeVoidWarden.reactionSheet[0]
+    * SPRITE_MANIFEST.actors.jadeVoidWarden.reactionSheet[1],
+})
 
 export function enemyReactionFrameIndex2D(actor, state, remaining, duration) {
   const frames = actor?.reactionAnimations?.[state]
   if (!Array.isArray(frames) || frames.length === 0) return null
   return oneShotFrameIndex(frames, Math.max(0, Number(remaining) || 0), Math.max(0.001, Number(duration) || 0.001))
+}
+
+/**
+ * Resolve a boss reaction frame from the manifest's authored timing. The
+ * extra final frame interval represented by `holdLast` is deliberately part
+ * of the same presentation window used by CombatWorld2D for result timing.
+ */
+export function bossReactionFrameIndex2D(actor, state, remaining) {
+  const frames = actor?.reactionAnimations?.[state]
+  const timing = bossReactionTiming2D(actor, state)
+  const clipDuration = bossReactionClipDuration2D(actor, state)
+  const presentationDuration = bossReactionPresentationDuration2D(actor, state)
+  if (!Array.isArray(frames) || frames.length === 0 || !timing || !(clipDuration > 0)) return null
+  const safeRemaining = Math.max(0, Number(remaining) || 0)
+  const elapsed = presentationDuration - safeRemaining
+  if (elapsed >= clipDuration) return timing.holdLast ? frames.at(-1) : null
+  if (elapsed < 0) return frames[0]
+  return oneShotFrameIndex(frames, clipDuration - elapsed, clipDuration)
 }
 
 const ENEMY_DIRECTIONAL_RUNTIME_ASSETS_2D = Object.freeze(
@@ -920,14 +1140,19 @@ export function bossCombatHeight2D(viewportHeight, runtimeHeight = 220, presenta
 // These pivots are sampled from the last opaque row in each authored 256px
 // frame. A single manifest pivot made wide props float by up to 18px and made
 // low-profile enemies alternately sink and hover as their animation advanced.
+export const PROP_OPAQUE_BOTTOM_ROWS_2D = Object.freeze([215, 222, 222, 213, 227, 202, 205, 193])
+
 const ACTOR_FOOT_PIVOTS_2D = Object.freeze({
-  // The v2 heroine atlases are normalized to one 242px contact row across all
-  // 16 poses, preventing direction changes and attacks from lifting her feet.
-  seolryeong: Object.freeze(Array(16).fill(242 / 256)),
-  seolryeongE: Object.freeze(Array(16).fill(242 / 256)),
-  seolryeongN: Object.freeze(Array(16).fill(242 / 256)),
-  seolryeongNe: Object.freeze(Array(16).fill(242 / 256)),
-  seolryeongS: Object.freeze(Array(16).fill(242 / 256)),
+  // The v4 heroine plates share a fixed 384x256 cell, but their opaque foot
+  // row is not literally identical: the alpha>=0.5 bottom scan is 239-241
+  // depending on the authored pose. Use that measured row per frame instead
+  // of pretending the old 242px pivot is exact; the two-row span is below one
+  // CSS pixel at the smallest supported presentation height.
+  seolryeong: Object.freeze([241, 241, 241, 240, 241, 240, 241, 240, 241, 241, 240, 240, 240, 240, 241, 241].map((row) => row / 256)),
+  seolryeongE: Object.freeze([240, 240, 240, 240, 240, 240, 241, 240, 240, 240, 241, 240, 240, 240, 240, 241].map((row) => row / 256)),
+  seolryeongN: Object.freeze([240, 240, 240, 240, 241, 241, 241, 241, 240, 240, 240, 240, 240, 240, 241, 241].map((row) => row / 256)),
+  seolryeongNe: Object.freeze([240, 240, 241, 240, 241, 240, 240, 240, 240, 240, 240, 240, 239, 240, 241, 240].map((row) => row / 256)),
+  seolryeongS: Object.freeze([241, 241, 241, 240, 240, 241, 240, 240, 240, 241, 240, 240, 241, 240, 241, 240].map((row) => row / 256)),
   yorang: Object.freeze([0.797, 0.797, 0.781, 0.75, 0.734, 0.727, 0.727, 0.75]),
   yorangN: Object.freeze(Array(8).fill(232 / 256)),
   yorangS: Object.freeze(Array(8).fill(232 / 256)),
@@ -958,22 +1183,103 @@ const ACTOR_FOOT_PIVOTS_2D = Object.freeze({
   ]),
   jadeVoidWarden: Object.freeze([0.945, 0.938, 0.945, 0.938, 0.922, 0.922, 0.914, 0.93]),
   wisp: Object.freeze([0.902, 0.895, 0.898, 0.906, 0.824, 0.848, 0.832, 0.824]),
-  prop: Object.freeze([215 / 256, 222 / 256, 222 / 256, 213 / 256, 227 / 256, 202 / 256, 205 / 256, 193 / 256]),
+  prop: Object.freeze(PROP_OPAQUE_BOTTOM_ROWS_2D.map((row) => row / 256)),
+})
+
+// Reaction atlases are not guaranteed to share the locomotion sheet's bottom
+// row. The yorang north/south sheets contain a shorter death collapse, so
+// sample contact rows per frame instead of making hurt/death poses float.
+const ACTOR_REACTION_FOOT_PIVOTS_2D = Object.freeze({
+  yorangReaction: Object.freeze(Array(8).fill(231 / 256)),
+  yorangReactionN: Object.freeze([219, 219, 219, 218, 202, 201, 202, 202].map((row) => row / 256)),
+  yorangReactionS: Object.freeze([208, 207, 209, 209, 204, 204, 204, 204].map((row) => row / 256)),
+  jadeRidgeHoundReaction: Object.freeze(Array(8).fill(231 / 256)),
+  jadeRidgeHoundReactionN: Object.freeze([231, 231, 231, 230, 231, 231, 231, 230].map((row) => row / 256)),
+  jadeRidgeHoundReactionS: Object.freeze([231, 231, 231, 231, 230, 230, 231, 230].map((row) => row / 256)),
+  jadeSerpentReaction: Object.freeze(Array(8).fill(232 / 256)),
+  jadeSerpentReactionN: Object.freeze(Array(8).fill(232 / 256)),
+  jadeSerpentReactionS: Object.freeze(Array(8).fill(232 / 256)),
+  jadeStoneGhoulReaction: Object.freeze(Array(8).fill(232 / 256)),
+  jadeStoneGhoulReactionN: Object.freeze(Array(8).fill(232 / 256)),
+  jadeStoneGhoulReactionS: Object.freeze(Array(8).fill(232 / 256)),
 })
 
 const HERO_DIRECTION_PIVOT_KEY_2D = Object.freeze({
   n: 'seolryeongN', ne: 'seolryeongNe', e: 'seolryeongE', se: 'seolryeong', s: 'seolryeongS',
 })
 
+const HERO_REACTION_PIVOT_KEY_2D = Object.freeze({
+  n: 'seolryeongReactionN', ne: 'seolryeongReactionNe', e: 'seolryeongReactionE',
+  se: 'seolryeongReaction', s: 'seolryeongReactionS',
+})
+
+const HERO_REACTION_FOOT_PIVOTS_2D = Object.freeze({
+  seolryeongReaction: Object.freeze([243, 243, 243, 243, 243, 242, 243, 242].map((row) => row / 256)),
+  seolryeongReactionE: Object.freeze([243, 243, 243, 243, 243, 243, 237, 243].map((row) => row / 256)),
+  seolryeongReactionN: Object.freeze([242, 242, 243, 242, 242, 242, 242, 242].map((row) => row / 256)),
+  seolryeongReactionNe: Object.freeze([243, 243, 243, 242, 243, 243, 241, 243].map((row) => row / 256)),
+  seolryeongReactionS: Object.freeze([243, 243, 243, 243, 242, 242, 243, 242].map((row) => row / 256)),
+})
+
+const HERO_REACTION_PRESENTATION_SCALES_2D = Object.freeze({
+  // One fixed scale per directional reaction clip; never resize individual
+  // hurt/death frames, which would read as a visible pop.
+  n: 1.076, ne: 0.998, e: 1.04, se: 0.976, s: 0.963,
+})
+
 export function actorFootPivot2D(key, frame = 0) {
   const pivots = ACTOR_FOOT_PIVOTS_2D[key]
+    ?? ACTOR_REACTION_FOOT_PIVOTS_2D[key]
+    ?? HERO_REACTION_FOOT_PIVOTS_2D[key]
   const index = Math.max(0, Math.floor(Number(frame) || 0))
   if (pivots) return pivots[index % pivots.length]
-  return SPRITE_MANIFEST.actors[key]?.pivot?.[1] ?? 0.9
+  const actorKey = String(key).replace(/Reaction(?:N|S)?$/, '')
+  return SPRITE_MANIFEST.actors[actorKey]?.reactionPivot?.[1]
+    ?? SPRITE_MANIFEST.actors[actorKey]?.pivot?.[1]
+    ?? 0.9
+}
+
+/**
+ * Authored prop contact contract. The sprite anchor, shadow baseline and
+ * irregular footprint all resolve to the same opaque bottom row; keeping this
+ * calculation pure makes the 1080p contact tolerance testable without Pixi.
+ */
+export function propGroundContactProfile2D(frame = 0, renderedHeight = 196) {
+  const index = Math.max(0, Math.floor(Number(frame) || 0)) % PROP_OPAQUE_BOTTOM_ROWS_2D.length
+  const height = Math.max(1, Number(renderedHeight) || 1)
+  const opaqueBottomRatio = PROP_OPAQUE_BOTTOM_ROWS_2D[index] / 256
+  const pivot = actorFootPivot2D('prop', index)
+  return Object.freeze({
+    frame: index,
+    opaqueBottomRow: PROP_OPAQUE_BOTTOM_ROWS_2D[index],
+    opaqueBottomRatio,
+    pivot,
+    renderedHeight: height,
+    contactOffsetPx: 0,
+    contactErrorPx: (opaqueBottomRatio - pivot) * height,
+  })
 }
 
 export function heroFootPivot2D(directionKey, frame = 0) {
   return actorFootPivot2D(HERO_DIRECTION_PIVOT_KEY_2D[directionKey] ?? 'seolryeongS', frame)
+}
+
+export function heroReactionFootPivot2D(directionKey, frame = 0) {
+  return actorFootPivot2D(HERO_REACTION_PIVOT_KEY_2D[directionKey] ?? 'seolryeongReactionS', frame)
+}
+
+export function heroReactionPresentationScale2D(directionKey = 's') {
+  return HERO_REACTION_PRESENTATION_SCALES_2D[directionKey] ?? HERO_REACTION_PRESENTATION_SCALES_2D.s
+}
+
+/**
+ * All hero ground cues use the same rendered height as the sampled sprite.
+ * Reaction clips have one stable directional scale, so shadow, aura and
+ * contact marker cannot pop back to the motion height for one frame.
+ */
+export function heroGroundingHeight2D(heroHeight, directionKey = 's', reactionState = null) {
+  const height = Math.max(0, Number(heroHeight) || 0)
+  return height * (reactionState ? heroReactionPresentationScale2D(directionKey) : 1)
 }
 
 const DEFAULT_GROUNDING_PROFILE_2D = Object.freeze({
@@ -989,12 +1295,12 @@ const ACTOR_GROUNDING_PROFILES_2D = Object.freeze({
   // The authored shadow is the primary ground contact. Keep only a tight,
   // low-alpha blue bounce at the paws: the former wide bright ellipse moved
   // with every wolf like a luminous platform and hid the real soft shadow.
-  yorang: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.78, shadowHeight: 0.06, shadowAlpha: 0.6, contactWidth: 0.7, contactHeight: 0.06, contactLift: 0, contactAlpha: 0, contactTint: 0x5f6270, visualScale: 1.42 }),
-  jadeRidgeHound: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.78, shadowHeight: 0.06, shadowAlpha: 0.6, contactWidth: 0.7, contactHeight: 0.06, contactLift: 0, contactAlpha: 0, contactTint: 0x53685c, visualScale: 1.42 }),
-  jadeSerpent: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.06, shadowAlpha: 0.64, contactAlpha: 0, visualScale: 1.38 }),
+  yorang: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.74, shadowHeight: 0.055, shadowAlpha: 0.66, contactWidth: 0.7, contactHeight: 0.06, contactLift: 0, contactAlpha: 0, contactTint: 0x5f6270, visualScale: 1.08 }),
+  jadeRidgeHound: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.74, shadowHeight: 0.055, shadowAlpha: 0.66, contactWidth: 0.7, contactHeight: 0.06, contactLift: 0, contactAlpha: 0, contactTint: 0x53685c, visualScale: 1.08 }),
+  jadeSerpent: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.62, shadowHeight: 0.055, shadowAlpha: 0.68, contactAlpha: 0, visualScale: 1.12 }),
   jadeStoneGhoul: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.64, shadowHeight: 0.068, shadowAlpha: 0.68, contactAlpha: 0, visualScale: 1.34 }),
   jadeShardGuardian: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.58, shadowHeight: 0.064, shadowAlpha: 0.68, contactAlpha: 0, visualScale: 1.34 }),
-  bloodScorpion: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.84, shadowHeight: 0.052, shadowAlpha: 0.64, contactAlpha: 0, visualScale: 1.4 }),
+  bloodScorpion: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.8, shadowHeight: 0.05, shadowAlpha: 0.68, contactAlpha: 0, visualScale: 1.14 }),
   talismanRevenant: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.48, shadowHeight: 0.075, shadowAlpha: 0.68, contactWidth: 0.66, contactHeight: 0.12, contactLift: 0.02, contactAlpha: 0.04, contactTint: 0x6e665e, visualScale: 1.36 }),
   maskedSealRevenant: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.56, shadowHeight: 0.075, shadowAlpha: 0.68, contactWidth: 0.7, contactHeight: 0.11, contactLift: 0.02, contactAlpha: 0.035, contactTint: 0x6e665e, visualScale: 1.36 }),
   voidSentinel: Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.52, shadowHeight: 0.07, shadowAlpha: 0.56, contactAlpha: 0, visualScale: 1.22 }),
@@ -1013,22 +1319,36 @@ const PROP_GROUNDING_PROFILES_2D = Object.freeze([
   Object.freeze({ ...DEFAULT_GROUNDING_PROFILE_2D, shadowWidth: 0.54, shadowHeight: 0.038, shadowAlpha: 0.5, contactAlpha: 0 }),
 ])
 
+export const PROP_GROUND_FOOTPRINT_2D = Object.freeze({
+  alpha: 0.28,
+  widthScale: 1.28,
+  heightScale: 2.25,
+  minimumHeight: 12,
+})
+
 /** Material grade shared by every sanctuary prop. The atlas has brighter
  * baked highlights than the combat floor; these frame-specific multipliers
  * bring stone, cloth and foliage back into the same jade/slate value range. */
 export const PROP_MATERIAL_TINTS_2D = Object.freeze([
-  0xd2dbd4, 0xc2d2c8, 0xc3d0ca, 0xc0cec8,
-  0xc4d4cf, 0xbac8c0, 0xbdccc4, 0xd1d7cc,
+  // The prop atlas is already authored in the same jade-stone family as the
+  // new ground material. Keep one cool slate grade across every frame and
+  // reserve the only warm accent for firelight, so props never look pasted
+  // from a brighter scene.
+  0xcbd8d2, 0xb9c9c2, 0xb5c6bf, 0xb8c7c0,
+  0xb4c5bf, 0xb0c1ba, 0xb4c5be, 0xc2b79b,
 ])
 
 /** Shared semantic-region grade used by terrain decals and prop materials. */
 export const REGION_TERRAIN_PRESENTATION_2D = Object.freeze({
-  spawn_grove: Object.freeze({ tint: 0xe4eee5, alpha: 0.94, propTint: 0xd9e6d8 }),
-  jade_path: Object.freeze({ tint: 0xd3ddd2, alpha: 0.82, propTint: 0xd2d9cc }),
-  jade_grove: Object.freeze({ tint: 0xc2dcc9, alpha: 1, propTint: 0xc7dbc8 }),
-  lantern_shrine: Object.freeze({ tint: 0xe3d9bc, alpha: 1, propTint: 0xead8b2 }),
-  mist_marsh: Object.freeze({ tint: 0xb9d4d4, alpha: 0.9, propTint: 0xc2d9d7 }),
-  void_rim: Object.freeze({ tint: 0xcfbfda, alpha: 0.98, propTint: 0xd2c3dc }),
+  // Regions vary by value and humidity, not by unrelated hue families. This
+  // keeps the whole sanctuary in one ink-wash jade palette while the shrine
+  // lanterns supply a controlled amber landmark.
+  spawn_grove: Object.freeze({ tint: 0xb5c9c0, alpha: 0.72, propTint: 0xbaccc3 }),
+  jade_path: Object.freeze({ tint: 0x9eb5ad, alpha: 0.58, propTint: 0xaebfb8 }),
+  jade_grove: Object.freeze({ tint: 0x9fbeaa, alpha: 0.72, propTint: 0xb1c4b8 }),
+  lantern_shrine: Object.freeze({ tint: 0xb5b39a, alpha: 0.68, propTint: 0xc0b99e }),
+  mist_marsh: Object.freeze({ tint: 0x96b4b5, alpha: 0.64, propTint: 0xa9c2be }),
+  void_rim: Object.freeze({ tint: 0x98a7b0, alpha: 0.62, propTint: 0xaebbc0 }),
 })
 
 export function actorGroundingProfile2D(key = 'default', frame = 0) {
@@ -1062,15 +1382,6 @@ export const HERO_AURA_PRESENTATION_2D = Object.freeze({
  * blend batch: unlike a full-screen outline filter, only the expanded edge is
  * visible after the opaque hero sprite is drawn over it.
  */
-export const HERO_READABILITY_RIM_2D = Object.freeze({
-  scale: 1.04,
-  alpha: 0.5,
-  invulnerableAlpha: 0.36,
-  tint: 0x8cc9d8,
-  hitTint: 0xff9ca4,
-  zOffset: -0.01,
-})
-
 export const BOSS_FOCUS_2D = Object.freeze({
   radius: 8,
   minimumAlpha: 0.42,
@@ -1259,7 +1570,7 @@ export function bossTelegraphWorldShapes2D(profile) {
   return [bossCirclePoints2D(profile.x, profile.z, profile.radius)]
 }
 
-function drawBossTelegraph2D(graphics, profile, cameraX, cameraZ, viewport, castProgress) {
+function drawBossTelegraph2D(graphics, profile, worldFrame, viewport, castProgress) {
   graphics.clear()
   const pulse = Math.sin(Math.max(0, Math.min(1, castProgress)) * Math.PI)
   const ink = 0x261d19
@@ -1276,7 +1587,7 @@ function drawBossTelegraph2D(graphics, profile, cameraX, cameraZ, viewport, cast
     const points = []
     for (const point of shape) {
       const screen = { x: 0, y: 0, unit: 24 }
-      projectWorld(point.x, point.z, cameraX, cameraZ, viewport, screen)
+      projectWorldWithFrame2D(point.x, point.z, worldFrame, screen)
       points.push(screen.x, screen.y + 2)
     }
     if (points.length < 6) continue
@@ -1293,8 +1604,8 @@ const POI_PRESENTATION = Object.freeze({
   treasure: Object.freeze({ frame: 3, height: 154, glyph: '보', color: 0x8edcff }),
   elite_seal: Object.freeze({ frame: 2, height: 176, glyph: '봉', color: 0xe969a1 }),
   healing_spring: Object.freeze({ frame: 5, height: 118, glyph: '회', color: 0x73e3bd }),
-  evidence: Object.freeze({ frame: 5, height: 92, glyph: '흔', color: 0xe2c981, groundTrace: true }),
-  false_trace: Object.freeze({ frame: 1, height: 112, glyph: '적', color: 0x8e8172, groundTrace: true }),
+  evidence: Object.freeze({ frame: 5, height: 92, glyph: '흔', color: 0x8fc6b1, groundTrace: true }),
+  false_trace: Object.freeze({ frame: 1, height: 112, glyph: '적', color: 0x91aaa3, groundTrace: true }),
 })
 
 export const INVESTIGATION_TRACE_PRESENTATION_2D = Object.freeze({
@@ -1858,304 +2169,96 @@ function jadeGroundDetailTexture(seed, regionId = 'jade_grove') {
     }
 
     ctx.clearRect(0, 0, width, height)
-    ctx.globalCompositeOperation = 'source-over'
+    const palettes = {
+      // The opening uses the same low-contrast material wash as the path;
+      // keeping it below a separate plate value lets the authored prop
+      // clusters define the clearing without painting a second arena.
+      spawn_grove: ['rgba(123,151,139,.16)', 'rgba(165,171,149,.08)'],
+      jade_path: ['rgba(126,158,149,.2)', 'rgba(153,166,143,.12)'],
+      jade_grove: ['rgba(91,145,116,.24)', 'rgba(145,177,142,.11)'],
+      lantern_shrine: ['rgba(177,160,111,.22)', 'rgba(147,154,129,.11)'],
+      mist_marsh: ['rgba(92,151,151,.22)', 'rgba(141,176,168,.11)'],
+      void_rim: ['rgba(108,133,145,.21)', 'rgba(126,151,148,.1)'],
+    }
+    const palette = palettes[regionId] ?? palettes.jade_grove
 
-    // Keep region value shifts subordinate to the authored stone. These are
-    // faint geography cues, not a second opaque terrain painting.
-    for (let i = 0; i < 4; i++) {
-      const x = 48 + random() * (width - 96)
-      const y = 48 + random() * (height - 96)
-      const rx = 90 + random() * 165
-      const ry = 56 + random() * 112
-      const dark = i % 3 !== 0
-      const gradient = ctx.createRadialGradient(x, y, 0, x, y, rx)
-      // The source material already carries fine texture; these broad,
-      // feathered value islands are the low-cost macro break that keeps the
-      // arena from reading as a flat photograph while remaining below combat
-      // telegraphs and actor silhouettes.
-      gradient.addColorStop(0, dark ? 'rgba(3,12,16,.12)' : 'rgba(35,92,72,.1)')
-      gradient.addColorStop(0.56, dark ? 'rgba(8,22,25,.07)' : 'rgba(45,112,86,.05)')
-      gradient.addColorStop(1, 'rgba(4,16,19,0)')
+    // Region identity is a soft value-temperature drift in the same stone
+    // material, never a second map drawing. No paths, rings, editor-like
+    // splines or symbolic plates are painted over the authored ground.
+    for (let i = 0; i < 5; i++) {
+      const x = 96 + random() * (width - 192)
+      const y = 96 + random() * (height - 192)
+      const radius = 118 + random() * 128
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius)
+      gradient.addColorStop(0, palette[i % palette.length])
+      gradient.addColorStop(0.58, palette[(i + 1) % palette.length])
+      gradient.addColorStop(1, 'rgba(255,255,255,0)')
       ctx.fillStyle = gradient
+      ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2)
+    }
+
+    // World-anchored material forms make travel cross distinct ground instead
+    // of sliding one photograph under the actors. Every form is irregular and
+    // non-symbolic: worn stone, moss, damp mineral deposits or fractures.
+    const materialAlpha = regionId === 'jade_grove' || regionId === 'mist_marsh' ? 0.23 : 0.18
+    for (let i = 0; i < 18; i++) {
+      const x = 38 + random() * (width - 76)
+      const y = 38 + random() * (height - 76)
+      const rx = 16 + random() * (regionId === 'jade_path' ? 64 : 42)
+      const ry = 8 + random() * (regionId === 'mist_marsh' ? 30 : 18)
       ctx.save()
       ctx.translate(x, y)
-      ctx.scale(1, ry / rx)
+      ctx.rotate((random() - 0.5) * 1.7)
       ctx.beginPath()
-      ctx.arc(0, 0, rx, 0, Math.PI * 2)
+      const points = 9
+      for (let point = 0; point < points; point++) {
+        const angle = point / points * Math.PI * 2
+        const rough = 0.72 + random() * 0.5
+        const px = Math.cos(angle) * rx * rough
+        const py = Math.sin(angle) * ry * rough
+        if (point === 0) ctx.moveTo(px, py)
+        else ctx.lineTo(px, py)
+      }
+      ctx.closePath()
+      if (regionId === 'mist_marsh') ctx.fillStyle = `rgba(18,66,65,${materialAlpha})`
+      else if (regionId === 'void_rim') ctx.fillStyle = `rgba(30,42,48,${materialAlpha})`
+      else if (regionId === 'lantern_shrine') ctx.fillStyle = `rgba(136,124,88,${materialAlpha})`
+      else if (regionId === 'jade_grove') ctx.fillStyle = `rgba(40,99,68,${materialAlpha})`
+      else ctx.fillStyle = `rgba(137,151,137,${materialAlpha})`
       ctx.fill()
       ctx.restore()
     }
 
-    // Broken mineral seams make camera travel legible. Their low opacity keeps
-    // them below hostile telegraphs and pickup silhouettes.
+    const fractureColor = regionId === 'lantern_shrine'
+      ? 'rgba(74,61,44,.27)'
+      : regionId === 'void_rim'
+        ? 'rgba(12,24,31,.38)'
+        : 'rgba(23,55,52,.27)'
+    ctx.strokeStyle = fractureColor
     ctx.lineCap = 'round'
-    for (let i = 0; i < 11; i++) {
-      let x = 40 + random() * (width - 80)
-      let y = 40 + random() * (height - 80)
-      ctx.strokeStyle = i % 4 === 0 ? 'rgba(91,192,156,.13)' : 'rgba(137,177,180,.08)'
-      ctx.lineWidth = 0.8 + random() * 2.2
+    for (let i = 0; i < 22; i++) {
+      let x = 28 + random() * (width - 56)
+      let y = 28 + random() * (height - 56)
+      ctx.lineWidth = 0.8 + random() * (regionId === 'void_rim' ? 2.2 : 1.35)
       ctx.beginPath()
       ctx.moveTo(x, y)
-      for (let n = 0; n < 5; n++) {
-        x += (random() - 0.5) * 76
-        y += (random() - 0.5) * 58
+      const segments = 2 + Math.floor(random() * 3)
+      for (let segment = 0; segment < segments; segment++) {
+        x += (random() - 0.5) * 34
+        y += 8 + random() * 24
         ctx.lineTo(x, y)
       }
       ctx.stroke()
     }
 
-    if (seed % 3 === 0) {
-      const y = height * (0.3 + random() * 0.4)
-      ctx.strokeStyle = 'rgba(4,15,18,.17)'
-      ctx.lineWidth = 46
-      ctx.beginPath()
-      ctx.moveTo(-52, y)
-      ctx.bezierCurveTo(width * 0.28, y - 90, width * 0.68, y + 105, width + 52, y - 28)
-      ctx.stroke()
-      ctx.strokeStyle = 'rgba(103,174,145,.07)'
-      ctx.lineWidth = 4
-      ctx.stroke()
-    }
-
-    if (seed % 5 === 0) {
-      // Mineral fractures read as part of the terrain. Repeated partial rings
-      // looked like debug radii once several streamed chunks were visible.
-      const startX = width * (0.3 + random() * 0.4)
-      const startY = height * (0.28 + random() * 0.44)
-      ctx.strokeStyle = 'rgba(112,213,180,.1)'
-      ctx.lineCap = 'round'
-      for (let branch = 0; branch < 3; branch++) {
-        let x = startX
-        let y = startY
-        ctx.lineWidth = 1.4 + branch * 0.65
-        ctx.beginPath()
-        ctx.moveTo(x, y)
-        for (let step = 0; step < 4; step++) {
-          x += (random() - 0.34) * 72
-          y += (random() - 0.5) * 66
-          ctx.lineTo(x, y)
-        }
-        ctx.stroke()
-      }
-    }
-
-    // Region data must be visible as geography, not merely as a tint. These
-    // motifs share one restrained stone/ink palette and sit below combat
-    // telegraphs, but are large enough to turn camera travel into recognisable
-    // paths, groves, shrines, marshes and corrupted rims.
-    const drawEllipse = (x, y, rx, ry, fill, stroke = null, lineWidth = 1) => {
-      ctx.save()
-      ctx.translate(x, y)
-      ctx.scale(1, ry / Math.max(1, rx))
-      ctx.beginPath()
-      ctx.arc(0, 0, rx, 0, Math.PI * 2)
-      if (fill) {
-        ctx.fillStyle = fill
-        ctx.fill()
-      }
-      if (stroke) {
-        ctx.strokeStyle = stroke
-        ctx.lineWidth = lineWidth
-        ctx.stroke()
-      }
-      ctx.restore()
-    }
-
-    ctx.save()
-    ctx.globalCompositeOperation = 'source-over'
-    if (regionId === 'spawn_grove') {
-      const clearing = ctx.createRadialGradient(width * 0.5, height * 0.5, 12, width * 0.5, height * 0.5, width * 0.54)
-      clearing.addColorStop(0, 'rgba(118,144,126,.22)')
-      clearing.addColorStop(0.58, 'rgba(58,99,78,.14)')
-      clearing.addColorStop(1, 'rgba(20,52,45,0)')
-      ctx.fillStyle = clearing
-      ctx.fillRect(0, 0, width, height)
-      for (let i = 0; i < 18; i++) {
-        const angle = random() * Math.PI * 2
-        const distance = 150 + random() * 80
-        const x = width * 0.5 + Math.cos(angle) * distance
-        const y = height * 0.5 + Math.sin(angle) * distance * 0.78
-        drawEllipse(x, y, 22 + random() * 42, 12 + random() * 28, 'rgba(35,83,62,.2)')
-      }
-    } else if (regionId === 'jade_path') {
-      const phase = (seed % 2) * 1.35
-      const pathX = (y) => width * 0.5 + Math.sin((y / height) * Math.PI * 1.25 + phase) * 52
-      const tracePath = () => {
-        ctx.beginPath()
-        for (let y = -42; y <= height + 42; y += 16) {
-          const x = pathX(y)
-          if (y === -42) ctx.moveTo(x, y)
-          else ctx.lineTo(x, y)
-        }
-      }
-      ctx.lineCap = 'round'
-      tracePath()
-      ctx.strokeStyle = 'rgba(4,15,17,.25)'
-      ctx.lineWidth = 82
-      ctx.stroke()
-      tracePath()
-      ctx.strokeStyle = 'rgba(87,108,96,.22)'
-      ctx.lineWidth = 62
-      ctx.stroke()
-      // Uneven flagstone fragments communicate a trail without the continuous
-      // parallel bands that looked like editor splines or navigation guides.
-      for (let y = 12; y < height; y += 28 + random() * 26) {
-        const x = pathX(y) + (random() - 0.5) * 28
-        const halfWidth = 16 + random() * 24
-        const halfHeight = 6 + random() * 9
-        ctx.save()
-        ctx.translate(x, y)
-        ctx.rotate((random() - 0.5) * 0.52)
-        ctx.fillStyle = random() < 0.28 ? 'rgba(34,88,63,.2)' : 'rgba(105,116,102,.2)'
-        ctx.strokeStyle = 'rgba(8,25,25,.26)'
-        ctx.lineWidth = 1.6
-        ctx.beginPath()
-        ctx.moveTo(-halfWidth, -halfHeight * 0.45)
-        ctx.lineTo(-halfWidth * 0.58, -halfHeight)
-        ctx.lineTo(halfWidth * 0.82, -halfHeight * 0.72)
-        ctx.lineTo(halfWidth, halfHeight * 0.5)
-        ctx.lineTo(-halfWidth * 0.72, halfHeight)
-        ctx.closePath()
-        ctx.fill()
-        ctx.stroke()
-        ctx.restore()
-      }
-    } else if (regionId === 'jade_grove') {
-      for (let i = 0; i < 8; i++) {
-        const x = 42 + random() * (width - 84)
-        const y = 42 + random() * (height - 84)
-        const radius = 52 + random() * 98
-        const moss = ctx.createRadialGradient(x, y, 0, x, y, radius)
-        moss.addColorStop(0, 'rgba(37,105,72,.36)')
-        moss.addColorStop(0.55, 'rgba(30,80,59,.2)')
-        moss.addColorStop(1, 'rgba(15,48,42,0)')
-        ctx.fillStyle = moss
-        ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2)
-      }
-      ctx.strokeStyle = 'rgba(126,188,139,.3)'
-      ctx.lineWidth = 2
-      for (let i = 0; i < 88; i++) {
-        const x = 24 + random() * (width - 48)
-        const y = 24 + random() * (height - 48)
-        const length = 7 + random() * 15
-        ctx.beginPath()
-        ctx.moveTo(x, y)
-        ctx.quadraticCurveTo(x + length * 0.15, y - length, x + length * 0.72, y - length * 0.64)
-        ctx.stroke()
-      }
-    } else if (regionId === 'lantern_shrine') {
-      // A collapsed shrine terrace replaces the old three concentric rings and
-      // eight evenly spaced nodes, which read exactly like debug radii.
-      ctx.fillStyle = 'rgba(43,58,55,.38)'
-      ctx.strokeStyle = 'rgba(203,181,111,.14)'
-      ctx.lineWidth = 3
-      ctx.beginPath()
-      ctx.moveTo(82, 176)
-      ctx.lineTo(206, 86)
-      ctx.lineTo(424, 112)
-      ctx.lineTo(458, 316)
-      ctx.lineTo(330, 424)
-      ctx.lineTo(116, 382)
-      ctx.closePath()
-      ctx.fill()
-      for (let i = 0; i < 22; i++) {
-        const x = 100 + random() * 344
-        const y = 106 + random() * 292
-        const w = 22 + random() * 58
-        const h = 10 + random() * 24
-        ctx.save()
-        ctx.translate(x, y)
-        ctx.rotate((random() - 0.5) * 0.82)
-        ctx.fillStyle = i % 5 === 0 ? 'rgba(36,91,65,.24)' : 'rgba(92,103,92,.2)'
-        ctx.strokeStyle = 'rgba(10,29,27,.28)'
-        ctx.lineWidth = 1.5
-        ctx.beginPath()
-        ctx.moveTo(-w * 0.5, -h * 0.2)
-        ctx.lineTo(-w * 0.25, -h * 0.5)
-        ctx.lineTo(w * 0.5, -h * 0.32)
-        ctx.lineTo(w * 0.38, h * 0.5)
-        ctx.lineTo(-w * 0.44, h * 0.38)
-        ctx.closePath()
-        ctx.fill()
-        ctx.stroke()
-        ctx.restore()
-      }
-      ctx.strokeStyle = 'rgba(8,25,24,.4)'
-      ctx.lineWidth = 4
-      ctx.beginPath()
-      ctx.moveTo(154, 142)
-      ctx.lineTo(236, 194)
-      ctx.lineTo(212, 264)
-      ctx.lineTo(312, 338)
-      ctx.stroke()
-    } else if (regionId === 'mist_marsh') {
-      for (let i = 0; i < 5; i++) {
-        const x = 70 + random() * (width - 140)
-        const y = 70 + random() * (height - 140)
-        const rx = 58 + random() * 105
-        const ry = 32 + random() * 62
-        const pool = ctx.createRadialGradient(x, y, 4, x, y, rx)
-        pool.addColorStop(0, 'rgba(72,130,126,.34)')
-        pool.addColorStop(0.66, 'rgba(30,82,84,.22)')
-        pool.addColorStop(1, 'rgba(8,38,47,0)')
-        drawEllipse(x, y, rx, ry, pool)
-        ctx.strokeStyle = 'rgba(144,201,191,.1)'
-        ctx.lineWidth = 1.5
-        ctx.beginPath()
-        ctx.moveTo(x - rx * 0.45, y)
-        ctx.bezierCurveTo(x - rx * 0.18, y - ry * 0.16, x + rx * 0.14, y + ry * 0.1, x + rx * 0.48, y - ry * 0.08)
-        ctx.stroke()
-      }
-      ctx.strokeStyle = 'rgba(99,150,119,.26)'
-      ctx.lineWidth = 2.2
-      for (let i = 0; i < 38; i++) {
-        const x = 20 + random() * (width - 40)
-        const y = 30 + random() * (height - 60)
-        const h = 12 + random() * 27
-        ctx.beginPath()
-        ctx.moveTo(x, y)
-        ctx.quadraticCurveTo(x + 4, y - h * 0.55, x + (random() - 0.5) * 10, y - h)
-        ctx.stroke()
-      }
-    } else if (regionId === 'void_rim') {
-      const corruption = ctx.createRadialGradient(width * 0.52, height * 0.48, 0, width * 0.52, height * 0.48, width * 0.52)
-      corruption.addColorStop(0, 'rgba(34,17,48,.42)')
-      corruption.addColorStop(0.55, 'rgba(22,27,43,.25)')
-      corruption.addColorStop(1, 'rgba(10,25,33,0)')
-      ctx.fillStyle = corruption
-      ctx.fillRect(0, 0, width, height)
-      ctx.lineCap = 'round'
-      for (let i = 0; i < 12; i++) {
-        let x = width * (0.42 + random() * 0.2)
-        let y = height * (0.4 + random() * 0.2)
-        ctx.strokeStyle = i % 3 === 0 ? 'rgba(125,83,153,.17)' : 'rgba(84,168,143,.11)'
-        ctx.lineWidth = i % 3 === 0 ? 2.4 : 1.2
-        ctx.beginPath()
-        ctx.moveTo(x, y)
-        for (let n = 0; n < 4; n++) {
-          const nextX = x + (random() - 0.5) * 88
-          const nextY = y + (random() - 0.5) * 76
-          const controlX = (x + nextX) * 0.5 + (random() - 0.5) * 24
-          const controlY = (y + nextY) * 0.5 + (random() - 0.5) * 22
-          ctx.quadraticCurveTo(controlX, controlY, nextX, nextY)
-          x = nextX
-          y = nextY
-        }
-        ctx.stroke()
-      }
-    }
-    ctx.restore()
-
-    // A wide feather guarantees there is no first visible row or square edge.
+    // Wide transparent borders let neighbouring world chunks overlap without
+    // exposing a rectangular edge while the camera travels.
     ctx.globalCompositeOperation = 'destination-in'
-    const feather = 78
-    const featherEdges = regionId === 'jade_path'
-      ? [[0, 0, feather, 0], [width, 0, width - feather, 0]]
-      : [
-          [0, 0, feather, 0], [width, 0, width - feather, 0],
-          [0, 0, 0, feather], [0, height, 0, height - feather],
-        ]
-    for (const [x0, y0, x1, y1] of featherEdges) {
+    const feather = JADE_GROUND_COMPOSITION_2D.decalEdgeFeather
+    for (const [x0, y0, x1, y1] of [
+      [0, 0, feather, 0], [width, 0, width - feather, 0],
+      [0, 0, 0, feather], [0, height, 0, height - feather],
+    ]) {
       const mask = ctx.createLinearGradient(x0, y0, x1, y1)
       mask.addColorStop(0, 'rgba(255,255,255,0)')
       mask.addColorStop(1, 'rgba(255,255,255,1)')
@@ -2179,21 +2282,32 @@ function jadeSpawnPlazaTexture() {
       return state / 4294967296
     }
 
-    // An asymmetrical clearing, clipped to a hand-broken perimeter.
-    const clearing = ctx.createRadialGradient(cx - 38, cy - 24, 40, cx, cy, width * 0.39)
-    clearing.addColorStop(0, 'rgba(70,86,79,.66)')
-    clearing.addColorStop(0.6, 'rgba(43,65,57,.52)')
-    clearing.addColorStop(0.86, 'rgba(28,67,52,.2)')
-    clearing.addColorStop(1, 'rgba(16,51,42,0)')
-    ctx.fillStyle = clearing
-    ctx.beginPath()
-    ctx.moveTo(cx - 272, cy - 72)
-    ctx.bezierCurveTo(cx - 238, cy - 244, cx - 58, cy - 286, cx + 62, cy - 244)
-    ctx.bezierCurveTo(cx + 248, cy - 216, cx + 286, cy - 58, cx + 254, cy + 68)
-    ctx.bezierCurveTo(cx + 216, cy + 226, cx + 42, cy + 274, cx - 98, cy + 242)
-    ctx.bezierCurveTo(cx - 266, cy + 212, cx - 310, cy + 62, cx - 272, cy - 72)
-    ctx.closePath()
-    ctx.fill()
+    // Three offset, weathered beds form a clearing without a radial disc. The
+    // overlap is intentionally lopsided, so the origin reads as worn ground
+    // joined to the route rather than a debug ellipse around the player.
+    const drawBed = (offsetX, offsetY, scaleX, scaleY, alpha) => {
+      ctx.save()
+      ctx.translate(cx + offsetX, cy + offsetY)
+      ctx.scale(scaleX, scaleY)
+      const wash = ctx.createLinearGradient(-260, -190, 260, 220)
+      wash.addColorStop(0, `rgba(70,86,79,${alpha})`)
+      wash.addColorStop(0.58, `rgba(43,65,57,${alpha * 0.78})`)
+      wash.addColorStop(1, 'rgba(16,51,42,0)')
+      ctx.fillStyle = wash
+      ctx.beginPath()
+      ctx.moveTo(-270, -58)
+      ctx.bezierCurveTo(-228, -186, -88, -238, 24, -206)
+      ctx.bezierCurveTo(122, -234, 250, -126, 216, -22)
+      ctx.bezierCurveTo(276, 76, 122, 196, 12, 156)
+      ctx.bezierCurveTo(-94, 214, -246, 132, -214, 30)
+      ctx.bezierCurveTo(-292, -12, -296, -30, -270, -58)
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
+    }
+    drawBed(-36, -42, 1.02, 0.84, 0.5)
+    drawBed(102, 38, 0.68, 0.72, 0.38)
+    drawBed(-122, 88, 0.56, 0.62, 0.32)
 
     // Two offset, curved approaches imply travel without forming a crosshair.
     ctx.lineCap = 'round'
@@ -2211,7 +2325,7 @@ function jadeSpawnPlazaTexture() {
     }
 
     // Irregular flagstones and moss islands break the clearing into natural
-    // scale cues; none repeat around a shared radius.
+    // scale cues; none repeat around a shared radius or circular marker.
     for (let i = 0; i < 24; i++) {
       const x = cx + (random() - 0.5) * 490
       const y = cy + (random() - 0.5) * 390
@@ -2224,7 +2338,15 @@ function jadeSpawnPlazaTexture() {
       ctx.strokeStyle = 'rgba(10,29,28,.34)'
       ctx.lineWidth = 2 + random() * 2
       ctx.beginPath()
-      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2)
+      for (let point = 0; point < 7; point++) {
+        const angle = point / 7 * Math.PI * 2
+        const rough = 0.72 + random() * 0.46
+        const px = Math.cos(angle) * rx * rough
+        const py = Math.sin(angle) * ry * rough
+        if (point === 0) ctx.moveTo(px, py)
+        else ctx.lineTo(px, py)
+      }
+      ctx.closePath()
       ctx.fill()
       if (i % 3 !== 0) ctx.stroke()
       ctx.restore()
@@ -2248,45 +2370,105 @@ function jadeSpawnPlazaTexture() {
 }
 
 /**
- * Build one continuous periodic material field from several generated-material
- * crops. Each island is softly masked, rotated and copied across opposite
- * borders, so the final texture wraps without exposing the source as a single
- * plate or recreating square streamed-chunk bands.
+ * Build one wrapped, aperiodic combat surface from the authored stone source.
+ *
+ * Repeating the 1254px painting directly exposed either a viewport-sized plate
+ * or obvious mirrored cracks, depending on scale. This synthesis samples many
+ * different source windows, feathers each into its neighbours, and draws every
+ * patch through both opposite edges. The resulting outer texture is seamless,
+ * but no recognisable copy of the original painting survives inside it.
  */
 function composedJadeGroundTexture(source, size = JADE_GROUND_COMPOSITION_2D.synthesisSize) {
   return canvasTexture(size, size, (ctx, width, height) => {
-    let state = 0x8a31d5e7
+    let state = 0x51f15e
     const random = () => {
       state = (Math.imul(state ^ (state >>> 15), 0x85ebca6b) + 0xc2b2ae35) >>> 0
       return state / 4294967296
     }
-    ctx.fillStyle = '#172b2e'
+
+    ctx.fillStyle = '#314641'
     ctx.fillRect(0, 0, width, height)
 
-    // Preserve one coherent authored material field. The previous quadrant
-    // mirror created a conspicuous kaleidoscope at combat scale; a large single
-    // period lets masonry and moss remain environmental texture instead of a
-    // repeated gameplay marker.
-    ctx.drawImage(source, 0, 0, source.width, source.height, 0, 0, width, height)
-
-    // One restrained slate grade binds the mirrored plates together without
-    // hiding stone joints, moss texture or foot contact.
-    ctx.fillStyle = 'rgba(4,17,22,.2)'
-    ctx.fillRect(0, 0, width, height)
-
-    // Small material flecks provide scale without competing with enemies.
-    ctx.lineCap = 'round'
-    for (let i = 0; i < 180; i++) {
-      const x = random() * width
-      const y = random() * height
-      const length = 3 + random() * 12
-      ctx.strokeStyle = i % 5 === 0 ? 'rgba(93,168,137,.07)' : 'rgba(155,178,169,.035)'
-      ctx.lineWidth = 0.7 + random() * 1.4
-      ctx.beginPath()
-      ctx.moveTo(x, y)
-      ctx.lineTo(x + length, y - length * (0.25 + random() * 0.35))
-      ctx.stroke()
+    // Broad wrapped value fields keep any uncovered transition in the same
+    // mountain-jade family. They carry no symbols or editor-like geometry.
+    for (let i = 0; i < 18; i++) {
+      const cx = random() * width
+      const cy = random() * height
+      const radius = 260 + random() * 430
+      const value = i % 3 === 0 ? '17,34,32' : i % 3 === 1 ? '67,91,79' : '47,73,67'
+      for (const ox of [-width, 0, width]) {
+        for (const oy of [-height, 0, height]) {
+          const gradient = ctx.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, radius)
+          gradient.addColorStop(0, `rgba(${value},.16)`)
+          gradient.addColorStop(1, `rgba(${value},0)`)
+          ctx.fillStyle = gradient
+          ctx.fillRect(cx + ox - radius, cy + oy - radius, radius * 2, radius * 2)
+        }
+      }
     }
+
+    const patchSize = 704
+    const patch = document.createElement('canvas')
+    patch.width = patchSize
+    patch.height = patchSize
+    const patchCtx = patch.getContext('2d')
+    for (let i = 0; i < 54; i++) {
+      patchCtx.clearRect(0, 0, patchSize, patchSize)
+      patchCtx.globalCompositeOperation = 'source-over'
+      patchCtx.globalAlpha = 1
+      const sourceSpan = Math.max(280, Math.min(
+        source.width,
+        Math.round(source.width * (0.28 + random() * 0.28)),
+      ))
+      const sx = random() * Math.max(0, source.width - sourceSpan)
+      const sy = random() * Math.max(0, source.height - sourceSpan)
+      patchCtx.drawImage(
+        source,
+        sx, sy, sourceSpan, sourceSpan,
+        0, 0, patchSize, patchSize,
+      )
+
+      const grade = patchCtx.createLinearGradient(0, 0, patchSize, patchSize)
+      grade.addColorStop(0, i % 3 === 0 ? 'rgba(39,72,60,.13)' : 'rgba(76,92,80,.06)')
+      grade.addColorStop(1, i % 4 === 0 ? 'rgba(12,31,31,.18)' : 'rgba(13,27,29,.08)')
+      patchCtx.fillStyle = grade
+      patchCtx.fillRect(0, 0, patchSize, patchSize)
+
+      patchCtx.globalCompositeOperation = 'destination-in'
+      const maskX = patchSize * (0.46 + (random() - 0.5) * 0.08)
+      const maskY = patchSize * (0.5 + (random() - 0.5) * 0.08)
+      const mask = patchCtx.createRadialGradient(maskX, maskY, 18, maskX, maskY, patchSize * 0.5)
+      mask.addColorStop(0, 'rgba(255,255,255,.98)')
+      mask.addColorStop(0.62, 'rgba(255,255,255,.96)')
+      mask.addColorStop(0.84, 'rgba(255,255,255,.72)')
+      mask.addColorStop(1, 'rgba(255,255,255,0)')
+      patchCtx.fillStyle = mask
+      patchCtx.fillRect(0, 0, patchSize, patchSize)
+      patchCtx.globalCompositeOperation = 'source-over'
+
+      const cx = random() * width
+      const cy = random() * height
+      const rotation = Math.floor(random() * 4) * Math.PI * 0.5
+      const mirror = random() < 0.5 ? -1 : 1
+      const scale = 0.76 + random() * 0.42
+      const drawSize = patchSize * scale
+      ctx.globalAlpha = 0.84 + random() * 0.14
+      for (const ox of [-width, 0, width]) {
+        for (const oy of [-height, 0, height]) {
+          ctx.save()
+          ctx.translate(cx + ox, cy + oy)
+          ctx.rotate(rotation)
+          ctx.scale(mirror, 1)
+          ctx.drawImage(patch, -drawSize * 0.5, -drawSize * 0.5, drawSize, drawSize)
+          ctx.restore()
+        }
+      }
+    }
+    ctx.globalAlpha = 1
+    ctx.globalCompositeOperation = 'screen'
+    ctx.fillStyle = 'rgba(132,153,139,.13)'
+    ctx.fillRect(0, 0, width, height)
+    ctx.globalCompositeOperation = 'source-over'
   })
 }
 
@@ -2366,10 +2548,10 @@ function macroGroundTexture(stageId = 'jade') {
 }
 
 export const TERRAIN_GRADE_2D = Object.freeze({
-  alpha: 0.46,
-  edgeVignetteAlpha: 0.28,
-  topDepthAlpha: 0.12,
-  bottomDepthAlpha: 0.06,
+  alpha: 0.36,
+  edgeVignetteAlpha: 0.2,
+  topDepthAlpha: 0.09,
+  bottomDepthAlpha: 0.04,
 })
 
 function terrainGradeTexture() {
@@ -2404,20 +2586,37 @@ function contactLightTexture() {
 function propFootprintTexture() {
   return canvasTexture(160, 96, (ctx, width, height) => {
     ctx.clearRect(0, 0, width, height)
-    const soil = ctx.createRadialGradient(width * 0.5, height * 0.54, 3, width * 0.5, height * 0.54, width * 0.47)
-    soil.addColorStop(0, 'rgba(4,12,14,.72)')
-    soil.addColorStop(0.48, 'rgba(12,27,24,.5)')
-    soil.addColorStop(0.76, 'rgba(42,79,57,.24)')
-    soil.addColorStop(1, 'rgba(32,72,54,0)')
+    // An irregular occlusion stain merges a cut-out prop into the authored
+    // paving. A radial ellipse looked like a selection disc, so the footprint
+    // is deliberately asymmetric and broken at its perimeter.
+    const soil = ctx.createLinearGradient(20, 38, 142, 70)
+    soil.addColorStop(0, 'rgba(6,15,15,.18)')
+    soil.addColorStop(0.42, 'rgba(3,10,11,.72)')
+    soil.addColorStop(0.7, 'rgba(13,31,25,.46)')
+    soil.addColorStop(1, 'rgba(38,77,54,.08)')
     ctx.fillStyle = soil
-    ctx.fillRect(0, 0, width, height)
-    ctx.strokeStyle = 'rgba(109,150,104,.22)'
+    ctx.beginPath()
+    ctx.moveTo(11, 58)
+    ctx.bezierCurveTo(24, 39, 44, 45, 58, 38)
+    ctx.bezierCurveTo(78, 29, 93, 43, 112, 37)
+    ctx.bezierCurveTo(132, 31, 151, 46, 148, 60)
+    ctx.bezierCurveTo(145, 74, 120, 69, 105, 76)
+    ctx.bezierCurveTo(83, 84, 67, 70, 49, 77)
+    ctx.bezierCurveTo(30, 84, 8, 74, 11, 58)
+    ctx.fill()
+    ctx.fillStyle = 'rgba(8,23,20,.26)'
+    ctx.beginPath()
+    ctx.moveTo(35, 43)
+    ctx.bezierCurveTo(51, 29, 79, 36, 87, 48)
+    ctx.bezierCurveTo(76, 56, 49, 59, 35, 43)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(107,148,101,.18)'
     ctx.lineCap = 'round'
     for (const [x, y, length, lean] of [
-      [22, 58, 12, -4], [35, 66, 15, 4], [55, 70, 10, -2], [104, 70, 12, 3],
-      [126, 64, 16, -4], [139, 57, 11, 2], [44, 37, 8, 3], [118, 38, 9, -3],
+      [22, 61, 10, -4], [39, 69, 13, 4], [57, 72, 8, -2], [105, 72, 10, 3],
+      [128, 66, 13, -4], [140, 58, 9, 2], [47, 42, 7, 3], [117, 42, 8, -3],
     ]) {
-      ctx.lineWidth = 2
+      ctx.lineWidth = 1.6
       ctx.beginPath()
       ctx.moveTo(x, y)
       ctx.quadraticCurveTo(x + lean, y - length * 0.62, x + lean * 0.4, y - length)
@@ -3273,8 +3472,8 @@ function swordScarTraceTexture() {
   return canvasTexture(256, 112, (ctx) => {
     ctx.clearRect(0, 0, 256, 112)
     const dust = ctx.createRadialGradient(130, 62, 4, 130, 62, 92)
-    dust.addColorStop(0, 'rgba(215,193,142,.28)')
-    dust.addColorStop(1, 'rgba(194,175,130,0)')
+    dust.addColorStop(0, 'rgba(94,145,128,.18)')
+    dust.addColorStop(1, 'rgba(80,122,111,0)')
     ctx.fillStyle = dust
     ctx.fillRect(24, 8, 208, 96)
     ctx.lineCap = 'round'
@@ -3282,17 +3481,17 @@ function swordScarTraceTexture() {
       ctx.beginPath()
       ctx.moveTo(28 + offset, 88)
       ctx.quadraticCurveTo(114 + offset, 53, 226 + offset * .25, 23)
-      ctx.strokeStyle = `rgba(28,25,22,${alpha})`
+      ctx.strokeStyle = `rgba(11,25,25,${alpha})`
       ctx.lineWidth = width
       ctx.stroke()
       ctx.beginPath()
       ctx.moveTo(35 + offset, 84)
       ctx.quadraticCurveTo(120 + offset, 49, 222 + offset * .25, 20)
-      ctx.strokeStyle = `rgba(244,220,163,${alpha * .72})`
+      ctx.strokeStyle = `rgba(151,191,176,${alpha * .62})`
       ctx.lineWidth = Math.max(1.2, width * .42)
       ctx.stroke()
     }
-    ctx.fillStyle = 'rgba(42,37,30,.56)'
+    ctx.fillStyle = 'rgba(116,157,143,.42)'
     for (const [x, y, r] of [[61,78,4],[92,65,2.5],[157,42,3],[194,31,2]]) {
       ctx.beginPath(); ctx.moveTo(x-r,y); ctx.lineTo(x+r*.7,y-r*.6); ctx.lineTo(x+r,y+r*.5); ctx.closePath(); ctx.fill()
     }
@@ -3304,21 +3503,30 @@ function beastTrailTraceTexture() {
     ctx.clearRect(0, 0, 224, 128)
     const paw = (x, y, scale, angle) => {
       ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.scale(scale, scale)
-      ctx.fillStyle = 'rgba(57,42,31,.86)'
-      ctx.beginPath(); ctx.ellipse(0, 5, 11, 8, 0, 0, Math.PI * 2); ctx.fill()
-      for (const [tx, ty] of [[-10,-7],[-3,-12],[5,-11],[12,-5]]) {
-        ctx.beginPath(); ctx.ellipse(tx, ty, 3.7, 5.4, 0, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = 'rgba(22,39,36,.78)'
+      ctx.beginPath()
+      ctx.moveTo(-11, 7)
+      ctx.bezierCurveTo(-10, -1, -5, -5, 0, -4)
+      ctx.bezierCurveTo(7, -5, 12, 1, 10, 8)
+      ctx.bezierCurveTo(5, 13, -5, 14, -11, 7)
+      ctx.fill()
+      for (const [tx, ty, lean] of [[-10,-7,-2],[-3,-12,-1],[5,-11,1],[12,-5,2]]) {
+        ctx.beginPath()
+        ctx.moveTo(tx, ty - 6)
+        ctx.quadraticCurveTo(tx + lean + 5, ty, tx, ty + 6)
+        ctx.quadraticCurveTo(tx - 4, ty + 1, tx, ty - 6)
+        ctx.fill()
       }
-      ctx.strokeStyle = 'rgba(229,199,140,.70)'; ctx.lineWidth = 2.4
-      ctx.beginPath(); ctx.ellipse(0, 5, 13, 10, 0, 0, Math.PI * 2); ctx.stroke()
+      ctx.strokeStyle = 'rgba(101,134,122,.30)'; ctx.lineWidth = 1.2
+      ctx.beginPath(); ctx.moveTo(-8, 8); ctx.quadraticCurveTo(0, 3, 8, 8); ctx.stroke()
       ctx.restore()
     }
     paw(43, 91, 1.08, -.16)
     paw(105, 65, .9, .12)
     paw(167, 36, .76, -.1)
     const smear = ctx.createLinearGradient(16, 108, 205, 18)
-    smear.addColorStop(0, 'rgba(194,158,101,.34)'); smear.addColorStop(1, 'rgba(111,94,68,0)')
-    ctx.strokeStyle = smear; ctx.lineWidth = 13; ctx.lineCap = 'round'
+    smear.addColorStop(0, 'rgba(44,71,63,.16)'); smear.addColorStop(1, 'rgba(44,71,63,0)')
+    ctx.strokeStyle = smear; ctx.lineWidth = 9; ctx.lineCap = 'round'
     ctx.beginPath(); ctx.moveTo(21,111); ctx.lineTo(205,18); ctx.stroke()
   })
 }
@@ -3327,20 +3535,20 @@ function sealAshTraceTexture() {
   return canvasTexture(192, 128, (ctx) => {
     ctx.clearRect(0, 0, 192, 128)
     const wet = ctx.createRadialGradient(96, 71, 6, 96, 71, 64)
-    wet.addColorStop(0, 'rgba(102,153,151,.2)'); wet.addColorStop(1, 'rgba(102,153,151,0)')
+    wet.addColorStop(0, 'rgba(83,145,141,.16)'); wet.addColorStop(1, 'rgba(83,145,141,0)')
     ctx.fillStyle = wet; ctx.fillRect(22, 10, 148, 108)
     const scraps = [
       [45,61,49,25,-.18], [102,45,42,24,.16], [92,87,55,22,-.06],
     ]
     for (const [x,y,w,h,a] of scraps) {
       ctx.save(); ctx.translate(x,y); ctx.rotate(a)
-      ctx.fillStyle='rgba(205,188,149,.72)'; ctx.fillRect(-w/2,-h/2,w,h)
-      ctx.strokeStyle='rgba(79,65,48,.66)'; ctx.lineWidth=1.5; ctx.strokeRect(-w/2,-h/2,w,h)
-      ctx.strokeStyle='rgba(143,43,35,.78)'; ctx.lineWidth=2
+      ctx.fillStyle='rgba(54,78,73,.62)'; ctx.fillRect(-w/2,-h/2,w,h)
+      ctx.strokeStyle='rgba(139,174,158,.4)'; ctx.lineWidth=1.5; ctx.strokeRect(-w/2,-h/2,w,h)
+      ctx.strokeStyle='rgba(143,73,61,.62)'; ctx.lineWidth=2
       ctx.beginPath(); ctx.moveTo(-w*.24,0); ctx.lineTo(w*.22,0); ctx.moveTo(0,-h*.3); ctx.lineTo(0,h*.3); ctx.stroke()
       ctx.restore()
     }
-    ctx.fillStyle='rgba(37,35,31,.5)'
+    ctx.fillStyle='rgba(103,141,129,.36)'
     for (const [x,y,r] of [[31,92,3],[61,105,2],[135,87,3],[153,66,2],[116,111,2]]) {
       ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill()
     }
@@ -3391,12 +3599,35 @@ function enemyIntentSealTexture() {
   })
 }
 
+/**
+ * Use the latest simulation step as the visible locomotion contract. A stale
+ * speed value can survive an input keyup, but when x/z did not advance the
+ * renderer must immediately return to the authored idle pose.
+ */
+export function heroMotionActive2D({
+  actualSpeed = 0, speed01 = 0, worldStep = 0, dashing = 0, teleported = false,
+} = {}) {
+  if (Number(dashing) > 0) return true
+  if (teleported) return false
+  const step = Math.max(0, Number(worldStep) || 0)
+  if (step <= 0.0001) return false
+  return Number(speed01) > 0.08 || Number(actualSpeed) > 0.08 || step > 0.0005
+}
+
+export function heroIdleFrames2D(heroDef, directionKey = 'se') {
+  const directionalIdle = heroDef?.idleFramesByDirection?.[directionKey]
+  if (Array.isArray(directionalIdle) && directionalIdle.length) return directionalIdle
+  return heroDef?.animations?.idle ?? [0]
+}
+
 export function heroAnimationFrameIndex2D(heroDef, {
   moving = false, dashing = 0, attackTimer = 0, time = 0,
-  travelDistance = null, runFrames = null, movementSettle = 0,
+  travelDistance = null, runFrames = null, directionKey = 'se',
 } = {}) {
   const animations = heroDef?.animations ?? {}
-  const idle = animations.idle ?? [0]
+  // The motion atlas does not use frame zero as a universal idle; its
+  // direction-specific neutral pose is authored in the attack/recovery tail.
+  const idle = heroIdleFrames2D(heroDef, directionKey)
   const run = runFrames ?? animations.run ?? idle
   const dash = animations.dash ?? run
   const attack = animations.attack ?? idle
@@ -3408,9 +3639,8 @@ export function heroAnimationFrameIndex2D(heroDef, {
     return run[phase % run.length]
   }
   if (moving) return loopingFrameIndex(run, time, 8)
-  // Do not snap from a travelling robe straight into an attack painting on
-  // the first stationary tick. Let the final grounded run pose settle first.
-  if (movementSettle > 0) return run[0] ?? idle[0]
+  // A stopped simulation tick is an immediate idle contract; there is no
+  // transition settle window that can hold the legs-apart run pose after keyup.
   if (attackTimer > 0) return oneShotFrameIndex(attack, attackTimer, 0.32)
   return idle[0]
 }
@@ -3425,6 +3655,12 @@ export function heroReactionFrameIndex2D(heroDef, {
   if (!alive) return oneShotFrameIndex(death, deathTimer, HERO_DEATH_REACTION_SECONDS_2D)
   if (hurtTimer > 0) return oneShotFrameIndex(hurt, hurtTimer, HERO_HURT_REACTION_SECONDS_2D)
   return loopingFrameIndex(idle, time, 1.5)
+}
+
+export function heroReactionState2D(player) {
+  if (player?.alive === false) return 'death'
+  if ((Number(player?.hurtTimer) || 0) > 0) return 'hurt'
+  return null
 }
 
 // Eight authored poses now cover the same travel distance that the old
@@ -3501,11 +3737,12 @@ export function enemyTextureKey2D(id, uid = 0) {
       : 'jadeShardGuardian'
   }
   if (id === 'bloodScorpion') return 'bloodScorpion'
-  if (id === 'wolf') {
-    return enemySilhouetteVariant2D(uid, 0x9e3779b9) < 0.5
-      ? 'yorang'
-      : 'jadeRidgeHound'
-  }
+  // The cobalt-marked yorang is the chapter's named beast encounter. Mixing
+  // that saturated boss identity into every ordinary hound pack made the Jade
+  // arena look like two unrelated asset sets. Rank-and-file wolves therefore
+  // keep the slate/jade ridge-hound silhouette; the boss renderer still uses
+  // the authored yorang sheets directly.
+  if (id === 'wolf') return 'jadeRidgeHound'
   if (id === 'demonCultivator') {
     return enemySilhouetteVariant2D(uid, 0x7451c2e9) < 0.5
       ? 'voidSentinel'
@@ -3525,27 +3762,35 @@ function isWolfActorKey2D(key) {
  * cyan-violet material detail while still accepting stage-specific identity.
  */
 const ENEMY_VARIANT_TINT_TARGETS_2D = Object.freeze({
-  wisp: Object.freeze([0xc1add7, 0x91ced4]),
-  jadeStoneGhoul: Object.freeze([0xb7c2b7, 0x8bcbb0]),
-  jadeShardGuardian: Object.freeze([0xadc6b5, 0x7fd4b5]),
-  talismanRevenant: Object.freeze([0xb2a7d8, 0x9cc7d9]),
-  maskedSealRevenant: Object.freeze([0xd0b0dc, 0x87d1dc]),
-  voidSentinel: Object.freeze([0xa7b8c1, 0xc3a8d0]),
-  shadowSealDuelist: Object.freeze([0xb3a6c9, 0x9cbfc8]),
+  wisp: Object.freeze([0xb8aec8, 0x91c5c3]),
+  yorang: Object.freeze([0x718a7b, 0x7d8991]),
+  jadeRidgeHound: Object.freeze([0x6f8879, 0x81948a]),
+  jadeSerpent: Object.freeze([0x718c77, 0x8b927a]),
+  jadeStoneGhoul: Object.freeze([0x8d988f, 0x789d8b]),
+  jadeShardGuardian: Object.freeze([0x879a8d, 0x72a28e]),
+  bloodScorpion: Object.freeze([0x8c7470, 0x947f70]),
+  talismanRevenant: Object.freeze([0x978fac, 0x86a5ab]),
+  maskedSealRevenant: Object.freeze([0xa38fab, 0x79a9ad]),
+  voidSentinel: Object.freeze([0x85969d, 0x9b8ca4]),
+  shadowSealDuelist: Object.freeze([0x91899f, 0x83a0a3]),
 })
 
 export function enemyActorTint2D(color, textureKey = 'wisp', hitFlash = false, variant = 0.5) {
   if (hitFlash) return 0xffb6b6
   const source = Number.isFinite(color) ? (color >>> 0) : 0xffffff
-  const baseTint = blendTint2D(source, 0xffffff, textureKey === 'wisp' ? 0.68 : 0.64)
+  const baseTint = blendTint2D(source, 0xffffff, textureKey === 'wisp' ? 0.58 : 0.54)
   const targets = ENEMY_VARIANT_TINT_TARGETS_2D[textureKey]
   if (!targets) return baseTint
   const numericVariant = Number(variant)
   const normalized = Number.isFinite(numericVariant)
     ? Math.max(0, Math.min(1, numericVariant))
     : 0.5
-  const target = normalized < 0.5 ? targets[0] : targets[1]
-  const amount = Math.abs(normalized - 0.5) * (textureKey === 'wisp' ? 0.52 : 0.28)
+  const target = blendTint2D(targets[0], targets[1], normalized)
+  // The shared material grade applies at every variant, including the middle.
+  // Variation stays inside the ink-jade range rather than exposing a saturated
+  // source colour whenever the seeded palette happens to land near 0.5.
+  const amount = (textureKey === 'wisp' ? 0.6 : 0.7)
+    + Math.abs(normalized - 0.5) * 0.06
   return blendTint2D(baseTint, target, amount)
 }
 
@@ -3605,17 +3850,16 @@ export class PixiPresentation {
     this.viewport = { width: 1, height: 1, zoom: 1 }
     this.cameraX = 0
     this.cameraZ = 0
-    this.cameraTargetX = 0
-    this.cameraTargetZ = 0
+    this.worldCamera = new WorldCamera2D()
+    this.worldFrame = createWorldFrame2D(0, 0, this.viewport, {})
     this.playerX = 0
     this.playerZ = 0
     this.heroTravelDistance = 0
     this.heroLastWorldX = 0
     this.heroLastWorldZ = 0
     this.heroFrameKey = ''
-    this.heroBlendElapsed = 1
-    this.heroBlendStartedAt = Number.NEGATIVE_INFINITY
-    this.heroMovementSettle = 0
+    this.heroDirectionState = null
+    this.heroReactionDirectionState = null
     this.time = 0
     this.runActive = false
     this.lastRenderMs = 0
@@ -3634,6 +3878,7 @@ export class PixiPresentation {
     this.poiPool = []
     this.mapDecalPool = []
     this.mapDecalTextures = []
+    this.mapPropDiagnostics = mapPropPoolDiagnostic(0, MAX_ACTIVE_MAP_PROPS)
     this.damageTextPool = []
     this.damageTextCursor = 0
     this.damageTextSerial = 0
@@ -3643,7 +3888,7 @@ export class PixiPresentation {
     this.groundBaseTextures = null
     this.generatedFloorBase = null
     this._groundChunkAlpha = 0.9
-    this._floorTileScale = { x: 1, y: 0.46 }
+    this._floorTileScale = { x: 1, y: 0.62 }
     this._combatHorizonY = 0
     this.frames = {}
     this._contextLost = false
@@ -3654,6 +3899,22 @@ export class PixiPresentation {
     this._frameTriangles = 0
     this._glMetricHandle = null
     this._destroyed = false
+  }
+
+  _syncWorldFrame(shakeX = 0, shakeZ = 0) {
+    createWorldFrame2D(
+      this.cameraX + shakeX,
+      this.cameraZ + shakeZ,
+      this.viewport,
+      this.worldFrame,
+    )
+  }
+
+  _projectWorld(x, z, out = _screen) {
+    if (!this.worldFrame) {
+      this.worldFrame = createWorldFrame2D(this.cameraX, this.cameraZ, this.viewport, {})
+    }
+    return projectWorldWithFrame2D(x, z, this.worldFrame, out)
   }
 
   async init() {
@@ -3672,9 +3933,9 @@ export class PixiPresentation {
       autoStart: false,
       preference: backend,
       preferWebGLVersion: 2,
-      antialias: false,
+      antialias: true,
       autoDensity: true,
-      resolution: this.quality.scale,
+      resolution: nativeRenderResolution2D(this.quality.scale, window.devicePixelRatio),
       background: '#04080d',
       powerPreference: 'high-performance',
       clearBeforeRender: true,
@@ -3769,6 +4030,12 @@ export class PixiPresentation {
   _buildScene() {
     const stage = this.app.stage
     stage.eventMode = 'none'
+    // Keep the title backdrop, arena materials, actors, props and effects in
+    // one authored value range. DOM surfaces use the same ink/jade tokens in
+    // styles/ink-ui.css; this is the corresponding runtime art-direction
+    // boundary for the Pixi scene.
+    this.realmArtGrade = createRealmArtGrade2D()
+    stage.filters = [this.realmArtGrade]
 
     this.backdrop = new Sprite(Texture.from(ENVIRONMENT_URL))
     stage.addChild(this.backdrop)
@@ -3802,7 +4069,7 @@ export class PixiPresentation {
 
     this.floor = new TilingSprite({ texture: stoneFallbackTexture(), width: 1, height: 1 })
     this.floor.alpha = 0.94
-    this.floor.tint = 0xb2c4d0
+    this.floor.tint = 0xd4e0da
     this.floor.blendMode = 'normal'
     stage.addChild(this.floor)
     this.floorBlendMask = new Sprite(floorBlendMaskTexture())
@@ -3833,10 +4100,11 @@ export class PixiPresentation {
       this.mapDecalLayer.addChild(sprite)
       this.mapDecalPool.push({ sprite, x: 0, z: 0, active: false })
     }
-    this.spawnPlaza = new Sprite(jadeSpawnPlazaTexture())
-    this.spawnPlaza.anchor.set(0.5)
-    this.spawnPlaza.visible = false
-    this.mapDecalLayer.addChild(this.spawnPlaza)
+    // The opening is authored by the same streamed floor-detail and prop
+    // clusters as the rest of the sanctuary. A separately scaled origin
+    // plate made the first screen read like a debug arena placed on top of the
+    // world, so no screen-sized plaza sprite is allocated or rendered here.
+    this.spawnPlaza = null
 
     this.floorRunes = new Sprite(floorRuneTexture())
     this.floorRunes.anchor.set(0.5)
@@ -3923,6 +4191,7 @@ export class PixiPresentation {
       voidSentinel: Texture.WHITE,
       shadowSealDuelist: Texture.WHITE,
       jadeVoidWarden: Texture.WHITE,
+      jadeVoidWardenReaction: Texture.WHITE,
       wisp: wispTexture(),
       shadow: shadowTexture(),
       sword: projectileAtlas.frames[0],
@@ -3960,37 +4229,34 @@ export class PixiPresentation {
     this._ensureWeaponFields(MAX_WEAPON_FIELDS_2D)
 
     this.heroAura = new Sprite(this.textures.heroAura)
+    configureActorSprite2D(this.heroAura)
     this.heroAura.anchor.set(0.5)
     this.heroAura.blendMode = 'add'
     this.heroAura.visible = false
     this.groundLightLayer.addChild(this.heroAura)
 
     this.heroShadow = new Sprite(this.textures.shadow)
+    configureActorSprite2D(this.heroShadow)
     this.heroShadow.anchor.set(0.5)
     this.shadowLayer.addChild(this.heroShadow)
     this.hero = new Sprite(this.textures.seolryeong)
+    configureActorSprite2D(this.hero)
     this.hero.anchor.set(0.5, SPRITE_MANIFEST.actors.seolryeong.pivot[1])
     this.actorBuckets[32].addChild(this.hero)
 
-    // Retain the previous authored pose briefly whenever the direction or
-    // frame changes. A hard texture swap makes four-frame motion read as a
-    // slideshow; this underlay turns it into a short pose-to-pose dissolve
-    // without blurring the current heroine or inventing fake body geometry.
-    this.heroTransition = new Sprite(this.textures.seolryeong)
-    this.heroTransition.anchor.set(0.5, SPRITE_MANIFEST.actors.seolryeong.pivot[1])
-    this.heroTransition.visible = false
-    this.actorBuckets[32].addChild(this.heroTransition)
-
     this.bossShadow = new Sprite(this.textures.shadow)
+    configureActorSprite2D(this.bossShadow)
     this.bossShadow.anchor.set(0.5)
     this.bossShadow.visible = false
     this.shadowLayer.addChild(this.bossShadow)
     this.bossContact = new Sprite(this.textures.contactLight)
+    configureActorSprite2D(this.bossContact)
     this.bossContact.anchor.set(0.5)
     this.bossContact.blendMode = 'add'
     this.bossContact.visible = false
     this.contactLightLayer.addChild(this.bossContact)
     this.bossIntent = new Sprite(this.textures.ring)
+    configureActorSprite2D(this.bossIntent)
     this.bossIntent.anchor.set(0.5)
     this.bossIntent.visible = false
     this.shadowLayer.addChild(this.bossIntent)
@@ -3999,11 +4265,13 @@ export class PixiPresentation {
     this.bossDangerZone.blendMode = 'normal'
     this.groundLightLayer.addChild(this.bossDangerZone)
     this.boss = new Sprite(this.textures.jadeVoidWarden)
+    configureActorSprite2D(this.boss)
     this.boss.anchor.set(0.5, SPRITE_MANIFEST.actors.jadeVoidWarden.pivot[1])
     this.boss.visible = false
     this.actorBuckets[32].addChild(this.boss)
 
     this.heroMarker = new Sprite(this.textures.ring)
+    configureActorSprite2D(this.heroMarker)
     this.heroMarker.anchor.set(0.5)
     this.heroMarker.blendMode = 'normal'
     this.heroMarker.visible = false
@@ -4011,14 +4279,6 @@ export class PixiPresentation {
     // drew the ring over the heroine's boots and made it look like a tilted UI
     // disc attached to her body.
     this.groundLightLayer.addChild(this.heroMarker)
-
-    this.heroReadability = new Sprite(this.textures.seolryeong)
-    this.heroReadability.anchor.set(0.5, SPRITE_MANIFEST.actors.seolryeong.pivot[1])
-    this.heroReadability.blendMode = 'normal'
-    this.heroReadability.visible = false
-    // Keep the rim in the same depth bucket and texture batch as the heroine.
-    // Re-adding the hero also makes the intended back-to-front order explicit.
-    this.actorBuckets[32].addChild(this.heroReadability, this.hero)
 
     this.bossCastPill = typeof document === 'undefined' ? null : document.createElement('div')
     if (this.bossCastPill) {
@@ -4095,6 +4355,7 @@ export class PixiPresentation {
         SPRITE_MANIFEST.actors.voidSentinel.url,
         SPRITE_MANIFEST.actors.shadowSealDuelist.url,
         SPRITE_MANIFEST.actors.jadeVoidWarden.url,
+        JADE_VOID_WARDEN_REACTION_ATLAS_2D.url,
         SPRITE_MANIFEST.environment.jadeSanctuaryProps.url,
       ])
       if (this._destroyed || !this.app) return
@@ -4104,34 +4365,35 @@ export class PixiPresentation {
       }
       this.floor.texture = this.groundBaseTextures.jade
       this._replaceGroundTextures(stageId)
-      this.textures.wisp = Texture.from(SPRITE_MANIFEST.actors.wisp.url)
-      this.textures.yorang = Texture.from(SPRITE_MANIFEST.actors.yorang.url)
+      const actorTexture = (url) => configureActorTexture2D(Texture.from(url))
+      this.textures.wisp = actorTexture(SPRITE_MANIFEST.actors.wisp.url)
+      this.textures.yorang = actorTexture(SPRITE_MANIFEST.actors.yorang.url)
       for (const entry of ENEMY_DIRECTIONAL_RUNTIME_ASSETS_2D) {
-        this.textures[entry.textureKey] = Texture.from(entry.url)
+        this.textures[entry.textureKey] = actorTexture(entry.url)
       }
       for (const entry of ENEMY_REACTION_RUNTIME_ASSETS_2D) {
-        this.textures[entry.textureKey] = Texture.from(entry.url)
+        this.textures[entry.textureKey] = actorTexture(entry.url)
       }
-      this.textures.jadeRidgeHound = Texture.from(SPRITE_MANIFEST.actors.jadeRidgeHound.url)
-      this.textures.jadeSerpent = Texture.from(SPRITE_MANIFEST.actors.jadeSerpent.url)
-      this.textures.jadeStoneGhoul = Texture.from(SPRITE_MANIFEST.actors.jadeStoneGhoul.url)
-      this.textures.jadeShardGuardian = Texture.from(SPRITE_MANIFEST.actors.jadeShardGuardian.url)
-      this.textures.bloodScorpion = Texture.from(SPRITE_MANIFEST.actors.bloodScorpion.url)
-      this.textures.talismanRevenant = Texture.from(SPRITE_MANIFEST.actors.talismanRevenant.url)
-      this.textures.maskedSealRevenant = Texture.from(SPRITE_MANIFEST.actors.maskedSealRevenant.url)
-      this.textures.voidSentinel = Texture.from(SPRITE_MANIFEST.actors.voidSentinel.url)
-      this.textures.shadowSealDuelist = Texture.from(SPRITE_MANIFEST.actors.shadowSealDuelist.url)
-      this.textures.jadeVoidWarden = Texture.from(SPRITE_MANIFEST.actors.jadeVoidWarden.url)
-      this.textures.seolryeong = Texture.from(SPRITE_MANIFEST.actors.seolryeong.url)
-      this.textures.seolryeongE = Texture.from(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.east.url)
-      this.textures.seolryeongN = Texture.from(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.north.url)
-      this.textures.seolryeongNe = Texture.from(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.northeast.url)
-      this.textures.seolryeongS = Texture.from(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.south.url)
-      this.textures.seolryeongReaction = Texture.from(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.southeast.url)
-      this.textures.seolryeongReactionE = Texture.from(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.east.url)
-      this.textures.seolryeongReactionN = Texture.from(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.north.url)
-      this.textures.seolryeongReactionNe = Texture.from(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.northeast.url)
-      this.textures.seolryeongReactionS = Texture.from(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.south.url)
+      this.textures.jadeRidgeHound = actorTexture(SPRITE_MANIFEST.actors.jadeRidgeHound.url)
+      this.textures.jadeSerpent = actorTexture(SPRITE_MANIFEST.actors.jadeSerpent.url)
+      this.textures.jadeStoneGhoul = actorTexture(SPRITE_MANIFEST.actors.jadeStoneGhoul.url)
+      this.textures.jadeShardGuardian = actorTexture(SPRITE_MANIFEST.actors.jadeShardGuardian.url)
+      this.textures.bloodScorpion = actorTexture(SPRITE_MANIFEST.actors.bloodScorpion.url)
+      this.textures.talismanRevenant = actorTexture(SPRITE_MANIFEST.actors.talismanRevenant.url)
+      this.textures.maskedSealRevenant = actorTexture(SPRITE_MANIFEST.actors.maskedSealRevenant.url)
+      this.textures.voidSentinel = actorTexture(SPRITE_MANIFEST.actors.voidSentinel.url)
+      this.textures.shadowSealDuelist = actorTexture(SPRITE_MANIFEST.actors.shadowSealDuelist.url)
+      this.textures.jadeVoidWarden = actorTexture(SPRITE_MANIFEST.actors.jadeVoidWarden.url)
+      this.textures.seolryeong = actorTexture(SPRITE_MANIFEST.actors.seolryeong.url)
+      this.textures.seolryeongE = actorTexture(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.east.url)
+      this.textures.seolryeongN = actorTexture(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.north.url)
+      this.textures.seolryeongNe = actorTexture(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.northeast.url)
+      this.textures.seolryeongS = actorTexture(SPRITE_MANIFEST.actors.seolryeong.directionalRuntime.south.url)
+      this.textures.seolryeongReaction = actorTexture(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.southeast.url)
+      this.textures.seolryeongReactionE = actorTexture(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.east.url)
+      this.textures.seolryeongReactionN = actorTexture(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.north.url)
+      this.textures.seolryeongReactionNe = actorTexture(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.northeast.url)
+      this.textures.seolryeongReactionS = actorTexture(SPRITE_MANIFEST.actors.seolryeong.reactionRuntime.south.url)
       this.textures.jadeSanctuaryProps = Texture.from(SPRITE_MANIFEST.environment.jadeSanctuaryProps.url)
       this.frames.seolryeong = sliceFrames(this.textures.seolryeong, SPRITE_MANIFEST.actors.seolryeong)
       this.frames.seolryeongE = sliceFrames(this.textures.seolryeongE, SPRITE_MANIFEST.actors.seolryeong)
@@ -4158,6 +4420,15 @@ export class PixiPresentation {
           sheet: entry.actor.reactionSheet,
         })
       }
+      // Keep the final boss reaction binding explicit. The generic enemy
+      // reaction table also contains this runtime-candidate atlas, but the
+      // boss renderer has a separate death window and must never silently
+      // fall back to its idle/cast motion sheet if that table changes.
+      this.textures.jadeVoidWardenReaction = actorTexture(JADE_VOID_WARDEN_REACTION_ATLAS_2D.url)
+      this.frames.jadeVoidWardenReaction = sliceFrames(this.textures.jadeVoidWardenReaction, {
+        cell: JADE_VOID_WARDEN_REACTION_ATLAS_2D.cell,
+        sheet: JADE_VOID_WARDEN_REACTION_ATLAS_2D.sheet,
+      })
       this.frames.jadeRidgeHound = sliceFrames(
         this.textures.jadeRidgeHound, SPRITE_MANIFEST.actors.jadeRidgeHound,
       )
@@ -4185,7 +4456,9 @@ export class PixiPresentation {
       this.frames.jadeSanctuaryProps = sliceFrames(
         this.textures.jadeSanctuaryProps, SPRITE_MANIFEST.environment.jadeSanctuaryProps,
       )
-      this.hero.texture = this.frames.seolryeong[0]
+      this.hero.texture = this.frames.seolryeong[heroIdleFrames2D(
+        SPRITE_MANIFEST.actors.seolryeong, 'se',
+      )[0]]
       this.boss.texture = this.frames.jadeVoidWarden[0]
       this._buildProps()
       this._buildPois()
@@ -4224,7 +4497,10 @@ export class PixiPresentation {
       this._floorTileScale.y * presentationScale,
     )
     this.floor.alpha = jade ? 1 : 0.9
-    this.floor.tint = 0xffffff
+    // The authored floor is intentionally low-contrast; a restrained jade
+    // grade keeps its stone/moss values in the same cool family as the
+    // sanctuary props without turning the arena into a grey debug plate.
+    this.floor.tint = jade ? 0xf0f4ee : 0xffffff
     this._groundChunkAlpha = jade ? JADE_GROUND_COMPOSITION_2D.decalAlpha : 0.78
     this.mapDecalTextures = Array.from(
       { length: MAP_GROUND_VARIANTS },
@@ -4261,7 +4537,8 @@ export class PixiPresentation {
       contact.visible = false
       this.contactLightLayer.addChild(contact)
       const entry = {
-        x: 0, z: 0, height: 120, frame: 0, active: false, groundingKey: 'prop',
+        x: 0, z: 0, height: 120, scale: 1, rotation: 0, cluster: 'edge',
+        frame: 0, active: false, groundingKey: 'prop',
         sprite, shadow, glow, contact, bucket: 0, phase: i * 0.73,
       }
       this.actorBuckets[0].addChild(sprite)
@@ -4314,23 +4591,26 @@ export class PixiPresentation {
     this.titleHero.visible = !running
     this.combatSky.visible = running
     this.combatVista.visible = false
-    this.farMountains.visible = running
-    this.nearMountains.visible = running
-    this.farMist.visible = running
+    this.farMountains.visible = false
+    this.nearMountains.visible = false
+    this.farMist.visible = false
     this.floor.visible = running
     this.mapDecalLayer.visible = running
     this.floorRunes.visible = false
-    if (this.terrainGrade) this.terrainGrade.visible = running
-    this.horizonMist.visible = running
-    this.nearMist.visible = running
-    this.horizonVeil.visible = running
+    if (this.terrainGrade) this.terrainGrade.visible = false
+    this.horizonMist.visible = false
+    this.nearMist.visible = false
+    this.horizonVeil.visible = false
     this.groundLightLayer.visible = running
     this.weaponFieldLayer.visible = running
     for (const entry of this.propPool) {
       entry.sprite.visible = running && entry.active
+      // Keep one small, frame-specific contact shadow. The previous blanket
+      // disable removed the only screen-space cue that the atlas object was
+      // planted on the projected floor.
       entry.shadow.visible = running && entry.active
       entry.glow.visible = running && entry.active && (entry.frame === 0 || entry.frame === 7)
-      entry.contact.visible = running && entry.active
+      entry.contact.visible = false
     }
     if (!running) {
       for (const entry of this.enemyDeathPool) {
@@ -4353,24 +4633,29 @@ export class PixiPresentation {
     const target = Math.min(count, 900)
     while (this.enemyPool.length < target) {
       const intent = new Sprite(this.textures.enemyIntentSeal)
+      configureActorSprite2D(intent)
       intent.anchor.set(0.5)
       intent.visible = false
       this.shadowLayer.addChild(intent)
       const shadow = new Sprite(this.textures.shadow)
+      configureActorSprite2D(shadow)
       shadow.anchor.set(0.5)
       shadow.visible = false
       this.shadowLayer.addChild(shadow)
       const contact = new Sprite(this.textures.contactLight)
+      configureActorSprite2D(contact)
       contact.anchor.set(0.5)
       contact.blendMode = 'add'
       contact.visible = false
       this.contactLightLayer.addChild(contact)
       const sprite = new Sprite(this.textures.wisp)
+      configureActorSprite2D(sprite)
       sprite.anchor.set(0.5, 0.88)
       sprite.visible = false
       const entry = {
         sprite, shadow, contact, intent, bucket: 0, key: 'wisp', frame: 0,
         motionUid: 0, motion: enemyMotionProfile2D(0, 'wisp'),
+        direction: null, reactionFacing: null, reactionActive: false,
       }
       this.actorBuckets[0].addChild(sprite)
       this.enemyPool.push(entry)
@@ -4381,10 +4666,12 @@ export class PixiPresentation {
     const target = Math.min(Math.max(0, count), 96)
     while (this.enemyDeathPool.length < target) {
       const shadow = new Sprite(this.textures.shadow)
+      configureActorSprite2D(shadow)
       shadow.anchor.set(0.5)
       shadow.visible = false
       this.shadowLayer.addChild(shadow)
       const sprite = new Sprite(this.textures.wisp)
+      configureActorSprite2D(sprite)
       sprite.anchor.set(0.5, 0.9)
       sprite.visible = false
       const entry = {
@@ -4450,7 +4737,7 @@ export class PixiPresentation {
       entry.frame = enemyReactionFrameIndex2D(actor, 'death', entry.life, entry.maxLife)
         ?? actor.reactionAnimations.death.at(-1)
       entry.sprite.texture = directional.frames[entry.frame]
-      entry.sprite.anchor.set(actor.reactionPivot[0], actor.reactionPivot[1])
+      entry.sprite.anchor.set(0.5, actorFootPivot2D(directional.pivotKey, entry.frame))
       const def = ENEMIES.find((candidate) => candidate.id === entry.enemyId)
         ?? ENEMIES[0]
       const grounding = actorGroundingProfile2D(entry.key, entry.frame)
@@ -4545,7 +4832,7 @@ export class PixiPresentation {
       }
       entry.life = Math.max(0, entry.life - dt)
       const progress = 1 - entry.life / entry.maxLife
-      projectWorld(entry.x, entry.z, this.cameraX, this.cameraZ, this.viewport, _screen)
+      this._projectWorld(entry.x, entry.z, _screen)
       const scale = this._presentationScale ?? 1
       entry.label.position.set(
         _screen.x + entry.offsetX * scale,
@@ -4560,7 +4847,7 @@ export class PixiPresentation {
 
   setResolution(scale) {
     if (!this.app) return
-    this.app.renderer.resolution = Math.max(0.85, scale)
+    this.app.renderer.resolution = nativeRenderResolution2D(scale, window.devicePixelRatio)
     this.resize()
   }
 
@@ -4573,16 +4860,23 @@ export class PixiPresentation {
     if (!this.app) return
     const width = Math.max(1, window.innerWidth)
     const height = Math.max(1, window.innerHeight)
+    // Moving the window between monitors can change Windows display scaling
+    // without changing the selected quality mode.
+    this.app.renderer.resolution = nativeRenderResolution2D(
+      this.quality?.scale ?? 1,
+      window.devicePixelRatio,
+    )
     this.viewport.width = width
     this.viewport.height = height
     this._presentationScale = viewportPresentationScale(this.viewport)
+    this._syncWorldFrame()
     this.app.renderer.resize(width, height)
     cover(this.backdrop, width, height)
     this.backdropBaseX = this.backdrop.position.x
     this.backdropBaseY = this.backdrop.position.y
     this.backdropWash.clear().rect(0, 0, width, height).fill({ color: 0x06101a, alpha: 0.36 })
     this.combatSky.clear()
-      .rect(0, 0, width, height).fill({ color: 0x071017 })
+      .rect(0, 0, width, height).fill({ color: 0xaaa393 })
     cover(this.combatVista, width, height)
     this.combatVista.width *= 1.08
     this.combatVista.height *= 1.08
@@ -4644,8 +4938,8 @@ export class PixiPresentation {
   showTitle() {
     this.runActive = false
     this._setSceneMode(false)
+    this.heroReactionDirectionState = null
     this.hero.visible = false
-    this.heroTransition.visible = false
     this.heroAura.visible = false
     this.heroShadow.visible = false
     this.boss.visible = false
@@ -4656,7 +4950,6 @@ export class PixiPresentation {
     this._updateBossCastPill(null, null)
     this.heroSlash.visible = false
     this.heroMarker.visible = false
-    this.heroReadability.visible = false
     for (const entry of this.enemyPool) {
       entry.sprite.visible = false
       entry.shadow.visible = false
@@ -4688,22 +4981,27 @@ export class PixiPresentation {
     this.runActive = true
     this._setSceneMode(true)
     this.hero.visible = true
-    this.heroTransition.visible = false
     this.heroAura.visible = true
     this.heroShadow.visible = true
-    this.cameraX = snapshot.player.x
-    this.cameraZ = snapshot.player.z
-    this.cameraTargetX = snapshot.player.x
-    this.cameraTargetZ = snapshot.player.z
+    this.worldCamera.reset(snapshot.player.x, snapshot.player.z)
+    this.cameraX = this.worldCamera.x
+    this.cameraZ = this.worldCamera.z
+    this._syncWorldFrame()
     this.playerX = snapshot.player.x
     this.playerZ = snapshot.player.z
     this.heroTravelDistance = 0
     this.heroLastWorldX = snapshot.player.x
     this.heroLastWorldZ = snapshot.player.z
     this.heroFrameKey = ''
-    this.heroBlendElapsed = 1
-    this.heroBlendStartedAt = Number.NEGATIVE_INFINITY
-    this.heroMovementSettle = 0
+    this.heroDirectionState = null
+    this.heroReactionDirectionState = null
+    for (const entry of this.enemyPool) {
+      entry.key = ''
+      entry.motionUid = 0
+      entry.direction = null
+      entry.reactionFacing = null
+      entry.reactionActive = false
+    }
     for (const entry of this.enemyDeathPool) {
       entry.life = 0
       entry.sprite.visible = false
@@ -4721,6 +5019,7 @@ export class PixiPresentation {
     this.activeMapChunkKey = key
     const chunks = activeMapChunks(this.cameraX, this.cameraZ, this.mapSeed, this._groundStageId)
     let propIndex = 0
+    let activePropCount = 0
     for (let i = 0; i < this.mapDecalPool.length; i++) {
       const entry = this.mapDecalPool[i]
       const chunk = chunks[i]
@@ -4745,17 +5044,31 @@ export class PixiPresentation {
       )
       entry.sprite.tint = blendTint2D(primaryRegion.tint, secondaryRegion.tint, chunk.regionMix)
       for (const prop of propsForMapChunk(chunk.x, chunk.z, this.mapSeed, this._groundStageId)) {
-        if (propIndex >= this.propPool.length) break
+        activePropCount++
+        // Keep iterating so the diagnostic reports the complete generated
+        // count. A capacity regression must be visible to QA, never silently
+        // hidden by an early break.
+        if (propIndex >= this.propPool.length) continue
         const target = this.propPool[propIndex++]
         target.active = true
         target.x = prop.x
         target.z = prop.z
         target.height = prop.height
+        target.scale = prop.scale ?? 1
+        // Rigid shrine props are upright billboards. Their authored variation
+        // is expressed by cluster, frame and scale; rotating the screen plane
+        // would tilt the base away from the shared world foot baseline.
+        target.rotation = 0
+        target.cluster = prop.cluster ?? 'edge'
         target.frame = prop.frame
         target.landmark = Boolean(prop.landmark)
         target.regionId = prop.regionId ?? chunk.regionId
         target.sprite.texture = this.frames.jadeSanctuaryProps[prop.frame]
       }
+    }
+    this.mapPropDiagnostics = mapPropPoolDiagnostic(activePropCount, this.propPool.length)
+    if (!this.mapPropDiagnostics.withinCapacity) {
+      this.onMapPropCapacityViolation?.(this.mapPropDiagnostics)
     }
     for (let i = propIndex; i < this.propPool.length; i++) {
       this.propPool[i].active = false
@@ -4769,27 +5082,17 @@ export class PixiPresentation {
   _renderMapChunks() {
     for (const entry of this.mapDecalPool) {
       if (!entry.active) continue
-      projectWorld(entry.x, entry.z, this.cameraX, this.cameraZ, this.viewport, _screen)
+      this._projectWorld(entry.x, entry.z, _screen)
       entry.sprite.position.set(_screen.x, _screen.y)
       const overlap = this._groundStageId === 'jade' ? JADE_GROUND_COMPOSITION_2D.decalOverlap : 1.01
       entry.sprite.width = MAP_CHUNK_SIZE * _screen.unit * overlap
       entry.sprite.height = MAP_CHUNK_SIZE * _screen.depthUnit * overlap
       entry.sprite.visible = isOnScreen(_screen.x, _screen.y, this.viewport, entry.sprite.width)
     }
-    if (this.spawnPlaza) {
-      projectWorld(0, 0, this.cameraX, this.cameraZ, this.viewport, _screen)
-      this.spawnPlaza.position.set(_screen.x, _screen.y)
-      this.spawnPlaza.width = 22 * _screen.unit
-      this.spawnPlaza.height = 22 * _screen.depthUnit
-      // The old painted clearing was a large grey oval that followed the same
-      // visual language as editor/debug zones. Props already establish the
-      // opening location, so keep the uninterrupted ground material visible.
-      this.spawnPlaza.visible = false
-    }
   }
 
   _placeActor(entry, x, z, height, alpha, facing, tint, bob = 0, mirrorOverride = null) {
-    projectWorld(x, z, this.cameraX, this.cameraZ, this.viewport, _screen)
+    this._projectWorld(x, z, _screen)
     const sprite = entry.sprite
     const shadow = entry.shadow
     const mirror = typeof mirrorOverride === 'boolean'
@@ -4824,12 +5127,40 @@ export class PixiPresentation {
         continue
       }
       const visualHeight = entry.height * this._presentationScale
-      entry.sprite.anchor.y = actorFootPivot2D('prop', entry.frame)
+      const contactProfile = propGroundContactProfile2D(entry.frame, visualHeight)
+      entry.sprite.anchor.y = contactProfile.pivot
       const materialTint = PROP_MATERIAL_TINTS_2D[entry.frame % PROP_MATERIAL_TINTS_2D.length]
       const regionTint = REGION_TERRAIN_PRESENTATION_2D[entry.regionId]?.propTint ?? materialTint
-      this._placeActor(entry, entry.x, entry.z, visualHeight, 1, 0, blendTint2D(materialTint, regionTint, 0.18))
+      this._placeActor(entry, entry.x, entry.z, visualHeight, 1, 0, blendTint2D(materialTint, regionTint, 0.08))
+      const grounding = actorGroundingProfile2D('prop', entry.frame)
+      entry.shadow.tint = 0x29453d
+      // The atlas silhouettes have no baked contact on the authored floor.
+      // Keep only this short, jade-graded occlusion cue; the core stays under
+      // the sampled foot pivot and never becomes a floating selection disc.
+      entry.shadow.alpha = Math.min(0.52, grounding.shadowAlpha * 0.98)
+        * (entry.sprite.visible ? 1 : 0)
+      // Match the contact shadow to the actual frame silhouette instead of
+      // leaving a barely visible generic ellipse above the prop's feet. The
+      // narrow, dark oval is an occlusion cue, not a selection/debug ring.
+      entry.shadow.width = Math.max(18, visualHeight * grounding.shadowWidth)
+      entry.shadow.height = Math.max(6, visualHeight * Math.max(0.05, grounding.shadowHeight * 1.1))
+      entry.shadow.visible = entry.sprite.visible
+      // Props use a dedicated irregular soil/moss footprint below the tight
+      // contact shadow. This is world-ground material, not a glowing ring: it
+      // remains low-contrast and shares the region's jade value.
+      entry.contact.position.set(_screen.x, _screen.y + contactProfile.contactOffsetPx)
+      entry.contact.width = entry.shadow.width * PROP_GROUND_FOOTPRINT_2D.widthScale
+      entry.contact.height = Math.max(
+        PROP_GROUND_FOOTPRINT_2D.minimumHeight,
+        entry.shadow.height * PROP_GROUND_FOOTPRINT_2D.heightScale,
+      )
+      entry.contact.tint = blendTint2D(0x718774, regionTint, 0.42)
+      entry.contact.alpha = PROP_GROUND_FOOTPRINT_2D.alpha
+      entry.contact.visible = entry.sprite.visible
       // Never rotate a planter or stone from its base. Only the cloth banner
       // receives a restrained whole-cell sway; the other props stay planted.
+      // Only the hanging banner receives a near-zero cloth sway. Stone,
+      // lantern and planter silhouettes stay vertically authored and planted.
       entry.sprite.rotation = entry.frame === 4
         ? Math.sin(this.time * 1.7 + entry.phase) * 0.004 : 0
       const lit = entry.frame === 0 || entry.frame === 7
@@ -4841,23 +5172,12 @@ export class PixiPresentation {
         entry.glow.height = visualHeight * 0.46 * flicker
         entry.glow.alpha = 0.21 * flicker
       }
-      const grounding = actorGroundingProfile2D('prop', entry.frame)
-      entry.contact.position.set(
-        entry.shadow.position.x,
-        entry.shadow.position.y - visualHeight * grounding.contactLift,
-      )
-      const footprint = entry.landmark ? 1.1 : 1
-      entry.contact.width = Math.max(22, visualHeight * grounding.contactWidth) * footprint
-      entry.contact.height = Math.max(6, visualHeight * grounding.contactHeight)
-      entry.contact.tint = blendTint2D(grounding.contactTint, regionTint, 0.22)
-      entry.contact.alpha = grounding.contactAlpha * (entry.landmark ? 1.15 : 1)
-      entry.contact.visible = entry.sprite.visible && grounding.contactAlpha > 0
       const edge = Math.min(_screen.x, this.viewport.width - _screen.x, _screen.y, this.viewport.height - _screen.y)
       const fade = Math.max(0, Math.min(1, (edge + 45) / 125))
       entry.sprite.alpha *= fade
-      entry.shadow.alpha *= (entry.landmark ? 0.96 : 0.9) * fade
-      entry.shadow.width *= entry.landmark ? 1.08 : 1.02
+      entry.shadow.alpha *= fade
       entry.contact.alpha *= fade
+      entry.glow.alpha *= fade
     }
   }
 
@@ -4882,29 +5202,32 @@ export class PixiPresentation {
       if (config.groundTrace) {
         const traceConfig = INVESTIGATION_TRACE_PRESENTATION_2D[item.clueId]
           ?? INVESTIGATION_TRACE_PRESENTATION_2D['sword-scar']
-        projectWorld(item.x, item.z, this.cameraX, this.cameraZ, this.viewport, _screen)
+        this._projectWorld(item.x, item.z, _screen)
         entry.sprite.visible = false
         entry.shadow.visible = false
         entry.trace.texture = this.textures[traceConfig.texture]
         entry.trace.position.set(_screen.x, _screen.y + 1)
         entry.trace.width = traceConfig.width * this._presentationScale
         entry.trace.height = traceConfig.height * this._presentationScale
-        entry.trace.alpha = available ? (nearby ? 1 : 0.96) : 0.16
+        entry.trace.alpha = available ? (nearby ? 0.98 : 0.74) : 0.12
         entry.trace.visible = isOnScreen(_screen.x, _screen.y, this.viewport, traceConfig.width)
         const pulse = 0.95 + Math.sin(this.time * (nearby ? 4.2 : 1.8) + i) * (nearby ? 0.06 : 0.025)
         entry.glow.position.set(_screen.x, _screen.y)
         entry.glow.width = traceConfig.width * this._presentationScale * 1.3 * pulse
         entry.glow.height = traceConfig.height * this._presentationScale * 0.82 * pulse
         entry.glow.tint = config.color
-        entry.glow.alpha = available ? (nearby ? 0.2 : 0.085) : 0
+        entry.glow.alpha = available ? (nearby ? 0.14 : 0.045) : 0
         entry.glow.visible = entry.trace.visible && available
         entry.marker.position.set(_screen.x, _screen.y + 3)
         entry.marker.width = traceConfig.width * 0.9 * pulse
         entry.marker.height = traceConfig.height * 0.55 * pulse
         entry.marker.rotation = 0
         entry.marker.tint = config.color
-        entry.marker.alpha = nearby ? 0.2 : 0
-        entry.marker.visible = entry.trace.visible && nearby
+        // The trace itself is the world clue. A ring marker turns it into an
+        // editor-style target gizmo, so navigation stays in the radar/objective
+        // copy and the ground remains a believable sanctuary floor.
+        entry.marker.alpha = 0
+        entry.marker.visible = false
         entry.badge.text = traceConfig.glyph
         entry.badge.position.set(_screen.x, _screen.y - traceConfig.height * this._presentationScale * 0.72)
         entry.badge.tint = config.color
@@ -4966,44 +5289,62 @@ export class PixiPresentation {
         entry.key = key
         entry.motionUid = field.uid[i]
         entry.motion = enemyMotionProfile2D(field.uid[i], key)
+        entry.direction = null
+        entry.reactionFacing = null
+        entry.reactionActive = false
       }
       const motion = entry.motion
       const actor = SPRITE_MANIFEST.actors[key]
       const wolfActor = isWolfActorKey2D(key)
       const attacking = intentPresentation.visible
       const hurt = field.flash[i] > 0 && actor.reactionAnimations?.hurt?.length > 0
+      const directionState = enemyDirectionFor2D(field.facing[i], entry.direction)
+      entry.direction = directionState.direction
+      const facing = directionState.angle
+      if (hurt) {
+        if (!entry.reactionActive) {
+          entry.reactionFacing = facing
+          entry.reactionActive = true
+        }
+      } else if (entry.reactionActive) {
+        entry.reactionFacing = null
+        entry.reactionActive = false
+      }
+      const reactionFacing = entry.reactionActive && Number.isFinite(entry.reactionFacing)
+        ? entry.reactionFacing : facing
+      const renderFacing = entry.reactionActive ? reactionFacing : facing
       const locomotion = actor.animations.walk ?? actor.animations.hover ?? actor.animations.idle
       const attack = actor.animations.attack ?? actor.animations.cast ?? locomotion
+      const locomotionActive = enemyMotionActive2D(field, i)
       entry.frame = hurt
         ? enemyReactionFrameIndex2D(actor, 'hurt', field.flash[i], 0.14)
         : attacking
           ? oneShotFrameIndex(attack, intentPresentation.remaining, intentPresentation.duration)
-          : enemyLocomotionFrame2D(locomotion, this.time, wolfActor ? 9 : 7, motion)
+          : enemyLocomotionFrameIndex2D(locomotion, this.time, wolfActor ? 9 : 7, motion, locomotionActive)
       const x = field.prevX[i] + (field.x[i] - field.prevX[i]) * alpha
       const z = field.prevZ[i] + (field.z[i] - field.prevZ[i]) * alpha
-      const facing = field.facing[i]
       const directional = hurt
-        ? directionalEnemyReactionFrames2D(this.frames, key, facing)
-        : directionalEnemyFrames2D(this.frames, key, facing)
-      const normalDirectional = directionalEnemyFrames2D(this.frames, key, facing)
+        ? directionalEnemyReactionFrames2D(this.frames, key, renderFacing)
+        : directionalEnemyFrames2D(this.frames, key, renderFacing)
+      const normalDirectional = directionalEnemyFrames2D(this.frames, key, renderFacing)
       const resolvedDirectional = directional ?? normalDirectional
       entry.sprite.texture = resolvedDirectional.frames[entry.frame]
         ?? normalDirectional.frames[entry.frame]
         ?? this.frames[key][entry.frame]
       entry.sprite.anchor.set(
         hurt ? actor.reactionPivot?.[0] ?? 0.5 : 0.5,
-        hurt ? actor.reactionPivot?.[1] ?? actor.pivot[1] : actorFootPivot2D(resolvedDirectional.pivotKey, entry.frame),
+        actorFootPivot2D(resolvedDirectional.pivotKey, entry.frame),
       )
       const baseHeight = enemyRuntimeBaseHeight2D(key, Boolean(field.elite[i]))
       const motionPhase = motion.phase * Math.PI * 2
-      const stride = Math.sin(this.time * (wolfActor ? 12 : 8.5) * motion.tempo + motionPhase)
-      const locomotionBob = hurt ? 0 : wolfActor ? -Math.abs(stride) * 0.45
-        : key === 'voidSentinel' || key === 'shadowSealDuelist' ? -Math.abs(stride) * 0.3 : 0
+      // The authored locomotion cells already contain the weight transfer and
+      // hover cadence. Applying a second sinusoidal bob to the whole quad
+      // moved the contact shadow away from the feet and made a grounded enemy
+      // look like a sticker floating over a separately scrolling floor. Keep
+      // a restrained sway only for the explicitly airborne wisp family.
       const pulse = key === 'wisp'
-        ? Math.sin(this.time * 5 * motion.tempo + motionPhase) * 4 * motion.bobScale
-        : key === 'talismanRevenant' || key === 'maskedSealRevenant'
-          ? Math.sin(this.time * 3.5 * motion.tempo + motionPhase) * 2.5 * motion.bobScale
-          : locomotionBob
+        ? Math.sin(this.time * 5 * motion.tempo + motionPhase) * 2.2 * motion.bobScale
+        : 0
       const tint = enemyActorTint2D(def.color ?? 0xa880db, key, field.flash[i] > 0, motion.palette)
       const spawnProgress = Math.max(0, Math.min(1, (field.age?.[i] ?? 1) / 0.24))
       const spawnEase = 1 - (1 - spawnProgress) ** 3
@@ -5012,7 +5353,7 @@ export class PixiPresentation {
         * motion.scale * (0.78 + spawnEase * 0.22)
       this._placeActor(entry, x, z, visualHeight,
         (field.dead[i] ? 0.25 : 1) * spawnEase,
-        facing, tint, pulse, resolvedDirectional.mirror)
+        renderFacing, tint, pulse, resolvedDirectional.mirror)
       // During a boss encounter the boss silhouette is the current objective.
       // Fade only ordinary mobs in its local radius; distant enemies and elite
       // variants retain their authored opacity so the arena does not turn into
@@ -5058,17 +5399,17 @@ export class PixiPresentation {
         entry.sprite.scale.y *= 1 - Math.abs(wispSway) * 0.12
       } else {
         entry.sprite.blendMode = 'normal'
-        const attackKick = !hurt && field.attackTimer[i] > 0
-          ? Math.sin((field.attackTimer[i] / attackDuration) * Math.PI) * 0.055
-          : 0
-        entry.sprite.rotation = hurt ? 0 : stride * (wolfActor ? 0.018 : 0.01) + attackKick + motion.lean
-        entry.sprite.scale.x *= (hurt ? 1 : 1 + stride * (wolfActor ? 0.026 : 0.012)) * motion.aspect
-        entry.sprite.scale.y *= hurt ? 1 : 1 - stride * (wolfActor ? 0.018 : 0.008)
+        // Do not rotate or squash an entire authored sprite to manufacture a
+        // walk cycle. That transforms the feet and shadow independently from
+        // the painted pose and is the source of the visible jitter/hover.
+        // `motion.aspect` is a stable per-instance silhouette variation, not a
+        // per-frame deformation, so the horde retains identity without wobble.
+        entry.sprite.rotation = 0
+        entry.sprite.scale.x *= motion.aspect
         if (field.flash[i] > 0) {
           entry.sprite.scale.x *= 1.055
           entry.sprite.scale.y *= 1.055
         }
-        entry.shadow.alpha *= 0.8 + Math.abs(stride) * 0.14
       }
       const intent = entry.intent
       intent.visible = intentPresentation.visible && entry.sprite.visible
@@ -5099,31 +5440,53 @@ export class PixiPresentation {
     const t = player.teleported ? 1 : alpha
     const x = player.prevX + (player.x - player.prevX) * t
     const z = player.prevZ + (player.z - player.prevZ) * t
-    projectWorld(x, z, this.cameraX, this.cameraZ, this.viewport, _screen)
-    const moving = player.speed01 > 0.08
-    if (moving) this.heroMovementSettle = 0.14
-    else this.heroMovementSettle = Math.max(0, this.heroMovementSettle - Math.max(0, this._presentedDt ?? 1 / 60))
+    this._projectWorld(x, z, _screen)
+    // The latest snapshot's x/z step is authoritative for locomotion. A
+    // stale speed/keyup value cannot keep a run pose alive when the world is
+    // already stationary, while repeated renders of one moving snapshot still
+    // retain the run contract.
+    const motionStep = Math.hypot(
+      Number(player.x) - Number(player.prevX),
+      Number(player.z) - Number(player.prevZ),
+    )
+    const moving = heroMotionActive2D({
+      actualSpeed: player.actualSpeed,
+      speed01: player.speed01,
+      worldStep: motionStep,
+      dashing: player.dashing,
+      teleported: player.teleported,
+    })
     const heroDef = SPRITE_MANIFEST.actors.seolryeong
     const heroHeight = heroCombatHeight2D(this.viewport.height, heroDef.runtimeHeight)
-    const direction = heroDirectionFor(player)
+    const reactionState = heroReactionState2D(player)
+    const normalDirection = heroDirectionFor(player, this.heroDirectionState)
+    this.heroDirectionState = normalDirection
+    let direction = normalDirection
+    if (reactionState) {
+      if (this.heroReactionDirectionState?.state === reactionState) {
+        direction = this.heroReactionDirectionState.direction
+      } else {
+        this.heroReactionDirectionState = { state: reactionState, direction: normalDirection }
+      }
+    } else {
+      this.heroReactionDirectionState = null
+    }
     const directionalFrames = directionalHeroFrames(this.frames, direction)
     const reactionFrames = directionalHeroReactionFrames(this.frames, direction)
-    const worldStep = Math.hypot(
+    const travelStep = Math.hypot(
       player.x - this.heroLastWorldX,
       player.z - this.heroLastWorldZ,
     )
-    if (moving && player.dashing <= 0 && !player.teleported && worldStep <= 2) {
-      this.heroTravelDistance += worldStep
+    if (moving && player.dashing <= 0 && !player.teleported && travelStep <= 2) {
+      this.heroTravelDistance += travelStep
     }
     this.heroLastWorldX = player.x
     this.heroLastWorldZ = player.z
-    const reactionState = !player.alive
-      ? 'death'
-      : player.hurtTimer > 0
-        ? 'hurt'
-        : !moving && player.dashing <= 0 && player.attackTimer <= 0 && this.heroMovementSettle <= 0
-          ? 'idle'
-          : null
+    // Idle belongs to the same normalized motion atlas as locomotion. The
+    // separate reaction atlas is intentionally taller and is reserved for
+    // hurt/death only; using it for idle made every start and stop resize the
+    // heroine by roughly eleven percent.
+    const heroRenderHeight = heroGroundingHeight2D(heroHeight, direction.key, reactionState)
     const frame = reactionState
       ? heroReactionFrameIndex2D(heroDef, {
           alive: player.alive,
@@ -5138,99 +5501,44 @@ export class PixiPresentation {
           time: this.time,
           travelDistance: this.heroTravelDistance,
           runFrames: heroGroundedRunFrames2D(heroDef, direction.key),
-          movementSettle: this.heroMovementSettle,
+          directionKey: direction.key,
         })
     const nextTexture = reactionState ? reactionFrames?.[frame] : directionalFrames[frame]
-    const poseState = reactionState ?? (player.dashing > 0
-      ? 'dash'
-      : moving ? 'run' : player.attackTimer > 0 ? 'attack' : 'idle')
-    const transitionKey = `${direction.key}:${direction.mirror ? 1 : 0}:${poseState}`
-    // A crossfade is useful when the viewing direction or action changes, but
-    // blending every locomotion frame creates a persistent double exposure
-    // that reads like smeared video playback instead of crisp animation.
-    if (nextTexture && this.heroFrameKey && transitionKey !== this.heroFrameKey) {
-      this.heroTransition.texture = this.hero.texture
-      this.heroTransition.anchor.y = this.hero.anchor.y
-      this.heroTransition.scale.set(this.hero.scale.x, this.hero.scale.y)
-      this.heroTransition.rotation = this.hero.rotation
-      this.heroTransition.tint = this.hero.tint
-      this.heroTransition.visible = true
-      this.heroBlendStartedAt = this.time
-    }
-    this.heroFrameKey = transitionKey
+    this.heroFrameKey = `${direction.key}:${direction.mirror ? 1 : 0}:${reactionState ?? 'motion'}:${frame}`
     if (nextTexture) this.hero.texture = nextTexture
-    this.hero.anchor.y = reactionState ? heroDef.reactionPivot[1] : heroFootPivot2D(direction.key, frame)
-    // The long robe hides most foot motion, so a restrained body weight shift
-    // is necessary for travel to read as locomotion rather than a treadmill.
-    // It only lifts from the contact row; the shadow remains planted.
-    const gait = Math.sin(this.heroTravelDistance * Math.PI * 2 / 1.82)
-    const bob = moving && player.dashing <= 0 && !reactionState
-      ? -Math.abs(gait) * 1.35 * this._presentationScale : 0
-    setHeight(this.hero, heroHeight, direction.mirror)
-    if (reactionState === 'idle') {
-      const breath = Math.sin(this.time * 2.2)
-      this.hero.scale.x *= 1 - breath * 0.004
-      this.hero.scale.y *= 1 + breath * 0.012
-    }
-    this.hero.position.set(_screen.x, _screen.y + bob)
-    this.hero.rotation = !reactionState && moving && player.dashing <= 0
-      ? Math.sin(player.facing) * 0.009 + gait * 0.0025
-      : 0
+    this.hero.anchor.y = reactionState
+      ? heroReactionFootPivot2D(direction.key, frame)
+      : heroFootPivot2D(direction.key, frame)
+    setHeight(this.hero, heroRenderHeight, direction.mirror)
+    // The authored run poses already contain weight transfer. Additional
+    // synthetic bob, lean and breathing scale moved the body independently of
+    // its sampled foot row and made the heroine appear to hover or resize.
+    this.hero.position.set(_screen.x, _screen.y)
+    this.hero.rotation = 0
     this.hero.tint = player.hitFlash > 0 ? 0xffdddd : 0xffffff
     this.hero.alpha = player.alive && player.invulnTimer > 0 ? 0.9 : 1
     this.hero.zIndex = _screen.y
-    const blendDuration = moving ? 0.075 : 0.1
-    const blendProgress = Math.min(1, Math.max(0, (this.time - this.heroBlendStartedAt) / blendDuration))
-    this.heroTransition.position.set(this.hero.position.x, this.hero.position.y)
-    this.heroTransition.alpha = this.hero.alpha * (1 - blendProgress) * 0.28
-    this.heroTransition.visible = this.hero.visible && blendProgress < 1
-    if (this.heroTransition.visible) {
-      const previousMirror = this.heroTransition.scale.x < 0
-      setHeight(this.heroTransition, heroHeight, previousMirror)
-      this.heroTransition.rotation += (this.hero.rotation - this.heroTransition.rotation) * blendProgress
-      this.heroTransition.zIndex = this.hero.zIndex - 0.02
-    }
     const grounding = actorGroundingProfile2D('hero', frame)
     this.heroShadow.position.set(_screen.x, _screen.y + grounding.shadowOffsetY)
-    this.heroShadow.width = Math.max(grounding.minShadowWidth, heroHeight * grounding.shadowWidth)
-    this.heroShadow.height = Math.max(grounding.minShadowHeight, heroHeight * grounding.shadowHeight)
+    this.heroShadow.width = Math.max(grounding.minShadowWidth, heroRenderHeight * grounding.shadowWidth)
+    this.heroShadow.height = Math.max(grounding.minShadowHeight, heroRenderHeight * grounding.shadowHeight)
     this.heroShadow.alpha = grounding.shadowAlpha
     this.heroAura.position.set(_screen.x, _screen.y + 1)
     const auraPulse = 0.96 + Math.sin(this.time * 2.4) * 0.04
-    this.heroAura.width = heroHeight * HERO_AURA_PRESENTATION_2D.widthRatio * auraPulse
-    this.heroAura.height = heroHeight * HERO_AURA_PRESENTATION_2D.heightRatio * auraPulse
+    this.heroAura.width = heroRenderHeight * HERO_AURA_PRESENTATION_2D.widthRatio * auraPulse
+    this.heroAura.height = heroRenderHeight * HERO_AURA_PRESENTATION_2D.heightRatio * auraPulse
     this.heroAura.alpha = player.invulnTimer > 0
       ? HERO_AURA_PRESENTATION_2D.invulnerableAlpha
       : HERO_AURA_PRESENTATION_2D.alpha
     this.heroAura.visible = this.hero.visible && player.alive
     this.heroMarker.position.set(_screen.x, _screen.y + HERO_GROUND_MARKER_2D.offsetY)
-    this.heroMarker.width = heroHeight * HERO_GROUND_MARKER_2D.widthRatio * auraPulse
-    this.heroMarker.height = heroHeight * HERO_GROUND_MARKER_2D.heightRatio * auraPulse
+    this.heroMarker.width = heroRenderHeight * HERO_GROUND_MARKER_2D.widthRatio * auraPulse
+    this.heroMarker.height = heroRenderHeight * HERO_GROUND_MARKER_2D.heightRatio * auraPulse
     this.heroMarker.alpha = player.invulnTimer > 0 ? 0.26 : HERO_GROUND_MARKER_2D.alpha
     this.heroMarker.tint = 0xa9ecff
     this.heroMarker.rotation = HERO_GROUND_MARKER_2D.rotation
     this.heroMarker.visible = this.hero.visible && player.alive
-    this.heroReadability.texture = this.hero.texture
-    this.heroReadability.anchor.y = this.hero.anchor.y
-    this.heroReadability.position.set(this.hero.position.x, this.hero.position.y)
-    this.heroReadability.scale.set(
-      this.hero.scale.x * HERO_READABILITY_RIM_2D.scale,
-      this.hero.scale.y * HERO_READABILITY_RIM_2D.scale,
-    )
-    this.heroReadability.rotation = this.hero.rotation
-    this.heroReadability.tint = player.hitFlash > 0
-      ? HERO_READABILITY_RIM_2D.hitTint : HERO_READABILITY_RIM_2D.tint
-    this.heroReadability.alpha = player.invulnTimer > 0
-      ? HERO_READABILITY_RIM_2D.invulnerableAlpha : HERO_READABILITY_RIM_2D.alpha
-    this.heroReadability.zIndex = this.hero.zIndex + HERO_READABILITY_RIM_2D.zOffset
-    this.heroReadability.visible = this.hero.visible && player.alive
     const bucket = depthBucket(_screen.y, this.viewport.height)
-    if (this.heroReadability.parent !== this.actorBuckets[bucket]) {
-      this.actorBuckets[bucket].addChild(this.heroReadability)
-    }
-    if (this.heroTransition.parent !== this.actorBuckets[bucket]) {
-      this.actorBuckets[bucket].addChild(this.heroTransition)
-    }
     if (this.hero.parent !== this.actorBuckets[bucket]) this.actorBuckets[bucket].addChild(this.hero)
     const slash = heroSlashPresentation2D(
       player.facing,
@@ -5254,7 +5562,7 @@ export class PixiPresentation {
     const pill = this.bossCastPill
     if (!pill) return
     const castTimer = Number(boss?.castTimer ?? 0)
-    if (!boss?.active || castTimer <= 0 || !profile) {
+    if (!boss?.active || boss.reactionState || castTimer <= 0 || !profile) {
       pill.hidden = true
       pill.classList.remove('show')
       this._bossCastPillKey = ''
@@ -5272,7 +5580,8 @@ export class PixiPresentation {
   }
 
   _renderBoss(boss, alpha) {
-    if (!boss?.active) {
+    const reactionActive = Boolean(boss?.reactionState && boss.reactionTimer > 0)
+    if (!boss || (!boss.active && !reactionActive)) {
       this.boss.visible = false
       this.bossShadow.visible = false
       this.bossContact.visible = false
@@ -5286,33 +5595,53 @@ export class PixiPresentation {
     this.bossContact.visible = true
     const x = boss.prevX + (boss.x - boss.prevX) * alpha
     const z = boss.prevZ + (boss.z - boss.prevZ) * alpha
-    projectWorld(x, z, this.cameraX, this.cameraZ, this.viewport, _screen)
+    this._projectWorld(x, z, _screen)
     const wolfBoss = boss.def.id === 'blueWolfKing'
     const bossDef = wolfBoss ? SPRITE_MANIFEST.actors.yorang : SPRITE_MANIFEST.actors.jadeVoidWarden
     const bossFacing = Number.isFinite(boss.facing)
       ? boss.facing
       : Math.atan2(this.cameraX - boss.x, this.cameraZ - boss.z)
-    const directional = wolfBoss
+    const reactionFacing = reactionActive && Number.isFinite(boss.reactionFacing)
+      ? boss.reactionFacing
+      : bossFacing
+    const directional = wolfBoss && !reactionActive
       ? directionalEnemyFrames2D(this.frames, 'yorang', bossFacing)
       : null
-    const bossFrames = directional?.frames ?? this.frames.jadeVoidWarden
+    const reactionDirectional = reactionActive && wolfBoss
+      ? directionalEnemyReactionFrames2D(this.frames, 'yorang', reactionFacing)
+      : null
+    const bossFrames = reactionActive
+      ? reactionDirectional?.frames ?? this.frames.jadeVoidWardenReaction ?? []
+      : directional?.frames ?? this.frames.jadeVoidWarden ?? []
     const idleFrames = bossDef.animations.idle ?? bossDef.animations.walk
     const castFrames = bossDef.animations.cast ?? bossDef.animations.attack ?? idleFrames
-    const castActive = boss.castTimer > 0
-    const frame = castActive
-      ? oneShotFrameIndex(castFrames, boss.castTimer, boss.castDuration ?? 0.58)
-      : loopingFrameIndex(idleFrames, this.time, wolfBoss ? 7 : 5)
-    this.boss.texture = bossFrames[frame]
+    const castActive = boss.active && !reactionActive && boss.castTimer > 0
+    const reactionFrame = reactionActive
+      ? bossReactionFrameIndex2D(bossDef, boss.reactionState, boss.reactionTimer)
+      : null
+    const frame = reactionActive
+      ? reactionFrame ?? bossDef.reactionAnimations?.[boss.reactionState]?.[0] ?? 0
+      : castActive
+        ? oneShotFrameIndex(castFrames, boss.castTimer, boss.castDuration ?? 0.58)
+        : loopingFrameIndex(idleFrames, this.time, wolfBoss ? 7 : 5)
+    this.boss.texture = bossFrames[frame] ?? this.boss.texture
     const groundingKey = wolfBoss ? 'yorang' : 'jadeVoidWarden'
-    const pivotKey = directional?.pivotKey ?? groundingKey
+    const pivotKey = reactionActive
+      ? reactionDirectional?.pivotKey ?? (wolfBoss ? 'yorangReaction' : 'jadeVoidWardenReaction')
+      : directional?.pivotKey ?? groundingKey
     this.boss.anchor.set(0.5, actorFootPivot2D(pivotKey, frame))
-    const mirror = directional?.mirror ?? actorMirrorForFacing2D(groundingKey, bossFacing)
+    const mirror = reactionActive
+      ? reactionDirectional?.mirror ?? actorMirrorForFacing2D(groundingKey, reactionFacing)
+      : directional?.mirror ?? actorMirrorForFacing2D(groundingKey, bossFacing)
     const authoredHeight = wolfBoss
       ? Math.max(220, bossDef.runtimeHeight * 2.55)
       : boss.def.id === 'jadeVoidWarden' ? bossDef.runtimeHeight : 210
     const height = bossCombatHeight2D(this.viewport.height, authoredHeight, this._presentationScale)
     setHeight(this.boss, height, mirror)
-    this.boss.position.set(_screen.x, _screen.y - Math.abs(Math.sin(this.time * 2.1)) * 0.35)
+    // Boss contact is resolved by the sampled foot pivot just like every other
+    // actor. A second sinusoidal lift, even when small, makes its shadow and
+    // the projected ground disagree during camera travel.
+    this.boss.position.set(_screen.x, _screen.y)
     this.boss.tint = boss.hitFlash > 0
       ? 0xffffff
       : wolfBoss
@@ -5349,7 +5678,7 @@ export class PixiPresentation {
       if (castActive) {
         const castProgress = 1 - boss.castTimer / Math.max(0.001, boss.castDuration ?? 0.58)
         drawBossTelegraph2D(
-          this.bossDangerZone, profile, this.cameraX, this.cameraZ, this.viewport, castProgress,
+          this.bossDangerZone, profile, this.worldFrame, this.viewport, castProgress,
         )
       }
     }
@@ -5388,8 +5717,8 @@ export class PixiPresentation {
         && worldSegmentLength > 0.05
 
       if (hasSegment && this.textures.weaponFieldWall) {
-        projectWorld(fromX, fromZ, this.cameraX, this.cameraZ, this.viewport, _segmentStart)
-        projectWorld(toX, toZ, this.cameraX, this.cameraZ, this.viewport, _segmentEnd)
+        this._projectWorld(fromX, fromZ, _segmentStart)
+        this._projectWorld(toX, toZ, _segmentEnd)
         const segmentX = (_segmentStart.x + _segmentEnd.x) * 0.5
         const segmentY = (_segmentStart.y + _segmentEnd.y) * 0.5 + 1
         const segmentPixels = Math.max(48, Math.min(760,
@@ -5410,7 +5739,7 @@ export class PixiPresentation {
         continue
       }
 
-      projectWorld(item.x, item.z, this.cameraX, this.cameraZ, this.viewport, _screen)
+      this._projectWorld(item.x, item.z, _screen)
       const onScreen = isOnScreen(_screen.x, _screen.y, this.viewport, 90)
       const diameter = Math.max(34, Math.min(420, radius * _screen.unit * 2))
       const baseScale = diameter / Math.max(1, this.textures.weaponField.width)
@@ -5456,7 +5785,7 @@ export class PixiPresentation {
         : this.friendlyProjectilePool.items[friendlySlot++]
       const x = field.prevX[i] + (field.x[i] - field.prevX[i]) * alpha
       const z = field.prevZ[i] + (field.z[i] - field.prevZ[i]) * alpha
-      projectWorld(x, z, this.cameraX, this.cameraZ, this.viewport, _screen)
+      this._projectWorld(x, z, _screen)
       item.x = _screen.x
       item.y = _screen.y
       const kind = field.kind?.[i] ?? 1
@@ -5519,7 +5848,7 @@ export class PixiPresentation {
       const item = this.pickupPool.items[slot]
       const x = field.prevX[i] + (field.x[i] - field.prevX[i]) * alpha
       const z = field.prevZ[i] + (field.z[i] - field.prevZ[i]) * alpha
-      projectWorld(x, z, this.cameraX, this.cameraZ, this.viewport, _screen)
+      this._projectWorld(x, z, _screen)
       item.x = _screen.x
       const pickupPulse = Math.sin(this.time * 4 + field.phase[i])
       item.y = _screen.y - 8 * this._presentationScale + pickupPulse * 3.5 * this._presentationScale
@@ -5541,7 +5870,7 @@ export class PixiPresentation {
     for (let slot = 0; slot < plan.activeCount; slot++) {
       const i = plan.indices[slot]
       const sprite = this.effectPool[slot]
-      projectWorld(field.x[i], field.z[i], this.cameraX, this.cameraZ, this.viewport, _screen)
+      this._projectWorld(field.x[i], field.z[i], _screen)
       const progress = 1 - field.life[i] / Math.max(0.001, field.maxLife[i])
       sprite.visible = true
       sprite.position.set(_screen.x, _screen.y)
@@ -5571,43 +5900,33 @@ export class PixiPresentation {
       const targetZ = snapshot.player.prevZ + (snapshot.player.z - snapshot.player.prevZ) * alpha
       this.playerX = targetX
       this.playerZ = targetZ
-      const moving = snapshot.player.speed01 > 0.08
-      if (moving) {
-        cameraTargetWithDeadZone2D(
-          this.cameraTargetX, this.cameraTargetZ, targetX, targetZ, this.viewport, true, _cameraTarget,
-        )
-        this.cameraTargetX = _cameraTarget.x
-        this.cameraTargetZ = _cameraTarget.z
-      } else {
-        // A released movement key cancels the remainder of a page pan. Nothing
-        // in the world is allowed to keep sliding under a stationary heroine.
-        this.cameraTargetX = this.cameraX
-        this.cameraTargetZ = this.cameraZ
-      }
-      this.cameraX = cameraFollowStep2D(this.cameraX, this.cameraTargetX, dt)
-      this.cameraZ = cameraFollowStep2D(this.cameraZ, this.cameraTargetZ, dt)
-      const shake = snapshot.world.shake
-      if (shake > 0) {
-        this.cameraX += Math.sin(this.time * 83) * shake * 0.035
-        this.cameraZ += Math.cos(this.time * 71) * shake * 0.035
-      }
-      this.combatVista.position.set(
-        this.combatVistaBaseX + Math.sin(this.cameraX * 0.018) * 12,
-        this.combatVistaBaseY + Math.sin(this.cameraZ * 0.012) * 5,
+      this.worldCamera.update({
+        x: targetX,
+        z: targetZ,
+        facing: snapshot.player.facing,
+        actualSpeed: snapshot.player.actualSpeed,
+        teleported: snapshot.player.teleported,
+      }, dt)
+      this.cameraX = this.worldCamera.x
+      this.cameraZ = this.worldCamera.z
+      const shake = Math.max(0, Number(snapshot.world.shake) || 0)
+      const shakeX = shake > 0 ? Math.sin(this.time * 83) * shake * 0.035 : 0
+      const shakeZ = shake > 0 ? Math.cos(this.time * 71) * shake * 0.035 : 0
+      // Shake is a one-frame projection offset. It must never be accumulated
+      // into the camera, otherwise the world and click inverse slowly drift.
+      this._syncWorldFrame(shakeX, shakeZ)
+      groundTileOffsetFromFrame2D(
+        this.worldFrame,
+        this.floor.tileScale.x,
+        this.floor.tileScale.y,
+        _screen,
       )
-      this.farMountains.position.x = this.farMountainsBaseX - Math.sin(this.cameraX * 0.012) * 18
-      this.nearMountains.position.x = this.nearMountainsBaseX - Math.sin(this.cameraX * 0.02) * 28
-      projectWorld(this.cameraX, this.cameraZ, this.cameraX, this.cameraZ, this.viewport, _screen)
-      this.floor.tilePosition.set(
-        -this.cameraX * _screen.unit / Math.max(0.001, this.floor.tileScale.x),
-        -this.cameraZ * _screen.depthUnit / Math.max(0.001, this.floor.tileScale.y),
-      )
-      projectWorld(0, 0, this.cameraX, this.cameraZ, this.viewport, _screen)
+      this.floor.tilePosition.set(_screen.x, _screen.y)
+      this._projectWorld(0, 0, _screen)
       this.floorRunes.position.set(_screen.x, _screen.y)
       this.floorRunes.width = 24 * _screen.unit
       this.floorRunes.height = 24 * _screen.depthUnit
       this.floorRunes.visible = isOnScreen(_screen.x, _screen.y, this.viewport, this.floorRunes.width * 0.5)
-      this.nearMist.tilePosition.set(-this.time * 11 - this.cameraX * 2.1, Math.sin(this.time * 0.38) * 8)
       this._refreshMapChunks()
       this._renderMapChunks()
       this._renderWeaponFields(snapshot.weaponFields)
@@ -5646,14 +5965,14 @@ export class PixiPresentation {
 
   _releaseSceneReferences() {
     for (const key of [
-      'backdrop', 'backdropWash', 'combatSky', 'combatVista', 'farMountains', 'nearMountains', 'farMist',
+      'realmArtGrade', 'backdrop', 'backdropWash', 'combatSky', 'combatVista', 'farMountains', 'nearMountains', 'farMist',
       'floor', 'floorBlendMask', 'mapDecalLayer', 'mapDecalBlendMask', 'terrainMask', 'floorRunes', 'terrainGrade', 'spawnPlaza',
       'horizonMist', 'nearMist', 'horizonVeil', 'groundLightLayer', 'contactLightLayer', 'weaponFieldLayer', 'shadowLayer',
       'actorRoot', 'actorBuckets', 'friendlyProjectileContainer', 'hostileProjectileContainer',
       'pickupContainer', 'effectLayer', 'damageTextLayer', 'textures', 'frames', 'groundBaseTextures',
       'generatedFloorBase',
       'friendlyProjectilePool', 'hostileProjectilePool', 'pickupPool', 'heroAura', 'heroShadow', 'hero',
-      'bossShadow', 'bossContact', 'bossIntent', 'bossDangerZone', 'boss', 'heroMarker', 'heroReadability', 'heroSlash', 'titleHero',
+      'bossShadow', 'bossContact', 'bossIntent', 'bossDangerZone', 'boss', 'heroMarker', 'heroSlash', 'titleHero',
     ]) this[key] = null
     this.bossCastPill?.remove()
     this.bossCastPill = null
@@ -5668,6 +5987,7 @@ export class PixiPresentation {
     this.poiPool = []
     this.mapDecalPool = []
     this.mapDecalTextures = []
+    this.mapPropDiagnostics = mapPropPoolDiagnostic(0, MAX_ACTIVE_MAP_PROPS)
     this.damageTextPool = []
     this._floorTileScale = null
     this._runAssetsReady = false

@@ -53,7 +53,7 @@ describe('submission asset allowlist', () => {
       ...manifestReferences,
       './assets/environment/jade-sanctuary-environment-v2.webp',
       './assets/materials/environment/jade-highland-ground-v1.webp',
-      './assets/materials/environment/jade-sanctuary-ground-material-v2.webp',
+      './assets/materials/environment/jade-mountain-courtyard-ground-v4.webp',
       './assets/materials/environment/jade-pavilion-stone-v1.webp',
       './assets/characters/seolryeong-character-reference-v2.webp',
       './assets/characters/seolryeong-character-reference-v3.webp',

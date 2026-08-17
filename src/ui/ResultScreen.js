@@ -1,7 +1,14 @@
 import { iconFor } from './icons.js'
 import { applyDaoVowCssVars, getDaoVowVisual } from './Hud.js'
-import { getWeapon } from '../data/weapons.js'
-import { getPassive } from '../data/passives.js'
+import {
+  assetUrl,
+  blurOwnedFocus,
+  escapeHtml,
+  focusElement,
+  isButtonTarget,
+  UI_DIRECTIONS,
+} from './domPrimitives.js'
+import { itemPresentation } from './itemPresentation.js'
 
 const RESULT_HERO_ART = 'assets/sprites2d/seolryeong-combat-v1.webp'
 
@@ -33,21 +40,6 @@ const BOSS_PATTERN_LABELS = Object.freeze({
   'shadow-summon-overcharge-purge': '정화 그림자 과충전',
   'shadow-summon-overcharge-echo': '메아리 그림자 과충전',
 })
-
-function assetUrl(path) {
-  const base = import.meta.env?.BASE_URL ?? '/'
-  const prefix = base.endsWith('/') ? base : `${base}/`
-  return `${prefix}${String(path).replace(/^\/+/, '')}`
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
-}
 
 function readableField(value) {
   if (value === null || value === undefined || value === '') return ''
@@ -82,46 +74,6 @@ function bossField(value) {
   return [name, phase, signature]
     .filter(Boolean)
     .join(' · ')
-}
-
-function itemPresentation(item, slotKind, evolutionIds) {
-  const id = typeof item === 'string' ? item : item?.id
-  const definition = slotKind === 'passive' ? getPassive(id) : getWeapon(id)
-  const evolved = evolutionIds.has(id) || Boolean(definition?.evolutionOf)
-  const visualKind = slotKind === 'passive' ? 'passive' : evolved ? 'evolution' : 'weapon'
-  const kindLabel = visualKind === 'passive' ? '공법' : visualKind === 'evolution' ? '진화 법보' : '법보'
-  const explicitName = typeof item === 'object' ? item?.name : ''
-  const name = explicitName || definition?.name || id || '알 수 없는 법보'
-  const explicitDescription = typeof item === 'object' ? item?.description ?? item?.desc : ''
-  const description = explicitDescription || definition?.desc || '이번 출정에서 획득한 수련 효과입니다.'
-  const level = typeof item === 'object' && Number.isFinite(item?.level) ? item.level : 0
-  const maxLevel = slotKind === 'passive' ? definition?.max : definition?.levels?.length
-  const levelText = visualKind === 'evolution'
-    ? '진화'
-    : Number.isFinite(maxLevel) ? `Lv.${level}/${maxLevel}` : `Lv.${level}`
-  const alt = `${name} ${kindLabel} 아이콘 · ${levelText} · 효과: ${description}`
-  return { id, visualKind, kindLabel, name, levelText, description, alt }
-}
-
-const UI_DIRECTIONS = new Map([
-  ['ArrowLeft', -1], ['ArrowUp', -1], ['KeyA', -1], ['KeyW', -1],
-  ['ArrowRight', 1], ['ArrowDown', 1], ['KeyD', 1], ['KeyS', 1],
-])
-
-function focusElement(element) {
-  element?.focus?.({ preventScroll: true })
-}
-
-function isButtonTarget(target) {
-  const element = target?.closest?.('button,[role="button"]') ?? target
-  const tag = String(element?.tagName ?? element?.nodeName ?? '').toLowerCase()
-  return tag === 'button' || element?.getAttribute?.('role') === 'button'
-}
-
-function blurOwnedFocus(node) {
-  if (typeof document === 'undefined') return
-  const active = document.activeElement
-  if (active && (active === node || node.contains?.(active))) active.blur?.()
 }
 
 /** 승천 / 좌화 — the end-of-run summary. */
@@ -286,6 +238,11 @@ export class ResultScreen {
         </div>
         <strong>${escapeHtml(result.journey.objectivesCompleted ?? 0)}/${escapeHtml(result.journey.objectivesTotal ?? 0)}</strong>
       </section>` : ''
+    const progressBlock = journeyBlock || dao ? `
+      <section class="result-progress-column" aria-label="다음 수행과 진행">
+        ${journeyBlock}
+        ${dao}
+      </section>` : ''
     const earnedStones = result.earnedStones ?? result.stones ?? 0
 
     this.node.innerHTML = `
@@ -301,44 +258,51 @@ export class ResultScreen {
               : outcome.defeatFlavor}
           </p>
         </header>
-        <section class="result-hero-reward" aria-label="설령의 출정 결과">
-          <div class="result-hero-art">
-            <img src="${assetUrl(RESULT_HERO_ART)}" alt="설령의 전투 외형" />
-          </div>
-          <div class="result-reward-copy">
-            <span class="result-reward-kicker">${result.victory ? outcome.rewardSuccess : '출정 기록'}</span>
-            <strong>영석 <em>+${escapeHtml(earnedStones)}</em></strong>
-            <span>단전에 쌓인 보상으로 다음 출정을 준비하십시오.</span>
-            <div class="result-reward-seal">
-              <img class="result-reward-icon" src="${iconFor('stones')}" alt="영석 보상 아이콘" title="영석 · 다음 출정의 영구 강화 재화" />
-              <span>다음 생으로<br />이어지는 영석</span>
+        <div class="result-ledger${progressBlock ? ' result-ledger-has-progress' : ''}">
+          <section class="result-outcome-column" aria-label="출정 결과와 보상">
+            <section class="result-hero-reward" aria-label="설령의 출정 결과">
+              <div class="result-hero-art">
+                <img src="${assetUrl(RESULT_HERO_ART)}" alt="설령의 전투 외형" />
+              </div>
+              <div class="result-reward-copy">
+                <span class="result-reward-kicker">${result.victory ? outcome.rewardSuccess : '출정 기록'}</span>
+                <strong>영석 <em>+${escapeHtml(earnedStones)}</em></strong>
+                <span>단전에 쌓인 보상으로 다음 출정을 준비하십시오.</span>
+                <div class="result-reward-seal">
+                  <img class="result-reward-icon" src="${iconFor('stones')}" alt="영석 보상 아이콘" title="영석 · 다음 출정의 영구 강화 재화" />
+                  <span>다음 생으로<br />이어지는 영석</span>
+                </div>
+              </div>
+            </section>
+            ${runContextBlock}
+          </section>
+          <section class="result-record-column" aria-label="출정 기록과 빌드">
+            <div class="result-stats">
+              <div><span>${outcome.timeLabel}</span><b>${escapeHtml(time)}${result.bests?.time ? ' <em>신기록</em>' : ''}</b></div>
+              <div><span>도달 경지</span><b>${escapeHtml(result.realm?.name ?? '알 수 없음')} ${escapeHtml(result.level ?? 0)}층${result.bests?.level ? ' <em>신기록</em>' : ''}</b></div>
+              <div><span>처치 수</span><b>${escapeHtml(result.kills ?? 0)}</b></div>
+              <div><span>가한 피해</span><b>${escapeHtml(Math.round(result.damageDealt ?? 0).toLocaleString('ko-KR'))}</b></div>
+              <div><span>획득 영석</span><b class="gain">+${escapeHtml(earnedStones)}</b></div>
             </div>
-          </div>
-        </section>
-        ${runContextBlock}
-        ${journeyBlock}
-        ${dao}
+            <section class="result-build-summary" aria-labelledby="result-build-title">
+              <h2 class="result-section-title" id="result-build-title">이번 출정의 빌드</h2>
+              <div class="result-loadout" role="list">${icons}</div>
+            </section>
+            ${achievements}
+            <div class="result-meta-line">
+              <div class="result-bank">보유 영석 <b>${result.totalStones ?? 0}</b> · 단전의 영구 강화 재화</div>
+              <details class="result-record">
+                <summary>출정 기록 번호</summary>
+                <code>${escapeHtml(result.seed)}</code>
+              </details>
+            </div>
+          </section>
+          ${progressBlock}
+        </div>
         <div class="result-actions">
           <button type="button" class="btn clickable" data-action="restart"><span>${outcome.restart}</span><small>${outcome.restartDetail}</small></button>
           <button type="button" class="btn btn-alt clickable" data-action="menu">처음 화면으로 돌아가기</button>
         </div>
-        <div class="result-stats">
-          <div><span>${outcome.timeLabel}</span><b>${escapeHtml(time)}${result.bests?.time ? ' <em>신기록</em>' : ''}</b></div>
-          <div><span>도달 경지</span><b>${escapeHtml(result.realm?.name ?? '알 수 없음')} ${escapeHtml(result.level ?? 0)}층${result.bests?.level ? ' <em>신기록</em>' : ''}</b></div>
-          <div><span>처치 수</span><b>${escapeHtml(result.kills ?? 0)}</b></div>
-          <div><span>가한 피해</span><b>${escapeHtml(Math.round(result.damageDealt ?? 0).toLocaleString('ko-KR'))}</b></div>
-          <div><span>획득 영석</span><b class="gain">+${escapeHtml(earnedStones)}</b></div>
-        </div>
-        <section class="result-build-summary" aria-labelledby="result-build-title">
-          <h2 class="result-section-title" id="result-build-title">이번 출정의 빌드</h2>
-          <div class="result-loadout" role="list">${icons}</div>
-        </section>
-        ${achievements}
-        <div class="result-bank">보유 영석 <b>${result.totalStones ?? 0}</b> · 단전에서 영구 강화에 쓸 수 있다</div>
-        <details class="result-record">
-          <summary>출정 기록 번호</summary>
-          <code>${escapeHtml(result.seed)}</code>
-        </details>
       </div>`
 
     const daoNode = this.node.querySelector('.result-dao')

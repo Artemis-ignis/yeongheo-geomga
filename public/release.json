@@ -8,7 +8,7 @@
     "mainJourney": "jade-chapter-1-objective-driven",
     "heavenlyTrial": "unlocks-after-jade-chapter-1"
   },
-  "runtimeImageAssets": 105,
+  "runtimeImageAssets": 106,
   "playableCharacterIds": ["seolryeong"],
   "releaseStageIds": ["jade"],
   "persistence": {

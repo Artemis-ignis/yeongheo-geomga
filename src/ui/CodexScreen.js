@@ -50,29 +50,43 @@ export class CodexScreen {
           </div>
           <div class="shop-stones codex-progress"></div>
         </div>
-        <div class="shop-scroll">
-          <div class="shop-section"><span aria-hidden="true">一</span> 법보</div>
-          <div class="codex-grid" data-kind="weapons"></div>
-          <div class="shop-section"><span aria-hidden="true">二</span> 요괴</div>
-          <div class="codex-grid" data-kind="enemies"></div>
-          <div class="shop-section"><span aria-hidden="true">三</span> 마존</div>
-          <div class="codex-grid" data-kind="bosses"></div>
-          <div class="shop-section"><span aria-hidden="true">四</span> 업적</div>
-          <div class="codex-achievements"></div>
-          <div class="shop-section"><span aria-hidden="true">五</span> 기록</div>
-          <div class="codex-records"></div>
+        <div class="collection-tabs codex-tabs" role="tablist" aria-label="도감 분류" aria-orientation="horizontal">
+          <button class="collection-tab clickable" type="button" role="tab" id="codex-tab-weapons" data-codex-tab="weapons" aria-controls="codex-pane-weapons"><span aria-hidden="true">劍</span><b>법보</b></button>
+          <button class="collection-tab clickable" type="button" role="tab" id="codex-tab-enemies" data-codex-tab="enemies" aria-controls="codex-pane-enemies"><span aria-hidden="true">妖</span><b>요괴</b></button>
+          <button class="collection-tab clickable" type="button" role="tab" id="codex-tab-bosses" data-codex-tab="bosses" aria-controls="codex-pane-bosses"><span aria-hidden="true">魔</span><b>마존</b></button>
+          <button class="collection-tab clickable" type="button" role="tab" id="codex-tab-achievements" data-codex-tab="achievements" aria-controls="codex-pane-achievements"><span aria-hidden="true">印</span><b>업적</b></button>
+          <button class="collection-tab clickable" type="button" role="tab" id="codex-tab-records" data-codex-tab="records" aria-controls="codex-pane-records"><span aria-hidden="true">錄</span><b>기록</b></button>
+        </div>
+        <div class="shop-scroll codex-ledger">
+          <section class="codex-pane" id="codex-pane-weapons" role="tabpanel" aria-labelledby="codex-tab-weapons" data-codex-pane="weapons"><div class="shop-section">깨달은 법보</div><div class="codex-grid" data-kind="weapons"></div></section>
+          <section class="codex-pane" id="codex-pane-enemies" role="tabpanel" aria-labelledby="codex-tab-enemies" data-codex-pane="enemies"><div class="shop-section">마주친 요괴</div><div class="codex-grid" data-kind="enemies"></div></section>
+          <section class="codex-pane" id="codex-pane-bosses" role="tabpanel" aria-labelledby="codex-tab-bosses" data-codex-pane="bosses"><div class="shop-section">격파한 마존</div><div class="codex-grid" data-kind="bosses"></div></section>
+          <section class="codex-pane codex-pane-scroll" id="codex-pane-achievements" role="tabpanel" aria-labelledby="codex-tab-achievements" data-codex-pane="achievements"><div class="shop-section">천도 각인</div><div class="codex-achievements"></div></section>
+          <section class="codex-pane" id="codex-pane-records" role="tabpanel" aria-labelledby="codex-tab-records" data-codex-pane="records"><div class="shop-section">수행 기록</div><div class="codex-records"></div></section>
         </div>
         <div class="codex-detail"></div>
-        <button class="btn btn-alt btn-back clickable" data-act="back">문파로 돌아간다</button>
+        <button class="btn btn-alt btn-back clickable" data-act="back">검가로 돌아간다</button>
       </div>`
     root.appendChild(this.node)
 
-    this.node.querySelector('[data-act="back"]').addEventListener('click', () => this.close())
+    this.backButton = this.node.querySelector('[data-act="back"]')
+    this.backButton.addEventListener('click', () => this.close())
     this.progressLabel = this.node.querySelector('.codex-progress')
     this.recordsHost = this.node.querySelector('.codex-records')
     this.achievementsHost = this.node.querySelector('.codex-achievements')
-
     this.detail = this.node.querySelector('.codex-detail')
+    this.tabs = [...this.node.querySelectorAll('[data-codex-tab]')]
+    this.panes = [...this.node.querySelectorAll('[data-codex-pane]')]
+    this.activeTab = 'weapons'
+    this._focusTarget = null
+    this._nativeDirectionHandled = false
+    for (const tab of this.tabs) {
+      tab.addEventListener('click', () => {
+        this._setTab(tab.dataset.codexTab)
+        this._focusElement(tab)
+      })
+      tab.addEventListener('keydown', (event) => this._moveTabFocus(event, tab))
+    }
 
     this.entries = [
       ...[...WEAPONS, ...EVOLUTIONS].map((w) => ({ kind: 'weapons', id: w.id, name: w.name, def: w })),
@@ -82,6 +96,7 @@ export class CodexScreen {
       const host = this.node.querySelector(`.codex-grid[data-kind="${entry.kind}"]`)
       const cell = document.createElement('button')
       cell.className = 'codex-cell clickable'
+      cell.tabIndex = -1
       cell.innerHTML = `
         <img class="codex-icon" alt="" src="${iconFor(entry.id)}" />
         <div class="codex-name"></div>`
@@ -90,6 +105,128 @@ export class CodexScreen {
       host.appendChild(cell)
       return { ...entry, cell, nameNode: cell.querySelector('.codex-name') }
     })
+
+    this._setTab(this.activeTab)
+  }
+
+  _setTab(tabId, focus = false) {
+    if (!this.panes.some((pane) => pane.dataset.codexPane === tabId)) return
+    this.activeTab = tabId
+    for (const tab of this.tabs) {
+      const selected = tab.dataset.codexTab === tabId
+      tab.classList.toggle('active', selected)
+      tab.setAttribute('aria-selected', String(selected))
+      tab.tabIndex = selected ? 0 : -1
+      if (focus && selected) this._focusElement(tab)
+    }
+    for (const pane of this.panes) pane.hidden = pane.dataset.codexPane !== tabId
+
+    const entryPane = ['weapons', 'enemies', 'bosses'].includes(tabId)
+    this.detail.hidden = !entryPane
+    if (!entryPane) return
+    const first = this.entries.find((entry) => entry.kind === tabId && this.progress.hasSeen(entry.kind, entry.id))
+    if (first) this.select(first)
+    else {
+      for (const entry of this.entries) entry.cell.classList.remove('selected')
+      this.detail.innerHTML = '<div class="codex-detail-empty">이 장은 아직 비어 있습니다</div>'
+    }
+  }
+
+  _moveTabFocus(event, current) {
+    const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End']
+    if (!keys.includes(event.key)) return
+    event.preventDefault()
+    this._nativeDirectionHandled = true
+    const index = this.tabs.indexOf(current)
+    let next = index
+    if (event.key === 'ArrowLeft') next = (index - 1 + this.tabs.length) % this.tabs.length
+    if (event.key === 'ArrowRight') next = (index + 1) % this.tabs.length
+    if (event.key === 'Home') next = 0
+    if (event.key === 'End') next = this.tabs.length - 1
+    this._setTab(this.tabs[next].dataset.codexTab, true)
+  }
+
+  _activeEntries() {
+    return this.entries.filter((entry) => entry.kind === this.activeTab && !entry.cell.disabled && !entry.cell.hidden)
+  }
+
+  _ownedFocus() {
+    const active = globalThis.document?.activeElement
+    return active && this.node.contains(active) ? active : this._focusTarget
+  }
+
+  _focusElement(element) {
+    if (!element) return
+    for (const tab of this.tabs) tab.classList.toggle('focused', tab === element)
+    for (const entry of this.entries) {
+      entry.cell.classList.toggle('focused', entry.cell === element)
+      entry.cell.tabIndex = entry.cell === element ? 0 : -1
+    }
+    this.backButton.classList.toggle('focused', this.backButton === element)
+    this.backButton.tabIndex = this.backButton === element ? 0 : -1
+    this._focusTarget = element
+    element.focus?.({ preventScroll: true })
+  }
+
+  _focusTab(tabId = this.activeTab) {
+    const tab = this.tabs.find((item) => item.dataset.codexTab === tabId) ?? this.tabs[0]
+    this._focusElement(tab)
+  }
+
+  _focusEntry(entry) {
+    if (entry) this._focusElement(entry.cell)
+    else this._focusTab()
+  }
+
+  _activateFocused(element) {
+    if (!element || element.disabled) return
+    const tab = this.tabs.find((item) => item === element)
+    if (tab) {
+      this._setTab(tab.dataset.codexTab, true)
+      return
+    }
+    const entry = this.entries.find((item) => item.cell === element)
+    if (entry) {
+      this.select(entry)
+      this._focusEntry(entry)
+      return
+    }
+    if (this.backButton === element) this.close()
+  }
+
+  _moveFocus(dir, vertical = 0) {
+    const active = this._ownedFocus()
+    const tabIndex = this.tabs.indexOf(active)
+    const entries = this._activeEntries()
+    const entryIndex = entries.findIndex((entry) => entry.cell === active)
+    const step = vertical || dir
+    if (!step) return
+
+    if (tabIndex >= 0) {
+      if (vertical > 0) this._focusEntry(entries[0])
+      else if (vertical < 0) this._focusElement(this.backButton)
+      else {
+        const next = Math.max(0, Math.min(this.tabs.length - 1, tabIndex + dir))
+        this._setTab(this.tabs[next].dataset.codexTab, true)
+      }
+      return
+    }
+
+    if (entryIndex >= 0) {
+      const next = entryIndex + step
+      if (next < 0) this._focusTab()
+      else if (next >= entries.length) this._focusElement(this.backButton)
+      else this._focusEntry(entries[next])
+      return
+    }
+
+    if (active === this.backButton) {
+      if (step < 0) this._focusEntry(entries.at(-1))
+      else this._focusTab()
+      return
+    }
+
+    this._focusTab()
   }
 
   /**
@@ -150,11 +287,8 @@ export class CodexScreen {
     this.node.style.display = ''
     this.node.setAttribute('aria-hidden', 'false')
     this.refresh()
-    // Open on the first thing they have actually met, so the panel is never an
-    // empty box on arrival.
-    const first = this.entries.find((e) => this.progress.hasSeen(e.kind, e.id))
-    if (first) this.select(first)
-    else this.detail.innerHTML = '<div class="codex-detail-empty">한 번 싸워 보면 채워진다</div>'
+    this._setTab(this.activeTab)
+    this._focusTab(this.activeTab)
   }
 
   refresh() {
@@ -165,6 +299,7 @@ export class CodexScreen {
       e.cell.classList.toggle('unknown', !known)
       e.nameNode.textContent = known ? e.name : '미발견'
       e.cell.title = known ? e.name : '아직 만나지 못했다'
+      e.cell.setAttribute('aria-label', known ? `${e.name}. 도감 항목` : '미발견. 아직 만나지 못했다')
     }
     this.progressLabel.textContent = `${seen} / ${this.entries.length}`
 
@@ -196,8 +331,17 @@ export class CodexScreen {
       <div><span>누적 처치</span><b>${r.totalKills ?? 0}</b></div>`
   }
 
-  handleKey(confirm) {
-    if (this.isOpen && confirm) this.close()
+  handleKey(confirm, dir = 0, vertical = 0) {
+    if (!this.isOpen) return
+    if (this._nativeDirectionHandled) {
+      this._nativeDirectionHandled = false
+      return
+    }
+    if (dir || vertical) {
+      this._moveFocus(dir, vertical)
+      return
+    }
+    if (confirm) this._activateFocused(this._ownedFocus())
   }
 
   close() {
@@ -208,6 +352,9 @@ export class CodexScreen {
 
   /** Close without invoking the title callback while a run is taking ownership. */
   hide() {
+    const active = this._ownedFocus()
+    if (active) active.blur?.()
+    this._focusTarget = null
     this.node.style.display = 'none'
     this.node.setAttribute('aria-hidden', 'true')
     this.onClose = null

@@ -53,45 +53,36 @@ export class PauseScreen {
 
         <div class="pause-buttons">
           <button class="btn clickable" data-act="resume">계속한다 <span class="key">P</span></button>
-          <button class="btn btn-alt clickable" data-act="quit">물러난다</button>
+          <button class="btn btn-alt clickable" data-act="quit">검가로 돌아간다</button>
         </div>
       </div>`
     root.appendChild(this.node)
+    this.resumeButton = this.node.querySelector('[data-act="resume"]')
+    this.qualityButton = this.node.querySelector('[data-act="quality"]')
+    this.quitButton = this.node.querySelector('[data-act="quit"]')
+    this.buttons = [this.resumeButton, this.qualityButton, this.quitButton]
     this._uiFocusTarget = null
+    this._focusTarget = null
+    this._quitArmed = false
+    for (const button of this.buttons) button.tabIndex = -1
 
     // Pause has no synthetic menu loop of its own, so keep pointer and native
     // keyboard focus on the same small cue path. The target guard prevents the
     // browser's mouseenter -> focus pair from speaking twice.
-    for (const button of this.node.querySelectorAll('button')) {
+    for (const button of this.buttons) {
       const cueFocus = () => {
         if (this._uiFocusTarget === button) return
         this._uiFocusTarget = button
+        this._setFocus(button, false)
         this._uiCue('focus')
       }
       button.addEventListener('mouseenter', cueFocus)
       button.addEventListener('focus', cueFocus)
     }
 
-    this.node.querySelector('[data-act="resume"]').addEventListener('click', () => {
-      this._uiCue('confirm')
-      this.onResume?.()
-    })
-    this.node.querySelector('[data-act="quality"]').addEventListener('click', (e) => {
-      e.currentTarget.textContent = `화질 ${this.quality.cycle()}`
-      this._uiCue('confirm')
-    })
-    // Leaving a run throws it away, so it asks once rather than on a mis-click.
-    this.node.querySelector('[data-act="quit"]').addEventListener('click', (e) => {
-      const btn = e.currentTarget
-      if (btn.dataset.armed !== '1') {
-        this._uiCue('focus')
-        btn.dataset.armed = '1'
-        btn.textContent = '정말 물러나는가?'
-        return
-      }
-      this._uiCue('confirm')
-      this.onQuit?.()
-    })
+    this.resumeButton.addEventListener('click', () => this._activate(this.resumeButton))
+    this.qualityButton.addEventListener('click', () => this._activate(this.qualityButton))
+    this.quitButton.addEventListener('click', () => this._activate(this.quitButton))
   }
 
   get isOpen() {
@@ -107,17 +98,84 @@ export class PauseScreen {
     this.node.style.display = ''
     this.node.setAttribute('aria-hidden', 'false')
     this._uiFocusTarget = null
-    const quit = this.node.querySelector('[data-act="quit"]')
-    quit.dataset.armed = '0'
-    quit.textContent = '물러난다'
-    this.node.querySelector('[data-act="quality"]').textContent = `화질 ${this.quality.mode ?? '자동'}`
+    this._resetQuit()
+    this.qualityButton.textContent = `화질 ${this.quality.mode ?? '자동'}`
     this._renderStats(snapshot)
     this._renderBuild(loadout)
+    this._setFocus(this.resumeButton, false)
   }
 
   hide() {
+    const active = this._ownedFocus()
+    if (active) active.blur?.()
+    this._focusTarget = null
     this.node.style.display = 'none'
     this.node.setAttribute('aria-hidden', 'true')
+  }
+
+  _ownedFocus() {
+    const active = globalThis.document?.activeElement
+    return active && this.node.contains(active) ? active : this._focusTarget
+  }
+
+  _setFocus(button, cue = true) {
+    if (!button) return
+    const changed = this._focusTarget !== button
+    if (button !== this.quitButton) this._resetQuit()
+    for (const candidate of this.buttons) {
+      candidate.classList.toggle('focused', candidate === button)
+      candidate.tabIndex = candidate === button ? 0 : -1
+    }
+    this._uiFocusTarget = button
+    this._focusTarget = button
+    button.focus?.({ preventScroll: true })
+    if (cue && changed) this._uiCue('focus')
+  }
+
+  _resetQuit() {
+    this._quitArmed = false
+    if (this.quitButton) {
+      this.quitButton.dataset.armed = '0'
+      this.quitButton.textContent = '검가로 돌아간다'
+    }
+  }
+
+  _activate(button) {
+    if (!button || !this.isOpen) return
+    this._setFocus(button, false)
+    if (button === this.resumeButton) {
+      this._uiCue('confirm')
+      this.onResume?.()
+      return
+    }
+    if (button === this.qualityButton) {
+      button.textContent = `화질 ${this.quality.cycle()}`
+      this._uiCue('confirm')
+      return
+    }
+    if (button !== this.quitButton) return
+    if (!this._quitArmed) {
+      this._quitArmed = true
+      button.dataset.armed = '1'
+      button.textContent = '정말 검가로 돌아가는가?'
+      this._uiCue('focus')
+      return
+    }
+    this._uiCue('confirm')
+    this.onQuit?.()
+  }
+
+  handleKey(confirm, dir = 0, vertical = 0) {
+    if (!this.isOpen) return
+    const step = vertical || dir
+    const active = this._ownedFocus() ?? this.resumeButton
+    const index = this.buttons.indexOf(active)
+    if (step) {
+      const next = Math.max(0, Math.min(this.buttons.length - 1, (index < 0 ? 0 : index) + step))
+      this._setFocus(this.buttons[next])
+      return
+    }
+    if (confirm) this._activate(active)
   }
 
   _renderStats(s = {}) {

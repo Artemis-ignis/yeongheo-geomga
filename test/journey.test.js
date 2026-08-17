@@ -4,6 +4,7 @@ import {
   getJourneyChapter,
   journeyProgressFor,
   journeyLegacyFor,
+  journeyLayoutFor,
   journeyRewardRoll,
   nextJourneyChapter,
 } from '../src/data/journey.js'
@@ -40,6 +41,42 @@ describe('main journey contract', () => {
     expect(journeyRewardRoll([28, 45], 0)).toBe(28)
     expect(journeyRewardRoll([28, 45], 0.999999)).toBe(45)
     expect(journeyRewardRoll([28, 45], 0.5)).toBe(37)
+  })
+
+  it('builds three deterministic expedition topologies with reachable required beats', () => {
+    const chapter = getJourneyChapter('jade:guardian')
+    const topologyIds = new Set()
+    for (let seed = 0; seed < 100; seed++) {
+      const layout = journeyLayoutFor(seed, chapter)
+      const replay = journeyLayoutFor(seed, chapter)
+      topologyIds.add(layout.topologyId)
+      expect(layout).toEqual(replay)
+      expect(layout.requiredIds).toHaveLength(3)
+      expect(layout.nodes.length).toBeGreaterThanOrEqual(4)
+      expect(layout.nodes.filter((node) => !node.required).length).toBeGreaterThanOrEqual(1)
+      expect(new Set(layout.nodes.map((node) => node.id)).size).toBe(layout.nodes.length)
+
+      const byId = new Map(layout.nodes.map((node) => [node.id, node]))
+      const completed = new Set()
+      let guard = 0
+      while (completed.size < layout.nodes.length && guard++ < layout.nodes.length + 1) {
+        for (const node of layout.nodes) {
+          if (completed.has(node.id)) continue
+          if (node.requires.every((requiredId) => completed.has(requiredId))) completed.add(node.id)
+        }
+      }
+      expect(completed.size).toBe(layout.nodes.length)
+      expect(layout.requiredIds.every((id) => byId.get(id)?.required && completed.has(id))).toBe(true)
+
+      for (let i = 0; i < layout.nodes.length; i++) {
+        for (let j = i + 1; j < layout.nodes.length; j++) {
+          const a = layout.nodes[i].position
+          const b = layout.nodes[j].position
+          expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(4)
+        }
+      }
+    }
+    expect(topologyIds.size).toBeGreaterThanOrEqual(3)
   })
 
   it('turns a persistent story decision into an authored next-run legacy', () => {

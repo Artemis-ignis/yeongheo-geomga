@@ -1,16 +1,16 @@
 import { iconFor } from './icons.js'
+import { assetUrl } from './domPrimitives.js'
+import { hudItemPresentation } from './itemPresentation.js'
 import { MAX_WEAPON_SLOTS, MAX_PASSIVE_SLOTS } from '../combat/upgrades.js'
-import { getWeapon } from '../data/weapons.js'
-import { getPassive } from '../data/passives.js'
 
 const HP_GHOST_LAG = 2.4
 export const RADAR_POI_STYLE = Object.freeze({
-  altar: Object.freeze({ color: '#d0ad62', glyph: '수' }),
-  treasure: Object.freeze({ color: '#d8c89e', glyph: '보' }),
-  elite_seal: Object.freeze({ color: '#b94a3d', glyph: '봉' }),
-  healing_spring: Object.freeze({ color: '#7aa28d', glyph: '회' }),
-  evidence: Object.freeze({ color: '#e2c981', glyph: '흔' }),
-  false_trace: Object.freeze({ color: '#8e8172', glyph: '적' }),
+  altar: Object.freeze({ color: '#d8b761', glyph: '수' }),
+  treasure: Object.freeze({ color: '#8bb8a8', glyph: '보' }),
+  elite_seal: Object.freeze({ color: '#d06456', glyph: '봉' }),
+  healing_spring: Object.freeze({ color: '#7fe2c3', glyph: '회' }),
+  evidence: Object.freeze({ color: '#e8c56a', glyph: '흔' }),
+  false_trace: Object.freeze({ color: '#788b86', glyph: '적' }),
 })
 
 export function radarPointPosition(point, radius) {
@@ -45,11 +45,6 @@ function el(tag, cls, parent) {
   if (cls) node.className = cls
   if (parent) parent.appendChild(node)
   return node
-}
-
-function assetUrl(file) {
-  const base = import.meta.env?.BASE_URL ?? '/'
-  return `${base}assets/${file}`
 }
 
 function optionalUiText(value) {
@@ -307,20 +302,7 @@ export class Hud {
   }
 
   _itemPresentation(item, slotKind) {
-    const definition = slotKind === 'passive' ? getPassive(item.id) : getWeapon(item.id)
-    const visualKind = slotKind === 'passive'
-      ? 'passive'
-      : definition?.evolutionOf ? 'evolution' : 'weapon'
-    const kindLabel = visualKind === 'passive' ? '공법' : visualKind === 'evolution' ? '진화 법보' : '법보'
-    const kindMark = visualKind === 'passive' ? '공' : visualKind === 'evolution' ? '진' : '법'
-    const name = item.name ?? definition?.name ?? item.id
-    const effect = item.desc ?? definition?.desc ?? ''
-    const maxLevel = slotKind === 'passive' ? definition?.max : definition?.levels?.length
-    const level = Math.max(0, Number.isFinite(item.level) ? item.level : 0)
-    const levelText = visualKind === 'evolution'
-      ? '진화'
-      : Number.isFinite(maxLevel) ? `Lv.${level}/${maxLevel}` : `Lv.${level}`
-    return { visualKind, kindLabel, kindMark, name, effect, level, levelText }
+    return hudItemPresentation(item, slotKind)
   }
 
   _syncRow(slots, items) {
@@ -552,7 +534,7 @@ export class Hud {
       if (this._last.bossPortrait !== referenceAsset) {
         this._last.bossPortrait = referenceAsset
         if (referenceAsset) {
-          this.bossPortrait.src = assetUrl(referenceAsset)
+          this.bossPortrait.src = assetUrl(`assets/${referenceAsset}`)
           this.bossPortrait.style.display = ''
         } else {
           this.bossPortrait.removeAttribute('src')
@@ -619,16 +601,16 @@ export class Hud {
     const r = w * 0.38
     ctx.clearRect(0, 0, w, h)
 
-    ctx.fillStyle = 'rgba(29, 26, 21, 0.82)'
+    ctx.fillStyle = 'rgba(9, 23, 27, 0.90)'
     ctx.beginPath()
     ctx.arc(cx, cy, r + 15, 0, Math.PI * 2)
     ctx.fill()
-    ctx.strokeStyle = 'rgba(224, 211, 180, 0.50)'
+    ctx.strokeStyle = 'rgba(139, 191, 168, 0.56)'
     ctx.lineWidth = 2
     ctx.beginPath()
     ctx.arc(cx, cy, r, 0, Math.PI * 2)
     ctx.stroke()
-    ctx.strokeStyle = 'rgba(224, 211, 180, 0.17)'
+    ctx.strokeStyle = 'rgba(139, 191, 168, 0.18)'
     ctx.lineWidth = 1
     for (const ring of [0.5, 0.75]) {
       ctx.beginPath()
@@ -652,7 +634,7 @@ export class Hud {
         ctx.save()
         ctx.translate(px, py)
         ctx.rotate(Math.PI / 4)
-        ctx.fillStyle = 'rgba(29, 26, 21, 0.92)'
+        ctx.fillStyle = 'rgba(9, 23, 27, 0.94)'
         ctx.strokeStyle = style.color
         ctx.lineWidth = point.nearby ? 2.8 : 2.2
         ctx.beginPath()
@@ -681,8 +663,8 @@ export class Hud {
       }
       const size = point.elite ? 4.2 : 2.4
       ctx.fillStyle = point.elite
-        ? '#d1ad61'
-        : point.ranged ? '#b94a3d' : '#8e8070'
+        ? '#d8b761'
+        : point.ranged ? '#d06456' : '#788b86'
       ctx.beginPath()
       if (point.elite) {
         ctx.moveTo(px, py - size)
@@ -700,8 +682,8 @@ export class Hud {
     ctx.save()
     ctx.translate(cx, cy)
     ctx.rotate(radarHeadingRotation(heading))
-    ctx.fillStyle = '#eee3c9'
-    ctx.strokeStyle = '#9e332a'
+    ctx.fillStyle = '#eee4ce'
+    ctx.strokeStyle = '#a9362b'
     ctx.lineWidth = 1.5
     ctx.beginPath()
     ctx.moveTo(0, -8)

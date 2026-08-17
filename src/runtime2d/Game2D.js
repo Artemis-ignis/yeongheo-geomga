@@ -159,10 +159,13 @@ export function clickMoveVector2D(player, target, stopRadius = CLICK_MOVE_STOP_R
 }
 
 /**
- * If the active clue lies inside a mouse travel corridor, stop at that clue
- * instead of carrying the heroine through it to a distant click target.
+ * Click travel is literal world travel. Story props only capture a click that
+ * lands on their own interaction footprint; a distant click must never be
+ * redirected merely because a clue happens to lie somewhere along the route.
+ * The former eight-unit corridor was wider than several visible landmarks and
+ * made the heroine stop at apparently arbitrary points on the map.
  */
-export function snapStoryClickTarget2D(player, target, interactions, corridor = 8, maxSnapDistance = 18) {
+export function snapStoryClickTarget2D(player, target, interactions) {
   if (!Number.isFinite(player?.x) || !Number.isFinite(player?.z)
     || !Number.isFinite(target?.x) || !Number.isFinite(target?.z)) return target
   const poi = interactions?.currentRoutePoi?.()
@@ -170,22 +173,11 @@ export function snapStoryClickTarget2D(player, target, interactions, corridor = 
   const candidate = interactions?.nearestUnfoundInvestigationClue?.(poi, player.x, player.z) ?? poi
   if (!Number.isFinite(candidate?.x) || !Number.isFinite(candidate?.z)) return target
 
-  const travelX = target.x - player.x
-  const travelZ = target.z - player.z
-  const travelLengthSquared = travelX * travelX + travelZ * travelZ
-  if (travelLengthSquared <= 1e-6) return target
-  const clueX = candidate.x - player.x
-  const clueZ = candidate.z - player.z
-  if (Math.hypot(clueX, clueZ) > Math.max(0, Number(maxSnapDistance) || 0)) return target
-  const along = (clueX * travelX + clueZ * travelZ) / travelLengthSquared
-  if (along <= 0 || along > 1.05) return target
-  const closestX = player.x + travelX * along
-  const closestZ = player.z + travelZ * along
   const captureRadius = Math.max(
-    Math.max(0, Number(corridor) || 0),
-    Math.max(0, Number(candidate.interactionRadius) || 0) + STORY_INTERACTION_MARGIN_2D,
+    CLICK_MOVE_STOP_RADIUS_2D,
+    Math.max(0, Number(candidate.interactionRadius) || 0) + 0.8,
   )
-  if (Math.hypot(candidate.x - closestX, candidate.z - closestZ) > captureRadius) return target
+  if (Math.hypot(candidate.x - target.x, candidate.z - target.z) > captureRadius) return target
   return Object.freeze({ x: candidate.x, z: candidate.z })
 }
 
@@ -325,7 +317,9 @@ export function expeditionGuardianSpawnPositions2D(event, player, count, radius 
 
 /** Keep the heroine's ground contact outside the authored story prop. */
 export function resolveStoryPropCollision2D(player, poi, safeRadius = 2.65) {
-  if (!player || !poi || !Number.isFinite(player.x) || !Number.isFinite(player.z)) return false
+  if (!player || !poi
+    || !Number.isFinite(player.x) || !Number.isFinite(player.z)
+    || !Number.isFinite(poi.x) || !Number.isFinite(poi.z)) return false
   let dx = player.x - poi.x
   let dz = player.z - poi.z
   let distance = Math.hypot(dx, dz)
@@ -340,8 +334,20 @@ export function resolveStoryPropCollision2D(player, poi, safeRadius = 2.65) {
       distance = 1
     }
   }
-  player.x = poi.x + (dx / distance) * safeRadius
-  player.z = poi.z + (dz / distance) * safeRadius
+  const contactX = poi.x + (dx / distance) * safeRadius
+  const contactZ = poi.z + (dz / distance) * safeRadius
+
+  // This is an authoritative contact correction, not ordinary locomotion.
+  // Keep simulation and presentation on the same point so interpolation does
+  // not render one frame from the pre-correction position. Marking it as a
+  // relocation also lets the presentation camera reset atomically instead of
+  // chasing a stale movement velocity after the heroine stops at the prop.
+  player.x = contactX
+  player.z = contactZ
+  player.prevX = contactX
+  player.prevZ = contactZ
+  player.actualSpeed = 0
+  player.teleported = true
   return true
 }
 
@@ -971,7 +977,8 @@ export class Game2D {
     const milestone = this.daoVows.milestone
     if (milestone >= DAO_MILESTONE_SECONDS.length) return
     if (this.runOptions?.mode === EXPEDITION_RUN_MODE_2D) {
-      if ((this.interactions?.consumed.size ?? 0) <= milestone) return
+      const progress = this.interactions?.requiredProgressFor?.()
+      if ((progress?.completed ?? 0) <= milestone) return
     } else if (this.world.runTime + 1e-6 < DAO_MILESTONE_SECONDS[milestone]) return
     if (!canOpenGrowthChoice2D(this.world.runTime, this._lastGrowthChoiceAt)) return
     this._openDaoVowModal()
@@ -1045,19 +1052,23 @@ export class Game2D {
     this._openNextModal()
   }
 
-  _poiPrompt(type, state = 'available') {
-    const poi = this.interactions?.currentRoutePoi?.()
-    const beat = poi ? journeyBeat(this.journeyChapter, poi.routeIndex) : null
+  _poiPrompt(type, state = 'available', poi = null) {
+    const activePoi = poi ?? this.interactions?.currentRoutePoi?.()
+    const routePoi = activePoi?.routeIndex === null || activePoi?.routeIndex === undefined
+      ? null : activePoi
+    const beat = routePoi ? journeyBeat(this.journeyChapter, routePoi.routeIndex) : null
     if (state === 'active') return '수호 전투 진행 중'
     if (type === 'evidence') return 'E · 남은 검흔 살피기'
     if (type === 'false_trace') return 'E · 수상한 발자국 대조'
     if (state === 'dormant') {
       if (beat?.prompt?.dormant) return beat.prompt.dormant
+      if (activePoi?.approach) return `E · ${activePoi.approach}`
       if (type === 'altar') return 'E · 흐트러진 영맥 조사'
       if (type === 'treasure') return 'E · 봉인된 문서 조사'
       return 'E · 마기 봉인 조사'
     }
     if (state === 'cleared' && beat?.prompt?.cleared) return beat.prompt.cleared
+    if (state === 'cleared' && activePoi?.resolved) return `E · ${activePoi.resolved}`
     if (type === 'altar') return 'E · 제단에서 축복 받기'
     if (type === 'treasure') return 'E · 비경 보물 열기'
     if (type === 'elite_seal') return 'E · 정예 봉인 해제'
@@ -1074,9 +1085,12 @@ export class Game2D {
     }
     if (event.type === 'poi_guardian_requested') {
       const beat = journeyBeat(this.journeyChapter, event.routeIndex)
-      const roster = beat?.guardians ?? ['wisp', 'wisp', 'wolf']
+      const roster = event.guardianIds?.length
+        ? event.guardianIds
+        : beat?.guardians ?? ['wisp', 'wisp', 'wolf']
       if (beat?.guardianBossId) {
-        const spawned = this.world.spawnBoss(beat.guardianBossId)
+        const spawnBoss = this.world.spawnBossTelegraphed ?? this.world.spawnBoss
+        const spawned = spawnBoss.call(this.world, beat.guardianBossId)
         if (spawned) {
           this._expeditionBossEncounter = {
             bossId: beat.guardianBossId,
@@ -1093,20 +1107,15 @@ export class Game2D {
         return
       }
       const uids = new Set()
-      const spawnPositions = expeditionGuardianSpawnPositions2D(
-        event,
+      const hpMul = 1.08 + (event.routeIndex ?? 0) * 0.16
+      // The POI ring is an authored marker; the guardian bodies still enter
+      // from the player's off-screen frontier so interaction cannot pop an
+      // enemy directly under the heroine.
+      for (const uid of this.world.enemies.spawnIngressGroup(
+        roster.map((id) => ({ id, hpMul })),
         this.world.player,
-        roster.length,
-      )
-      for (let i = 0; i < roster.length; i++) {
-        const uid = this.world.enemies.nextUid
-        const spawn = spawnPositions[i]
-        const spawned = this.world.enemies.spawn(
-          roster[i], spawn.x, spawn.z,
-          this.world.runTime, 1.08 + (event.routeIndex ?? 0) * 0.16, 1,
-        )
-        if (spawned) uids.add(uid)
-      }
+        this.world.runTime,
+      )) uids.add(uid)
       if (uids.size === 0) {
         this.interactions.markGuardianCleared(event.poiId)
       } else {
@@ -1144,15 +1153,15 @@ export class Game2D {
     } else if (reward.kind === 'elite_encounter') {
       const count = 1 + reward.tier
       const uids = new Set()
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2
-        const uid = this.world.enemies.nextUid
-        const spawned = this.world.enemies.spawn(
-          'demonCultivator', event.x + Math.cos(angle) * 5.2, event.z + Math.sin(angle) * 5.2,
-          this.world.runTime, 1 + reward.tier * 0.3, 1 + reward.tier * 0.08,
-        )
-        if (spawned) uids.add(uid)
-      }
+      const hpMul = 1 + reward.tier * 0.3
+      const haste = 1 + reward.tier * 0.08
+      // Keep the seal's visual reward at the POI, but let the combat group
+      // arrive through the shared ingress contract.
+      for (const uid of this.world.enemies.spawnIngressGroup(
+        Array.from({ length: count }, () => ({ id: 'demonCultivator', hpMul, haste })),
+        this.world.player,
+        this.world.runTime,
+      )) uids.add(uid)
       if (uids.size > 0) {
         this._eliteEncounters.push({ uids, experience: reward.victoryExperience, x: event.x, z: event.z })
       } else {
@@ -1174,11 +1183,18 @@ export class Game2D {
     }
     if (reward.kind !== 'healing') this.audio.play('levelPick')
     if (this.runOptions?.mode === EXPEDITION_RUN_MODE_2D) {
-      this._expeditionObjectives.add(event.poiId ?? `route:${event.routeIndex ?? this._expeditionObjectives.size}`)
+      // Optional detours are rewards and risk, not chapter gates. Only the
+      // three authored beats advance Dao/story progress or unlock the final
+      // guardian; this also keeps old event payloads required by default.
+      if (event.required !== false) {
+        this._expeditionObjectives.add(event.poiId ?? `route:${event.routeIndex ?? this._expeditionObjectives.size}`)
+      }
       if (!reward.options?.length) this._banner(beat?.resolved ?? '탐사 표식 완료', 2)
-      if (this._expeditionObjectives.size >= (this.journeyChapter?.route?.length ?? 3)
+      const requiredProgress = this.interactions?.requiredProgressFor?.()
+      if (requiredProgress?.complete
         && !this.world.boss?.active && !this.world.victory) {
-        this.world.spawnBoss(this.journeyChapter?.boss?.id ?? this.world.finalBossId)
+        const spawnBoss = this.world.spawnBossTelegraphed ?? this.world.spawnBoss
+        spawnBoss.call(this.world, this.journeyChapter?.boss?.id ?? this.world.finalBossId)
         this._banner(`${this.journeyChapter?.boss?.title ?? '비경 결계'} · 수호자 출현`, 2.8)
       }
     }
@@ -1255,7 +1271,11 @@ export class Game2D {
     this.world.nearbyPoiId = nearby?.id ?? null
     this.interactionPrompt.hidden = !nearby || this.state !== 'playing'
     if (nearby) {
-      this.interactionPrompt.textContent = this._poiPrompt(nearby.type, this.interactions.stateForPoi(nearby))
+      this.interactionPrompt.textContent = this._poiPrompt(
+        nearby.type,
+        this.interactions.stateForPoi(nearby),
+        nearby,
+      )
     }
   }
 
@@ -1614,17 +1634,25 @@ export class Game2D {
       if (!moving && !confirm && !slot) this._resultAwaitNeutral = false
       this.input.discardDash?.()
       this._lastDir = 0
+      this._lastVerticalDir = 0
       return
     }
     const modalOwnsConfirm = this.state === 'levelUp' || this.state === 'daoVow' || this.state === 'journeyChoice'
     let dir = 0
     if (this.input.moveX > 0.5) dir = 1
     else if (this.input.moveX < -0.5) dir = -1
-    if (this.state === 'title' || this.state === 'setup') this.title.handleKey(slot, confirm, this._edge(dir))
-    else if (modalOwnsConfirm) this.modal.handleKey(slot, confirm, this._edge(dir))
-    else if (this.state === 'result') this.result.handleKey(confirm, this._edge(dir))
-    else if (this.state === 'shop') this.shop.handleKey(confirm)
-    else if (this.state === 'codex') this.codex.handleKey(confirm)
+    let vertical = 0
+    if (this.input.moveZ > 0.5) vertical = 1
+    else if (this.input.moveZ < -0.5) vertical = -1
+    const dirEdge = this._edge(dir)
+    const verticalEdge = this._edge(vertical, 'vertical')
+    const pauseOwnsConfirm = this.state === 'paused'
+    if (this.state === 'title' || this.state === 'setup') this.title.handleKey(slot, confirm, dirEdge)
+    else if (modalOwnsConfirm) this.modal.handleKey(slot, confirm, dirEdge)
+    else if (this.state === 'result') this.result.handleKey(confirm, dirEdge)
+    else if (this.state === 'paused') this.pause.handleKey?.(confirm, dirEdge, verticalEdge)
+    else if (this.state === 'shop') this.shop.handleKey?.(confirm, dirEdge, verticalEdge)
+    else if (this.state === 'codex') this.codex.handleKey?.(confirm, dirEdge, verticalEdge)
     // Space and the gamepad south face latch both confirm and dash. A modal
     // pick closes the modal and returns to `playing` synchronously, so discard
     // the same physical press before the simulation branch can consume it.
@@ -1632,11 +1660,15 @@ export class Game2D {
       if (typeof this.input.discardDash === 'function') this.input.discardDash()
       else this.input.consumeDash?.()
     }
+    // Resuming from pause can synchronously return to `playing`; do not turn
+    // the same south-face confirm into an accidental dash on the first frame.
+    if (pauseOwnsConfirm) this.input.discardDash?.()
   }
 
-  _edge(dir) {
-    const changed = dir !== this._lastDir
-    this._lastDir = dir
+  _edge(dir, axis = 'horizontal') {
+    const property = axis === 'vertical' ? '_lastVerticalDir' : '_lastDir'
+    const changed = dir !== this[property]
+    this[property] = dir
     return changed ? dir : 0
   }
 
@@ -1680,6 +1712,11 @@ export class Game2D {
       this._radarCacheInteractionRevision = interactionRevision
     }
     const boss = this.world.boss?.active ? this.world.boss : null
+    const expeditionProgress = this.interactions?.requiredProgressFor?.() ?? Object.freeze({
+      completed: this._expeditionObjectives?.size ?? 0,
+      total: this.journeyChapter?.route?.length ?? 0,
+      complete: false,
+    })
     const daoVow = this._getDaoSnapshot()
     const firstVow = this.runOptions?.mode === EXPEDITION_RUN_MODE_2D
       ? null : firstVowHudState2D(this.world.runTime, daoVow)
@@ -1711,14 +1748,14 @@ export class Game2D {
       objective: this.runOptions?.mode === EXPEDITION_RUN_MODE_2D
         ? expeditionObjective2D(
             this.interactions,
-            this._expeditionObjectives.size,
+            expeditionProgress.completed,
             boss,
             this.journeyChapter,
             player,
           )
         : firstVow?.objective ?? null,
       expeditionLabel: this.runOptions?.mode === EXPEDITION_RUN_MODE_2D
-        ? `${this.journeyChapter?.indexLabel ?? '본편'} · 사건 ${Math.min(this._expeditionObjectives.size, this.journeyChapter?.route?.length ?? 0)}/${this.journeyChapter?.route?.length ?? 0}`
+        ? `${this.journeyChapter?.indexLabel ?? '본편'} · 사건 ${Math.min(expeditionProgress.completed, expeditionProgress.total)}/${expeditionProgress.total}`
         : null,
       daoRuntime,
       boss: boss ? {

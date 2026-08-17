@@ -1,29 +1,6 @@
 export const SORT_BUCKETS = 64
-
-/**
- * Camera follow is presentation-only, so it must not change its response when
- * the render loop delivers a 16.7ms, 33ms, or 100ms frame.  The exponential
- * step below is frame-rate independent: equal elapsed time converges to the
- * same point regardless of how it is partitioned into render frames.
- */
-// Camera motion is now a short page transition, not a permanent chase. Once
-// the heroine crosses a broad outer gate, this response settles the next world
-// anchor quickly enough that most play happens against a stable environment.
-export const CAMERA_FOLLOW_RESPONSE_2D = 4.8
-
-export function cameraFollowFactor2D(dtSeconds, response = CAMERA_FOLLOW_RESPONSE_2D) {
-  const dt = Math.max(0, Math.min(0.25, Number(dtSeconds) || 0))
-  const rate = Math.max(0, Number(response) || 0)
-  return rate > 0 ? 1 - Math.exp(-rate * dt) : 0
-}
-
-export function cameraFollowStep2D(current, target, dtSeconds, response = CAMERA_FOLLOW_RESPONSE_2D) {
-  const from = Number(current)
-  const to = Number(target)
-  if (!Number.isFinite(to)) return Number.isFinite(from) ? from : 0
-  if (!Number.isFinite(from)) return to
-  return from + (to - from) * cameraFollowFactor2D(dtSeconds, response)
-}
+export const WORLD_FOCAL_Y_RATIO_2D = 0.54
+export const WORLD_DEPTH_RATIO_2D = 0.62
 
 export function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
@@ -46,83 +23,68 @@ export function viewportPresentationScale(viewport) {
  * Simulation continues to live on the X/Z plane; only presentation compresses
  * depth so actors read as standing on the painted sanctuary floor.
  */
-export function projectWorld(x, z, cameraX, cameraZ, viewport, out = {}) {
+export function createWorldFrame2D(cameraX, cameraZ, viewport, out = {}) {
   const width = Math.max(1, viewport.width)
   const height = Math.max(1, viewport.height)
-  // Sixty world units remain visible horizontally at both 1920x1080 and
-  // 2560x1600. The previous 32px ceiling widened the latter to eighty units.
-  const unit = clamp(width / 60, 19, 46) * clamp(viewport.zoom ?? 1, 0.85, 1.25)
-  // Depth is derived from viewport height, not horizontal sprite scale. Using
-  // `unit * .56` put a 25-unit spawn ring above the painted horizon on wide
-  // screens, so wolves and floor props appeared to float in the sky. This keeps
-  // the complete combat ring between the horizon and the near edge at every
-  // supported aspect ratio while preserving horizontal readability.
-  const depthUnit = clamp(height / 90, 7.5, 18) * clamp(viewport.zoom ?? 1, 0.85, 1.25)
-  out.x = width * 0.5 + (x - cameraX) * unit
-  out.y = height * 0.57 + (z - cameraZ) * depthUnit
+  const zoom = clamp(viewport.zoom ?? 1, 0.85, 1.25)
+  // A single frame owns every world-to-screen conversion for the rendered
+  // image. The old 0.37 depth scale crushed enemies and props into the same
+  // horizontal bands. A 0.62 floor ratio keeps the three-quarter view while
+  // restoring enough world depth for readable crowd spacing.
+  const unit = clamp(Math.min(width / 58, height / 33), 19, 46) * zoom
+  const depthUnit = unit * WORLD_DEPTH_RATIO_2D
+  out.cameraX = Number(cameraX) || 0
+  out.cameraZ = Number(cameraZ) || 0
+  out.originX = width * 0.5
+  out.originY = height * WORLD_FOCAL_Y_RATIO_2D
+  out.width = width
+  out.height = height
   out.unit = unit
   out.depthUnit = depthUnit
   return out
 }
 
+export function projectWorldWithFrame2D(x, z, frame, out = {}) {
+  out.x = frame.originX + (x - frame.cameraX) * frame.unit
+  out.y = frame.originY + (z - frame.cameraZ) * frame.depthUnit
+  out.unit = frame.unit
+  out.depthUnit = frame.depthUnit
+  return out
+}
+
+export function projectWorld(x, z, cameraX, cameraZ, viewport, out = {}) {
+  const frame = createWorldFrame2D(cameraX, cameraZ, viewport, {})
+  return projectWorldWithFrame2D(x, z, frame, out)
+}
+
 /** Exact inverse used by click-to-move and visual contract tests. */
 export function unprojectScreen(screenX, screenY, cameraX, cameraZ, viewport, out = {}) {
-  const width = Math.max(1, viewport.width)
-  const height = Math.max(1, viewport.height)
-  const zoom = clamp(viewport.zoom ?? 1, 0.85, 1.25)
-  const unit = clamp(width / 60, 19, 46) * zoom
-  const depthUnit = clamp(height / 90, 7.5, 18) * zoom
-  out.x = cameraX + (screenX - width * 0.5) / unit
-  out.z = cameraZ + (screenY - height * 0.57) / depthUnit
+  const frame = createWorldFrame2D(cameraX, cameraZ, viewport, {})
+  out.x = frame.cameraX + (screenX - frame.originX) / frame.unit
+  out.z = frame.cameraZ + (screenY - frame.originY) / frame.depthUnit
   return out
 }
 
 /**
- * Resolve a stable world-page anchor. The heroine traverses most of the screen
- * while the camera stays still. Crossing an outer gate advances the anchor far
- * enough to place her on the opposite inner guide, producing one short pan and
- * another long stretch of visible on-screen travel.
+ * Resolve the only camera-dependent offset allowed for the tiled ground.
+ *
+ * The floor is a world material, not a screen-space animation. Keeping this
+ * calculation beside `projectWorld` makes it impossible for the ground to
+ * acquire a second time-based drift that the actor/prop layers do not share.
  */
-export function cameraTargetWithDeadZone2D(
-  cameraX,
-  cameraZ,
-  playerX,
-  playerZ,
-  viewport,
-  moving = true,
-  out = {},
-) {
-  const fromX = Number.isFinite(Number(cameraX)) ? Number(cameraX) : 0
-  const fromZ = Number.isFinite(Number(cameraZ)) ? Number(cameraZ) : 0
-  const targetX = Number.isFinite(Number(playerX)) ? Number(playerX) : fromX
-  const targetZ = Number.isFinite(Number(playerZ)) ? Number(playerZ) : fromZ
+export function groundTileOffset2D(cameraX, cameraZ, viewport, tileScaleX = 1, tileScaleY = 1, out = {}) {
+  const frame = createWorldFrame2D(cameraX, cameraZ, viewport, {})
+  return groundTileOffsetFromFrame2D(frame, tileScaleX, tileScaleY, out)
+}
 
-  // The presentation owns whether an in-flight page pan may continue. This
-  // pure helper keeps a stopped anchor unchanged.
-  if (!moving) {
-    out.x = fromX
-    out.z = fromZ
-    return out
-  }
-
-  const screen = projectWorld(targetX, targetZ, fromX, fromZ, viewport, {})
-  const centerX = Math.max(1, viewport?.width ?? 1) * 0.5
-  const centerY = Math.max(1, viewport?.height ?? 1) * 0.57
-  const width = Math.max(1, viewport?.width ?? 1)
-  const height = Math.max(1, viewport?.height ?? 1)
-  const outerX = clamp(width * 0.41, 280, 1050)
-  const outerY = clamp(height * 0.34, 156, 540)
-  const innerX = clamp(width * 0.22, 112, 560)
-  const innerY = clamp(height * 0.18, 62, 260)
-  const offsetX = screen.x - centerX
-  const offsetY = screen.y - centerY
-
-  out.x = fromX
-  out.z = fromZ
-  if (offsetX > outerX) out.x += (offsetX - innerX) / screen.unit
-  else if (offsetX < -outerX) out.x += (offsetX + innerX) / screen.unit
-  if (offsetY > outerY) out.z += (offsetY - innerY) / screen.depthUnit
-  else if (offsetY < -outerY) out.z += (offsetY + innerY) / screen.depthUnit
+export function groundTileOffsetFromFrame2D(frame, _tileScaleX = 1, _tileScaleY = 1, out = {}) {
+  // `tilePosition` is already expressed in the TilingSprite's local pixels.
+  // Its tileScale is a separate texture transform, so dividing by it here
+  // makes the material drift at a different rate from projected actors.
+  // Keep the legacy arguments for the existing call sites, but make the
+  // camera displacement exactly the same as the shared world frame.
+  out.x = -frame.cameraX * frame.unit
+  out.y = -frame.cameraZ * frame.depthUnit
   return out
 }
 

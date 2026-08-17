@@ -55,7 +55,6 @@ const ART_ICON_FILES_V2 = Object.freeze({
   voidOrb: 'void-orb.webp',
   heal: 'heal.webp',
   stones: 'spirit-stones.webp',
-  fortune: 'spirit-stones.webp',
   purge: 'purge.webp',
 })
 
@@ -79,12 +78,13 @@ const ART_ICON_FILES = Object.freeze({
   spiritRoot: 'cooldown-hourglass.webp', farSight: 'soul-eye.webp', goldenCore: 'healing-core.webp',
   heartMethod: 'attack-seal.webp', swordRiding: 'flying-sword.webp', cloneArt: 'twin-blades.webp',
   destinedBond: 'dao-lotus.webp',
-  // Distinct existing semantic art for the permanent shop: protection, repair,
-  // and rebirth should not collapse into one healing-core glyph.
-  vitality: 'qi-shield.webp', edge: 'attack-seal.webp',
+  // One authored silhouette per permanent upgrade keeps the 12-card shop
+  // legible at a glance: life, offense, motion, flow, guard, reach, sight,
+  // recovery, fortune, rebirth, divination, and sealing each stay distinct.
+  vitality: 'healing-core.webp', edge: 'attack-seal.webp',
   swift: 'windstep.webp', circulation: 'cooldown-hourglass.webp', bulwark: 'qi-shield.webp',
-  reach: 'area-formation.webp', insight: 'soul-eye.webp', mending: 'healing-core.webp',
-  fortune: 'dao-lotus.webp', revive: 'dao-lotus.webp', insightRoll: 'soul-eye.webp',
+  reach: 'area-formation.webp', insight: 'soul-eye.webp', mending: 'spirit-butterfly.webp',
+  fortune: 'vajra.webp', revive: 'dao-lotus.webp', insightRoll: 'bagua-array.webp',
   sealing: 'fire-talisman.webp', heal: 'healing-core.webp', purge: 'qi-shield.webp',
 })
 
@@ -482,11 +482,11 @@ const DRAWERS = {
 }
 
 const BG = {
-  weapon: ['#2c3f52', '#16212c'],
-  passive: ['#3a3550', '#1e1a2c'],
-  evolution: ['#5a4520', '#2c2010'],
-  consumable: ['#24463c', '#12241e'],
-  meta: ['#3d3348', '#1d1826'],
+  weapon: ['#31555a', '#0d2529'],
+  passive: ['#425b57', '#142c2d'],
+  evolution: ['#6f3b32', '#2a1718'],
+  consumable: ['#2e5e4d', '#102a25'],
+  meta: ['#394e57', '#15242b'],
 }
 
 const META_IDS = new Set([

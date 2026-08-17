@@ -7,6 +7,7 @@ import { rosterFor } from '../data/stages.js'
 import { waveAt, scheduleFor } from '../data/waves.js'
 import { applyTrial, TRIAL } from '../data/trials.js'
 import { xpFor } from '../data/realms.js'
+import { SPRITE_MANIFEST } from './spriteManifest.js'
 import { SpatialHash } from '../core/SpatialHash.js'
 import { ENEMY_ARCHETYPE_IDS_2D, classifyEnemyArchetype2D } from './EnemyArchetypes2D.js'
 import { getWeaponBehavior2D } from './WeaponBehaviors2D.js'
@@ -19,6 +20,11 @@ import {
 } from './ContestPacing2D.js'
 import { FormationDirector2D } from './FormationDirector2D.js'
 import { DAO_COMBAT_ACTION_2D, DaoCombatRuntime2D } from './DaoCombatRuntime2D.js'
+import {
+  ENEMY_PACK_PRIMARY_RATIO_2D,
+  EnemySpawnDirector2D, enemyPackTypeAt2D, enemyPopulationBudget2D,
+  formationIngressTransform2D, formationIngressWarning2D,
+} from './EnemySpawnDirector2D.js'
 
 export const MAX_ENEMIES_2D = 900
 export const MAX_PROJECTILES_2D = 1200
@@ -30,15 +36,26 @@ export const MAX_EFFECTS_2D = 256
 export const MAX_WEAPON_FIELDS_2D = 128
 export const RUN_SECONDS_2D = CONTEST_PACING_DURATION_SECONDS
 
-const SPAWN_FRONTIER_X_MIN = 36
-const SPAWN_FRONTIER_X_MAX = 43
-const SPAWN_FRONTIER_FAR_Z_MIN = 52
-const SPAWN_FRONTIER_FAR_Z_MAX = 60
-const SPAWN_FRONTIER_NEAR_Z_MIN = 44
-const SPAWN_FRONTIER_NEAR_Z_MAX = 51
-const SPAWN_LANE_HALF_WIDTH = 15
 const DESPAWN_RADIUS = 76
-const OFFSCREEN_INGRESS_DENSITY = 1.4
+export const ENEMY_INGRESS_DELAY_SECONDS_2D = 1.25
+// A screen-authored summon may still use its set-piece position, but it must
+// give the player one readable ground beat before the body becomes active.
+// Ordinary waves, POI groups and death splits use the off-screen ingress
+// contract instead and therefore do not need this delay.
+export const SCREEN_SUMMON_TELEGRAPH_SECONDS_2D = 0.8
+export const SCREEN_SUMMON_MIN_CLEARANCE_2D = 1.0
+// Dense packs must still register as a threat after the readable weapon pass:
+// increasing roster pressure without any contact consequence turns the run
+// into a harmless target dummy route.
+export const ENEMY_CONTACT_DAMAGE_SCALE_2D = 3
+// Fewer, separated bodies must not slow the build loop. Preserve the intended
+// cultivation cadence by moving progression value from duplicate silhouettes
+// into each defeated enemy.
+export const READABLE_HORDE_REWARD_SCALE_2D = 1.4
+
+export function readableHordeRewardScale2D() {
+  return READABLE_HORDE_REWARD_SCALE_2D
+}
 const CONTACT_COOLDOWN = 0.72
 export const CONTACT_INTENT_SECONDS_2D = 0.24
 export const CONTACT_INTENT_MIN_MARGIN_2D = 0.72
@@ -50,8 +67,44 @@ const DASH_IFRAMES = 0.35
 // damage from several overlapping cut-outs in the same half second. Keep the
 // threat, but give the player enough post-hit separation time to read and dash.
 const MERCY_IFRAMES = 0.68
+
+export function enemySeparationDistance2D(radiusA, radiusB) {
+  const combined = Math.max(0, Number(radiusA) || 0) + Math.max(0, Number(radiusB) || 0)
+  return clamp(combined * 0.92, 0.82, 1.75)
+}
 export const HERO_HURT_REACTION_SECONDS_2D = 0.28
 export const HERO_DEATH_REACTION_SECONDS_2D = 0.72
+
+/**
+ * Boss reaction timing is authored beside the reaction frame ranges in the
+ * sprite manifest. The renderer and world both use these pure helpers so a
+ * sheet edit cannot leave one side of the presentation contract on a stale
+ * hard-coded duration.
+ */
+export function bossReactionTiming2D(actor, state) {
+  const timing = actor?.reactionTiming?.[state]
+  if (!timing || !Number.isFinite(Number(timing.fps)) || Number(timing.fps) <= 0) return null
+  return timing
+}
+
+export function bossReactionClipDuration2D(actor, state) {
+  const frames = actor?.reactionAnimations?.[state]
+  const timing = bossReactionTiming2D(actor, state)
+  if (!Array.isArray(frames) || frames.length === 0 || !timing) return 0
+  return frames.length / Number(timing.fps)
+}
+
+/**
+ * `holdLast` reserves one authored frame interval after the clip completes.
+ * That is the short death hold, and it keeps the final pose visible while the
+ * result transition waits for the same manifest-defined presentation window.
+ */
+export function bossReactionPresentationDuration2D(actor, state) {
+  const clipDuration = bossReactionClipDuration2D(actor, state)
+  const timing = bossReactionTiming2D(actor, state)
+  if (!(clipDuration > 0) || !timing) return 0
+  return clipDuration + (timing.holdLast ? 1 / Number(timing.fps) : 0)
+}
 const BOSS_DEFEAT_HEAL_FRACTION_2D = 0.3
 const BOSS_DEFEAT_GRACE_SECONDS_2D = 2.4
 const BOSS_DEFEAT_SHOCKWAVE_RADIUS_2D = 10
@@ -81,12 +134,23 @@ export const FINAL_BOSS_PHASE_RELIEF_GRACE_SECONDS_2D = 1.45
 // as one readable reward instead of turning the whole arena into cyan confetti.
 export const PICKUP_MERGE_RADIUS_2D = 2.4
 const PICKUP_RECYCLE_DISTANCE_2D = 18
-// Kiting can strand thousands of tiny rewards, while recalling every stack at
-// once creates a late level-up avalanche. Recall stones and dense XP stacks;
-// individual low-value qi motes stay as a readable trail and remain fully
-// accounted for by the reward ledger.
-export const PICKUP_REMOTE_RECALL_AGE_2D = 18
-export const PICKUP_REMOTE_RECALL_MIN_XP_2D = 18
+// A kill should leave a short, visible trail of qi without turning yesterday's
+// route into permanent cyan confetti. Every XP mote therefore joins the remote
+// recall after the trail has been readable for twelve seconds. The pull is
+// continuous world-space travel, not a teleport, so collection still feels
+// earned while kiting routes cannot silently lose most of their progression.
+export const PICKUP_REMOTE_RECALL_AGE_2D = 12
+export const PICKUP_REMOTE_RECALL_MIN_XP_2D = 1
+
+export function pickupRemoteRecallEligible2D({
+  xpValue = 0, stoneValue = 0, age = 0, distance = 0, magnet = 0,
+} = {}) {
+  const hasRecallValue = Number(stoneValue) > 0
+    || Number(xpValue) >= PICKUP_REMOTE_RECALL_MIN_XP_2D
+  return hasRecallValue
+    && Number(age) >= PICKUP_REMOTE_RECALL_AGE_2D
+    && Number(distance) >= Number(magnet)
+}
 const WEAPON_AUDIO_COOLDOWN_2D = Object.freeze({
   launch: 0,
   impact: 0.08,
@@ -318,15 +382,16 @@ export function contactIntentLeadDistance2D(speed) {
 }
 
 /**
- * Visual facing follows actual locomotion unless the enemy is actively
- * telegraphing or attacking. This prevents retreating and strafing actors from
- * sliding sideways/backwards while preserving target-facing combat reads.
+ * Visual facing follows actual locomotion whenever the body is travelling.
+ * Attack/contact intent is still target-facing while stationary, but it must
+ * never override a real movement vector: otherwise a pursuing enemy visibly
+ * moonwalks or slides sideways during its attack window.
  */
 export function enemyPresentationFacing2D({
   aimX = 0, aimZ = 0, moveX = 0, moveZ = 0, attacking = false, fallback = 0,
 } = {}) {
   const movement = Math.hypot(moveX, moveZ)
-  if (!attacking && movement > 0.00001) return Math.atan2(moveX, moveZ)
+  if (movement > 0.00001) return Math.atan2(moveX, moveZ)
   const aim = Math.hypot(aimX, aimZ)
   if (aim > 0.00001) return Math.atan2(aimX, aimZ)
   return Number.isFinite(fallback) ? fallback : 0
@@ -450,7 +515,12 @@ class PlayerState2D {
     this.teleported = false
     this.hurtTimer = Math.max(0, this.hurtTimer - dt)
     this.deathTimer = Math.max(0, this.deathTimer - dt)
-    if (!this.alive) return
+    if (!this.alive) {
+      // A dead player still renders a reaction clip, but must never leave the
+      // last locomotion speed alive for the presentation camera.
+      this.actualSpeed = 0
+      return
+    }
     this.invulnTimer = Math.max(0, this.invulnTimer - dt)
     this.dashCooldown = Math.max(0, this.dashCooldown - dt)
     this.hitFlash = Math.max(0, this.hitFlash - dt)
@@ -800,11 +870,13 @@ class PickupField2D {
       const dx = player.x - this.x[i]
       const dz = player.z - this.z[i]
       const dist = Math.hypot(dx, dz)
-      const recallEligible = this.stoneValue[i] > 0
-        || this.xpValue[i] >= PICKUP_REMOTE_RECALL_MIN_XP_2D
-      const remoteRecall = recallEligible
-        && this.age[i] >= PICKUP_REMOTE_RECALL_AGE_2D
-        && dist >= magnet
+      const remoteRecall = pickupRemoteRecallEligible2D({
+        xpValue: this.xpValue[i],
+        stoneValue: this.stoneValue[i],
+        age: this.age[i],
+        distance: dist,
+        magnet,
+      })
       if (dist < magnet || remoteRecall) {
         const pull = remoteRecall
           ? Math.min(54, 18 + (this.age[i] - PICKUP_REMOTE_RECALL_AGE_2D) * 2.6)
@@ -1044,6 +1116,8 @@ class EnemyField2D {
     this.count = 0
     this.killCount = 0
     this.spawnTimer = 0
+    this.spawnDirector = new EnemySpawnDirector2D(rng)
+    this._spawnPoint = { x: 0, z: 0, angle: 0 }
     this.nextUid = 1
     this.grid = new SpatialHash(3)
     this.type = new Uint8Array(MAX_ENEMIES_2D)
@@ -1111,9 +1185,9 @@ class EnemyField2D {
     this.z[i] = this.prevZ[i] = z
     this.hp[i] = this.maxHp[i] = hp
     this.speed[i] = def.speed * TRIAL.speed * haste
-    this.damage[i] = scaledDamage(def, runTime / 60)
+    this.damage[i] = scaledDamage(def, runTime / 60) * ENEMY_CONTACT_DAMAGE_SCALE_2D
     this.radius[i] = def.radius
-    this.xp[i] = scaledXp(def, runTime / 60)
+    this.xp[i] = scaledXp(def, runTime / 60) * readableHordeRewardScale2D(runTime)
     this.hitCd[i] = this.rng.range(0, CONTACT_COOLDOWN)
     this.shotCd[i] = this.rng.range(0.6, 1.8)
     this.flash[i] = 0
@@ -1133,28 +1207,45 @@ class EnemyField2D {
     return true
   }
 
-  _spawnFromFrontier(player, runTime, id, side, laneIndex = 0, laneCount = 1) {
-    const laneT = laneCount <= 1 ? 0 : laneIndex / Math.max(1, laneCount - 1) * 2 - 1
-    const lane = laneT * SPAWN_LANE_HALF_WIDTH + this.rng.range(-2.4, 2.4)
-    let x = player.x
-    let z = player.z
-    if (side === 0) {
-      x -= this.rng.range(SPAWN_FRONTIER_X_MIN, SPAWN_FRONTIER_X_MAX)
-      z += lane
-    } else if (side === 1) {
-      x += this.rng.range(SPAWN_FRONTIER_X_MIN, SPAWN_FRONTIER_X_MAX)
-      z += lane
-    } else if (side === 2) {
-      x += lane
-      z -= this.rng.range(SPAWN_FRONTIER_FAR_Z_MIN, SPAWN_FRONTIER_FAR_Z_MAX)
-    } else {
-      x += lane
-      z += this.rng.range(SPAWN_FRONTIER_NEAR_Z_MIN, SPAWN_FRONTIER_NEAR_Z_MAX)
+  /**
+   * Spawn a non-wave group through the same elliptical off-screen ingress as
+   * ordinary packs. This is the only live-run entry point for POI guardians,
+   * elite detours and death-split brood; callers receive stable UIDs so story
+   * encounters can keep tracking the group without exposing screen positions.
+   */
+  spawnIngressGroup(entries, anchor = this.world.player, runTime = this.world.runTime, { onSpawn = null } = {}) {
+    const list = Array.isArray(entries) ? entries : []
+    if (list.length === 0 || this.count >= MAX_ENEMIES_2D) return []
+    const count = Math.min(list.length, MAX_ENEMIES_2D - this.count)
+    const primaryCount = Math.max(1, Math.round(count * ENEMY_PACK_PRIMARY_RATIO_2D))
+    const secondaryCount = Math.max(1, count - primaryCount)
+    this.spawnDirector.beginPulse()
+    const spawned = []
+    for (let n = 0; n < count; n++) {
+      const entry = list[n]
+      const primary = n < primaryCount
+      const laneIndex = primary ? n : n - primaryCount
+      const laneCount = primary ? primaryCount : secondaryCount
+      const point = this.spawnDirector.point(
+        anchor, laneIndex, laneCount, !primary, this._spawnPoint,
+      )
+      const enemyId = typeof entry === 'string' ? entry : entry?.id ?? entry?.enemyId ?? 'wisp'
+      const hpMul = typeof entry === 'string' ? 1 : entry?.hpMul ?? 1
+      const haste = typeof entry === 'string' ? 1 : entry?.haste ?? 1
+      const index = this.count
+      if (!this.spawn(enemyId, point.x, point.z, runTime, hpMul, haste)) continue
+      const uid = this.uid[index]
+      spawned.push(uid)
+      onSpawn?.(index, uid, entry)
     }
-    this.spawn(id, x, z, runTime)
+    return spawned
   }
 
   _spawnWave(dt, runTime, player) {
+    if (runTime < ENEMY_INGRESS_DELAY_SECONDS_2D) {
+      this.spawnTimer = 0
+      return
+    }
     this.spawnTimer -= dt
     if (this.spawnTimer > 0) return
     const wave = waveAt(runTime)
@@ -1165,33 +1256,26 @@ class EnemyField2D {
       ? FINAL_BOSS_WAVE_DENSITY_2D
       : activeBoss ? BOSS_WAVE_DENSITY_2D : 1
     const requested = Math.max(1, Math.round(
-      wave.perSpawn * TRIAL.density * encounterDensity
-        * (finalEncounter ? 1 : OFFSCREEN_INGRESS_DENSITY),
+      wave.perSpawn * TRIAL.density * encounterDensity,
     ))
-    const available = MAX_ENEMIES_2D - this.count
+    const populationBudget = enemyPopulationBudget2D(runTime, Boolean(activeBoss))
+    const available = Math.min(MAX_ENEMIES_2D, populationBudget) - this.count
     const count = Math.min(requested, available, 64)
+    if (count <= 0) return
     const types = rosterFor(this.world.stage, wave.types)
-    // A random pick can produce six identical actors even when a band declares
-    // three types. Rotate through the weighted roster so each pack has a clear
-    // visual composition while the seeded offset keeps successive packs varied.
-    const offset = this.rng.int(types.length)
-    const primarySide = this.rng.int(4)
-    const primaryCount = Math.max(1, Math.ceil(count * 0.72))
-    const secondaryCount = count - primaryCount
-    const secondarySide = (primarySide + (this.rng.chance(0.5) ? 1 : 3)) % 4
-    for (let n = 0; n < count; n++) {
-      const primary = n < primaryCount
-      const laneIndex = primary ? n : n - primaryCount
-      const laneCount = primary ? primaryCount : secondaryCount
-      this._spawnFromFrontier(
-        player,
-        runTime,
-        types[(offset + n) % types.length],
-        primary ? primarySide : secondarySide,
-        laneIndex,
-        laneCount,
-      )
-    }
+    // One pulse is one readable hunting party: a dominant silhouette on the
+    // main arc and, at most, one supporting silhouette on the adjacent arc.
+    // Cycling every body through the full roster made four unrelated asset
+    // families materialise together and destroyed the stage's visual identity.
+    // The first encounter is authored, not rolled: every new player meets
+    // fragile wisps supported by hounds before seeded pack variation begins.
+    // A random all-hound opener made otherwise identical fresh runs range from
+    // level one to level five before the first minute ended.
+    const offset = runTime < 30 ? 0 : this.rng.int(types.length)
+    const entries = Array.from({ length: count }, (_, n) => ({
+      id: enemyPackTypeAt2D(types, n, count, offset, ENEMY_PACK_PRIMARY_RATIO_2D),
+    }))
+    this.spawnIngressGroup(entries, player, runTime)
   }
 
   update(dt, runTime, player) {
@@ -1305,14 +1389,14 @@ class EnemyField2D {
       // Keep the horde dense without letting identical cut-outs occupy the
       // exact same pixels. The already-updated neighbours are in the spatial
       // hash, so this costs only the local crowd rather than an O(n²) pass.
-      const nearby = this.grid.query(this.x[i], this.z[i], 1.65, _query)
-      for (let q = 0; q < nearby && q < 12; q++) {
+      const nearby = this.grid.query(this.x[i], this.z[i], 2.15, _query)
+      for (let q = 0; q < nearby && q < 18; q++) {
         const j = _query[q]
         if (j >= i || this.dead[j]) continue
         let sx = this.x[i] - this.x[j]
         let sz = this.z[i] - this.z[j]
         let separation = Math.hypot(sx, sz)
-        const desired = Math.min(1.25, (this.radius[i] + this.radius[j]) * 0.72)
+        const desired = enemySeparationDistance2D(this.radius[i], this.radius[j])
         if (separation >= desired) continue
         if (separation < 0.001) {
           const angle = (this.uid[i] * 2.399963) % (Math.PI * 2)
@@ -1320,7 +1404,7 @@ class EnemyField2D {
           sz = Math.sin(angle)
           separation = 1
         }
-        const push = (desired - separation) * 0.34
+        const push = (desired - separation) * 0.52
         this.x[i] += (sx / separation) * push
         this.z[i] += (sz / separation) * push
       }
@@ -1586,23 +1670,20 @@ class EnemyField2D {
       if (i !== last) copyAt(this._fields, last, i)
     }
     for (const split of splits) {
-      for (let n = 0; n < split.count; n++) {
-        const angle = (n / split.count) * Math.PI * 2 + this.rng.range(-0.35, 0.35)
-        const index = this.count
-        if (!this.spawn(
-          split.id,
-          split.x + Math.cos(angle) * 0.7,
-          split.z + Math.sin(angle) * 0.7,
-          split.runTime,
-          0.32,
-          1.18,
-        )) continue
-        // Spawned brood do not recurse; they are smaller, faster cleanup
-        // threats that make the parent's death tactically distinct.
-        this.behavior[index] = 0
-        this.radius[index] *= 0.72
-        this.xp[index] *= 0.2
-      }
+      this.spawnIngressGroup(
+        Array.from({ length: split.count }, () => ({ id: split.id, hpMul: 0.32, haste: 1.18 })),
+        this.world.player,
+        split.runTime,
+        {
+          onSpawn: (index) => {
+            // Spawned brood do not recurse; they are smaller, faster cleanup
+            // threats that make the parent's death tactically distinct.
+            this.behavior[index] = 0
+            this.radius[index] *= 0.72
+            this.xp[index] *= 0.2
+          },
+        },
+      )
     }
   }
 
@@ -1629,7 +1710,10 @@ export class CombatWorld2D {
     this.shake = 0
     this.ended = false
     this.victory = false
-    this._pendingEnd = null
+    // A final boss result is published only after its authored death reaction
+    // has completed. This countdown is wall-time based rather than runTime
+    // based so the 420-second pacing clamp cannot freeze the death window.
+    this._pendingEndTimer = null
     this._daoTickComplete = false
     this._daoDashEvent = null
     this._daoTickIndex = 0
@@ -1669,6 +1753,10 @@ export class CombatWorld2D {
     this.weaponFields = new WeaponField2D(this)
     this.enemies = new EnemyField2D(this, rng)
     this.boss = null
+    // Screen-authored boss adds keep a reservation while their ground
+    // telegraph is visible. Ordinary waves, formations and POI groups use the
+    // shared off-screen ingress contract instead.
+    this._pendingBossSummon = null
     // Boss zones are simulation hazards, separate from renderer-only effects.
     // They retain the exact cast snapshot so a moving player is checked
     // against the same placement that was telegraphed.
@@ -2095,40 +2183,112 @@ export class CombatWorld2D {
     return actions
   }
 
-  _spawnBoss(id) {
+  _activateBossSpawn({ id, def, x, z, angle }) {
+    const hpScale = this.stage?.hpScale ?? 1
+    this.boss = {
+      active: true, def, x, z, prevX: x, prevZ: z,
+      hp: def.hp * TRIAL.hp * hpScale, maxHp: def.hp * TRIAL.hp * hpScale,
+      hitFlash: 0, hitCd: 0, attackCd: 1.8, castTimer: 0, castDuration: 0.58,
+      reactionState: null, reactionTimer: 0, reactionDuration: 0, reactionFacing: null,
+      pendingPattern: null, lastPattern: null, patternColor: def.color,
+      patternId: null, patternPhase: null, patternVowId: null, patternIntent: null,
+      audioEventIds: new Set(), hitAudioSequence: 0,
+      spawnedAt: this.runTime, phase: 0, reliefGateIndex: 0,
+      facing: Math.atan2(this.player.x - x, this.player.z - z),
+      castOriginX: null, castOriginZ: null, castTargetX: null, castTargetZ: null,
+      castAngle: null, castDirection: null, recoveryUntil: 0,
+    }
+    return this.boss
+  }
+
+  _beginBossReaction(boss, state) {
+    const actorId = boss?.def?.id === 'blueWolfKing' ? 'yorang' : boss?.def?.id
+    const actor = SPRITE_MANIFEST.actors[actorId]
+    const duration = bossReactionPresentationDuration2D(actor, state)
+    if (!(duration > 0)) {
+      if (boss) {
+        boss.reactionState = null
+        boss.reactionTimer = 0
+        boss.reactionDuration = 0
+        boss.reactionFacing = null
+      }
+      return 0
+    }
+    boss.reactionState = state
+    boss.reactionTimer = duration
+    boss.reactionDuration = duration
+    // A reaction is a one-shot authored read. Keep the direction that started
+    // it even if the simulation continues to update the live facing value.
+    boss.reactionFacing = Number.isFinite(boss.facing) ? boss.facing : 0
+    return duration
+  }
+
+  _spawnBoss(id, { telegraph = false } = {}) {
     const def = BOSS_DEFS[id]
-    if (!def || this.boss?.active) return false
+    if (!def || this.boss?.active || this.boss?.reactionState || this._pendingBossSummon) return false
     this.bossZoneFields.length = 0
     if (id === this.finalBossId) {
       // The final boss must enter as a legible encounter, not underneath the
-      // accumulated 330-second crowd and its old bullets.
+      // accumulated 330-second crowd and its old bullets. Reserve that clean
+      // space when the telegraph starts, before the activation beat lands.
       this.enemies.purgeOnScreen(this.player)
       this.flushEnemyDeaths({ pending: true })
       this.projectiles.clearHostile()
       this.player.invulnTimer = Math.max(this.player.invulnTimer, 2)
     }
     const angle = this.rng.angle()
-    const hpScale = this.stage?.hpScale ?? 1
-    this.boss = {
-      active: true, def, x: this.player.x + Math.cos(angle) * 16, z: this.player.z + Math.sin(angle) * 16,
-      prevX: this.player.x + Math.cos(angle) * 16, prevZ: this.player.z + Math.sin(angle) * 16,
-      hp: def.hp * TRIAL.hp * hpScale, maxHp: def.hp * TRIAL.hp * hpScale,
-      hitFlash: 0, hitCd: 0, attackCd: 1.8, castTimer: 0, castDuration: 0.58,
-      pendingPattern: null, lastPattern: null, patternColor: def.color,
-      patternId: null, patternPhase: null, patternVowId: null, patternIntent: null,
-      audioEventIds: new Set(), hitAudioSequence: 0,
-      spawnedAt: this.runTime, phase: 0, reliefGateIndex: 0,
-      facing: Math.atan2(this.player.x - (this.player.x + Math.cos(angle) * 16), this.player.z - (this.player.z + Math.sin(angle) * 16)),
-      castOriginX: null, castOriginZ: null, castTargetX: null, castTargetZ: null,
-      castAngle: null, castDirection: null, recoveryUntil: 0,
+    const x = this.player.x + Math.cos(angle) * 16
+    const z = this.player.z + Math.sin(angle) * 16
+    if (telegraph) {
+      this._pendingBossSummon = {
+        id, def, x, z, angle,
+        activateAt: this.runTime + SCREEN_SUMMON_TELEGRAPH_SECONDS_2D,
+      }
+      this.effects.spawn(
+        EFFECT_KIND.ring, x, z, SCREEN_SUMMON_TELEGRAPH_SECONDS_2D + 0.08, 5.5, def.color,
+      )
+      this.onBossWarning?.(def, {
+        final: id === this.finalBossId,
+        telegraph: true,
+        telegraphSeconds: SCREEN_SUMMON_TELEGRAPH_SECONDS_2D,
+      })
+      return true
     }
-    this.effects.spawn(EFFECT_KIND.ring, this.boss.x, this.boss.z, 0.9, 5.5, def.color)
+    this._activateBossSpawn({ id, def, x, z, angle })
+    this.effects.spawn(EFFECT_KIND.ring, x, z, 0.9, 5.5, def.color)
     this.onBossWarning?.(def, { final: id === this.finalBossId })
     return true
   }
 
+  _activatePendingBossSummon() {
+    const pending = this._pendingBossSummon
+    if (this.boss?.reactionState) return false
+    if (!pending || this.runTime + 1e-6 < pending.activateAt) return false
+    const dx = pending.x - this.player.x
+    const dz = pending.z - this.player.z
+    const distance = Math.hypot(dx, dz)
+    const minimum = pending.def.radius + SCREEN_SUMMON_MIN_CLEARANCE_2D
+    if (distance < minimum) {
+      const angle = distance > 0.001 ? Math.atan2(dz, dx) : pending.angle
+      pending.x = this.player.x + Math.cos(angle) * minimum
+      pending.z = this.player.z + Math.sin(angle) * minimum
+    }
+    this._pendingBossSummon = null
+    this._activateBossSpawn(pending)
+    // The long-lived ring is the ground telegraph. A short second pulse marks
+    // the exact activation frame without hiding the preceding warning.
+    this.effects.spawn(EFFECT_KIND.ring, pending.x, pending.z, 0.22, 5.5, pending.def.color)
+    return true
+  }
+
+  /** Manual/QA spawns retain their direct API; live scheduled routes call the
+   * explicit telegraphed variant below. */
   spawnBoss(id = 'jadeVoidWarden') {
     return this._spawnBoss(id)
+  }
+
+  spawnBossTelegraphed(id = 'jadeVoidWarden') {
+    return this._spawnBoss(id, { telegraph: true })
   }
 
   damageBoss(rawDamage, tag, context = null) {
@@ -2161,10 +2321,12 @@ export class CombatWorld2D {
     // the weapon's shield/impact feedback. It is not an actual boss hit, so do
     // not teach the player that damage landed when `appliedDamage` is zero.
     if (appliedDamage > 0) {
+      this._beginBossReaction(boss, 'hurt')
       this._emitBossAudio('hit', boss, null, { damage: appliedDamage, crit: result.crit })
     }
     if (boss.hp > 0) return
     boss.hp = 0
+    const deathPresentationDuration = this._beginBossReaction(boss, 'death')
     boss.active = false
     this.bossZoneFields.length = 0
     this.runStats.bossKills++
@@ -2189,18 +2351,15 @@ export class CombatWorld2D {
     if (boss.def.id === this.finalBossId) {
       this.victory = true
       if (scheduledFinal && this.runTime < RUN_SECONDS_2D) {
-        // The authored record challenge ends at its fixed judgment boundary. Once the judge has defeated
-        // the final boss, make the brief remaining beat a safe victory lap
-        // instead of allowing a stray horde projectile to steal the result.
+        // Keep the existing safe victory-lap protection for the scheduled
+        // contest route, but publish the result after the death presentation
+        // instead of waiting for the hard pacing boundary.
         this.player.invulnTimer = Math.max(
           this.player.invulnTimer,
           RUN_SECONDS_2D - this.runTime + 0.25,
         )
-      } else {
-        // Manual QA spawns and an edge-case kill on the boundary still resolve
-        // immediately; only the scheduled contest encounter waits for judgment.
-        this._pendingEnd = true
       }
+      this._pendingEndTimer = deathPresentationDuration
     }
   }
 
@@ -2242,18 +2401,28 @@ export class CombatWorld2D {
   }
 
   _updateBoss(dt) {
+    this._activatePendingBossSummon()
     this._updateBossZoneFields()
     for (const entry of this.bossSchedule) {
       const scheduleKey = `${entry.slot}:${entry.id}`
       if (this.runTime >= entry.t && !this.spawnedBosses.has(scheduleKey)) {
-        // Only consume a schedule entry after a boss really entered the world.
+        // Consume a schedule entry once its telegraph reservation is accepted.
         // If the mid-boss is still alive at the final threshold, the final boss
         // remains pending and is retried on the next fixed tick after the slot
         // becomes available.
-        if (this._spawnBoss(entry.id)) this.spawnedBosses.add(scheduleKey)
+        if (this._spawnBoss(entry.id, { telegraph: true })) this.spawnedBosses.add(scheduleKey)
       }
     }
     const boss = this.boss
+    if (boss?.reactionState) {
+      boss.reactionTimer = Math.max(0, boss.reactionTimer - Math.max(0, Number(dt) || 0))
+      if (boss.reactionTimer <= 0) {
+        boss.reactionState = null
+        boss.reactionDuration = 0
+        boss.reactionFacing = null
+      }
+    }
+    if (boss) boss.hitFlash = Math.max(0, boss.hitFlash - Math.max(0, Number(dt) || 0))
     if (!boss?.active) return
     const scheduledFinal = boss.def.id === this.finalBossId && boss.spawnedAt >= 330 - 1e-6
     if (scheduledFinal) {
@@ -2278,7 +2447,6 @@ export class CombatWorld2D {
     }
     boss.prevX = boss.x
     boss.prevZ = boss.z
-    boss.hitFlash = Math.max(0, boss.hitFlash - dt)
     boss.castTimer = Math.max(0, boss.castTimer - dt)
     boss.hitCd = Math.max(0, boss.hitCd - dt)
     if (!boss.pendingPattern) boss.attackCd -= dt
@@ -2536,19 +2704,49 @@ export class CombatWorld2D {
   }
 
   _spawnFormation(event) {
-    if (!event || !this.formations || MAX_ENEMIES_2D - this.enemies.count < event.count) return false
+    if (!event || !this.formations) return false
     // A scheduled formation that lands during the final duel would compete
     // with the boss telegraph and safe-space language. Acknowledge it without
     // spawning; ambient adds continue at the bounded final-encounter density.
     if (this.boss?.active && this.boss.def.id === this.finalBossId) return true
+    if (MAX_ENEMIES_2D - this.enemies.count < event.count) return false
+    // Keep the authored ring/wall/pincer geometry rigid, but translate the
+    // whole set-piece to one off-screen ingress side. The director sizes the
+    // translation from the actual enemy speed, so the closest member remains
+    // outside the projected envelope for at least the 0.8s arrival contract.
+    const definition = getEnemy(event.type)
+    const transform = formationIngressTransform2D(
+      event,
+      this.player,
+      {
+        speed: (definition?.speed ?? 1) * TRIAL.speed * Math.max(0.001, event.haste ?? 1),
+      },
+    )
     let spawned = 0
-    this.formations.forEachMember(event, (_index, x, z) => {
-      if (this.enemies.spawn(event.type, x, z, this.runTime, 1, event.haste)) spawned++
-    })
+    for (const point of transform.points) {
+      if (this.enemies.spawn(event.type, point.x, point.z, this.runTime, 1, event.haste)) spawned++
+    }
     if (spawned !== event.count) return false
     this.runStats.formations = (this.runStats.formations ?? 0) + 1
-    this.effects.spawn(EFFECT_KIND.ring, event.centerX, event.centerZ, 0.9, event.radius, 0xf2c76f)
-    this.onFormation?.(event)
+    const warning = formationIngressWarning2D(event, transform)
+    // Preserve every authored event field while exposing the actual ingress
+    // carrier and its visible directional warning to existing callbacks.
+    const ingress = Object.freeze({
+      side: transform.side,
+      rotation: transform.rotation,
+      anchorX: transform.anchorX,
+      anchorZ: transform.anchorZ,
+      carrierX: transform.centerX,
+      carrierZ: transform.centerZ,
+      arrivalSeconds: transform.arrivalSeconds,
+      warningX: warning.x,
+      warningZ: warning.z,
+      warningRadius: warning.radius,
+      warning,
+    })
+    const callbackEvent = Object.freeze({ ...event, ingress })
+    this.effects.spawn(EFFECT_KIND.ring, warning.x, warning.z, 0.9, warning.radius, 0xf2c76f)
+    this.onFormation?.(callbackEvent, ingress)
     return true
   }
 
@@ -2824,6 +3022,9 @@ export class CombatWorld2D {
     // result must use that same authoritative boundary even when a render tick
     // crosses it (for example 419.999 -> 420.0167).
     if (hardTimeout) this.runTime = RUN_SECONDS_2D
+    if (this._pendingEndTimer !== null) {
+      this._pendingEndTimer = Math.max(0, this._pendingEndTimer - Math.max(0, Number(dt) || 0))
+    }
     if (hardTimeout && this.boss?.active && this.boss.def.id === this.finalBossId) {
       // A build that entered and survived the full three-phase mirror has
       // cleared this authored survival challenge. The previous strict HP
@@ -2832,16 +3033,18 @@ export class CombatWorld2D {
       const finalPhaseReached = this.boss.phase >= 2
         || this.boss.hp / Math.max(1, this.boss.maxHp) <= 0.36
       if (finalPhaseReached) {
-        this.boss.hp = 0
-        this.boss.active = false
+        const boss = this.boss
+        boss.hp = 0
+        const deathPresentationDuration = this._beginBossReaction(boss, 'death')
+        boss.active = false
         this.bossZoneFields.length = 0
         this.runStats.bossKills++
         this.victory = true
-        this.player.invulnTimer = Math.max(this.player.invulnTimer, 0.25)
+        this.player.invulnTimer = Math.max(this.player.invulnTimer, deathPresentationDuration, 0.25)
         this.projectiles.clearHostile()
-        this.effects.spawn(EFFECT_KIND.death, this.boss.x, this.boss.z, 1, 6, this.boss.def.color)
-        this._emitBossAudio('death', this.boss, null, { damage: 0, crit: false })
-        this._pendingEnd = true
+        this.effects.spawn(EFFECT_KIND.death, boss.x, boss.z, 1, 6, boss.def.color)
+        this._emitBossAudio('death', boss, null, { damage: 0, crit: false })
+        this._pendingEndTimer = deathPresentationDuration
       }
     }
     this.shake = Math.max(0, this.shake - dt * 2.8)
@@ -2859,8 +3062,9 @@ export class CombatWorld2D {
       this.onLevels?.(levels)
     }, (pickup) => this._daoPickupEvents.push(pickup))
     this.effects.update(dt)
-    const requestedEnd = this._pendingEnd
-      ?? (!this.player.alive
+    const requestedEnd = this._pendingEndTimer !== null
+      ? this._pendingEndTimer <= 1e-6 ? this.victory : null
+      : (!this.player.alive
         ? this.player.deathTimer <= 0 ? false : null
         : hardTimeout ? this.victory : null)
     this._runDaoFixedTick({ runEnded: requestedEnd !== null })
@@ -2879,7 +3083,7 @@ export class CombatWorld2D {
     }
     this.ended = true
     this.victory = victory
-    this._pendingEnd = null
+    this._pendingEndTimer = null
     this.onEnd?.(victory)
   }
 

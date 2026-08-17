@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { iconFor } from '../src/ui/icons.js'
+import { META_UPGRADES } from '../src/data/metaUpgrades.js'
 import { DAO_ICON_IDS_2D } from '../src/runtime2d/Game2D.js'
 import { ENEMIES } from '../src/data/enemies.js'
 import { BOSSES } from '../src/data/bosses.js'
@@ -62,7 +63,18 @@ describe('release choice icon identity', () => {
   it('keeps permanent shop groups semantically distinct and retires snowflake', () => {
     expect(new Set(['vitality', 'mending', 'revive'].map(iconFor)).size).toBe(3)
     expect(new Set(['fortune', 'insightRoll'].map(iconFor)).size).toBe(2)
+    expect(iconFor('stones')).toContain('assets/ui/skill-icons-v2/spirit-stones.webp')
+    expect(iconFor('fortune')).toContain('assets/ui/skill-icons-v1/vajra.webp')
+    expect(iconFor('stones')).not.toBe(iconFor('fortune'))
     expect(iconFor('snowflake')).toBe(iconFor('frost'))
+  })
+
+  it('gives all 12 permanent upgrades different authored silhouettes', () => {
+    const ids = META_UPGRADES.map((upgrade) => upgrade.id)
+    const urls = ids.map(iconFor)
+    expect(ids).toHaveLength(12)
+    expect(new Set(urls)).toHaveLength(12)
+    expect(urls.every((url) => url.includes('assets/ui/skill-icons-v1/'))).toBe(true)
   })
 
   it('provides a non-empty codex description for every creature entry', () => {

@@ -1,4 +1,11 @@
 import { iconFor } from './icons.js'
+import {
+  assetUrl,
+  blurOwnedFocus,
+  focusElement,
+  isButtonTarget,
+  UI_DIRECTIONS,
+} from './domPrimitives.js'
 import { getWeapon } from '../data/weapons.js'
 import { isReleasePlayableCharacter } from '../data/characters.js'
 import { unlockCost } from '../data/unlocks.js'
@@ -19,7 +26,7 @@ const STAGE_PRESENTATION = Object.freeze({
     kind: '비경 실경',
     image: 'assets/ui/stage-thumbnails-v1/jade.webp',
     emblem: 'assets/ui/skill-icons-v1/bagua-array.webp',
-    overlay: 'linear-gradient(180deg, rgba(5, 20, 27, 0.06), rgba(3, 11, 16, 0.88))',
+    overlay: 'linear-gradient(180deg, rgba(23, 59, 60, 0.08), rgba(11, 27, 32, 0.90))',
     position: 'center',
     accent: '#7fe2c3',
   },
@@ -29,7 +36,7 @@ const STAGE_PRESENTATION = Object.freeze({
     kind: '비경 실경',
     image: 'assets/ui/stage-thumbnails-v1/ember.webp',
     emblem: 'assets/ui/skill-icons-v1/fire-talisman.webp',
-    overlay: 'linear-gradient(180deg, rgba(72, 13, 5, 0.04), rgba(19, 4, 3, 0.86))',
+    overlay: 'linear-gradient(180deg, rgba(111, 32, 27, 0.06), rgba(11, 27, 32, 0.90))',
     position: 'center',
     accent: '#ff9a63',
   },
@@ -39,41 +46,14 @@ const STAGE_PRESENTATION = Object.freeze({
     kind: '비경 실경',
     image: 'assets/ui/stage-thumbnails-v1/frost.webp',
     emblem: 'assets/ui/skill-icons-v1/frost-palm.webp',
-    overlay: 'linear-gradient(180deg, rgba(8, 23, 43, 0.04), rgba(4, 10, 23, 0.88))',
+    overlay: 'linear-gradient(180deg, rgba(23, 59, 60, 0.06), rgba(11, 27, 32, 0.90))',
     position: 'center',
     accent: '#b9eaff',
   },
 })
 
-function assetUrl(path) {
-  const base = import.meta.env?.BASE_URL ?? '/'
-  const prefix = base.endsWith('/') ? base : `${base}/`
-  return `${prefix}${String(path).replace(/^\/+/, '')}`
-}
-
 function stagePresentation(stage) {
   return STAGE_PRESENTATION[stage?.id] ?? STAGE_PRESENTATION.jade
-}
-
-const UI_DIRECTIONS = new Map([
-  ['ArrowLeft', -1], ['ArrowUp', -1], ['KeyA', -1], ['KeyW', -1],
-  ['ArrowRight', 1], ['ArrowDown', 1], ['KeyD', 1], ['KeyS', 1],
-])
-
-function focusElement(element) {
-  element?.focus?.({ preventScroll: true })
-}
-
-function isButtonTarget(target) {
-  const element = target?.closest?.('button,[role="button"]') ?? target
-  const tag = String(element?.tagName ?? element?.nodeName ?? '').toLowerCase()
-  return tag === 'button' || element?.getAttribute?.('role') === 'button'
-}
-
-function blurOwnedFocus(node) {
-  if (typeof document === 'undefined') return
-  const active = document.activeElement
-  if (active && (active === node || node.contains?.(active))) active.blur?.()
 }
 
 /**
@@ -383,7 +363,7 @@ export class TitleScreen {
       const portrait = card.querySelector('.char-portrait')
       const artLabel = card.querySelector('.char-art-kind')
       if (c.id === 'seolryeong') {
-        portrait.style.backgroundImage = `linear-gradient(180deg, rgba(18, 42, 60, 0.05), rgba(3, 10, 17, 0.68)), url("${assetUrl(SEOLRYEONG_ART)}")`
+        portrait.style.backgroundImage = `linear-gradient(180deg, rgba(23, 59, 60, 0.08), rgba(11, 27, 32, 0.72)), url("${assetUrl(SEOLRYEONG_ART)}")`
         portrait.style.backgroundSize = 'cover, auto 126%'
         portrait.style.backgroundPosition = 'center, center 8%'
         portrait.setAttribute('aria-label', `${c.name}의 실제 전투 외형`)
@@ -393,7 +373,7 @@ export class TitleScreen {
         // palette-derived face seal is honest progression art; an enemy or the
         // hero duplicated into these slots would promise a character that does
         // not exist.
-        portrait.style.backgroundImage = `url("${iconFor(c.id)}"), radial-gradient(circle at 50% 42%, rgba(255,255,255,.12), rgba(5,10,17,.86) 72%)`
+        portrait.style.backgroundImage = `url("${iconFor(c.id)}"), radial-gradient(circle at 50% 42%, rgba(139, 191, 168, .12), rgba(11, 27, 32, .88) 72%)`
         portrait.style.backgroundSize = '56% auto, cover'
         portrait.style.backgroundPosition = 'center, center'
         portrait.setAttribute('aria-label', `${c.name}의 도가 인장. 실제 초상은 봉인 상태`)
@@ -421,8 +401,8 @@ export class TitleScreen {
     const menuView = view === 'menu'
     const image = assetUrl(TITLE_ART)
     this.node.style.backgroundImage = menuView
-      ? `linear-gradient(180deg, rgba(244, 239, 220, 0.02), rgba(14, 13, 11, 0.10)), url("${image}")`
-      : `linear-gradient(90deg, rgba(232, 224, 204, 0.94), rgba(232, 224, 204, 0.82) 58%, rgba(232, 224, 204, 0.38)), url("${image}")`
+      ? `linear-gradient(180deg, rgba(139, 191, 168, 0.04), rgba(11, 27, 32, 0.16)), url("${image}")`
+      : `linear-gradient(90deg, rgba(11, 27, 32, 0.96), rgba(11, 27, 32, 0.90) 58%, rgba(11, 27, 32, 0.68)), url("${image}")`
     this.node.style.backgroundPosition = 'center, center'
     this.node.style.backgroundSize = 'cover, cover'
     this.node.style.backgroundRepeat = 'no-repeat, no-repeat'
@@ -703,7 +683,7 @@ export class TitleScreen {
     const legacy = chapter
       ? journeyLegacyFor(chapter, this.progress.journeyDecisions?.(chapter.id))
       : null
-    this.confirmVisual.style.backgroundImage = `linear-gradient(90deg, rgba(3, 10, 17, 0.88), rgba(3, 9, 15, 0.20) 66%, rgba(3, 8, 14, 0.48)), url("${assetUrl(presentation.image)}")`
+    this.confirmVisual.style.backgroundImage = `linear-gradient(90deg, rgba(11, 27, 32, 0.90), rgba(11, 27, 32, 0.20) 66%, rgba(11, 27, 32, 0.54)), url("${assetUrl(presentation.image)}")`
     this.confirmVisual.style.backgroundSize = 'cover, cover'
     this.confirmVisual.style.backgroundPosition = `center, ${presentation.position}`
     this.confirmVisual.style.backgroundRepeat = 'no-repeat, no-repeat'
@@ -771,13 +751,15 @@ export class TitleScreen {
       // trigger another render-target bake for the hero.
       if (c.id === 'seolryeong') {
         const base = import.meta.env?.BASE_URL ?? '/'
-        const latest = `${base}assets/characters/seolryeong-character-reference-v3.webp`
-        const legacy = `${base}assets/characters/seolryeong-character-reference-v2.webp`
-        // Keep the previous approved portrait as a real CSS fallback while the
-        // new v3 reference is being fetched on a cold cache.
-        c.portrait.style.backgroundImage = `url(${latest}), url(${legacy})`
-        c.portrait.style.backgroundSize = 'auto 170%, auto 170%'
-        c.portrait.style.backgroundPosition = 'center 22%, center 22%'
+        const canonical = `${base}assets/characters/seolryeong-character-reference-v3.webp`
+        // Manifest-retained legacy reference (never rendered):
+        // assets/characters/seolryeong-character-reference-v2.webp
+        // v2 is a legacy identity with different hair, ornaments, and costume.
+        // Do not show it during a cold-cache load: the roster must have one
+        // canonical Seolryeong identity instead of swapping portraits.
+        c.portrait.style.backgroundImage = `url(${canonical})`
+        c.portrait.style.backgroundSize = 'auto 170%'
+        c.portrait.style.backgroundPosition = 'center 22%'
         c.portrait.classList.add('imagegen-reference')
         c.artLabel.textContent = '공식 초상'
         c.portrait.setAttribute('aria-label', `${c.character.name}의 공식 수사 초상`)

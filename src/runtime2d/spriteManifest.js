@@ -11,9 +11,11 @@ export const SPRITE_MANIFEST = Object.freeze({
     seolryeong: Object.freeze({
       url: `${base}assets/sprites2d/seolryeong-heroine-southeast-motion-v4.webp`,
       portraitUrl: `${base}assets/sprites2d/seolryeong-combat-v1.webp`,
-      // Five runtime directions share one identity and one 16-frame contract:
-      // eight grounded run poses followed by eight sword-attack poses.
-      // Approval remains pending until original-size play review is complete.
+       // Five runtime directions share one identity and one 16-frame contract:
+       // eight grounded run poses followed by eight sword-attack poses. The
+       // neutral frame is direction-specific because the authored attack
+       // recovery does not return to the same standing pose in every view.
+       // Approval remains pending until original-size play review is complete.
       directionalRuntime: Object.freeze({
         east: Object.freeze({
           url: `${base}assets/sprites2d/seolryeong-heroine-east-motion-v4.webp`,
@@ -41,13 +43,23 @@ export const SPRITE_MANIFEST = Object.freeze({
       }),
       cell: [384, 256], sheet: [4, 4], pivot: [0.5, 242 / 256], runtimeHeight: 140,
       reactionCell: [384, 256], reactionSheet: [4, 2], reactionPivot: [0.5, 244 / 256],
-      directions: ['s', 'se', 'e', 'ne', 'n'], mirrorWest: true,
-      animations: Object.freeze({
-        idle: [0],
-        run: [0, 1, 2, 3, 4, 5, 6, 7],
-        attack: [8, 9, 10, 11, 12, 13, 14, 15],
-        dash: [2, 3, 4, 5],
-      }),
+       directions: ['s', 'se', 'e', 'ne', 'n'], mirrorWest: true,
+       animations: Object.freeze({
+         // Southeast is the base runtime atlas, so keep its neutral recovery
+         // pose as the legacy shared fallback. Pixi uses the map below for all
+         // canonical directions instead of treating stride frame 0 as idle.
+         idle: [15],
+         run: [0, 1, 2, 3, 4, 5, 6, 7],
+         attack: [8, 9, 10, 11, 12, 13, 14, 15],
+         dash: [2, 3, 4, 5],
+       }),
+       idleFramesByDirection: Object.freeze({
+         n: Object.freeze([8]),
+         ne: Object.freeze([15]),
+         e: Object.freeze([15]),
+         se: Object.freeze([15]),
+         s: Object.freeze([8]),
+       }),
       reactionAnimations: Object.freeze({
         idle: [0, 1], hurt: [2, 3], death: [4, 5, 6, 7],
       }),
@@ -84,6 +96,10 @@ export const SPRITE_MANIFEST = Object.freeze({
       directions: ['sw'], mirrorWest: true,
       animations: Object.freeze({ walk: [0, 1, 2, 3], attack: [4, 5, 6, 7] }),
       reactionAnimations: Object.freeze({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] }),
+      reactionTiming: Object.freeze({
+        hurt: Object.freeze({ fps: 12, loop: false, holdLast: false }),
+        death: Object.freeze({ fps: 10, loop: false, holdLast: true }),
+      }),
       animationMode: 'authored-frames', ...pending,
     }),
     jadeRidgeHound: Object.freeze({
@@ -164,14 +180,17 @@ export const SPRITE_MANIFEST = Object.freeze({
     talismanRevenant: Object.freeze({
       url: `${base}assets/sprites2d/talisman-revenant-motion-v1.webp`,
       cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.88], runtimeHeight: 86,
-      directions: ['sw'], mirrorWest: true,
+      // The authored seal talisman attacks toward screen-right (SE). Keeping
+      // the old SW baseline mirrored every westward move into a backwards
+      // stride, which was especially obvious during cast/contact frames.
+      directions: ['se'], mirrorWest: true,
       animations: Object.freeze({ hover: [0, 1, 2, 3], cast: [4, 5, 6, 7] }),
       animationMode: 'authored-frames', ...pending,
     }),
     maskedSealRevenant: Object.freeze({
       url: `${base}assets/sprites2d/masked-seal-revenant-motion-v1.webp`,
       cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.87], runtimeHeight: 88,
-      directions: ['sw'], mirrorWest: true,
+      directions: ['se'], mirrorWest: true,
       animations: Object.freeze({ hover: [0, 1, 2, 3], cast: [4, 5, 6, 7] }),
       animationMode: 'authored-frames', ...pending,
     }),
@@ -194,6 +213,21 @@ export const SPRITE_MANIFEST = Object.freeze({
       cell: [256, 256], sheet: [4, 2], pivot: [0.5, 0.92], runtimeHeight: 220,
       directions: ['se'], mirrorWest: true,
       animations: Object.freeze({ idle: [0, 1, 2, 3], cast: [4, 5, 6, 7] }),
+      // Reaction atlas is a separate 4x2 sheet: frames 0-1 are hurt recoil;
+      // frames 2-7 are the progressive death collapse. It must never fall
+      // back to the idle/cast motion atlas above.
+      reactionRuntime: Object.freeze({
+        default: Object.freeze({
+          url: `${base}assets/sprites2d/jade-void-warden-reaction-v1.webp`,
+          status: 'runtime-candidate',
+        }),
+      }),
+      reactionCell: [256, 256], reactionSheet: [4, 2], reactionPivot: [0.5, 232 / 256],
+      reactionAnimations: Object.freeze({ hurt: [0, 1], death: [2, 3, 4, 5, 6, 7] }),
+      reactionTiming: Object.freeze({
+        hurt: Object.freeze({ fps: 12, loop: false, holdLast: false }),
+        death: Object.freeze({ fps: 10, loop: false, holdLast: true }),
+      }),
       animationMode: 'authored-frames', ...pending,
     }),
   }),
@@ -230,6 +264,18 @@ export function validateSpriteManifest(manifest = SPRITE_MANIFEST) {
         errors.push(`${id}.${name}: frame out of range`)
       }
     }
+    if (actor.idleFramesByDirection) {
+      for (const direction of actor.directions ?? []) {
+        const frames = actor.idleFramesByDirection[direction]
+        if (!Array.isArray(frames) || frames.length === 0) {
+          errors.push(`${id}.idle.${direction}: empty direction frame set`)
+          continue
+        }
+        if (frames.some((frame) => !Number.isInteger(frame) || frame < 0 || frame >= frameCount)) {
+          errors.push(`${id}.idle.${direction}: frame out of range`)
+        }
+      }
+    }
     if (actor.reactionRuntime) {
       const reactionColumns = actor.reactionSheet?.[0]
       const reactionRows = actor.reactionSheet?.[1]
@@ -258,6 +304,13 @@ export function validateSpriteManifest(manifest = SPRITE_MANIFEST) {
         if (frames.some((frame) => !Number.isInteger(frame) || frame < 0 || frame >= reactionFrameCount)) {
           errors.push(`${id}.reaction.${name}: frame out of range`)
         }
+      }
+      for (const [name, timing] of Object.entries(actor.reactionTiming ?? {})) {
+        if (!timing || !Number.isFinite(timing.fps) || timing.fps <= 0) {
+          errors.push(`${id}.reactionTiming.${name}: invalid fps`)
+        }
+        if (timing?.loop !== false) errors.push(`${id}.reactionTiming.${name}: reaction clips must not loop`)
+        if (typeof timing?.holdLast !== 'boolean') errors.push(`${id}.reactionTiming.${name}: holdLast must be boolean`)
       }
     }
     if (actor.productionReady === true && actor.visualApproval !== 'approved') {

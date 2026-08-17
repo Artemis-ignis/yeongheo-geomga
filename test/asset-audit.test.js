@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { validateAuthoringPipelines, validateManifestData } from '../tools/asset-audit.mjs'
 
@@ -136,5 +137,38 @@ describe('authoring pipeline manifest', () => {
       expect.stringContaining('undeclared runtime output'),
       expect.stringContaining('authoring source must map exactly once'),
     ]))
+  })
+
+  it('keeps the Jade Void Warden reaction source and runtime as one declared pipeline', () => {
+    const manifest = JSON.parse(readFileSync(new URL('../tools/asset-manifest.json', import.meta.url), 'utf8'))
+    const authoring = JSON.parse(readFileSync(new URL('../tools/yeongheo/sprite-authoring-manifest.json', import.meta.url), 'utf8'))
+    const runtime = manifest.assets.find((asset) => asset.path === 'public/assets/sprites2d/jade-void-warden-reaction-v1.webp')
+    const source = manifest.assets.find((asset) => asset.path === 'assets-source/sprites2d/jade-void-warden-reaction-sheet-v1.png')
+    const pipeline = authoring.pipelines.find((entry) => entry.actor === 'jade-void-warden-reaction')
+
+    expect(runtime).toMatchObject({
+      id: 'sprite2d.jade-void-warden.reaction.v1',
+      role: 'runtime-2d-boss-reaction-atlas',
+      tier: 'boss',
+      consumers: ['src/runtime2d/spriteManifest.js'],
+    })
+    expect(source).toMatchObject({
+      id: 'sprite2d.source.jade-void-warden.reaction.v1',
+      role: 'authoring-2d-boss-reaction-sheet',
+      tier: 'authoring',
+      consumers: ['tools/yeongheo/sprite-authoring-manifest.json'],
+    })
+    expect(pipeline).toEqual({
+      actor: 'jade-void-warden-reaction',
+      source: 'jade-void-warden-reaction-sheet-v1.png',
+      outputs: ['jade-void-warden-reaction-v1.webp'],
+    })
+    expect(validateAuthoringPipelines({
+      ...manifest,
+      assets: [runtime, source],
+    }, {
+      ...authoring,
+      pipelines: [pipeline],
+    })).toMatchObject({ ok: true, pipelineCount: 1 })
   })
 })

@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   PixiPresentation,
+  REALM_ART_DIRECTION_2D,
   actorMirrorForFacing2D,
+  enemyDirectionFor2D,
   directionalEnemyFrames2D,
   directionalEnemyReactionFrames2D,
   enemyDirectionalTextureKey2D,
+  enemyLocomotionFrameIndex2D,
+  enemyMotionActive2D,
   enemyReactionFrameIndex2D,
   enemyReactionTextureKey2D,
   COMBAT_HORIZON_PRESENTATION_2D,
@@ -26,11 +30,19 @@ import {
   pickupVisualAlpha2D,
   pickupVisualScale2D,
   heroDirectionFor,
+  heroIdleFrames2D,
   heroAnimationFrameIndex2D,
+  heroGroundingHeight2D,
   heroGroundedRunFrames2D,
+  heroMotionActive2D,
+  heroReactionState2D,
+  heroReactionFootPivot2D,
+  heroReactionPresentationScale2D,
   directionalHeroFrames,
   directionalHeroReactionFrames,
   heroReactionFrameIndex2D,
+  bossReactionFrameIndex2D,
+  JADE_VOID_WARDEN_REACTION_ATLAS_2D,
   bossCombatHeight2D,
   heroCombatHeight2D,
   heroSlashPresentation2D,
@@ -51,7 +63,12 @@ import {
   resolveEnemyIntentPresentation2D,
   wispThreatRotation2D,
   jadeRegionTextureIndex2D,
+  mapPropPoolDiagnostic,
   mapDecalTextureIndex2D,
+  nativeRenderResolution2D,
+  ACTOR_TEXTURE_RENDER_CONTRACT_2D,
+  configureActorTexture2D,
+  configureActorSprite2D,
 } from '../src/runtime2d/PixiPresentation.js'
 import {
   HERO_DEATH_REACTION_SECONDS_2D,
@@ -79,6 +96,37 @@ function fakePool(count) {
 }
 
 describe('PixiPresentation combat bindings', () => {
+  it('keeps native display density while automatic quality trims effects', () => {
+    expect(nativeRenderResolution2D(1, 1)).toBe(1)
+    expect(nativeRenderResolution2D(0.85, 1)).toBe(1)
+    expect(nativeRenderResolution2D(1, 1.5)).toBe(1.5)
+    expect(nativeRenderResolution2D(0.85, 2)).toBeCloseTo(1.7)
+    expect(nativeRenderResolution2D(1, 3)).toBe(2)
+  })
+
+  it('pins actor sampling to native linear pixels without implicit mipmaps', () => {
+    expect(ACTOR_TEXTURE_RENDER_CONTRACT_2D).toMatchObject({
+      scaleMode: 'linear', autoGenerateMipmaps: false, mipmaps: 'disabled', roundPixels: true,
+    })
+    const source = { scaleMode: 'nearest', autoGenerateMipmaps: true }
+    const texture = { source }
+    expect(configureActorTexture2D(texture)).toBe(texture)
+    expect(source).toMatchObject({ scaleMode: 'linear', autoGenerateMipmaps: false })
+    const sprite = {}
+    expect(configureActorSprite2D(sprite)).toBe(sprite)
+    expect(sprite.roundPixels).toBe(true)
+  })
+
+  it('uses one explicit ink-jade grade at the Pixi scene boundary', () => {
+    expect(REALM_ART_DIRECTION_2D).toMatchObject({
+      treatment: 'ink-jade-unified-grade',
+      saturation: -0.2,
+      contrast: 0.05,
+      brightness: 1.04,
+    })
+    expect(REALM_ART_DIRECTION_2D.saturation).toBeLessThan(0)
+  })
+
   it('keeps semantic jade regions on distinct streamed ground textures', () => {
     const grove = mapDecalTextureIndex2D('jade', { regionId: 'jade_grove', variant: 1 })
     const path = mapDecalTextureIndex2D('jade', { regionId: 'jade_path', variant: 1 })
@@ -86,6 +134,15 @@ describe('PixiPresentation combat bindings', () => {
     expect(path).toBe(jadeRegionTextureIndex2D('jade_path', 1))
     expect(path).not.toBe(grove)
     expect(mapDecalTextureIndex2D('ember', { regionId: 'jade_path', variant: 3 })).toBe(3)
+  })
+
+  it('reports map prop overflow instead of silently dropping streamed scenery', () => {
+    expect(mapPropPoolDiagnostic(132, 144)).toMatchObject({
+      activeCount: 132, poolCapacity: 144, droppedCount: 0, withinCapacity: true,
+    })
+    expect(mapPropPoolDiagnostic(149, 144)).toMatchObject({
+      activeCount: 149, poolCapacity: 144, droppedCount: 5, withinCapacity: false,
+    })
   })
 
   it('mirrors each single-direction atlas from its authored baseline', () => {
@@ -123,13 +180,13 @@ describe('PixiPresentation combat bindings', () => {
       yorangReactionS: Array.from({ length: 8 }, (_, frame) => `south-${frame}`),
     }
     expect(directionalEnemyReactionFrames2D(frames, 'yorang', 0)).toMatchObject({
-      frames: frames.yorangReactionS, directionKey: 's', mirror: false,
+      frames: frames.yorangReactionS, directionKey: 's', pivotKey: 'yorangReactionS', mirror: false,
     })
     expect(directionalEnemyReactionFrames2D(frames, 'yorang', Math.PI / 2)).toMatchObject({
-      frames: frames.yorangReaction, directionKey: 'e', mirror: true,
+      frames: frames.yorangReaction, directionKey: 'e', pivotKey: 'yorangReaction', mirror: true,
     })
     expect(directionalEnemyReactionFrames2D(frames, 'yorang', Math.PI)).toMatchObject({
-      frames: frames.yorangReactionN, directionKey: 'n', mirror: false,
+      frames: frames.yorangReactionN, directionKey: 'n', pivotKey: 'yorangReactionN', mirror: false,
     })
     expect(enemyReactionTextureKey2D('yorang', 'n')).toBe('yorangReactionN')
     expect(enemyReactionTextureKey2D('yorang', 's')).toBe('yorangReactionS')
@@ -191,6 +248,19 @@ describe('PixiPresentation combat bindings', () => {
     })
   })
 
+  it('holds an enemy reaction sector and mirror through aim jitter', () => {
+    const previous = { key: 'se', mirror: false }
+    const held = enemyDirectionFor2D(Math.PI * 0.294, previous)
+    expect(held.direction).toEqual(previous)
+    expect(held.angle).toBeCloseTo(Math.PI / 4)
+    const mirroredPrevious = { key: 'se', mirror: true }
+    expect(enemyDirectionFor2D(-Math.PI * 0.294, mirroredPrevious).direction)
+      .toEqual(mirroredPrevious)
+
+    const deliberateTurn = enemyDirectionFor2D(Math.PI / 2, previous)
+    expect(deliberateTurn.direction).toEqual({ key: 'e', mirror: false })
+  })
+
   it('keeps locomotion frames active during automatic attacks', () => {
     const hero = SPRITE_MANIFEST.actors.seolryeong
     expect(heroAnimationFrameIndex2D(hero, {
@@ -203,8 +273,38 @@ describe('PixiPresentation combat bindings', () => {
       moving: true, dashing: 0.08, attackTimer: 0.2, time: 0.14,
     }))
     expect(heroAnimationFrameIndex2D(hero, {
-      moving: false, movementSettle: 0.1, attackTimer: 0.2,
-    })).toBe(hero.animations.run[0])
+      moving: false, attackTimer: 0,
+    })).toBe(hero.animations.idle[0])
+  })
+
+  it('returns to the authored idle frame when a released key leaves no world step', () => {
+    const hero = SPRITE_MANIFEST.actors.seolryeong
+    expect(heroMotionActive2D({ actualSpeed: 5.2, speed01: 1, worldStep: 0 })).toBe(false)
+    expect(heroMotionActive2D({ actualSpeed: 0, speed01: 0, worldStep: 0.08 })).toBe(true)
+    expect(heroIdleFrames2D(hero, 'n')).toEqual([8])
+    expect(heroIdleFrames2D(hero, 's')).toEqual([8])
+    expect(heroIdleFrames2D(hero, 'e')).toEqual([15])
+    expect(heroIdleFrames2D(hero, 'ne')).toEqual([15])
+    expect(heroIdleFrames2D(hero, 'se')).toEqual([15])
+    expect(heroAnimationFrameIndex2D(hero, {
+      moving: false, attackTimer: 0, directionKey: 'n',
+    })).toBe(8)
+    expect(heroAnimationFrameIndex2D(hero, {
+      moving: false, attackTimer: 0, directionKey: 'e',
+    })).toBe(15)
+  })
+
+  it('holds stationary and frozen enemies on the first authored locomotion pose', () => {
+    const field = {
+      x: [2], z: [3], prevX: [2], prevZ: [3], freezeTimer: [0],
+    }
+    expect(enemyMotionActive2D(field, 0)).toBe(false)
+    expect(enemyLocomotionFrameIndex2D([0, 1, 2, 3], 0.5, 8, { tempo: 1, phase: 0 }, false)).toBe(0)
+    field.x[0] = 2.08
+    expect(enemyMotionActive2D(field, 0)).toBe(true)
+    expect(enemyLocomotionFrameIndex2D([0, 1, 2, 3], 0.2, 8, { tempo: 1, phase: 0 }, true)).toBe(1)
+    field.freezeTimer[0] = 1
+    expect(enemyMotionActive2D(field, 0)).toBe(false)
   })
 
   it('binds five authored reaction views and plays idle, hurt and death in semantic order', () => {
@@ -228,6 +328,47 @@ describe('PixiPresentation combat bindings', () => {
       alive: false, deathTimer: HERO_DEATH_REACTION_SECONDS_2D,
     })).toBe(4)
     expect(heroReactionFrameIndex2D(hero, { alive: false, deathTimer: 0.01 })).toBe(7)
+  })
+
+  it('uses manifest-authored boss timing for hurt and death, including the final hold', () => {
+    const jade = SPRITE_MANIFEST.actors.jadeVoidWarden
+    const wolf = SPRITE_MANIFEST.actors.yorang
+    expect(bossReactionFrameIndex2D(jade, 'hurt', 0.15)).toBe(0)
+    expect(bossReactionFrameIndex2D(jade, 'hurt', 0.01)).toBe(1)
+    expect(bossReactionFrameIndex2D(jade, 'hurt', 0)).toBeNull()
+
+    // Six death frames at 10fps plus one authored final-frame hold interval.
+    expect(bossReactionFrameIndex2D(jade, 'death', 0.69)).toBe(2)
+    expect(bossReactionFrameIndex2D(jade, 'death', 0.11)).toBe(7)
+    expect(bossReactionFrameIndex2D(jade, 'death', 0.01)).toBe(7)
+    expect(bossReactionFrameIndex2D(jade, 'death', 0)).toBe(7)
+    expect(bossReactionFrameIndex2D(wolf, 'death', 0.01)).toBe(7)
+  })
+
+  it('binds the jade boss reaction texture to its authored eight-frame atlas', () => {
+    expect(JADE_VOID_WARDEN_REACTION_ATLAS_2D).toMatchObject({
+      textureKey: 'jadeVoidWardenReaction',
+      url: expect.stringContaining('jade-void-warden-reaction-v1.webp'),
+      cell: [256, 256], sheet: [4, 2], frameCount: 8,
+    })
+  })
+
+  it('normalizes heroine reaction clips without per-frame resizing', () => {
+    expect(heroReactionFootPivot2D('e', 0)).toBeCloseTo(243 / 256)
+    expect(heroReactionFootPivot2D('n', 2)).toBeCloseTo(243 / 256)
+    expect(heroReactionPresentationScale2D('s')).toBeCloseTo(0.963)
+  })
+
+  it('uses one rendered hero height for reaction grounding cues', () => {
+    expect(heroGroundingHeight2D(200, 's')).toBeCloseTo(200)
+    expect(heroGroundingHeight2D(200, 'n', 'hurt')).toBeCloseTo(215.2)
+    expect(heroGroundingHeight2D(200, 's', 'death')).toBeCloseTo(192.6)
+  })
+
+  it('keeps ordinary idle in the normalized motion atlas', () => {
+    expect(heroReactionState2D({ alive: true, hurtTimer: 0 })).toBeNull()
+    expect(heroReactionState2D({ alive: true, hurtTimer: 0.1 })).toBe('hurt')
+    expect(heroReactionState2D({ alive: false, hurtTimer: 0 })).toBe('death')
   })
 
   it('locks the complete grounded eight-pose run cycle to world distance', () => {
@@ -296,22 +437,16 @@ describe('PixiPresentation combat bindings', () => {
     expect(() => enemyTextureKey2D('glacierWarden', 31)).toThrow(/전용 런타임/)
   })
 
-  it('deterministically divides ordinary wolves between two authored silhouettes', () => {
+  it('keeps ordinary wolves in the Jade hound cohort and reserves yorang for the boss', () => {
     const variants = Array.from({ length: 64 }, (_, index) => (
       enemyTextureKey2D('wolf', index + 1)
     ))
-    const ridgeCount = variants.filter((key) => key === 'jadeRidgeHound').length
-
-    expect(new Set(variants)).toEqual(new Set(['yorang', 'jadeRidgeHound']))
-    expect(ridgeCount).toBeGreaterThanOrEqual(24)
-    expect(ridgeCount).toBeLessThanOrEqual(40)
+    expect(new Set(variants)).toEqual(new Set(['jadeRidgeHound']))
     for (const stride of [2, 3, 4, 5, 6, 7]) {
       const local = Array.from({ length: 10 }, (_, index) => (
         enemyTextureKey2D('wolf', 3 + index * stride)
       ))
-      const localRidgeHounds = local.filter((key) => key === 'jadeRidgeHound').length
-      expect(localRidgeHounds, `stride ${stride}`).toBeGreaterThanOrEqual(4)
-      expect(localRidgeHounds, `stride ${stride}`).toBeLessThanOrEqual(6)
+      expect(new Set(local), `stride ${stride}`).toEqual(new Set(['jadeRidgeHound']))
     }
     expect(() => enemyTextureKey2D('frostWolf', 23)).toThrow(/전용 런타임/)
     expect(() => enemyTextureKey2D('ashRaven', 23)).toThrow(/전용 런타임/)
@@ -324,8 +459,9 @@ describe('PixiPresentation combat bindings', () => {
     expect(new Set([wolf, frostWolf, ashRaven]).size).toBe(3)
     const authoredWisp = enemyActorTint2D(0xff8a3c, 'wisp')
     expect(authoredWisp).not.toBe(0xff8a3c)
-    expect((authoredWisp >>> 16) & 0xff).toBeGreaterThan(245)
-    expect((authoredWisp >>> 8) & 0xff).toBeGreaterThan(180)
+    expect((authoredWisp >>> 16) & 0xff).toBeGreaterThan(170)
+    expect((authoredWisp >>> 8) & 0xff).toBeGreaterThan(150)
+    expect((authoredWisp >>> 16) & 0xff).toBeLessThan(245)
     expect(enemyActorTint2D(0x5f7fa8, 'yorang', true)).toBe(0xffb6b6)
     for (const tint of [wolf, frostWolf, ashRaven]) {
       expect((tint >>> 16) & 0xff).toBeGreaterThan(100)
@@ -582,6 +718,24 @@ describe('PixiPresentation combat bindings', () => {
     expect(new Set(directions.map((direction) => directionalHeroFrames(frames, direction)[0])).size).toBe(5)
   })
 
+  it('holds a direction across tiny interpolation jitter but changes on a deliberate turn', () => {
+    const previous = { key: 'se', mirror: false }
+    const nearBoundary = Math.PI * 0.385
+    const held = heroDirectionFor({
+      facing: nearBoundary,
+      x: Math.sin(nearBoundary), prevX: 0,
+      z: Math.cos(nearBoundary), prevZ: 0,
+      speed01: 1,
+    }, previous)
+    expect(held).toEqual(previous)
+
+    const east = heroDirectionFor({
+      facing: Math.PI / 2,
+      x: 1, prevX: 0, z: 0, prevZ: 0, speed01: 1,
+    }, previous)
+    expect(east).toEqual({ key: 'e', mirror: false })
+  })
+
   it('keeps the heroine near authored gameplay scale across supported screens', () => {
     expect(heroCombatHeight2D(720, 140)).toBeCloseTo(134)
     expect(heroCombatHeight2D(1080, 140)).toBeCloseTo(196)
@@ -627,7 +781,7 @@ describe('PixiPresentation combat bindings', () => {
     expect(enemyBossFocusAlpha2D(0, true, true)).toBe(1)
   })
 
-  it('uses a masked procedural horizon without restoring the pasted static vista', () => {
+  it('uses one opaque combat ground plane without a second horizon perspective', () => {
     const presentation = Object.create(PixiPresentation.prototype)
     const layer = () => ({ visible: true })
     Object.assign(presentation, {
@@ -635,6 +789,7 @@ describe('PixiPresentation combat bindings', () => {
       combatVista: layer(), farMountains: layer(), nearMountains: layer(), farMist: layer(),
       floor: layer(), mapDecalLayer: layer(), floorRunes: layer(), horizonMist: layer(),
       nearMist: layer(), horizonVeil: layer(), groundLightLayer: layer(), weaponFieldLayer: layer(),
+      terrainGrade: layer(),
       propPool: [], poiPool: [],
     })
 
@@ -643,18 +798,18 @@ describe('PixiPresentation combat bindings', () => {
     expect(presentation.floor.visible).toBe(true)
     expect(presentation.mapDecalLayer.visible).toBe(true)
     expect(presentation.combatVista.visible).toBe(false)
-    expect(presentation.farMountains.visible).toBe(true)
-    expect(presentation.nearMountains.visible).toBe(true)
-    expect(presentation.farMist.visible).toBe(true)
-    expect(COMBAT_HORIZON_PRESENTATION_2D.topFloorAlpha).toBeGreaterThanOrEqual(0.12)
-    expect(COMBAT_HORIZON_PRESENTATION_2D.topFloorAlpha).toBeLessThanOrEqual(0.22)
-    expect(COMBAT_HORIZON_PRESENTATION_2D.horizonVeilAlpha).toBeLessThanOrEqual(0.16)
-    expect(COMBAT_HORIZON_PRESENTATION_2D.farMountainHeightRatio).toBeLessThan(0.4)
-    expect(COMBAT_HORIZON_PRESENTATION_2D.nearMountainHeightRatio).toBeLessThanOrEqual(0.42)
-    expect(COMBAT_HORIZON_PRESENTATION_2D.nearMountainAlpha).toBeGreaterThan(
-      COMBAT_HORIZON_PRESENTATION_2D.farMountainAlpha,
-    )
-    expect(COMBAT_HORIZON_PRESENTATION_2D.nearMountainAlpha).toBeLessThanOrEqual(0.6)
+    expect(presentation.farMountains.visible).toBe(false)
+    expect(presentation.nearMountains.visible).toBe(false)
+    expect(presentation.farMist.visible).toBe(false)
+    expect(presentation.horizonMist.visible).toBe(false)
+    expect(presentation.nearMist.visible).toBe(false)
+    expect(presentation.horizonVeil.visible).toBe(false)
+    expect(presentation.terrainGrade.visible).toBe(false)
+    expect(COMBAT_HORIZON_PRESENTATION_2D.mode).toBe('single-ground-plane')
+    expect(COMBAT_HORIZON_PRESENTATION_2D.topFloorAlpha).toBe(1)
+    expect(COMBAT_HORIZON_PRESENTATION_2D.horizonVeilAlpha).toBe(0)
+    expect(COMBAT_HORIZON_PRESENTATION_2D.farMountainAlpha).toBe(0)
+    expect(COMBAT_HORIZON_PRESENTATION_2D.nearMountainAlpha).toBe(0)
   })
 
   it('reads the alpha channel for both combat ground masks', () => {

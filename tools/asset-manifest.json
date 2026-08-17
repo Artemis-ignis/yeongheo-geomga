@@ -905,6 +905,17 @@
       "maxBytes": 1000000
     },
     {
+      "id": "sprite2d.jade-void-warden.reaction.v1",
+      "path": "public/assets/sprites2d/jade-void-warden-reaction-v1.webp",
+      "role": "runtime-2d-boss-reaction-atlas",
+      "tier": "boss",
+      "source": "imagegen-built-in-chroma-key-alpha-edge-decontam-atlas-normalize-v1",
+      "consumers": [
+        "src/runtime2d/spriteManifest.js"
+      ],
+      "maxBytes": 600000
+    },
+    {
       "id": "sprite2d.jade-sanctuary.props.v1",
       "path": "public/assets/sprites2d/jade-sanctuary-props-v1.webp",
       "role": "runtime-2d-prop-atlas",
@@ -1310,6 +1321,17 @@
       "maxBytes": 2500000
     },
     {
+      "id": "sprite2d.source.jade-void-warden.reaction.v1",
+      "path": "assets-source/sprites2d/jade-void-warden-reaction-sheet-v1.png",
+      "role": "authoring-2d-boss-reaction-sheet",
+      "tier": "authoring",
+      "source": "imagegen-built-in-chroma-key-alpha-edge-decontam-atlas-normalize-v1",
+      "consumers": [
+        "tools/yeongheo/sprite-authoring-manifest.json"
+      ],
+      "maxBytes": 2500000
+    },
+    {
       "id": "sprite2d.source.jade-sanctuary.props-sheet.v1",
       "path": "assets-source/sprites2d/jade-sanctuary-props-sheet-v1.png",
       "role": "2d-prop-sheet-chroma-source",
@@ -1494,15 +1516,26 @@
       "maxBytes": 4500000
     },
     {
-      "id": "material.environment.jade-sanctuary-ground.v2",
-      "path": "public/assets/materials/environment/jade-sanctuary-ground-material-v2.webp",
-      "role": "runtime-2d-jade-sanctuary-seamless-ground",
+      "id": "environment.source.jade-mountain-courtyard-ground.v4",
+      "path": "assets-source/environment/jade-mountain-courtyard-ground-v4.png",
+      "role": "authoring-seamless-jade-courtyard-ground",
+      "tier": "authoring",
+      "source": "imagegen-built-in-edit",
+      "consumers": [
+        "tools/yeongheo/environment-authoring-manifest.json"
+      ],
+      "maxBytes": 4000000
+    },
+    {
+      "id": "material.environment.jade-mountain-courtyard-ground.v4",
+      "path": "public/assets/materials/environment/jade-mountain-courtyard-ground-v4.webp",
+      "role": "runtime-2d-seamless-jade-courtyard-ground",
       "tier": "scene",
-      "source": "imagegen",
+      "source": "imagegen-built-in-edit-normalized",
       "consumers": [
         "src/runtime2d/PixiPresentation.js"
       ],
-      "maxBytes": 4500000
+      "maxBytes": 3000000
     }
   ]
 }

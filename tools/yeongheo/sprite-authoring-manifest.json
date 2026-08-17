@@ -29,6 +29,7 @@
     { "actor": "void-sentinel", "source": "void-sentinel-motion-sheet-v2.png", "outputs": ["void-sentinel-motion-v2.webp"] },
     { "actor": "shadow-seal-duelist", "source": "shadow-seal-duelist-motion-sheet-v1.png", "outputs": ["shadow-seal-duelist-motion-v1.webp"] },
     { "actor": "jade-void-warden", "source": "jade-void-warden-motion-sheet-v2.png", "outputs": ["jade-void-warden-motion-v2.webp"] },
+    { "actor": "jade-void-warden-reaction", "source": "jade-void-warden-reaction-sheet-v1.png", "outputs": ["jade-void-warden-reaction-v1.webp"] },
     { "actor": "jade-sanctuary-props", "source": "jade-sanctuary-props-sheet-v1.png", "outputs": ["jade-sanctuary-props-v1.webp"] },
     { "actor": "talisman-revenant", "source": "talisman-revenant-motion-sheet-v1.png", "outputs": ["talisman-revenant-motion-v1.webp"] },
     { "actor": "masked-seal-revenant", "source": "masked-seal-revenant-motion-sheet-v1.png", "outputs": ["masked-seal-revenant-motion-v1.webp"] },

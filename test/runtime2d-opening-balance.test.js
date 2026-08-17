@@ -7,6 +7,7 @@ import { getStage } from '../src/data/stages.js'
 import { WAVES, waveAt } from '../src/data/waves.js'
 import {
   CombatWorld2D, openingIncomingDamageScale2D, openingMercyIFrames2D,
+  readableHordeRewardScale2D,
 } from '../src/runtime2d/CombatWorld2D.js'
 import { BREAKTHROUGH_HEAL_FRACTION_2D, upgradeSeedForRun2D } from '../src/runtime2d/Game2D.js'
 
@@ -144,6 +145,9 @@ describe('opening combat balance', () => {
     expect(openingMercyIFrames2D(0)).toBeCloseTo(1.02)
     expect(openingMercyIFrames2D(30)).toBeCloseTo(0.85)
     expect(openingMercyIFrames2D(60)).toBeCloseTo(0.68)
+    expect(readableHordeRewardScale2D(0)).toBeCloseTo(1.4)
+    expect(readableHordeRewardScale2D(60)).toBeCloseTo(1.4)
+    expect(readableHordeRewardScale2D(600)).toBeCloseTo(1.4)
   })
   it('holds the intended opening rate, enemy reads, and magnet range', () => {
     const rateAt = (seconds) => {
@@ -162,7 +166,7 @@ describe('opening combat balance', () => {
     const firstRangedOrSplitter = WAVES.find((wave) => (
       wave.types.includes('talismanGhost') || wave.types.includes('bloodScorpion')
     ))
-    expect(firstCharger?.t).toBe(0)
+    expect(firstCharger?.t).toBe(30)
     expect(firstRangedOrSplitter?.t).toBeGreaterThanOrEqual(180)
     for (const time of [60, 90, 120]) {
       const silhouettes = new Set(waveAt(time).types)

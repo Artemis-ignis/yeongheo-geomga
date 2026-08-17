@@ -1,5 +1,6 @@
 import { iconFor } from './icons.js'
 import { applyDaoVowCssVars, getDaoVowVisual } from './Hud.js'
+import { escapeHtml } from './domPrimitives.js'
 
 const CHOICE_KIND_PRESENTATION = Object.freeze({
   weapon: Object.freeze({ label: '법보', mark: '법', className: 'choice-artifact' }),
@@ -12,12 +13,6 @@ const CHOICE_KIND_PRESENTATION = Object.freeze({
 const FALLBACK_KIND_PRESENTATION = Object.freeze({
   label: '선택', mark: '선', className: 'choice-unknown',
 })
-
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[character])
-}
 
 function stepForChoice(choice) {
   if (choice.kind === 'evolution') return choice.step ?? '법보 진화 · 완성'
@@ -119,7 +114,7 @@ export class LevelUpModal {
     }
     this.cardsHost.classList.toggle('banishing', this.arming)
     this.hintNode.textContent = this.arming
-      ? '지울 패를 고르세요. 이번 런에서 다시 나오지 않습니다.'
+      ? '지울 패를 고르세요. 이번 출정에서 다시 나오지 않습니다.'
       : this.customHint ?? '一 · 二 · 三 / 방향키로 고르고 Enter로 받습니다'
   }
 

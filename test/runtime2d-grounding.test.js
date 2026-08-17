@@ -2,11 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   HERO_GROUND_MARKER_2D,
   HERO_AURA_PRESENTATION_2D,
-  HERO_READABILITY_RIM_2D,
   INVESTIGATION_TRACE_PRESENTATION_2D,
   BOSS_MIN_SCREEN_HEIGHT_RATIO_2D,
   JADE_GROUND_COMPOSITION_2D,
   JADE_REGION_TEXTURE_ORDER_2D,
+  PROP_GROUND_FOOTPRINT_2D,
+  PROP_OPAQUE_BOTTOM_ROWS_2D,
   PROP_MATERIAL_TINTS_2D,
   REGION_TERRAIN_PRESENTATION_2D,
   TERRAIN_GRADE_2D,
@@ -17,27 +18,39 @@ import {
   enemyBossFocusAlpha2D,
   heroCombatHeight2D,
   heroFootPivot2D,
+  heroReactionFootPivot2D,
+  heroReactionPresentationScale2D,
   jadeGroundCropPlan2D,
   jadeRegionTextureIndex2D,
+  propGroundContactProfile2D,
 } from '../src/runtime2d/PixiPresentation.js'
 
 describe('runtime 2D grounding and terrain integration', () => {
   it('composes jade from a seamless material and world-anchored regional detail', () => {
-    expect(JADE_GROUND_COMPOSITION_2D.base).toBe('continuous-authored-material')
-    expect(JADE_GROUND_COMPOSITION_2D.baseAsset).toBe('jade-sanctuary-ground-material-v2')
+    expect(JADE_GROUND_COMPOSITION_2D.base).toBe('wrapped-aperiodic-material')
+    expect(JADE_GROUND_COMPOSITION_2D.baseAsset).toBe('jade-mountain-courtyard-ground-v4')
     expect(JADE_GROUND_COMPOSITION_2D.fallbackAsset).toBe('jade-highland-ground-v1')
-    expect(JADE_GROUND_COMPOSITION_2D.authoredDetail).toBe('world-anchored-procedural-region-decals')
+    expect(JADE_GROUND_COMPOSITION_2D.authoredDetail).toBe('world-anchored-material-biomes')
     expect(JADE_GROUND_COMPOSITION_2D.repeatsAuthoredPlate).toBe(false)
-    expect(JADE_GROUND_COMPOSITION_2D.baseTiling).toBe('full-authored-material-period')
-    expect(JADE_GROUND_COMPOSITION_2D.synthesisSize).toBeLessThanOrEqual(1536)
-    expect(JADE_GROUND_COMPOSITION_2D.authoredCropMode).toBe('full-plate-no-crops')
-    expect(JADE_GROUND_COMPOSITION_2D.landmarkMotifs).toBe('seed-specific-procedural')
+    expect(JADE_GROUND_COMPOSITION_2D.baseTiling).toBe('wrapped-feathered-source-mosaic')
+    expect(JADE_GROUND_COMPOSITION_2D.viewportPlate).toBe(false)
+    expect(JADE_GROUND_COMPOSITION_2D.synthesisSize).toBeGreaterThanOrEqual(2048)
+    expect(JADE_GROUND_COMPOSITION_2D.synthesisSize).toBeLessThanOrEqual(2048)
+    expect(JADE_GROUND_COMPOSITION_2D.authoredCropMode).toBe('seeded-wrapped-feather-crops')
+    expect(JADE_GROUND_COMPOSITION_2D.landmarkMotifs).toBe('seed-specific-nonsymbolic-material-forms')
     expect(JADE_GROUND_COMPOSITION_2D.decalOverlap).toBeGreaterThanOrEqual(1.02)
     expect(JADE_GROUND_COMPOSITION_2D.decalEdgeFeather).toBeGreaterThanOrEqual(72)
-    expect(JADE_GROUND_COMPOSITION_2D.decalAlpha).toBeLessThanOrEqual(0.35)
-    expect(JADE_GROUND_COMPOSITION_2D.floorTileScale.x).toBeLessThanOrEqual(1.5)
+    expect(JADE_GROUND_COMPOSITION_2D.decalAlpha).toBeGreaterThanOrEqual(0.42)
+    expect(JADE_GROUND_COMPOSITION_2D.decalAlpha).toBeGreaterThanOrEqual(0.56)
+    expect(JADE_GROUND_COMPOSITION_2D.decalAlpha).toBeLessThanOrEqual(0.65)
+    expect(JADE_GROUND_COMPOSITION_2D.layers).toEqual([
+      'macro-base', 'world-chunk-detail', 'near-contact',
+    ])
+    expect(JADE_GROUND_COMPOSITION_2D.worldAnchored).toBe(true)
+    expect(JADE_GROUND_COMPOSITION_2D.baseline).toBe('shared-world-frame-foot-y')
+    expect(JADE_GROUND_COMPOSITION_2D.floorTileScale.x).toBeLessThanOrEqual(1)
     expect(JADE_GROUND_COMPOSITION_2D.floorTileScale.y / JADE_GROUND_COMPOSITION_2D.floorTileScale.x)
-      .toBeCloseTo(0.4, 2)
+      .toBeCloseTo(0.62, 2)
   })
 
   it('gives all resident jade variants distinct crop windows and four transforms', () => {
@@ -76,8 +89,8 @@ describe('runtime 2D grounding and terrain integration', () => {
   })
 
   it('anchors every high-variance family to its sampled opaque contact row', () => {
-    expect(heroFootPivot2D('n', 1)).toBeCloseTo(242 / 256)
-    expect(heroFootPivot2D('s', 0)).toBeCloseTo(242 / 256)
+    expect(heroFootPivot2D('n', 1)).toBeCloseTo(240 / 256)
+    expect(heroFootPivot2D('s', 0)).toBeCloseTo(241 / 256)
     expect(actorFootPivot2D('prop', 7)).toBeCloseTo(193 / 256)
     expect(actorFootPivot2D('prop', 2)).toBeCloseTo(222 / 256)
     expect(actorFootPivot2D('bloodScorpion', 4)).toBeCloseTo(0.742)
@@ -102,9 +115,39 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(actorFootPivot2D('prop', 15)).toBe(actorFootPivot2D('prop', 7))
   })
 
-  it('keeps all northeast heroine run and attack frames on one contact row', () => {
-    const pivots = Array.from({ length: 16 }, (_, frame) => heroFootPivot2D('ne', frame))
-    expect(pivots).toEqual(Array(16).fill(242 / 256))
+  it('uses the measured heroine contact row without introducing a frame-sized jump', () => {
+    const rowsByDirection = {
+      n: [240, 240, 240, 240, 241, 241, 241, 241, 240, 240, 240, 240, 240, 240, 241, 241],
+      ne: [240, 240, 241, 240, 241, 240, 240, 240, 240, 240, 240, 240, 239, 240, 241, 240],
+      e: [240, 240, 240, 240, 240, 240, 241, 240, 240, 240, 241, 240, 240, 240, 240, 241],
+      se: [241, 241, 241, 240, 241, 240, 241, 240, 241, 241, 240, 240, 240, 240, 241, 241],
+      s: [241, 241, 241, 240, 240, 241, 240, 240, 240, 241, 240, 240, 241, 240, 241, 240],
+    }
+    for (const [direction, rows] of Object.entries(rowsByDirection)) {
+      const pivots = rows.map((row, frame) => heroFootPivot2D(direction, frame))
+      expect(pivots.map((pivot) => Math.round(pivot * 256))).toEqual(rows)
+      expect(Math.max(...pivots) - Math.min(...pivots)).toBeLessThanOrEqual(2 / 256)
+    }
+  })
+
+  it('keeps all eight prop opaque bottoms within the 1080p contact tolerance', () => {
+    expect(PROP_OPAQUE_BOTTOM_ROWS_2D).toHaveLength(8)
+    for (let frame = 0; frame < PROP_OPAQUE_BOTTOM_ROWS_2D.length; frame++) {
+      const profile = propGroundContactProfile2D(frame, 196)
+      expect(profile.pivot).toBeCloseTo(profile.opaqueBottomRatio)
+      expect(Math.abs(profile.contactErrorPx)).toBeLessThanOrEqual(6)
+      expect(profile.contactOffsetPx).toBe(0)
+    }
+  })
+
+  it('keeps reaction and death frames on their authored contact rows', () => {
+    expect(actorFootPivot2D('yorangReactionN', 0)).toBeCloseTo(219 / 256)
+    expect(actorFootPivot2D('yorangReactionS', 1)).toBeCloseTo(207 / 256)
+    expect(actorFootPivot2D('jadeRidgeHoundReaction', 4)).toBeCloseTo(231 / 256)
+    expect(heroReactionFootPivot2D('n', 2)).toBeCloseTo(243 / 256)
+    expect(heroReactionFootPivot2D('se', 5)).toBeCloseTo(242 / 256)
+    expect(heroReactionPresentationScale2D('n')).toBeCloseTo(1.076)
+    expect(heroReactionPresentationScale2D('unknown')).toBeCloseTo(0.963)
   })
 
   it('uses silhouette-specific contact shadows and restrained separation light', () => {
@@ -131,7 +174,8 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(Math.max(scorpion.contactAlpha, serpent.contactAlpha, wisp.contactAlpha)).toBeLessThanOrEqual(0.13)
     const yorang = actorGroundingProfile2D('yorang')
     const jadeRidgeHound = actorGroundingProfile2D('jadeRidgeHound')
-    expect(yorang.visualScale).toBeCloseTo(1.42)
+    expect(yorang.visualScale).toBeCloseTo(1.08)
+    expect(yorang.visualScale).toBeLessThan(1.2)
     expect(yorang.contactLift).toBeLessThanOrEqual(0.02)
     expect(yorang.contactWidth).toBeLessThanOrEqual(yorang.shadowWidth)
     expect(yorang.contactHeight).toBeLessThanOrEqual(0.16)
@@ -139,11 +183,15 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(jadeRidgeHound.visualScale).toBeCloseTo(yorang.visualScale)
     expect(jadeRidgeHound.contactHeight).toBeLessThanOrEqual(0.16)
     expect(jadeRidgeHound.contactTint).not.toBe(yorang.contactTint)
-    expect(yorang.shadowAlpha).toBeLessThanOrEqual(0.6)
+    expect(yorang.shadowAlpha).toBeGreaterThanOrEqual(0.64)
+    expect(yorang.shadowAlpha).toBeLessThanOrEqual(0.7)
     expect(Math.max(scorpion.visualScale, serpent.visualScale, wisp.visualScale)).toBeLessThanOrEqual(1.42)
     expect(PROP_MATERIAL_TINTS_2D).toHaveLength(8)
     expect(PROP_MATERIAL_TINTS_2D.every((tint) => tint < 0xffffff)).toBe(true)
     expect(new Set(PROP_MATERIAL_TINTS_2D).size).toBeGreaterThanOrEqual(6)
+    expect(PROP_GROUND_FOOTPRINT_2D.alpha).toBeGreaterThan(0.2)
+    expect(PROP_GROUND_FOOTPRINT_2D.alpha).toBeLessThanOrEqual(0.36)
+    expect(PROP_GROUND_FOOTPRINT_2D.widthScale).toBeGreaterThan(1)
     expect(Object.keys(REGION_TERRAIN_PRESENTATION_2D)).toEqual(expect.arrayContaining([
       'spawn_grove', 'jade_path', 'jade_grove', 'lantern_shrine', 'mist_marsh', 'void_rim',
     ]))
@@ -187,17 +235,6 @@ describe('runtime 2D grounding and terrain integration', () => {
     expect(TERRAIN_GRADE_2D.edgeVignetteAlpha).toBeLessThan(0.35)
     expect(TERRAIN_GRADE_2D.topDepthAlpha).toBeLessThan(0.16)
     expect(TERRAIN_GRADE_2D.bottomDepthAlpha).toBeLessThan(0.09)
-  })
-
-  it('uses a subtle normal-blend ink rim instead of a detached additive copy', () => {
-    expect(HERO_READABILITY_RIM_2D.scale).toBeGreaterThan(1)
-    expect(HERO_READABILITY_RIM_2D.scale).toBeLessThanOrEqual(1.045)
-    expect(HERO_READABILITY_RIM_2D.alpha).toBeGreaterThanOrEqual(0.35)
-    expect(HERO_READABILITY_RIM_2D.alpha).toBeLessThanOrEqual(0.52)
-    expect(HERO_READABILITY_RIM_2D.invulnerableAlpha).toBeLessThan(HERO_READABILITY_RIM_2D.alpha)
-    expect(HERO_READABILITY_RIM_2D.zOffset).toBeLessThan(0)
-    expect(HERO_READABILITY_RIM_2D.tint).not.toBe(0xffffff)
-    expect(HERO_READABILITY_RIM_2D.hitTint).not.toBe(HERO_READABILITY_RIM_2D.tint)
   })
 
   it('applies the selected grounding profile in actor placement', () => {

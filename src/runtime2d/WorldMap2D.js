@@ -3,7 +3,35 @@ export const MAP_CHUNK_RADIUS_X = 2
 export const MAP_CHUNK_RADIUS_Z = 4
 export const MAP_GROUND_VARIANTS = 12
 export const MAX_ACTIVE_MAP_CHUNKS = (MAP_CHUNK_RADIUS_X * 2 + 1) * (MAP_CHUNK_RADIUS_Z * 2 + 1)
-export const MAX_ACTIVE_MAP_PROPS = 96
+// The streamed window can contain more than the old 96-slot pool. Keep the
+// capacity explicit in the map contract so presentation cannot silently drop
+// the tail of a chunk when a seed produces several landmarks at once.
+// The supported seed sweep currently peaks at 132 props after the authored
+// opening is included. 144 leaves a deterministic safety margin for future
+// landmark variants while still keeping the pool bounded.
+export const RECOMMENDED_ACTIVE_MAP_PROP_CAPACITY = 144
+export const MAX_ACTIVE_MAP_PROPS = RECOMMENDED_ACTIVE_MAP_PROP_CAPACITY
+export const SUPPORTED_MAP_SEED_MIN = 0
+export const SUPPORTED_MAP_SEED_MAX = 9999
+
+// The opening route is a world-space lane, not a screen-space decoration. A
+// 10-unit minimum is reserved through the centre and a small additional
+// margin keeps prop silhouettes and their contact footprints out of it.
+export const OPENING_CORRIDOR_HALF_WIDTH = 5
+export const OPENING_CORRIDOR_CLEARANCE = 1.5
+export const OPENING_CORRIDOR_MIN_WIDTH = OPENING_CORRIDOR_HALF_WIDTH * 2
+export const OPENING_MIN_PROP_SPACING = 6
+
+// At the initial camera frame (the same world-space window used by the
+// presentation at 1280x720) all authored opening props must be readable. The
+// bounds are intentionally tighter than the whole streamed map so this is a
+// content contract rather than a culling implementation detail.
+export const OPENING_VIEWPORT_WORLD_BOUNDS = Object.freeze({
+  minX: -24,
+  maxX: 24,
+  minZ: -24,
+  maxZ: 22,
+})
 
 const PROP_HEIGHTS = Object.freeze([145, 196, 176, 154, 170, 112, 128, 136])
 const DEFAULT_MAP_SEED = 0x51f15e
@@ -128,11 +156,27 @@ export function activeMapChunks(cameraX, cameraZ, seed = DEFAULT_MAP_SEED, stage
   return chunks
 }
 
-function propAt(chunkX, chunkZ, frame, localX, localZ, scale = 1, landmark = false) {
+function propAt(
+  chunkX,
+  chunkZ,
+  frame,
+  localX,
+  localZ,
+  scale = 1,
+  landmark = false,
+  rotation = 0,
+  cluster = 'edge',
+) {
   return {
     x: chunkX * MAP_CHUNK_SIZE + localX,
     z: chunkZ * MAP_CHUNK_SIZE + localZ,
     frame,
+    scale,
+    // Environment plates are upright billboards. The authored tilt value is
+    // kept as layout metadata for audit tooling, but never becomes a screen
+    // plane rotation that could break the shared foot baseline.
+    rotation: 0,
+    cluster,
     height: PROP_HEIGHTS[frame] * scale,
     landmark,
   }
@@ -142,66 +186,93 @@ function landmarkProps(chunkX, chunkZ, root) {
   const center = MAP_CHUNK_SIZE * 0.5
   const type = (root >>> 8) % 4
   const jitter = unitFloat(hashMapCell(chunkX, chunkZ, root ^ 0x41c64e6d)) * 1.8 - 0.9
+  const tilt = (index) => (
+    unitFloat(hashMapCell(chunkX * 5 + index, chunkZ * 7 - index, root ^ 0x3c6ef372)) - 0.5
+  ) * 0.28
 
   // Landmark silhouettes follow authored arrangements instead of random scatter.
   // A player can recognise a shrine, ruined gate or grove when returning through
   // the streamed world, which is what makes a large survivor map feel explored.
   if (type === 0) {
     return [
-      propAt(chunkX, chunkZ, 3, center, center + 1.2, 1.08, true),
-      propAt(chunkX, chunkZ, 0, center - 5.6, center - 2.6, 0.92, true),
-      propAt(chunkX, chunkZ, 0, center + 5.6, center - 2.6, 0.92, true),
-      propAt(chunkX, chunkZ, 7, center + jitter, center + 5.2, 0.92, true),
+      propAt(chunkX, chunkZ, 3, center, center + 1.2, 1.08, true, tilt(0), 'landmark'),
+      propAt(chunkX, chunkZ, 0, center - 5.6, center - 2.6, 0.92, true, tilt(1), 'landmark'),
+      propAt(chunkX, chunkZ, 0, center + 5.6, center - 2.6, 0.92, true, tilt(2), 'landmark'),
+      propAt(chunkX, chunkZ, 7, center + jitter, center + 5.2, 0.92, true, tilt(3), 'landmark'),
     ]
   }
   if (type === 1) {
     return [
-      propAt(chunkX, chunkZ, 6, center - 4.2, center, 1.04, true),
-      propAt(chunkX, chunkZ, 6, center + 4.2, center, 1.04, true),
-      propAt(chunkX, chunkZ, 2, center, center - 2.8, 1.08, true),
-      propAt(chunkX, chunkZ, 4, center, center + 4.6, 0.96, true),
+      propAt(chunkX, chunkZ, 6, center - 4.2, center, 1.04, true, tilt(0), 'landmark'),
+      propAt(chunkX, chunkZ, 6, center + 4.2, center, 1.04, true, tilt(1), 'landmark'),
+      propAt(chunkX, chunkZ, 2, center, center - 2.8, 1.08, true, tilt(2), 'landmark'),
+      propAt(chunkX, chunkZ, 4, center, center + 4.6, 0.96, true, tilt(3), 'landmark'),
     ]
   }
   if (type === 2) {
     return [
-      propAt(chunkX, chunkZ, 1, center - 4.8, center - 1.4, 1.08, true),
-      propAt(chunkX, chunkZ, 1, center + 3.6, center + 2.2, 0.96, true),
-      propAt(chunkX, chunkZ, 5, center + 0.8, center - 4.2, 1.02, true),
-      propAt(chunkX, chunkZ, 0, center - 1.4, center + 5.3, 0.86, true),
+      propAt(chunkX, chunkZ, 1, center - 4.8, center - 1.4, 1.08, true, tilt(0), 'landmark'),
+      propAt(chunkX, chunkZ, 1, center + 3.6, center + 2.2, 0.96, true, tilt(1), 'landmark'),
+      propAt(chunkX, chunkZ, 5, center + 0.8, center - 4.2, 1.02, true, tilt(2), 'landmark'),
+      propAt(chunkX, chunkZ, 0, center - 1.4, center + 5.3, 0.86, true, tilt(3), 'landmark'),
     ]
   }
   return [
-    propAt(chunkX, chunkZ, 7, center, center, 1.12, true),
-    propAt(chunkX, chunkZ, 4, center - 5.2, center + 1.4, 0.98, true),
-    propAt(chunkX, chunkZ, 2, center + 5.1, center + 0.6, 0.94, true),
-    propAt(chunkX, chunkZ, 0, center - 3.8, center - 4.5, 0.82, true),
-    propAt(chunkX, chunkZ, 0, center + 3.8, center - 4.5, 0.82, true),
+    propAt(chunkX, chunkZ, 7, center, center, 1.12, true, tilt(0), 'landmark'),
+    propAt(chunkX, chunkZ, 4, center - 5.2, center + 1.4, 0.98, true, tilt(1), 'landmark'),
+    propAt(chunkX, chunkZ, 2, center + 5.1, center + 0.6, 0.94, true, tilt(2), 'landmark'),
+    propAt(chunkX, chunkZ, 0, center - 3.8, center - 4.5, 0.82, true, tilt(3), 'landmark'),
+    propAt(chunkX, chunkZ, 0, center + 3.8, center - 4.5, 0.82, true, tilt(4), 'landmark'),
   ]
 }
 
 function openingPlazaProps(chunkX, chunkZ) {
+  // One authored sanctuary threshold, split only because it crosses the
+  // streamed chunk boundary. This is a composition of four asymmetric edge
+  // clusters rather than a ring or a set of evenly spaced stickers:
+  // `far-threshold` establishes the approach, `left-ruin` and `right-shrine`
+  // frame the route, and `near-reeds` gives the player a quiet foreground
+  // edge. The central world-space lane remains empty for movement and enemy
+  // ingress; all props carry authored rotation and scale variation so a
+  // repeated atlas frame does not form a recognisable grid.
+  // Frames 4 (banner) and 3 (guardian) are the two landmark anchors.
   const authored = {
     '-1:-1': [
-      { frame: 1, x: -17, z: -14, scale: 1.02 },
-      { frame: 5, x: -12.5, z: -11.5, scale: 0.96 },
+      { frame: 4, x: -21, z: -21, scale: 1.12, rotation: -0.11, landmark: true, cluster: 'far-threshold' },
+      { frame: 0, x: -14, z: -17, scale: 0.78, rotation: 0.18, landmark: false, cluster: 'far-threshold' },
+      { frame: 6, x: -22, z: -6, scale: 1.02, rotation: -0.08, landmark: false, cluster: 'left-ruin' },
+      { frame: 7, x: -15, z: -8, scale: 0.92, rotation: 0.14, landmark: false, cluster: 'left-ruin' },
+      { frame: 5, x: -19, z: 0, scale: 0.76, rotation: -0.22, landmark: false, cluster: 'left-ruin' },
     ],
     '0:-1': [
-      { frame: 0, x: 10, z: -15, scale: 0.84 },
-      { frame: 6, x: 14, z: -12, scale: 1.02 },
-      { frame: 0, x: 18, z: -15, scale: 0.84 },
+      { frame: 2, x: -8.5, z: -20, scale: 1.06, rotation: 0.09, landmark: false, cluster: 'far-threshold' },
+      { frame: 1, x: -19, z: -13, scale: 0.86, rotation: -0.17, landmark: false, cluster: 'far-threshold' },
+      { frame: 3, x: 16, z: -8, scale: 0.88, rotation: 0.13, landmark: true, cluster: 'right-shrine' },
+      { frame: 0, x: 9, z: -1, scale: 0.94, rotation: -0.15, landmark: false, cluster: 'right-shrine' },
     ],
-    '-1:0': [],
-    '0:0': [],
+    '-1:0': [
+      { frame: 3, x: -23, z: 7, scale: 0.82, rotation: -0.1, landmark: false, cluster: 'left-ruin' },
+      { frame: 2, x: -14, z: 7, scale: 0.74, rotation: -0.18, landmark: false, cluster: 'left-ruin' },
+      { frame: 5, x: 15, z: 6, scale: 0.8, rotation: -0.2, landmark: false, cluster: 'right-shrine' },
+      { frame: 6, x: 22, z: 7, scale: 0.96, rotation: 0.12, landmark: false, cluster: 'right-shrine' },
+    ],
+    '0:0': [
+      { frame: 1, x: 10, z: 16, scale: 0.92, rotation: 0.2, landmark: false, cluster: 'near-reeds' },
+      { frame: 7, x: 18, z: 19, scale: 1.02, rotation: -0.14, landmark: false, cluster: 'near-reeds' },
+      { frame: 0, x: 24, z: 16, scale: 0.82, rotation: 0.1, landmark: false, cluster: 'right-shrine' },
+    ],
   }[`${chunkX}:${chunkZ}`]
   if (!authored) return null
-  return authored.map(({ frame, x, z, scale }) => propAt(
+  return authored.map(({ frame, x, z, scale, rotation, landmark, cluster }) => propAt(
     chunkX,
     chunkZ,
     frame,
     x - chunkX * MAP_CHUNK_SIZE,
     z - chunkZ * MAP_CHUNK_SIZE,
     scale,
-    true,
+    landmark,
+    rotation,
+    cluster,
   ))
 }
 
@@ -234,14 +305,69 @@ export function propsForMapChunk(chunkX, chunkZ, seed = DEFAULT_MAP_SEED, stageI
     const localZ = Math.max(margin, Math.min(MAP_CHUNK_SIZE - margin, anchorZ + Math.sin(angle) * distance))
     const vocabulary = region.propVocabulary ?? MAP_REGION_TYPES.jade_grove.propVocabulary
     const frame = vocabulary[hashMapCell(chunkX, chunkZ, seed + i + 1) % vocabulary.length]
+    const scale = 0.92 + unitFloat(hx ^ hz) * 0.16
     props.push({
       x: chunkX * MAP_CHUNK_SIZE + localX,
       z: chunkZ * MAP_CHUNK_SIZE + localZ,
       frame,
-      height: PROP_HEIGHTS[frame] * (0.92 + unitFloat(hx ^ hz) * 0.16),
+      scale,
+      rotation: 0,
+      cluster: landmark ? 'landmark' : region.id,
+      height: PROP_HEIGHTS[frame] * scale,
       landmark: false,
       regionId: region.id,
     })
   }
   return props
+}
+
+/**
+ * Count every prop that the presentation must be able to retain for one
+ * streamed window. This deliberately shares the exact chunk and prop
+ * generators used by production, making capacity checks a pure deterministic
+ * map invariant rather than a renderer-side estimate.
+ */
+export function activeMapPropCount(cameraX = 0, cameraZ = 0, seed = DEFAULT_MAP_SEED, stageId = 'jade') {
+  return activeMapChunks(cameraX, cameraZ, seed, stageId)
+    .reduce((count, chunk) => count + propsForMapChunk(chunk.x, chunk.z, seed, stageId).length, 0)
+}
+
+/**
+ * Scan a supported seed range and report the worst active-window count. The
+ * result is pure and intentionally includes the seed that produced the max so
+ * a failing visual/runtime build can be reproduced exactly.
+ */
+export function activeMapPropCapacityInvariant({
+  cameraX = 0,
+  cameraZ = 0,
+  stageId = 'jade',
+  seedStart = SUPPORTED_MAP_SEED_MIN,
+  seedEnd = SUPPORTED_MAP_SEED_MAX,
+  capacity = MAX_ACTIVE_MAP_PROPS,
+} = {}) {
+  const start = Math.max(0, Math.min(0xffffffff, Math.trunc(seedStart)))
+  const end = Math.max(start, Math.min(0xffffffff, Math.trunc(seedEnd)))
+  let maxCount = 0
+  let maxSeed = start
+  for (let seed = start; seed <= end; seed++) {
+    const count = activeMapPropCount(cameraX, cameraZ, seed, stageId)
+    if (count > maxCount) {
+      maxCount = count
+      maxSeed = seed
+    }
+    // Avoid uint32 wraparound if a caller asks for the final representable
+    // seed. Supported production ranges never reach this branch.
+    if (seed === 0xffffffff) break
+  }
+  return Object.freeze({
+    cameraX,
+    cameraZ,
+    stageId,
+    seedStart: start,
+    seedEnd: end,
+    maxCount,
+    maxSeed,
+    capacity,
+    withinCapacity: maxCount <= capacity,
+  })
 }

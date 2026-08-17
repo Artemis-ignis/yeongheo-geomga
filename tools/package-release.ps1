@@ -1,8 +1,6 @@
 ﻿[CmdletBinding()]
 param(
-  [string] $ReleaseTag = 'current-20260812',
   [string] $OutputDirectory = '',
-  [datetimeoffset] $ArchiveTimestamp = [datetimeoffset]'2026-08-12T00:00:00+09:00',
   [switch] $AllowUnclearedRights
 )
 
@@ -37,6 +35,43 @@ foreach ($requiredFile in $requiredFiles) {
 }
 
 $releaseMetadata = [IO.File]::ReadAllText($releaseMetadataPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
+$releaseId = [string]$releaseMetadata.releaseId
+if ([string]::IsNullOrWhiteSpace($releaseId)) {
+  throw 'release.json에 releaseId가 없습니다.'
+}
+
+function Get-ReleaseArchiveName {
+  param(
+    [Parameter(Mandatory = $true)][object] $Value,
+    [Parameter(Mandatory = $true)][string] $FieldName
+  )
+  $name = [string]$Value
+  if ([string]::IsNullOrWhiteSpace($name) -or
+      $name.Contains('/') -or
+      $name.Contains('\') -or
+      -not $name.EndsWith('.zip', [StringComparison]::OrdinalIgnoreCase)) {
+    throw "release.json의 $FieldName 는 파일명만 포함한 .zip 값이어야 합니다: $name"
+  }
+  return $name
+}
+
+$webArchiveName = Get-ReleaseArchiveName -Value $releaseMetadata.packages.web -FieldName 'packages.web'
+$windowsArchiveName = Get-ReleaseArchiveName -Value $releaseMetadata.packages.windowsPortable -FieldName 'packages.windowsPortable'
+$releaseSuffix = $releaseId -replace '^yeongheo-', ''
+$expectedWebArchiveName = "yeongheo-geomga-web-$releaseSuffix.zip"
+$expectedWindowsArchiveName = "yeongheo-geomga-windows-$releaseSuffix.zip"
+if ($webArchiveName -ne $expectedWebArchiveName -or $windowsArchiveName -ne $expectedWindowsArchiveName) {
+  throw "release.json의 package 파일명이 releaseId와 일치하지 않습니다: $releaseId"
+}
+try {
+  $archiveTimestamp = [datetimeoffset]::ParseExact(
+    "$($releaseMetadata.releaseDate)T00:00:00+09:00",
+    'yyyy-MM-ddTHH:mm:sszzz',
+    [Globalization.CultureInfo]::InvariantCulture
+  )
+} catch {
+  throw "release.json의 releaseDate를 archive timestamp로 해석할 수 없습니다: $($releaseMetadata.releaseDate)"
+}
 if (-not $AllowUnclearedRights -and $releaseMetadata.rightsGate -ne 'CLEARED') {
   throw '권리 게이트가 BLOCKED입니다. 공개·제출용 패키지를 만들 수 없습니다. 로컬 검토 후보만 만들려면 -AllowUnclearedRights를 명시하십시오.'
 }
@@ -121,7 +156,7 @@ function New-ReleaseZip {
     foreach ($item in ($Entries | Sort-Object Name)) {
       $entryName = ConvertTo-ZipEntryName $item.Name
       $entry = $archive.CreateEntry($entryName, [IO.Compression.CompressionLevel]::Optimal)
-      $entry.LastWriteTime = $ArchiveTimestamp
+      $entry.LastWriteTime = $archiveTimestamp
       $input = $null
       $output = $null
       try {
@@ -135,7 +170,7 @@ function New-ReleaseZip {
     }
     foreach ($name in ($TextEntries.Keys | Sort-Object)) {
       $entry = $archive.CreateEntry((ConvertTo-ZipEntryName $name), [IO.Compression.CompressionLevel]::Optimal)
-      $entry.LastWriteTime = $ArchiveTimestamp
+      $entry.LastWriteTime = $archiveTimestamp
       $writer = $null
       try {
         $writer = [IO.StreamWriter]::new($entry.Open(), [Text.UTF8Encoding]::new($false))
@@ -159,8 +194,8 @@ function New-ReleaseZip {
   }
 }
 
-$webPath = Join-Path $outputRoot "yeongheo-geomga-web-release-$ReleaseTag.zip"
-$windowsPath = Join-Path $outputRoot "yeongheo-geomga-windows-portable-$ReleaseTag.zip"
+$webPath = Join-Path $outputRoot $webArchiveName
+$windowsPath = Join-Path $outputRoot $windowsArchiveName
 
 $webEntries = @(Get-TreeEntries -SourceRoot $distRoot)
 New-ReleaseZip -TargetPath $webPath -Entries $webEntries

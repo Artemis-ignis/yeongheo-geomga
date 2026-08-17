@@ -52,7 +52,7 @@ function resizeFixture() {
 }
 
 describe('runtime2d platform contracts', () => {
-  it('resizes the Pixi viewport and renderer at 1280, 1920, and 2560 widths', () => {
+  it('resizes the Pixi viewport and uses a native fallback when quality is absent', () => {
     const presentation = resizeFixture()
     const previousWindow = globalThis.window
 
@@ -63,6 +63,7 @@ describe('runtime2d platform contracts', () => {
 
         expect(presentation.viewport).toMatchObject({ width, height })
         expect(presentation.app.renderer.resize).toHaveBeenLastCalledWith(width, height)
+        expect(presentation.app.renderer.resolution).toBe(1)
         expect(presentation.terrainMask.rect).toHaveBeenLastCalledWith(
           0,
           expect.any(Number),

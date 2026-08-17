@@ -10,6 +10,13 @@
       "source": "ember-wastes-chapter2-concept-v1.png",
       "outputRoot": "assets-source/environment",
       "outputs": ["ember-wastes-chapter2-keyart-v1.webp"]
+    },
+    {
+      "scene": "jade-mountain-courtyard",
+      "actor": "jade-mountain-courtyard-ground",
+      "source": "jade-mountain-courtyard-ground-v4.png",
+      "outputRoot": "public/assets/materials/environment",
+      "outputs": ["jade-mountain-courtyard-ground-v4.webp"]
     }
   ]
 }

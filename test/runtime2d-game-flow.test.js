@@ -55,6 +55,25 @@ describe('integrated survivor-journey progression', () => {
     expect(daoVowsForRun2D({ mode: 'expedition' })).toBeInstanceOf(DaoVows2D)
     expect(daoVowsForRun2D({ mode: 'survival' })).toBeInstanceOf(DaoVows2D)
   })
+
+  it('does not let an optional detour advance the expedition Dao milestone', () => {
+    const { game, world, modal } = makeDaoFlowGame()
+    game.runOptions = { mode: 'expedition' }
+    game.interactions = {
+      consumed: new Set(['optional-node']),
+      requiredProgressFor: () => ({ completed: 0, total: 3, complete: false }),
+    }
+    world.runTime = 999
+
+    Game2D.prototype._checkDaoMilestone.call(game)
+    expect(game.state).toBe('playing')
+    expect(modal.open).not.toHaveBeenCalled()
+
+    game.interactions.requiredProgressFor = () => ({ completed: 1, total: 3, complete: false })
+    Game2D.prototype._checkDaoMilestone.call(game)
+    expect(game.state).toBe('daoVow')
+    expect(modal.open).toHaveBeenCalledOnce()
+  })
 })
 
 describe('click-to-move browser input', () => {
@@ -63,13 +82,15 @@ describe('click-to-move browser input', () => {
     expect(clickMoveVector2D({ x: 2.8, z: 4 }, { x: 3, z: 4 })).toEqual({ x: 0, z: 0, arrived: true })
   })
 
-  it('stops a far story click at the active clue instead of overshooting it', () => {
+  it('captures only clicks that land on a story prop footprint', () => {
     const clue = { x: 0, z: 9, interactionRadius: 1 }
     const interactions = {
       currentRoutePoi: () => ({ id: 'route:0', x: 0, z: 12 }),
       nearestUnfoundInvestigationClue: () => clue,
     }
-    expect(snapStoryClickTarget2D({ x: 0, z: 0 }, { x: 0.5, z: 24 }, interactions))
+    const distant = { x: 0.5, z: 24 }
+    expect(snapStoryClickTarget2D({ x: 0, z: 0 }, distant, interactions)).toBe(distant)
+    expect(snapStoryClickTarget2D({ x: 0, z: 0 }, { x: 0.4, z: 9.5 }, interactions))
       .toEqual({ x: 0, z: 9 })
     const offRoute = { x: 24, z: 6 }
     expect(snapStoryClickTarget2D({ x: 0, z: 0 }, offRoute, interactions)).toBe(offRoute)
@@ -89,10 +110,37 @@ describe('authored expedition boss encounters', () => {
   })
 
   it('keeps the heroine ground contact outside an authored story prop', () => {
-    const player = { x: 10.4, z: 4.2, prevX: 8, prevZ: 4 }
+    const player = {
+      x: 10.4, z: 4.2, prevX: 8, prevZ: 4, actualSpeed: 5.4, teleported: false,
+    }
     expect(resolveStoryPropCollision2D(player, { x: 10, z: 4 })).toBe(true)
     expect(Math.hypot(player.x - 10, player.z - 4)).toBeCloseTo(2.65)
+    expect(player.prevX).toBeCloseTo(player.x)
+    expect(player.prevZ).toBeCloseTo(player.z)
+    expect(Math.hypot(player.x - player.prevX, player.z - player.prevZ)).toBe(0)
+    expect(player.actualSpeed).toBe(0)
+    expect(player.teleported).toBe(true)
+
+    for (const alpha of [0, 0.5, 1]) {
+      const displayedX = player.prevX + (player.x - player.prevX) * alpha
+      const displayedZ = player.prevZ + (player.z - player.prevZ) * alpha
+      expect(displayedX).toBeCloseTo(player.x)
+      expect(displayedZ).toBeCloseTo(player.z)
+    }
     expect(resolveStoryPropCollision2D(player, { x: 10, z: 4 })).toBe(false)
+  })
+
+  it('uses the previous contact direction for a centered correction without leaving motion state', () => {
+    const player = {
+      x: 10, z: 4, prevX: 8, prevZ: 4, actualSpeed: 7, teleported: false,
+    }
+    expect(resolveStoryPropCollision2D(player, { x: 10, z: 4 })).toBe(true)
+    expect(player.x).toBeCloseTo(7.35)
+    expect(player.z).toBeCloseTo(4)
+    expect(player.prevX).toBeCloseTo(7.35)
+    expect(player.prevZ).toBeCloseTo(4)
+    expect(player.actualSpeed).toBe(0)
+    expect(player.teleported).toBe(true)
   })
 
   it('keeps the completed investigation reachable outside the prop collision ring', () => {
@@ -463,6 +511,40 @@ function makeAudioWiringGame() {
 }
 
 describe('Game2D run-state integration', () => {
+  it('does not let an optional expedition reward unlock the final guardian', () => {
+    const player = { hp: 50, maxHp: 100, heal: vi.fn() }
+    const game = Object.create(Game2D.prototype)
+    Object.assign(game, {
+      state: 'playing',
+      runOptions: { mode: 'expedition' },
+      world: {
+        player,
+        boss: null,
+        victory: false,
+        effects: { spawn: vi.fn() },
+        spawnBoss: vi.fn(),
+      },
+      interactions: {
+        requiredProgressFor: () => ({ completed: 1, total: 3, complete: false }),
+      },
+      journeyChapter: getJourneyChapterForStage('jade'),
+      _expeditionObjectives: new Set(),
+      audio: { play: vi.fn() },
+      _banner: vi.fn(),
+      _refreshWorldInteractions: vi.fn(),
+    })
+
+    Game2D.prototype._applyPoiReward.call(game, {
+      type: 'poi_reward', poiId: 'optional-node', nodeId: 'lantern-vow',
+      required: false, routeIndex: null, x: -12, z: 18,
+      reward: { kind: 'healing', healthFraction: 0.25 },
+    })
+
+    expect(player.heal).toHaveBeenCalledWith(25, 'spring')
+    expect(game._expeditionObjectives).toHaveLength(0)
+    expect(game.world.spawnBoss).not.toHaveBeenCalled()
+  })
+
   it('keeps HUD dynamic updates live only during active play', () => {
     expect(isHudLiveState('playing')).toBe(true)
     expect(isHudLiveState('paused')).toBe(false)
@@ -893,6 +975,37 @@ describe('Game2D run-state integration', () => {
     confirm = true
     Game2D.prototype._readMenuInput.call(game)
     expect(game.result.handleKey).toHaveBeenCalledWith(true, 0)
+  })
+
+  it('dispatches owned direction and confirm input to pause, shop, and codex routes', () => {
+    const game = Object.create(Game2D.prototype)
+    const input = {
+      consumeSlot: vi.fn(() => 0),
+      consumeConfirm: vi.fn(() => true),
+      discardDash: vi.fn(),
+      moveX: 1,
+      moveZ: -1,
+    }
+    const pause = { handleKey: vi.fn() }
+    const shop = { handleKey: vi.fn() }
+    const codex = { handleKey: vi.fn() }
+    Object.assign(game, { state: 'paused', input, pause, shop, codex, _lastDir: 0, _lastVerticalDir: 0 })
+
+    Game2D.prototype._readMenuInput.call(game)
+    expect(pause.handleKey).toHaveBeenCalledWith(true, 1, -1)
+    expect(input.discardDash).toHaveBeenCalledTimes(1)
+
+    game.state = 'shop'
+    game._lastDir = 0
+    game._lastVerticalDir = 0
+    Game2D.prototype._readMenuInput.call(game)
+    expect(shop.handleKey).toHaveBeenCalledWith(true, 1, -1)
+
+    game.state = 'codex'
+    game._lastDir = 0
+    game._lastVerticalDir = 0
+    Game2D.prototype._readMenuInput.call(game)
+    expect(codex.handleKey).toHaveBeenCalledWith(true, 1, -1)
   })
 
   it('closes any growth modal before presenting the result screen', () => {

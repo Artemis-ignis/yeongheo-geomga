@@ -23,10 +23,10 @@ describe('2D HUD overlay layout contract', () => {
     expect(css).toMatch(/\.modal-backdrop\s*\{[^}]*z-index:\s*30\s*;/s)
   })
 
-  it('keeps the paused battlefield legible behind the paper breakthrough scroll', () => {
-    expect(css).toMatch(/\.modal-backdrop\s*\{[^}]*rgba\(22,20,16,\.66\)/s)
-    expect(css).toMatch(/backdrop-filter:\s*blur\(1\.4px\)\s+saturate\(\.86\)/)
-    expect(css).toMatch(/\.modal-panel\s*\{[^}]*var\(--paper-texture\)[^}]*var\(--paper\)/s)
+  it('keeps the paused battlefield legible behind the unified jade-ink breakthrough panel', () => {
+    expect(css).toMatch(/\.modal-backdrop\s*\{[^}]*rgba\(5, 17, 21, \.80\)/s)
+    expect(css).toMatch(/backdrop-filter:\s*blur\(2px\)\s+saturate\(\.92\)/)
+    expect(css).toMatch(/\.modal-panel\s*\{[^}]*var\(--realm-panel\)/s)
   })
 
   it('separates talisman choices from secondary control actions', () => {

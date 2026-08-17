@@ -84,6 +84,23 @@ describe('AnimationState2D', () => {
     expect(state.snapshot().state).toBe('idle')
   })
 
+  it('holds a direction-specific authored neutral frame after stop', () => {
+    const state = new AnimationState2D(profile({
+      idle: {
+        directions: { n: [8], ne: [15], e: [15], se: [15], s: [8] },
+        fps: 6,
+      },
+    }), { facing: Math.PI / 2, moving: false })
+    expect(state.snapshot()).toMatchObject({ state: 'idle', direction: 'e', frame: 15 })
+    state.dispatch('face', { angle: Math.PI })
+    state.dispatch('stop')
+    expect(state.snapshot()).toMatchObject({ state: 'idle', direction: 'n', frame: 8 })
+    state.dispatch('move', { moving: true, angle: Math.PI / 2 })
+    expect(state.snapshot().state).toBe('run')
+    state.dispatch('stop')
+    expect(state.snapshot()).toMatchObject({ state: 'idle', direction: 'e', frame: 15 })
+  })
+
   it('restarts a one-shot when a new event of the same priority arrives', () => {
     const state = new AnimationState2D(profile())
     state.dispatch('attack')

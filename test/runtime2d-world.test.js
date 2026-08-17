@@ -6,13 +6,18 @@ import { getStage } from '../src/data/stages.js'
 import { DaoVows2D } from '../src/runtime2d/DaoVows2D.js'
 import {
   CombatWorld2D, FINAL_BOSS_PHASE_GATE_SECONDS_2D, FINAL_BOSS_WAVE_DENSITY_2D,
+  bossReactionPresentationDuration2D,
   enemyPresentationFacing2D,
+  ENEMY_INGRESS_DELAY_SECONDS_2D,
+  SCREEN_SUMMON_TELEGRAPH_SECONDS_2D,
   HERO_DEATH_REACTION_SECONDS_2D, HERO_HURT_REACTION_SECONDS_2D,
   HIT_EFFECT_MERGE_RADIUS_2D, MAX_ENEMIES_2D, MAX_PICKUPS_2D, MAX_PROJECTILES_2D,
   PICKUP_MERGE_RADIUS_2D,
 } from '../src/runtime2d/CombatWorld2D.js'
 import { MIN_TELEGRAPH_SECONDS_2D } from '../src/runtime2d/BossPatterns2D.js'
 import { getWeapon } from '../src/data/weapons.js'
+import { ENEMY_INGRESS_VIEW_ENVELOPE_2D } from '../src/runtime2d/EnemySpawnDirector2D.js'
+import { SPRITE_MANIFEST } from '../src/runtime2d/spriteManifest.js'
 
 function makeWorld(seed = 123) {
   return new CombatWorld2D({
@@ -54,12 +59,15 @@ describe('CombatWorld2D', () => {
     expect(ended).toBe(false)
   })
 
-  it('faces actual locomotion while preserving target-facing attacks', () => {
+  it('faces actual locomotion even during attacks, then faces the target while stationary', () => {
     expect(enemyPresentationFacing2D({
       aimX: -1, aimZ: 0, moveX: 1, moveZ: 0,
     })).toBeCloseTo(Math.PI / 2)
     expect(enemyPresentationFacing2D({
       aimX: -1, aimZ: 0, moveX: 1, moveZ: 0, attacking: true,
+    })).toBeCloseTo(Math.PI / 2)
+    expect(enemyPresentationFacing2D({
+      aimX: -1, aimZ: 0, moveX: 0, moveZ: 0, attacking: true,
     })).toBeCloseTo(-Math.PI / 2)
   })
 
@@ -134,7 +142,7 @@ describe('CombatWorld2D', () => {
 
   it('opens with a readable mixed pack instead of six repeated silhouettes', () => {
     const world = makeWorld()
-    world.enemies.update(1 / 60, 1 / 60, world.player)
+    world.enemies.update(1 / 60, ENEMY_INGRESS_DELAY_SECONDS_2D, world.player)
     const ids = Array.from({ length: world.enemies.count }, (_, i) => ENEMIES[world.enemies.type[i]].id)
     expect(ids).toContain('wisp')
     expect(ids).toContain('wolf')
@@ -147,7 +155,7 @@ describe('CombatWorld2D', () => {
       character: getCharacter('seolryeong'), stage,
       progress: { trial: 0, statMods: [], reviveCharges: 0 }, rng: new RNG(9),
     })
-    world.enemies.update(1 / 60, 1 / 60, world.player)
+    world.enemies.update(1 / 60, ENEMY_INGRESS_DELAY_SECONDS_2D, world.player)
     const ids = Array.from({ length: world.enemies.count }, (_, i) => ENEMIES[world.enemies.type[i]].id)
     expect(new Set(ids)).toEqual(new Set(['wolf']))
   })
@@ -171,6 +179,12 @@ describe('CombatWorld2D', () => {
     expect(dispatched).toBe(1)
     expect(world.formations.formationSeen).toBe(true)
     expect(world.enemies.count).toBe(14)
+    for (let index = 0; index < world.enemies.count; index++) {
+      const dx = Math.abs(world.enemies.x[index] - world.player.x)
+      const dz = Math.abs(world.enemies.z[index] - world.player.z)
+      expect(dx >= ENEMY_INGRESS_VIEW_ENVELOPE_2D.radiusX + 0.5
+        || dz >= ENEMY_INGRESS_VIEW_ENVELOPE_2D.radiusZ + 0.5).toBe(true)
+    }
     expect(world.formations.update(world.runTime, { player: world.player }, (event) => world._spawnFormation(event))).toBe(0)
     expect(world.enemies.count).toBe(14)
   })
@@ -229,6 +243,7 @@ describe('CombatWorld2D', () => {
     const world = makeWorld(211)
     world.player.x = 18
     world.player.z = -9
+    world.runTime = 2
 
     world.enemies._spawnWave(0, world.runTime, world.player)
 
@@ -237,11 +252,8 @@ describe('CombatWorld2D', () => {
       const dx = world.enemies.x[i] - world.player.x
       const dz = world.enemies.z[i] - world.player.z
       const radius = Math.hypot(dx, dz)
-      expect(
-        Math.abs(dx) >= 36 || dz <= -52 || dz >= 44,
-        `enemy ${i} spawned inside the visible play field at (${dx}, ${dz})`,
-      ).toBe(true)
-      expect(radius).toBeGreaterThan(35)
+      expect(Math.hypot(dx / 39, dz / 43), `enemy ${i} ingress ellipse`).toBeGreaterThanOrEqual(0.99)
+      expect(radius).toBeGreaterThan(38)
     }
   })
 
@@ -314,6 +326,86 @@ describe('CombatWorld2D', () => {
     expect(world.victory).toBe(true)
     expect(world.ended).toBe(false)
     expect(world.player.invulnTimer).toBeGreaterThan(4)
+  })
+
+  it('starts a manifest-timed hurt reaction without disabling the active boss', () => {
+    const world = makeWorld(214)
+    world.spawnBoss('jadeVoidWarden')
+    const facing = world.boss.facing
+
+    world.damageBoss(1, 'sword')
+
+    expect(world.boss.active).toBe(true)
+    expect(world.boss.reactionState).toBe('hurt')
+    expect(world.boss.reactionTimer).toBeCloseTo(2 / 12)
+    expect(world.boss.reactionFacing).toBeCloseTo(facing)
+    world.boss.facing = facing + Math.PI / 2
+    world._updateBoss(0.05)
+    expect(world.boss.reactionState).toBe('hurt')
+    expect(world.boss.reactionFacing).toBeCloseTo(facing)
+    world._updateBoss(0.2)
+    expect(world.boss.reactionState).toBeNull()
+  })
+
+  it('keeps a mid-boss death clip visible while collision, AI and damage are disabled', () => {
+    const world = makeWorld(215)
+    world.spawnBoss('blueWolfKing')
+    const x = world.boss.x
+    const z = world.boss.z
+    world.boss.hp = 1
+    world.damageBoss(1000, 'sword')
+
+    expect(world.boss.active).toBe(false)
+    expect(world.boss.reactionState).toBe('death')
+    expect(world.boss.reactionTimer).toBeCloseTo(7 / 10)
+    expect(world._pendingEndTimer).toBeNull()
+    world._updateBoss(0.2)
+    expect(world.boss.x).toBe(x)
+    expect(world.boss.z).toBe(z)
+    const hp = world.boss.hp
+    world.damageBoss(1000, 'sword')
+    expect(world.boss.hp).toBe(hp)
+  })
+
+  it('publishes a final result only after the authored death clip and hold', () => {
+    const world = makeWorld(216)
+    world.spawnBoss('jadeVoidWarden')
+    world.boss.hp = 1
+    let ended = null
+    world.onEnd = (victory) => { ended = victory }
+    world.damageBoss(1000, 'sword')
+
+    const window = bossReactionPresentationDuration2D(
+      SPRITE_MANIFEST.actors.jadeVoidWarden, 'death',
+    )
+    expect(window).toBeCloseTo(7 / 10)
+    expect(world._pendingEndTimer).toBeCloseTo(window)
+    world.update(window * 0.5, idleInput)
+    expect(world.ended).toBe(false)
+    expect(ended).toBeNull()
+    expect(world.boss.reactionState).toBe('death')
+    world.update(window * 0.51, idleInput)
+    expect(world.ended).toBe(true)
+    expect(ended).toBe(true)
+  })
+
+  it('routes the hard-timeout final win through the same death presentation window', () => {
+    const world = makeWorld(217)
+    world.runTime = 419.9
+    world.spawnBoss('jadeVoidWarden')
+    world.boss.phase = 2
+    world.pacing.advance = () => [{ id: 'hardTimeout' }]
+    let ended = null
+    world.onEnd = (victory) => { ended = victory }
+
+    world.update(1 / 60, idleInput)
+    expect(world.boss.active).toBe(false)
+    expect(world.boss.reactionState).toBe('death')
+    expect(world.ended).toBe(false)
+    expect(ended).toBeNull()
+    world.update(0.7, idleInput)
+    expect(world.ended).toBe(true)
+    expect(ended).toBe(true)
   })
 
   it('does not emit a boss-hit event when a phase floor absorbs all damage', () => {
@@ -607,9 +699,13 @@ describe('CombatWorld2D', () => {
     expect(world.bossSchedule.map((entry) => entry.t)).toEqual([180, 330])
     world.runTime = 480
     world._updateBoss(0)
-    expect(world.boss.def.id).toBe('blueWolfKing')
+    expect(world.boss).toBeNull()
+    expect(world._pendingBossSummon?.id).toBe('blueWolfKing')
     expect(world.spawnedBosses.has('mid:blueWolfKing')).toBe(true)
 
+    world.runTime = 480 + SCREEN_SUMMON_TELEGRAPH_SECONDS_2D
+    world._updateBoss(0)
+    expect(world.boss.def.id).toBe('blueWolfKing')
     world.runTime = 900
     world._updateBoss(0)
     expect(world.boss.def.id).toBe('blueWolfKing')
@@ -617,8 +713,12 @@ describe('CombatWorld2D', () => {
 
     world.boss.active = false
     world._updateBoss(0)
-    expect(world.boss.def.id).toBe('jadeVoidWarden')
+    expect(world.boss.def.id).toBe('blueWolfKing')
+    expect(world._pendingBossSummon?.id).toBe('jadeVoidWarden')
     expect(world.spawnedBosses.has('final:jadeVoidWarden')).toBe(true)
+    world.runTime += SCREEN_SUMMON_TELEGRAPH_SECONDS_2D
+    world._updateBoss(0)
+    expect(world.boss.def.id).toBe('jadeVoidWarden')
   })
 
   it('applies might and crit exactly once to player projectiles', () => {
@@ -761,6 +861,7 @@ describe('CombatWorld2D', () => {
       progress: { trial: 0, statMods: [], reviveCharges: 0 }, rng: new RNG(2027),
       mode: 'expedition',
     })
+    world.runTime = ENEMY_INGRESS_DELAY_SECONDS_2D
     world.update(1 / 60, idleInput)
     expect(world.enemies.count).toBeGreaterThan(0)
     expect(world.formations).not.toBeNull()

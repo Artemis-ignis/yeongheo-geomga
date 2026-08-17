@@ -24,26 +24,30 @@ function findPois(seed = 12345, stageId = 'jade', wanted = 1) {
 }
 
 describe('streamed 2D world interactions', () => {
-  it('authors a sequential expedition route from altar to record to elite seal', () => {
+  it('authors a required story chain plus reachable optional detours', () => {
     const route = expeditionRoutePois(2026, 'jade')
-    expect(route.map((poi) => poi.type)).toEqual([
+    const required = route.filter((poi) => poi.required)
+    const optional = route.filter((poi) => !poi.required)
+    expect(required.map((poi) => poi.type)).toEqual([
       POI_TYPE.altar, POI_TYPE.treasure, POI_TYPE.eliteSeal,
     ])
-    expect(route.map((poi) => poi.beatId)).toEqual([
+    expect(required.map((poi) => poi.beatId)).toEqual([
       'broken-meridian', 'sealed-record', 'corrupted-seal',
     ])
-    expect(new Set(route.map((poi) => poi.id)).size).toBe(3)
+    expect(optional.length).toBeGreaterThanOrEqual(1)
+    expect(optional.every((poi) => poi.required === false && poi.requires.length > 0)).toBe(true)
+    expect(new Set(route.map((poi) => poi.id)).size).toBe(route.length)
     expect(route.every(Object.isFrozen)).toBe(true)
-    expect(Math.hypot(route[0].x, route[0].z)).toBeLessThan(20)
-    for (let index = 1; index < route.length; index++) {
-      expect(Math.hypot(route[index].x - route[index - 1].x, route[index].z - route[index - 1].z)).toBeLessThan(34)
+    expect(Math.hypot(required[0].x, required[0].z)).toBeLessThan(20)
+    for (let index = 1; index < required.length; index++) {
+      expect(Math.hypot(required[index].x - required[index - 1].x, required[index].z - required[index - 1].z)).toBeLessThan(40)
     }
 
     const world = new WorldInteractions2D({ seed: 2026, stageId: 'jade', mode: 'expedition' })
-    expect(world.currentRoutePoi()?.id).toBe(route[0].id)
-    expect(world.findNearby(route[1].x, route[1].z)).toBeNull()
+    expect(world.currentRoutePoi()?.id).toBe(required[0].id)
+    expect(world.findNearby(required[1].x, required[1].z)).toBeNull()
     const firstBeat = world.chapter.route[0]
-    const clues = investigationCluePois(route[0], firstBeat)
+    const clues = investigationCluePois(required[0], firstBeat)
     expect(clues).toHaveLength(3)
     expect(new Set(clues.map((clue) => clue.type))).toEqual(new Set(['evidence', 'false_trace']))
     for (const [index, clue] of clues.entries()) {
@@ -52,17 +56,29 @@ describe('streamed 2D world interactions', () => {
         found: index + 1, total: 3, complete: index === 2,
       })
     }
-    expect(world.interact(route[0].x, route[0].z)).toMatchObject({
+    expect(world.interact(required[0].x, required[0].z)).toMatchObject({
       type: 'poi_reward', poiType: POI_TYPE.altar,
       reward: { kind: 'blessing-choice' },
     })
-    expect(world.isConsumed(route[0].id)).toBe(true)
-    expect(world.currentRoutePoi()?.id).toBe(route[1].id)
-    for (const poi of route.slice(1)) {
+    expect(world.isConsumed(required[0].id)).toBe(true)
+    expect(world.currentRoutePoi()?.id).toBe(required[1].id)
+    expect(world.requiredProgressFor()).toEqual({ completed: 1, total: 3, complete: false })
+    const firstOptional = optional.find((poi) => poi.requires.includes(required[0].nodeId))
+    expect(firstOptional).toBeTruthy()
+    expect(world.interact(firstOptional.x, firstOptional.z)?.type).toBe('poi_guardian_requested')
+    expect(world.markGuardianCleared(firstOptional.id)).toBe(true)
+    expect(world.interact(firstOptional.x, firstOptional.z)).toMatchObject({
+      type: 'poi_reward', required: false,
+      reward: { kind: 'blessing', stat: 'haste', amount: 0.09 },
+    })
+    expect(world.requiredProgressFor()).toEqual({ completed: 1, total: 3, complete: false })
+
+    for (const poi of required.slice(1)) {
       expect(world.interact(poi.x, poi.z)?.type).toBe('poi_guardian_requested')
       expect(world.markGuardianCleared(poi.id)).toBe(true)
       expect(world.interact(poi.x, poi.z)?.poiType).toBe(poi.type)
     }
+    expect(world.requiredProgressFor()).toEqual({ completed: 3, total: 3, complete: true })
     expect(world.currentRoutePoi()).toBeNull()
   })
 
@@ -149,7 +165,10 @@ describe('streamed 2D world interactions', () => {
       seed: 8128,
       stageId: 'jade',
       chapterId: 'jade:guardian',
+      topologyId: null,
       consumed: [poi.id],
+      requiredCompleted: [],
+      optionalCompleted: [],
       guardians: {},
       investigations: {},
     })

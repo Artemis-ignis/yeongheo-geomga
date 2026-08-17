@@ -1,6 +1,6 @@
 # 영허검가 — 현재 상태와 인계
 
-기준일: 2026-08-14
+기준일: 2026-08-18
 제품 경로: `src/main.js` → `src/runtime2d/Game2D.js` → `src/runtime2d/PixiPresentation.js`
 내부 마감: 2026-08-20
 
@@ -18,13 +18,13 @@
 - 일반 적·정예·중간 보스·최종 보스, 진형, POI, 미니맵
 - 타이틀·준비·HUD·일시정지·성장 선택·결과·도감·상점
 - 오디오 경로가 열리지 않는 완전 무음 정책과 단일 Windows 진입점 `영허검가 실행.vbs`
-- Vercel 공개 웹 빌드 `https://yeongheo-geomga.vercel.app`와 GitHub `master` 자동 배포
+- Vercel 공개 웹 빌드 `https://yeongheo-geomga.vercel.app`와 GitHub `master` 저장소. 이번 기준 빌드는 Vercel production에 직접 검증 배포했으며, Git push 뒤 자동 배포 연결은 별도로 확인합니다.
 
 ## 저장소 정리 결과
 
 - 구형 Three.js 엔진, 3D 아트/GLB, img2three 도구 복사본과 산출물을 삭제했습니다.
 - 구버전 목표·감사·인계·릴리스 문서와 v5/v5.3 전용 QA 스크립트를 삭제했습니다.
-- 현재 배포·제작 에셋 157개와 감사 대상 제작 파이프라인 37개를 `public/assets`와 `assets-source`로 분리해 보존했습니다.
+- 현재 배포·제작 에셋 160개와 감사 대상 제작 파이프라인 39개를 `public/assets`와 `assets-source`로 분리해 보존했습니다.
 - 실제로 로드되지 않던 3,701줄 구형 `styles/hud.css`와 구형 타이틀 키아트를 제거하고 패키지 잠금 기준을 npm 하나로 통일했습니다.
 - 임시 브라우저 프로필·캡처·영상·변환 캐시는 저장소와 최종 소스 폴더에 남기지 않습니다.
 
@@ -32,16 +32,16 @@
 
 | 항목 | 상태 |
 |---|---|
-| 전체 자동 테스트 | PASS — 54 files, 717 tests |
-| production build | PASS — npm lock 기준 Vite 8.1.5, dist 122 files |
-| runtime·authoring asset audit | PASS — asset 157/157, authoring pipeline 37 |
-| submission asset audit | PASS — runtime 105/105, dist 122 files / 38,859,776 bytes |
-| Windows launcher smoke | PASS — 실제 HttpListener 응답·release metadata 확인 |
-| Vercel production | PASS — `dpl_XP8woGxVM1YDtBLjCTEFDbATkSQ9`, `https://yeongheo-geomga.vercel.app` 공개 별칭에 runtime 105 에셋을 배포했습니다. 같은 Chrome 탭에서 석귀 방향·반응 시트 5개의 HTTP 200·정확한 바이트, release runtime 105·무음 정책·공개 진입 버튼 표시를 확인했습니다. Chrome 캡처 표면이 DOM 레이어를 누락한 세션 문제 때문에 공개 타이틀의 새 시각 캡처 승인은 보류합니다. |
-| 현재 Chrome 실제 플레이 | PARTIAL — 실제 사용자 Chrome 1422×739 CSS / 2560×1330 물리 production에서 부팅→타이틀→영허전→출정 확인→전투 시작→좌클릭 이동과 군세·자동 공격을 같은 탭에서 재검증했습니다. 앞선 동일 Chrome 검증에서 경지 성장·법보/공법 선택·첫 검흔 도달·흔적 1/3·정지 후 카메라 무드리프트도 확인했고, local dev에서는 설령의 5방향 피격·사망과 요랑·옥령산견·옥빛 뱀·석귀 각각의 남·측면·북 피격 포즈, 실제 피해 판정 뒤 6프레임 사망·1px 접지를 확인했습니다. 첫 장 완주·1920×1080·2560×1600 전체 화면 재검증은 미완료 |
-| 상용 시각 품질 | BLOCKED — 주인공 모션의 표준 해상도 전체 런 승인·적 모션·사람 시각 승인 미완료 |
+| 전체 자동 테스트 | PASS — 로컬 Windows 59 files / 804 tests, Vercel Linux 59 files / 803 passed + Windows 전용 1 skipped |
+| production build | PASS — npm lock 기준 Vite 8.1.5, dist 123 files / 38,249,406 bytes |
+| runtime·authoring asset audit | PASS — asset 160/160, authoring pipeline 39 |
+| submission asset audit | PASS — runtime 106/106, source/output 누락 0, unexpected 0, debug marker 0 |
+| Windows launcher smoke | PASS — 루트 진입점은 `영허검가 실행.vbs` 1개이며, VBS 테스트 모드에서 실제 HttpListener 응답 뒤 exit 0·4173 포트 정리 확인 |
+| Vercel production | PASS — `dpl_3FVUXnnpD4VgaPGFKZYt8hEjy3eJ`, `https://yeongheo-geomga.vercel.app` 공개 별칭. 원격 `verify:build` 전체 통과, `release.json`·신규 보스 반응·신규 지면 에셋은 로컬과 바이트/SHA-256 일치, release runtime 106·`silent-only` 확인 |
+| 현재 인앱 Browser 실제 플레이 | PARTIAL — 단일 1280×720 인앱 브라우저 탭에서 production 부팅→단일 타이틀→출정 확인→전투 시작→좌클릭 이동→카메라/지면/소품 동기 이동→정지→적 생성·자동 공격·레벨 상승·HUD 갱신까지 확인했습니다. production URL 콘솔 오류·경고는 0건입니다. 1920×1080·2560×1600 전체 런과 제1장 완주는 미완료입니다. |
+| 상용 시각 품질 | BLOCKED — `quality:audit` blocker 67개. 주인공 표준 해상도 전체 런 승인·일부 적 방향/피격/사망 모션·사람 시각 승인 미완료 |
 | 전체 작품 구조 | BLOCKED — 현재 한 비경 수직 슬라이스이며 복수 비경·사건·문파 진행·장기 목표·결말 미완료 |
-| 이미지 사용 권리 | BLOCKED — 기술 검수용 공개와 별개로 상용·홍보 전 사람이 근거 확인 필요 |
+| 이미지 사용 권리 | BLOCKED — runtime 106개 중 자산별 상용 권리 증빙 0개. 기술 검수용 공개와 별개로 상용·홍보 전 사람이 근거 확인 필요 |
 
 ## 실제 남은 작업
 
@@ -67,6 +67,11 @@
 18. 옥령산견도 기존 비취 갑편·검은 털 정체성을 유지한 남·측면·북 피격·사망 시트를 제작해 같은 런타임 계약에 연결하고, 실제 Chrome 전투 장면에서 붕괴 순서와 접지를 확인했습니다.
 19. 옥빛 뱀은 비취 비늘·금문·뿔·수염 정체성을 보존한 세 방향 반응 시트를 제작했습니다. 생성 시트의 불균등한 칸 배치가 몸통을 자르지 않도록 투명 여백 골을 찾는 정규화 경로를 추가하고, 실제 Chrome에서 방향별 피격과 사망 프레임 2→5→7, 1px 접지를 확인했습니다.
 20. 석귀는 청록 옥갑·황색 핵·석체 비율을 보존한 북·남 이동/공격 및 남·측면·북 피격·사망 시트를 제작했습니다. 낮은 알파의 색 번짐과 행 경계를 넘는 팔 자세를 안전하게 분리하도록 제작 도구에 알파 임계값·행 겹침·후행 절단을 추가하고, 실제 Chrome의 변종 UID 선택과 damageOne→flushEnemyDeaths 경로에서 방향별 사망 프레임 2→5→7, 1px 접지를 확인했습니다.
+21. 플레이어·지면·소품·POI·적을 하나의 월드 좌표/카메라 프레임으로 묶고, 화면 가장자리 드래그식 데드존 대신 연속 추적·짧은 진행 방향 선행·정지 고정을 적용했습니다. POI 접촉 보정도 현재/이전 좌표와 속도를 원자적으로 동기화합니다.
+22. 일반 군세·POI 수호자·정예·분열 적을 공통 화면 밖 진입 규칙으로 통합하고, 진형 경고를 플레이어 중심 디버그 원이 아닌 실제 진입 변의 제한된 전조로 교체했습니다.
+23. 중앙 디버그 광장을 제거한 비대칭 옥산 지면과 네 개 소품 군집을 적용하고, 경직 소품 흔들림을 없애 접점 그림자·깊이 정렬·이동 일체감을 교정했습니다.
+24. 옥허 수호자의 피격 2프레임과 사망 6프레임을 실제 런타임에 연결해, 사망 즉시 전투 판정은 끄되 0.7초 반응 창 뒤 결과로 전환하도록 수정했습니다.
+25. 결과 화면 업적 중복과 비어 있는 하단 진행 열을 제거하고, 타이틀·출정 준비·HUD·일시정지·수련·천하록·결과를 같은 수묵/비취/주홍 체계로 재검증했습니다.
 
 ### P1 — 게임성·연출
 

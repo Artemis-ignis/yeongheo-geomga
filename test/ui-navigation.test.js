@@ -1,10 +1,13 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { CHARACTERS } from '../src/data/characters.js'
 import { DaoVows2D } from '../src/runtime2d/DaoVows2D.js'
 import { Hud } from '../src/ui/Hud.js'
 import { LevelUpModal } from '../src/ui/LevelUpModal.js'
 import { ResultScreen } from '../src/ui/ResultScreen.js'
 import { TitleScreen } from '../src/ui/TitleScreen.js'
+import { ShopScreen } from '../src/ui/ShopScreen.js'
+import { CodexScreen } from '../src/ui/CodexScreen.js'
+import { PauseScreen } from '../src/ui/PauseScreen.js'
 
 class FakeClassList {
   constructor(owner) {
@@ -25,7 +28,9 @@ class FakeClassList {
 
 function simpleSelector(element, selector) {
   const attr = selector.match(/^\[([^=\]]+)(?:=["']?([^\]"']+)["']?)?\]$/)
-  if (attr) return element.getAttribute(attr[1]) === (attr[2] ?? '')
+  if (attr) return attr[2] === undefined
+    ? element.getAttribute(attr[1]) !== null
+    : element.getAttribute(attr[1]) === attr[2]
   const tag = selector.match(/^[a-zA-Z][\w-]*/)?.[0]
   if (tag && element.tagName.toLowerCase() !== tag.toLowerCase()) return false
   const classes = [...selector.matchAll(/\.([\w-]+)/g)].map((match) => match[1])
@@ -177,6 +182,8 @@ class FakeElement {
     for (const listener of this.listeners.get(type) ?? []) listener(payload)
   }
 
+  click() { this.fire('click') }
+
   focus() { globalThis.document.activeElement = this }
   blur() { if (globalThis.document.activeElement === this) globalThis.document.activeElement = null }
 }
@@ -244,6 +251,14 @@ describe('TitleScreen player navigation', () => {
     expect(screen.cards.map((card) => card.id)).toEqual(['seolryeong'])
     expect(screen.stageCards.map((card) => card.id)).toEqual(['jade'])
     expect(screen.node.querySelector('.char-cards').classList.contains('is-single')).toBe(true)
+  })
+
+  it('keeps the Seolryeong roster portrait on the canonical v3 identity', () => {
+    const screen = new TitleScreen(makeRoot(), CHARACTERS, makeProgress())
+    screen._bakePortraits()
+    const portrait = screen.cards[0].portrait
+    expect(portrait.style.backgroundImage).toContain('seolryeong-character-reference-v3.webp')
+    expect(portrait.style.backgroundImage).not.toContain('seolryeong-character-reference-v2.webp')
   })
 
   it('skips both redundant single-character and single-chapter card steps for the main journey', () => {
@@ -421,6 +436,35 @@ describe('ResultScreen keyboard CTAs', () => {
     expect(screen.node.innerHTML).toContain('추적')
     expect(screen.node.innerHTML).toContain('위력')
     expect(screen.node.innerHTML).toContain('처음 화면으로 돌아가기')
+  })
+
+  it('keeps sparse records to two zones and adds a progress zone only when authored data exists', () => {
+    const screen = new ResultScreen(makeRoot())
+    screen.show({
+      ...resultFixture(),
+      achievements: [{ name: '무흔', desc: '기혈을 잃지 않는다.', stones: 220 }],
+    }, { onRestart() {}, onMenu() {} })
+
+    const sparseLedger = screen.node.querySelector('.result-ledger')
+    expect(sparseLedger.classList.contains('result-ledger-has-progress')).toBe(false)
+    expect(screen.node.querySelector('.result-progress-column')).toBeNull()
+    expect(screen.node.querySelectorAll('.result-achievements')).toHaveLength(1)
+    expect(screen.node.querySelectorAll('.result-ach')).toHaveLength(1)
+    expect(screen.node.innerHTML.match(/무흔/g)).toHaveLength(1)
+    expect(screen.node.querySelector('.result-outcome-column').getAttribute('aria-label')).toBe('출정 결과와 보상')
+    expect(screen.node.querySelector('.result-record-column').getAttribute('aria-label')).toBe('출정 기록과 빌드')
+
+    screen.show({
+      ...resultFixture(), mode: 'expedition',
+      journey: {
+        title: '옥산에 번지는 마기', nextGoal: '다음 검로를 확인하십시오.',
+        objectivesCompleted: 1, objectivesTotal: 3,
+      },
+    }, { onRestart() {}, onMenu() {} })
+
+    expect(screen.node.querySelector('.result-ledger').classList.contains('result-ledger-has-progress')).toBe(true)
+    expect(screen.node.querySelector('.result-progress-column').getAttribute('aria-label')).toBe('다음 수행과 진행')
+    expect(screen.node.querySelector('.result-journey')).not.toBeNull()
   })
 
   it('presents exploration as a return journey without 천겁 vocabulary', () => {
@@ -625,6 +669,108 @@ describe('Dao identity surfaces', () => {
     expect(hud.objective.textContent).toContain('영맥 제단')
     expect(hud.daoGauge.hidden).toBe(false)
     expect(hud.daoGauge.textContent).toContain('2/3')
+  })
+})
+
+function makeShopProgress() {
+  return {
+    stones: 100,
+    buyUpgrade: vi.fn(() => true),
+    unlock: vi.fn(() => true),
+    levelOf: vi.fn(() => 0),
+    isMaxed: vi.fn(() => false),
+    costOf: vi.fn(() => 10),
+    canAfford: vi.fn(() => true),
+    isUnlocked: vi.fn(() => false),
+    canAffordUnlock: vi.fn(() => true),
+  }
+}
+
+function makeCodexProgress() {
+  return {
+    achievements: [],
+    records: {},
+    state: { journey: { decisions: {} } },
+    hasSeen: vi.fn(() => false),
+  }
+}
+
+describe('bounded ledger input ownership', () => {
+  it('focuses the shop tab, roves through enabled cards, activates purchase, and closes from back', () => {
+    const progress = makeShopProgress()
+    let closed = 0
+    const screen = new ShopScreen(makeRoot(), progress, vi.fn())
+    screen.show(() => { closed++ })
+
+    expect(globalThis.document.activeElement).toBe(screen.tabs[0])
+    expect(screen.node.innerHTML).toContain('검가로 돌아간다')
+    screen.handleKey(false, 0, 1)
+    expect(globalThis.document.activeElement).toBe(screen.rows[0].row)
+
+    screen.handleKey(true)
+    expect(progress.buyUpgrade).toHaveBeenCalledWith(screen.rows[0].up.id)
+
+    screen.handleKey(false, 0, -1)
+    expect(globalThis.document.activeElement).toBe(screen.tabs[0])
+    screen.handleKey(false, 0, -1)
+    expect(globalThis.document.activeElement).toBe(screen.backButton)
+    screen.handleKey(true)
+    expect(closed).toBe(1)
+    expect(screen.isOpen).toBe(false)
+  })
+
+  it('gives Codex tabs and panes an explicit ARIA relationship and roves entries', () => {
+    const screen = new CodexScreen(makeRoot(), makeCodexProgress())
+    screen.show(() => {})
+
+    const tab = screen.tabs[0]
+    const pane = screen.panes[0]
+    expect(globalThis.document.activeElement).toBe(tab)
+    expect(screen.node.innerHTML).toContain('검가로 돌아간다')
+    expect(tab.getAttribute('aria-controls')).toBe(pane.getAttribute('id'))
+    expect(pane.getAttribute('aria-labelledby')).toBe(tab.getAttribute('id'))
+
+    screen.handleKey(false, 1)
+    expect(screen.activeTab).toBe('enemies')
+    expect(globalThis.document.activeElement).toBe(screen.tabs[1])
+    screen.handleKey(false, 0, 1)
+    const firstEnemy = screen.entries.find((entry) => entry.kind === 'enemies')
+    expect(globalThis.document.activeElement).toBe(firstEnemy.cell)
+    screen.handleKey(true)
+    expect(screen.detail.innerHTML).toContain('아직 만나지 못했다')
+    screen.handleKey(false, 0, -1)
+    expect(globalThis.document.activeElement).toBe(screen.tabs[1])
+    screen.handleKey(false, 0, -1)
+    expect(globalThis.document.activeElement).toBe(screen.backButton)
+    screen.handleKey(true)
+    expect(screen.isOpen).toBe(false)
+  })
+})
+
+describe('PauseScreen input ownership', () => {
+  it('focuses resume, routes direction/confirm, and requires two confirmations to quit', () => {
+    const resumed = vi.fn()
+    const quit = vi.fn()
+    const quality = { mode: '자동', cycle: vi.fn(() => '높음') }
+    const screen = new PauseScreen(makeRoot(), {
+      audio: { playUiCue: vi.fn() }, quality, onResume: resumed, onQuit: quit,
+    })
+    screen.show({ runTime: 12, level: 2, kills: 3, stones: 4 }, { weapons: {}, passives: {} })
+
+    expect(globalThis.document.activeElement).toBe(screen.resumeButton)
+    expect(screen.node.innerHTML).toContain('검가로 돌아간다')
+    screen.handleKey(false, 1)
+    expect(globalThis.document.activeElement).toBe(screen.qualityButton)
+    screen.handleKey(true)
+    expect(quality.cycle).toHaveBeenCalledTimes(1)
+    screen.handleKey(false, 1)
+    expect(globalThis.document.activeElement).toBe(screen.quitButton)
+    screen.handleKey(true)
+    expect(quit).not.toHaveBeenCalled()
+    expect(screen.quitButton.textContent).toBe('정말 검가로 돌아가는가?')
+    screen.handleKey(true)
+    expect(quit).toHaveBeenCalledTimes(1)
+    expect(resumed).not.toHaveBeenCalled()
   })
 })
 

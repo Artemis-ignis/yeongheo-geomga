@@ -98,7 +98,7 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'bossSlayer', name: '요괴 토벌',
-    desc: '한 런에서 보스 둘을 쓰러뜨린다.',
+    desc: '한 출정에서 보스 둘을 쓰러뜨린다.',
     scope: 'run', stones: 200,
     test: (r) => r.bossKills >= 2,
   },

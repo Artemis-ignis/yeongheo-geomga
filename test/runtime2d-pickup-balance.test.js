@@ -4,6 +4,7 @@ import { getCharacter } from '../src/data/characters.js'
 import { getStage } from '../src/data/stages.js'
 import {
   CombatWorld2D, PICKUP_MERGE_RADIUS_2D, PICKUP_REMOTE_RECALL_AGE_2D,
+  pickupRemoteRecallEligible2D,
 } from '../src/runtime2d/CombatWorld2D.js'
 
 function makeWorld(seed = 17) {
@@ -22,6 +23,18 @@ function liveValue(field, values) {
 }
 
 describe('2D pickup ledgers', () => {
+  it('keeps a readable trail, then recalls even a single stranded qi mote', () => {
+    expect(pickupRemoteRecallEligible2D({
+      xpValue: 1, age: PICKUP_REMOTE_RECALL_AGE_2D - 0.01, distance: 30, magnet: 6.5,
+    })).toBe(false)
+    expect(pickupRemoteRecallEligible2D({
+      xpValue: 1, age: PICKUP_REMOTE_RECALL_AGE_2D, distance: 30, magnet: 6.5,
+    })).toBe(true)
+    expect(pickupRemoteRecallEligible2D({
+      xpValue: 1, age: PICKUP_REMOTE_RECALL_AGE_2D, distance: 4, magnet: 6.5,
+    })).toBe(false)
+  })
+
   it('compacts a local kill cluster without merging distinct reward fields', () => {
     const world = makeWorld()
     world.pickups.spawn(0, 0, 2, false)
@@ -74,7 +87,7 @@ describe('2D pickup ledgers', () => {
     const world = makeWorld()
     world.player.x = 40
     world.player.z = 0
-    world.pickups.spawn(0, 0, 21, false)
+    world.pickups.spawn(0, 0, 1, false)
     world.pickups.age[0] = PICKUP_REMOTE_RECALL_AGE_2D
 
     for (let tick = 0; tick < 240 && world.pickups.count > 0; tick++) {
@@ -82,7 +95,7 @@ describe('2D pickup ledgers', () => {
     }
 
     expect(world.pickups.count).toBe(0)
-    expect(world.pickups.collectedXp).toBe(21)
+    expect(world.pickups.collectedXp).toBe(1)
     expect(world.pickups.spawnedXp - world.pickups.collectedXp).toBe(0)
   })
 })

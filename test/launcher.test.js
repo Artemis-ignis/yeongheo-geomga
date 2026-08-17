@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { createServer } from 'node:net'
@@ -12,6 +12,9 @@ const server = readFileSync(resolve(root, 'tools/serve-dist.ps1'), 'utf8')
 const packager = readFileSync(resolve(root, 'tools/package-release.ps1'), 'utf8')
 const quietLauncher = readFileSync(resolve(root, '영허검가 실행.vbs'), 'utf8')
 const launcherCode = launcher.replace(/^\s*#.*$/gm, '')
+const releaseContract = JSON.parse(readFileSync(resolve(root, 'public/release.json'), 'utf8'))
+const packageContract = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'))
+const vercelContract = JSON.parse(readFileSync(resolve(root, 'vercel.json'), 'utf8'))
 
 const delay = (ms) => new Promise((done) => setTimeout(done, ms))
 
@@ -31,6 +34,8 @@ describe('Windows release launcher contract', () => {
     expect(existsSync(resolve(root, 'dist/index.html'))).toBe(true)
     expect(existsSync(resolve(root, 'tools/serve-dist.ps1'))).toBe(true)
     expect(existsSync(resolve(root, '게임시작.bat'))).toBe(false)
+    expect(readdirSync(root).filter((name) => name.toLowerCase().endsWith('.vbs')))
+      .toEqual(['영허검가 실행.vbs'])
     expect(quietLauncher).toContain('tools\\start-game.ps1')
     expect(quietLauncher).toContain('shell.Run command, 7, False')
     expect(quietLauncher).toContain('YEONGHEO_TEST_MODE')
@@ -53,9 +58,13 @@ describe('Windows release launcher contract', () => {
     expect(packager).toContain('ZipArchive')
     expect(packager).toContain('ConvertTo-ZipEntryName')
     expect(packager).toContain("Replace('\\', '/')")
-    expect(packager).toContain('windows-portable')
+    expect(packager).toContain('$releaseMetadata.packages.windowsPortable')
     expect(packager).toContain('영허검가 실행.vbs')
-    expect(packager).toContain('web-release')
+    expect(packager).toContain('$releaseMetadata.packages.web')
+    expect(packager).toContain('$archiveTimestamp')
+    expect(packager).not.toContain('$ReleaseTag')
+    expect(packager).not.toContain('web-release-')
+    expect(packager).not.toContain('windows-portable-')
     expect(packager).toContain('기존 릴리스 파일을 덮어쓰지 않습니다')
     expect(packager).toContain('AllowUnclearedRights')
     expect(packager).toContain('권리 게이트가 BLOCKED입니다')
@@ -63,6 +72,21 @@ describe('Windows release launcher contract', () => {
     expect(packager).toContain('public과 dist 문서가 다릅니다')
     expect(packager).toContain('[string]::IsNullOrWhiteSpace($EntryPrefix)')
     expect(packager).not.toContain('Compress-Archive')
+  })
+
+  it('uses the release contract for archive names and a verified Vercel build', () => {
+    const releaseSuffix = releaseContract.releaseId.replace(/^yeongheo-/, '')
+    expect(releaseContract.packages.web).toBe(`yeongheo-geomga-web-${releaseSuffix}.zip`)
+    expect(releaseContract.packages.windowsPortable).toBe(`yeongheo-geomga-windows-${releaseSuffix}.zip`)
+    expect(packageContract.scripts['verify:build'])
+      .toBe('npm run assets:audit && npm run build && npm run assets:build-audit && npm test')
+    expect(packageContract.scripts['verify:functional']).toBe('npm run verify:build')
+    expect(vercelContract).toMatchObject({
+      framework: 'vite',
+      installCommand: 'npm ci',
+      buildCommand: 'npm run verify:build',
+      outputDirectory: 'dist',
+    })
   })
 
   it.runIf(process.platform === 'win32')('serves the first request after multiple idle parent checks', async () => {

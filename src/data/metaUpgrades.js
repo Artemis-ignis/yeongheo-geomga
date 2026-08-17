@@ -57,7 +57,7 @@ export const META_UPGRADES = [
   },
   {
     id: 'fortune', name: '재물운', max: 5,
-    desc: '런에서 얻는 영석이 늘어난다.',
+    desc: '출정에서 얻는 영석이 늘어난다.',
     baseCost: 70, costGrowth: 1.55,
     effect: 'stoneGain', effectValue: 0.12,
     perLevel: [],
@@ -87,7 +87,7 @@ export const META_UPGRADES = [
   },
   {
     id: 'sealing', name: '봉인술', max: 3,
-    desc: '이번 런에서 원치 않는 패를 아예 지운다.',
+    desc: '이번 출정에서 원치 않는 패를 아예 지운다.',
     baseCost: 220, costGrowth: 1.7,
     effect: 'banish', effectValue: 1,
     perLevel: [],

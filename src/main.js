@@ -37,12 +37,23 @@ async function boot() {
       game.world.player.takeDamage = () => false
       game.stress({ enemies: 900, projectiles: 1200, pickups: 1500 })
       game.debug.toggle()
+    } else if (qaMode === 'motion') {
+      await game._startRun('seolryeong', 'jade')
+      game.world.onLevels = () => {}
+      game.world.player.takeDamage = () => false
+      game.world.weaponCache = []
+      game.world.enemies._spawnWave = () => {}
+      game.world.enemies.spawn = () => false
+      // Motion QA must remain a continuous locomotion take. Dao milestones
+      // otherwise open a full-screen choice after a few input passes and make
+      // before/after stop frames incomparable.
+      game._checkDaoMilestone = () => {}
     } else if (qaMode === 'wolf-crowd') {
       await game._startRun('seolryeong', 'jade')
       game.world.onLevels = () => {}
       game.world.player.takeDamage = () => false
       game.world.weaponCache = []
-      game.world.enemies.spawnTimer = 999
+      game.world.enemies._spawnWave = () => {}
       const roster = [
         'wolf', 'stoneGhoul', 'wolf', 'talismanGhost',
         'bloodScorpion', 'demonCultivator', 'jadeSerpent',

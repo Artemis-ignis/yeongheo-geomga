@@ -13,33 +13,34 @@ export const RUN_SECONDS = 420
  * fresh-save and progressed-save paths.
  */
 export const WAVES = [
-  // Do not spend the first ninety seconds showing one repeated silhouette.
-  // Duplicate ids are intentional weights: wisps stay the opening fodder while
-  // authored melee reads are introduced one at a time. The ranged ghost arrives
-  // only after the player has seen and understood those two melee reads.
-  // 0-30s: ~2.1 enemies/s. Four-body packs leave lanes between silhouettes.
-  { t: 0, spawnInterval: 2.15, perSpawn: 4, types: ['wisp', 'wolf', 'jadeSerpent'] },
-  // 30-60s: ~2.3 enemies/s. The charger is the first escalation.
+  // The opening now introduces the corrupted mountain ecology in layers.
+  // Hunting hounds and the wisps trailing them establish one ink-dark faction first; the
+  // brighter jade serpent arrives only after that contact language is learned.
+  // The pack director fixes the first primary family to wisps, then adds hounds
+  // on its supporting ingress arc.
+  // 0-30s: ~1.9 enemies/s. Four-body packs leave lanes between silhouettes.
+  { t: 0, spawnInterval: 2.15, perSpawn: 4, types: ['wisp', 'wolf'] },
+  // 30-60s: ~2.2 enemies/s. The charger is the first colour and behavior escalation.
   { t: 30, spawnInterval: 1.85, perSpawn: 4, types: ['wisp', 'wolf', 'jadeSerpent'] },
   // 60-120s: actual 1920/2560 play at 80-89% wisps still produced a repeated
   // purple wall even after the wisp gained eight authored poses. Preserve wisps
-  // as the majority economy fodder and keep total spawn pressure unchanged, but
-  // let the already-taught wolf and serpent own 33-40% of the silhouette mix.
-  { t: 60, spawnInterval: 1.75, perSpawn: 5, types: ['wisp', 'wisp', 'wolf', 'wolf', 'jadeSerpent'] },
-  { t: 90, spawnInterval: 1.75, perSpawn: 6, types: ['wisp', 'wisp', 'wolf', 'wolf', 'jadeSerpent'] },
-  { t: 120, spawnInterval: 1.75, perSpawn: 7, types: ['wisp', 'wisp', 'wolf', 'wolf', 'jadeSerpent', 'jadeSerpent'] },
+  // as the majority economy fodder, let the already-taught wolf and serpent own
+  // 33-40% of the silhouette mix, and keep the pressure curve climbing smoothly.
+  { t: 60, spawnInterval: 2.10, perSpawn: 6, types: ['wisp', 'wisp', 'wolf', 'wolf', 'jadeSerpent'] },
+  { t: 90, spawnInterval: 1.82, perSpawn: 7, types: ['wisp', 'wisp', 'wolf', 'wolf', 'jadeSerpent'] },
+  { t: 120, spawnInterval: 1.70, perSpawn: 8, types: ['wisp', 'wisp', 'wolf', 'wolf', 'jadeSerpent', 'jadeSerpent'] },
   // 150s: wolves become a clearly recurring contact threat.
-  { t: 150, spawnInterval: 1.55, perSpawn: 7, types: ['wisp', 'wisp', 'wolf'] },
+  { t: 150, spawnInterval: 1.60, perSpawn: 9, types: ['wisp', 'wisp', 'wolf'] },
   // 180s: ranged pressure arrives as the mid-boss enters; splitter remains a
-  // later discovery in the unchanged 210s band.
-  { t: 180, spawnInterval: 1.55, perSpawn: 8, types: ['wisp', 'wisp', 'wolf', 'talismanGhost'] },
-  { t: 210, spawnInterval: 1.40, perSpawn: 8, types: ['wolf', 'stoneGhoul', 'talismanGhost', 'jadeSerpent', 'emberSprite', 'frostWolf'] },
-  { t: 240, spawnInterval: 1.40, perSpawn: 9, types: ['wisp', 'wolf', 'talismanGhost'] },
-  { t: 270, spawnInterval: 1.40, perSpawn: 10, types: ['wolf', 'talismanGhost', 'bloodScorpion', 'jadeSerpent', 'ashRaven', 'snowWraith'] },
-  { t: 300, spawnInterval: 1.35, perSpawn: 11, types: ['wisp', 'wolf', 'bloodScorpion'] },
-  { t: 330, spawnInterval: 1.30, perSpawn: 12, types: ['wolf', 'stoneGhoul', 'bloodScorpion', 'jadeSerpent', 'ashRaven', 'snowWraith'] },
-  { t: 360, spawnInterval: 1.15, perSpawn: 13, types: ['wisp', 'wolf', 'talismanGhost', 'bloodScorpion'] },
-  { t: 390, spawnInterval: 1.05, perSpawn: 14, types: ['wolf', 'stoneGhoul', 'talismanGhost', 'magmaBrute', 'glacierWarden'] },
+  // later discovery in the following Jade-only band.
+  { t: 180, spawnInterval: 1.55, perSpawn: 10, types: ['wisp', 'wisp', 'wolf', 'talismanGhost'] },
+  { t: 210, spawnInterval: 1.23, perSpawn: 8, types: ['wolf', 'stoneGhoul', 'talismanGhost', 'jadeSerpent'] },
+  { t: 240, spawnInterval: 1.35, perSpawn: 9, types: ['wisp', 'wolf', 'talismanGhost'] },
+  { t: 270, spawnInterval: 1.35, perSpawn: 10, types: ['wolf', 'stoneGhoul', 'talismanGhost', 'jadeSerpent'] },
+  { t: 300, spawnInterval: 1.30, perSpawn: 11, types: ['wisp', 'wolf', 'stoneGhoul'] },
+  { t: 330, spawnInterval: 1.25, perSpawn: 12, types: ['wolf', 'stoneGhoul', 'stoneGhoul', 'jadeSerpent'] },
+  { t: 360, spawnInterval: 1.10, perSpawn: 13, types: ['wisp', 'wolf', 'talismanGhost', 'stoneGhoul'] },
+  { t: 390, spawnInterval: 1.00, perSpawn: 14, types: ['wolf', 'stoneGhoul', 'talismanGhost'] },
 ]
 
 /** The wave band active at a given run time, clamped at both ends. */
